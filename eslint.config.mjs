@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local Postgres/pgAdmin bundle (not application source)
+    ".postgres-real/**",
   ]),
 ]);
 

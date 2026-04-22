@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gravyblock
+      POSTGRES_PASSWORD: gravyblock
+      POSTGRES_DB: gravyblock
+    ports:
+      - "5432:5432"
+    volumes:
+      - gravyblock_pg:/var/lib/postgresql/data
+
+volumes:
+  gravyblock_pg:
