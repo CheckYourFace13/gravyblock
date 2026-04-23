@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
 import { CtaLeadForm } from "@/components/cta-lead-form";
+import { getBuildVersion } from "@/lib/build-metadata";
 
 export function SiteFooter() {
   return (
@@ -83,6 +84,9 @@ export function SiteFooter() {
           />
         </div>
       </div>
+      <p className="border-t border-zinc-100 bg-zinc-50 py-2 text-center text-[10px] leading-tight text-zinc-400">
+        Build: {getBuildVersion()}
+      </p>
     </footer>
   );
 }
