@@ -6,6 +6,7 @@ import { getAutopilotWorkspace } from "@/lib/autopilot/repository";
 import type { RoadmapLane } from "@/lib/growth/roadmap";
 import { getWorkspaceBundle } from "@/lib/report/repository";
 import { isPlanTier, planFeatures, type PlanTier } from "@/lib/plans";
+import { createBillingPortalAction, createCheckoutSessionAction } from "./billing-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,8 @@ export default async function WorkspacePage({ params }: Props) {
   const reviewTasks = autopilot.operatorTasks.filter(
     (task) => task.queue === "review_ops" || task.queue === "reputation_ops" || task.queue === "local_trust_ops",
   );
+  const billingStatus = bundle.business.subscriptionStatus ?? "none";
+  const hasBillingCustomer = Boolean(bundle.business.stripeCustomerId);
 
   return (
     <div className="mx-auto max-w-6xl space-y-12 px-4 py-14 sm:px-6">
@@ -75,6 +78,34 @@ export default async function WorkspacePage({ params }: Props) {
               {features.monthlyPrice > 0 ? `($${features.launchPrice.toFixed(2)}/mo launch)` : ""}
             </span>
             <span className="rounded-full bg-zinc-100 px-3 py-1">Refresh cadence: {features.refreshCadenceLabel}</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {tier !== "entry" ? (
+              <form action={createCheckoutSessionAction}>
+                <input type="hidden" name="businessId" value={businessId} />
+                <input type="hidden" name="plan" value="entry" />
+                <button className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400">
+                  Start Entry
+                </button>
+              </form>
+            ) : null}
+            {tier !== "pro" ? (
+              <form action={createCheckoutSessionAction}>
+                <input type="hidden" name="businessId" value={businessId} />
+                <input type="hidden" name="plan" value="pro" />
+                <button className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500">
+                  Start Pro
+                </button>
+              </form>
+            ) : null}
+            {hasBillingCustomer ? (
+              <form action={createBillingPortalAction}>
+                <input type="hidden" name="businessId" value={businessId} />
+                <button className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400">
+                  Manage billing
+                </button>
+              </form>
+            ) : null}
           </div>
         </div>
         <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -104,6 +135,62 @@ export default async function WorkspacePage({ params }: Props) {
           </p>
         </div>
       ) : null}
+
+      <section id="billing" className="rounded-2xl border-2 border-red-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-900">Billing and plan</h2>
+            <p className="mt-1 text-sm text-zinc-600">
+              Current plan <span className="font-semibold text-zinc-900">{features.label}</span> · subscription status{" "}
+              <span className="font-semibold text-zinc-900">{billingStatus}</span>
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Billing email {bundle.business.billingEmail ?? "not captured yet"}
+              {bundle.business.currentPeriodEnd
+                ? ` · period end ${new Date(bundle.business.currentPeriodEnd).toLocaleDateString()}`
+                : ""}
+            </p>
+            <p className="mt-1 text-xs font-medium text-zinc-600">
+              Turn on autopilot to keep this business monitored automatically.
+            </p>
+          </div>
+          {hasBillingCustomer ? (
+            <form action={createBillingPortalAction}>
+              <input type="hidden" name="businessId" value={businessId} />
+              <button className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400">
+                Manage billing
+              </button>
+            </form>
+          ) : null}
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          {tier !== "entry" ? (
+            <form action={createCheckoutSessionAction} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <input type="hidden" name="businessId" value={businessId} />
+              <input type="hidden" name="plan" value="entry" />
+              <p className="text-sm font-semibold text-zinc-900">Entry</p>
+              <p className="text-xs text-zinc-600">$29.99/month, launch price $19.99/month.</p>
+              <button className="mt-3 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
+                {tier === "free" ? "Upgrade to Entry" : "Switch to Entry"}
+              </button>
+            </form>
+          ) : null}
+          {tier !== "pro" ? (
+            <form action={createCheckoutSessionAction} className="rounded-xl border border-red-200 bg-red-50/50 p-4">
+              <input type="hidden" name="businessId" value={businessId} />
+              <input type="hidden" name="plan" value="pro" />
+              <p className="text-sm font-semibold text-zinc-900">Pro</p>
+              <p className="text-xs text-zinc-600">$59.99/month, launch price $39.99/month.</p>
+              <button className="mt-3 rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500">
+                Upgrade to Pro
+              </button>
+            </form>
+          ) : null}
+        </div>
+        <p className="mt-4 text-xs text-zinc-500">
+          Downgrades and cancellations are self-serve in Stripe Billing portal after your first successful subscription.
+        </p>
+      </section>
 
       <section className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm lg:col-span-2">

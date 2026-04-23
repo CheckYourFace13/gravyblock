@@ -32,6 +32,18 @@ export default function HomePage() {
                 Get your score free
               </Link>
               <Link
+                href="/scan"
+                className="inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-500"
+              >
+                Start Entry
+              </Link>
+              <Link
+                href="/scan"
+                className="inline-flex items-center justify-center rounded-full bg-red-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600"
+              >
+                Start Pro
+              </Link>
+              <Link
                 href="#plans"
                 className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 shadow-sm transition hover:border-zinc-400"
               >
@@ -281,6 +293,9 @@ export default function HomePage() {
             <p className="text-sm text-zinc-500">
               For billing or access, use Support in the footer — the product is built to run as automated software first.
             </p>
+            <p className="text-xs text-zinc-500">
+              Checkout runs from your business workspace after your free scan creates context for this location.
+            </p>
           </div>
           <div className="grid gap-6 lg:grid-cols-3">
             <article className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -307,7 +322,7 @@ export default function HomePage() {
                 href="/scan"
                 className="mt-6 inline-flex justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
               >
-                Get your score free
+                Run free scan
               </Link>
             </article>
             <article className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -336,7 +351,7 @@ export default function HomePage() {
                 href="/scan"
                 className="mt-6 inline-flex justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
               >
-                Start with free scan
+                Start Entry
               </Link>
             </article>
             <article className="flex flex-col rounded-2xl border border-red-200 bg-white p-6 shadow-md ring-1 ring-red-100">
@@ -366,10 +381,13 @@ export default function HomePage() {
                 href="/scan"
                 className="mt-6 inline-flex justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
               >
-                Start with free scan
+                Start Pro
               </Link>
             </article>
           </div>
+          <p className="text-center text-xs text-zinc-500">
+            Start Entry or Start Pro from the same scan flow, then turn on autopilot in your workspace for this business.
+          </p>
         </div>
       </section>
 
