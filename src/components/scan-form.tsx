@@ -163,7 +163,7 @@ export function ScanForm() {
         </label>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
         <label className="space-y-2">
           <span className="text-sm font-medium text-zinc-800">Business model</span>
           <select
@@ -186,25 +186,17 @@ export function ScanForm() {
             defaultValue="restaurant"
             className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none ring-red-500/30 focus:ring-4"
           >
-            <option value="restaurant">Restaurant / Hospitality</option>
-            <option value="bar">Bar / Nightlife</option>
-            <option value="brewery">Brewery / Taproom</option>
-            <option value="retail">Retail / Storefront</option>
-            <option value="healthcare">Healthcare / Clinic</option>
-            <option value="home_services">Home / Field Service</option>
-            <option value="professional_services">Professional Services</option>
-            <option value="online_brand">Online-first brand</option>
+            <option value="restaurant">Restaurant / food service</option>
+            <option value="bar">Bar / nightlife</option>
+            <option value="brewery">Brewery / taproom</option>
+            <option value="retail">Retail / storefront</option>
+            <option value="healthcare">Healthcare / clinic</option>
+            <option value="home_services">Home / field service</option>
+            <option value="professional_services">Professional services</option>
+            <option value="online_brand">Online-first brand (local trust)</option>
             <option value="hybrid">Hybrid online + local</option>
-            <option value="other">Other business type</option>
+            <option value="other">Other local business</option>
           </select>
-        </label>
-        <label className="space-y-2">
-          <span className="text-sm font-medium text-zinc-800">Search Console property (optional)</span>
-          <input
-            name="searchConsolePropertyUrl"
-            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none ring-red-500/30 focus:ring-4"
-            placeholder="sc-domain:example.com"
-          />
         </label>
       </div>
 
@@ -220,12 +212,13 @@ export function ScanForm() {
         {pending ? "Running real scan..." : "Generate report"}
       </button>
       <p className="text-xs text-zinc-500">
-        Data sources: Google Places (verified), website crawl (verified), Search Console when connected (verified), and
-        localized rank checks (estimated/monitored). Works for single-location, multi-location, service-area, and
-        online-first local trust strategies.
+        Data sources: Google Places (verified), homepage crawl (verified), public social link discovery from that page
+        (observational), and localized rank checks (estimated). Your website URL is taken from the Google listing when
+        available — no manual URL field on this flow.
       </p>
       <p className="text-xs text-zinc-500">
-        Google Business Profile is not used for public lookup; it is reserved for future owner-authorized enrichment.
+        Search Console and owner Google Business Profile APIs are available for future authenticated connections in
+        workspace/admin — not part of this public scan.
       </p>
     </form>
   );

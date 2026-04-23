@@ -33,7 +33,6 @@ export async function generateReportAction(
     businessModel: field(formData, "businessModel"),
     vertical: field(formData, "vertical"),
     candidateConfidence: field(formData, "candidateConfidence"),
-    searchConsolePropertyUrl: field(formData, "searchConsolePropertyUrl"),
   });
 
   if (!parsed.success) {
@@ -50,7 +49,6 @@ export async function generateReportAction(
       vertical: parsed.data.vertical,
       query: parsed.data.query,
       locationHint: parsed.data.locationHint,
-      searchConsolePropertyUrl: parsed.data.searchConsolePropertyUrl,
       candidateConfidence: parsed.data.candidateConfidence,
     });
   } catch (err) {

@@ -3,6 +3,7 @@ import { runSiteCrawlAudit } from "@/lib/audit/site-crawl";
 import { getGooglePlaceDetails } from "@/lib/integrations/google-places";
 import { pullSearchConsoleMetrics } from "@/lib/integrations/google-search-console";
 import { estimateLocalRankings } from "@/lib/ranking/local-rank-estimator";
+import { buildSocialPresence } from "@/lib/social/discover";
 import type { BusinessProfile, ReportFix, ReportIssue, ReportPayload, ReportSection, Vertical } from "@/lib/report/types";
 
 function clamp(n: number) {
@@ -16,10 +17,10 @@ function opportunityFromScore(score: number): ReportPayload["opportunityLevel"] 
 }
 
 function verdict(score: number) {
-  if (score >= 82) return "Strong foundation — refine your conversion edge to capture even more local intent.";
-  if (score >= 68) return "Good foundation — a few focused fixes can lift near-me conversion and repeat visibility.";
-  if (score >= 50) return "Mixed visibility — improve profile trust + website clarity to stop leaking high-intent traffic.";
-  return "High upside — core local discovery and conversion signals need immediate attention.";
+  if (score >= 82) return "Strong foundation — tighten conversion paths so high-intent local traffic does not leak.";
+  if (score >= 68) return "Solid base — a focused pass on visibility, trust, and site clarity usually unlocks the next tier.";
+  if (score >= 50) return "Mixed signals — discovery and on-site clarity need alignment before spend on ads or content scales.";
+  return "High upside — core local discovery, trust, and conversion cues need attention first.";
 }
 
 export function createPublicId() {
@@ -35,35 +36,58 @@ function issuesToFixes(issues: ReportIssue[]): ReportFix[] {
   }));
 }
 
+function dedupeFixesByTitle(fixes: ReportFix[]): ReportFix[] {
+  const seen = new Set<string>();
+  const out: ReportFix[] = [];
+  for (const f of fixes) {
+    const k = f.title.trim().toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(f);
+  }
+  return out;
+}
+
 function buildSections(input: {
   place: Awaited<ReturnType<typeof getGooglePlaceDetails>>;
-  crawl: Awaited<ReturnType<typeof runSiteCrawlAudit>>;
+  crawl: Awaited<ReturnType<typeof runSiteCrawlAudit>>["audit"];
   rankings: Awaited<ReturnType<typeof estimateLocalRankings>>;
   visibility: Awaited<ReturnType<typeof pullSearchConsoleMetrics>>;
+  social: ReturnType<typeof buildSocialPresence>;
 }): ReportSection[] {
-  const placeIssues: ReportIssue[] = [];
+  const placeIdentityIssues: ReportIssue[] = [];
   if (!input.place.rating) {
-    placeIssues.push({
+    placeIdentityIssues.push({
       id: "place-rating-missing",
-      title: "Google rating unavailable",
-      detail: "Missing ratings reduce trust in map comparisons.",
+      title: "Google rating not shown on listing",
+      detail: "Listings without visible ratings can look newer or less battle-tested next to alternatives.",
       severity: "medium",
     });
   } else if (input.place.rating < 4.2) {
-    placeIssues.push({
+    placeIdentityIssues.push({
       id: "place-rating-low",
       title: "Google rating is below 4.2",
-      detail: "Lower ratings can suppress click-through when nearby alternatives are stronger.",
+      detail: "In side-by-side comparisons, higher-rated neighbors often win the click.",
       severity: "high",
     });
   }
 
   if ((input.place.reviewCount ?? 0) < 40) {
-    placeIssues.push({
+    placeIdentityIssues.push({
       id: "place-review-volume",
-      title: "Review volume is lighter than local competitors",
-      detail: "Steady review velocity is a strong local ranking and trust signal.",
+      title: "Review volume is lighter than strong local peers",
+      detail: "Steady, recent reviews reinforce trust for both people and ranking systems.",
       severity: "medium",
+    });
+  }
+
+  const googleSurfaceIssues: ReportIssue[] = [];
+  if (!input.place.types?.length || input.place.types.length < 2) {
+    googleSurfaceIssues.push({
+      id: "gp-types-thin",
+      title: "Google categories look minimal",
+      detail: "Richer primary/secondary categories help Google map you to the right intents.",
+      severity: "low",
     });
   }
 
@@ -71,23 +95,41 @@ function buildSections(input: {
     ? input.rankings.reduce((sum, r) => sum + (r.estimatedPosition ?? 15), 0) / input.rankings.length
     : 15;
 
-  const visibilityIssues: ReportIssue[] = [];
+  const gscOnlyIssues: ReportIssue[] = [];
   if (input.visibility.verified) {
     const avgPos = input.visibility.aggregate?.averagePosition ?? 0;
     if (avgPos > 8) {
-      visibilityIssues.push({
+      gscOnlyIssues.push({
         id: "gsc-position",
         title: "Average organic position is beyond page one",
         detail: "Prioritize pages and queries where demand exists but rank depth is too low.",
         severity: "high",
       });
     }
-  } else if (avgEstimatedRank > 6) {
-    visibilityIssues.push({
-      id: "estimated-rank-low",
-      title: "Estimated local ranking is weak for tracked queries",
-      detail: "Your venue appears inconsistently in top map and local intent results.",
+  }
+
+  let canonicalEstimatedVisibilityIssue: ReportIssue | null = null;
+  if (!input.visibility.verified && avgEstimatedRank > 6) {
+    canonicalEstimatedVisibilityIssue = {
+      id: "canonical-estimated-local-visibility",
+      title: "Estimated map & local-query visibility is soft",
+      detail:
+        "Across sampled local-intent queries your listing is not consistently near the top of map-style results. This is modeled directional data — improve relevance, reviews, website/NAP clarity, and categories rather than chasing a single vanity number.",
       severity: "high",
+    };
+  }
+
+  const searchVisibilityIssues: ReportIssue[] = [...gscOnlyIssues];
+  if (canonicalEstimatedVisibilityIssue) searchVisibilityIssues.push(canonicalEstimatedVisibilityIssue);
+
+  const localRankingIssues: ReportIssue[] = [];
+  if (canonicalEstimatedVisibilityIssue) {
+    localRankingIssues.push({
+      id: "lr-cross-ref-estimated-visibility",
+      title: "Per-query checks (same estimation model)",
+      detail:
+        "These rows expand the same estimated visibility story as Search Visibility — one issue, multiple queries. Use them for prioritization, not as duplicate problems.",
+      severity: "low",
     });
   }
 
@@ -98,56 +140,83 @@ function buildSections(input: {
     severity: f.severity,
   }));
 
-  const sections: ReportSection[] = [
+  const socialIssues: ReportIssue[] = [];
+  const distinctPlatforms = new Set(input.social.profiles.map((p) => p.platform)).size;
+  if (input.social.profiles.length === 0) {
+    socialIssues.push({
+      id: "social-none-found",
+      title: "No major social URLs detected on the fetched homepage",
+      detail:
+        "We only scan public homepage HTML. Profiles may exist but are linked from interior pages or different domains.",
+      severity: "medium",
+    });
+  } else if (distinctPlatforms < 2) {
+    socialIssues.push({
+      id: "social-single-channel",
+      title: "Social footprint looks narrow",
+      detail:
+        "Multiple consistent channels usually reinforce trust for comparison shoppers. Expand where your customers already spend time.",
+      severity: "medium",
+    });
+  }
+
+  return [
     {
       key: "businessSnapshot",
-      title: "Business Snapshot",
+      title: "Business snapshot",
       score: clamp(70 + (input.place.rating ? 8 : -6) + Math.min(10, Math.floor((input.place.reviewCount ?? 0) / 40))),
-      summary: "Identity confidence, profile completeness, and trust markers from Google Place data.",
-      issues: placeIssues,
-      fixes: issuesToFixes(placeIssues),
+      summary: "Identity, ratings, and review signals from the live Google listing.",
+      issues: placeIdentityIssues,
+      fixes: issuesToFixes(placeIdentityIssues),
     },
     {
       key: "googlePresence",
-      title: "Google Presence",
-      score: clamp(68 + (input.place.rating ? 8 : 0) + ((input.place.reviewCount ?? 0) > 100 ? 8 : 0) - placeIssues.length * 6),
-      summary: "How strong and credible the Google profile appears in local comparison moments.",
-      issues: placeIssues,
-      fixes: issuesToFixes(placeIssues),
+      title: "Google presence",
+      score: clamp(68 + (input.place.rating ? 8 : 0) + ((input.place.reviewCount ?? 0) > 100 ? 8 : 0) - googleSurfaceIssues.length * 4),
+      summary: "How complete and credible the public Google listing appears.",
+      issues: googleSurfaceIssues,
+      fixes: issuesToFixes(googleSurfaceIssues),
     },
     {
       key: "websiteConversionHealth",
-      title: "Website Conversion Health",
+      title: "Website conversion health",
       score: input.crawl.score,
-      summary: "On-site readiness for turning searchers into calls, reservations, and visits.",
+      summary: "Homepage signals for turning search traffic into calls, visits, or booked work.",
       issues: crawlIssues,
       fixes: issuesToFixes(crawlIssues),
     },
     {
       key: "searchVisibility",
-      title: "Search Visibility",
+      title: "Search visibility",
       score: clamp(
         input.visibility.verified
           ? 72 + (input.visibility.aggregate ? Math.max(-30, 12 - input.visibility.aggregate.averagePosition * 2) : -6)
           : 62 + Math.max(-25, 16 - avgEstimatedRank * 2),
       ),
       summary: input.visibility.verified
-        ? "Verified Google Search Console performance metrics."
-        : "Estimated visibility model based on tracked local intent queries.",
-      issues: visibilityIssues,
-      fixes: issuesToFixes(visibilityIssues),
+        ? "Verified Search Console performance where connected."
+        : "Estimated visibility from sampled local-intent queries (no owner Search Console token in this scan).",
+      issues: searchVisibilityIssues,
+      fixes: issuesToFixes(searchVisibilityIssues),
     },
     {
       key: "localRankingSignals",
-      title: "Local Ranking Signals",
+      title: "Local ranking signals",
       score: clamp(64 + Math.max(-30, 14 - avgEstimatedRank * 2)),
-      summary: "Estimated map/local pack presence across tracked local-intent queries.",
-      issues: visibilityIssues,
-      fixes: issuesToFixes(visibilityIssues),
+      summary: "Per-query map-style estimates — read together with Search visibility above.",
+      issues: localRankingIssues,
+      fixes: issuesToFixes(localRankingIssues),
+    },
+    {
+      key: "socialPresence",
+      title: "Social presence",
+      score: clamp(input.social.score),
+      summary:
+        "Publicly observable social URLs from your homepage HTML and structured data — not private engagement metrics.",
+      issues: socialIssues,
+      fixes: issuesToFixes(socialIssues),
     },
   ];
-
-  return sections;
 }
 
 export async function generateReportFromPlace(input: {
@@ -155,16 +224,47 @@ export async function generateReportFromPlace(input: {
   vertical: Vertical;
   query: string;
   locationHint: string;
+  /** Reserved for authenticated / admin flows; public scan does not pass this. */
   searchConsolePropertyUrl?: string;
   candidateConfidence?: number;
 }) {
   const place = await getGooglePlaceDetails(input.placeId);
+
+  const [crawlBundle, searchVisibility, rankings] = await Promise.all([
+    runSiteCrawlAudit(place.website),
+    pullSearchConsoleMetrics({ propertyUrl: input.searchConsolePropertyUrl, days: 28 }),
+    estimateLocalRankings({
+      placeId: place.placeId,
+      businessName: place.displayName,
+      vertical: input.vertical,
+      cityHint: input.locationHint,
+    }),
+  ]);
+
+  const crawl = crawlBundle.audit;
+  let resolvedWebsite = place.website;
+  if (!resolvedWebsite?.trim() && crawlBundle.homepage?.finalUrl) {
+    try {
+      const u = new URL(crawlBundle.homepage.finalUrl);
+      resolvedWebsite = `${u.protocol}//${u.host}`;
+    } catch {
+      resolvedWebsite = place.website;
+    }
+  }
+
+  const socialPresence = buildSocialPresence({
+    primaryWebsite: resolvedWebsite,
+    html: crawlBundle.homepage?.html,
+    finalUrl: crawlBundle.homepage?.finalUrl,
+    fetchNotes: crawlBundle.homepage ? undefined : crawl.findings.find((f) => f.key === "crawl-error" || f.key === "crawl-no-website")?.detail,
+  });
+
   const profile: BusinessProfile = {
     name: place.displayName,
     vertical: input.vertical,
     placeId: place.placeId,
     address: place.formattedAddress,
-    website: place.website,
+    website: resolvedWebsite,
     phone: place.phone,
     rating: place.rating?.toString(),
     reviewCount: place.reviewCount?.toString(),
@@ -177,32 +277,24 @@ export async function generateReportFromPlace(input: {
     openNow: place.openNow,
   };
 
-  const [crawl, searchVisibility, rankings] = await Promise.all([
-    runSiteCrawlAudit(place.website),
-    pullSearchConsoleMetrics({ propertyUrl: input.searchConsolePropertyUrl, days: 28 }),
-    estimateLocalRankings({
-      placeId: place.placeId,
-      businessName: place.displayName,
-      vertical: input.vertical,
-      cityHint: input.locationHint,
-    }),
-  ]);
-
   const sections = buildSections({
     place,
     crawl,
     rankings,
     visibility: searchVisibility,
+    social: socialPresence,
   });
-  const weightedScore =
-    sections.reduce((sum, s) => sum + s.score, 0) / (sections.length || 1);
+  const weightedScore = sections.reduce((sum, s) => sum + s.score, 0) / (sections.length || 1);
   const score = clamp(weightedScore);
 
-  const fixes = sections
+  const rawFixes = sections
     .flatMap((s) => s.fixes)
-    .sort((a, b) => (a.impact === "high" ? 3 : a.impact === "medium" ? 2 : 1) - (b.impact === "high" ? 3 : b.impact === "medium" ? 2 : 1))
-    .reverse()
-    .slice(0, 8);
+    .sort(
+      (a, b) =>
+        (a.impact === "high" ? 3 : a.impact === "medium" ? 2 : 1) - (b.impact === "high" ? 3 : b.impact === "medium" ? 2 : 1),
+    )
+    .reverse();
+  const fixes = dedupeFixesByTitle(rawFixes).slice(0, 8);
 
   const payload: ReportPayload = {
     brand: "GravyBlock",
@@ -216,7 +308,7 @@ export async function generateReportFromPlace(input: {
       placeId: place.placeId,
       name: place.displayName,
       address: place.formattedAddress,
-      website: place.website,
+      website: resolvedWebsite,
       phone: place.phone,
       rating: place.rating?.toString(),
       reviewCount: place.reviewCount,
@@ -233,13 +325,13 @@ export async function generateReportFromPlace(input: {
         source: "google_places",
         mode: "verified",
         used: true,
-        note: "Business identity and profile snapshot from Google Places Text Search + Place Details.",
+        note: "Business identity and listing snapshot from Google Places (details).",
       },
       {
         source: "google_business_profile",
         mode: "verified",
         used: false,
-        note: "Available only for owner-authorized enrichment flows.",
+        note: "Owner-authorized Business Profile APIs are reserved for future authenticated enrichment.",
       },
       {
         source: "google_search_console",
@@ -250,14 +342,20 @@ export async function generateReportFromPlace(input: {
       {
         source: "site_crawl",
         mode: "verified",
-        used: true,
-        note: "Direct homepage fetch + parse for conversion and technical signals.",
+        used: Boolean(crawlBundle.homepage),
+        note: "Single homepage fetch for conversion/technical checks (and social link discovery).",
       },
       {
         source: "estimated_local_rank",
         mode: "estimated",
         used: rankings.length > 0,
-        note: "Tracked query set modeled via repeated localized Places searches.",
+        note: "Local-intent query set modeled via localized Places sampling — directional, not an official rank.",
+      },
+      {
+        source: "social_public_discovery",
+        mode: "estimated",
+        used: socialPresence.profiles.length > 0,
+        note: socialPresence.methodology,
       },
     ],
     googlePresence: {
@@ -280,9 +378,9 @@ export async function generateReportFromPlace(input: {
     searchVisibility,
     localRankingSignals: {
       checks: rankings,
-      note:
-        "Estimated local ranking uses tracked local-intent queries and should be treated as monitored directional data, not an official Google rank number.",
+      note: "Estimated positions from repeated localized sampling. Treat as monitoring direction, not a guaranteed Google rank.",
     },
+    socialPresence,
     sections,
     prioritizedFixes: fixes,
     opportunityLevel: opportunityFromScore(score),

@@ -13,11 +13,6 @@ export const verticalSchema = z.enum([
   "other",
 ]);
 
-const optionalString = z.preprocess(
-  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-  z.string().trim().optional(),
-);
-
 export const placeSearchSchema = z.object({
   query: z.string().trim().min(2, "Business name is required"),
   locationHint: z.string().trim().min(2, "City or address is required"),
@@ -34,7 +29,6 @@ export const scanFormSchema = z.object({
     .default("single_location"),
   vertical: verticalSchema.default("restaurant"),
   candidateConfidence: z.coerce.number().int().min(0).max(100).optional(),
-  searchConsolePropertyUrl: optionalString,
 });
 
 export type ScanFormInput = z.infer<typeof scanFormSchema>;

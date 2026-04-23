@@ -12,22 +12,22 @@ export const ROADMAP_LANES: RoadmapLaneMeta[] = [
   {
     lane: "fix_now",
     title: "Fix now",
-    subtitle: "Revenue leaks and trust breakers guests notice immediately.",
+    subtitle: "Trust and revenue leaks that show up the moment someone compares you to alternatives.",
   },
   {
     lane: "improve_next",
     title: "Improve next",
-    subtitle: "High-leverage upgrades after the critical path is stable.",
+    subtitle: "High-leverage upgrades once the critical path is stable — still mostly one team, one sprint.",
   },
   {
     lane: "growth_opportunities",
     title: "Growth opportunities",
-    subtitle: "Content and local demand plays that compound weekly.",
+    subtitle: "Content, authority, and demand plays that compound when you run them on a cadence.",
   },
   {
     lane: "ongoing_monitoring",
     title: "Ongoing monitoring",
-    subtitle: "What autopilot watches so drift does not undo progress.",
+    subtitle: "What to watch so rankings, listings, and site quality do not quietly drift backward.",
   },
 ];
 
@@ -66,9 +66,15 @@ function fixToRow(fix: ReportFix, sectionKey: string, lane: RoadmapLane): Roadma
 /** Consultant-style roadmap rows derived from a scan payload (also persisted as `recommendations`). */
 export function buildRoadmapRows(payload: ReportPayload): RoadmapRow[] {
   const rows: RoadmapRow[] = [];
+  const seenIssueIds = new Set<string>();
+  const seenFixIds = new Set<string>();
 
   for (const section of payload.sections) {
+    const issueTitles = new Set(section.issues.map((i) => i.title.trim().toLowerCase()));
+
     for (const issue of section.issues) {
+      if (seenIssueIds.has(issue.id)) continue;
+      seenIssueIds.add(issue.id);
       const lane: RoadmapLane =
         issue.severity === "high"
           ? "fix_now"
@@ -78,6 +84,9 @@ export function buildRoadmapRows(payload: ReportPayload): RoadmapRow[] {
       rows.push(issueToRow(issue, section.key, lane));
     }
     for (const fix of section.fixes) {
+      if (seenFixIds.has(fix.id)) continue;
+      if (issueTitles.has(fix.title.trim().toLowerCase())) continue;
+      seenFixIds.add(fix.id);
       const lane: RoadmapLane =
         fix.impact === "high" && section.score < 70
           ? "fix_now"
@@ -91,6 +100,8 @@ export function buildRoadmapRows(payload: ReportPayload): RoadmapRow[] {
   }
 
   for (const fix of payload.prioritizedFixes.slice(0, 3)) {
+    if (seenFixIds.has(fix.id)) continue;
+    seenFixIds.add(fix.id);
     rows.push({
       lane: "fix_now",
       category: "priority",
@@ -104,14 +115,15 @@ export function buildRoadmapRows(payload: ReportPayload): RoadmapRow[] {
     lane: "ongoing_monitoring",
     category: "maps",
     title: "Google Business Profile freshness",
-    detail: "Weekly photo or special updates signal an active venue to maps and to comparison shoppers.",
+    detail:
+      "Photos, hours, services, and short posts signal an active business to maps and to people comparing two similar options.",
     impact: "high",
   });
   rows.push({
     lane: "ongoing_monitoring",
     category: "reviews",
     title: "Review velocity vs. nearby competitors",
-    detail: "Steady new reviews outperform old spikes when people decide between two similar ratings.",
+    detail: "Steady recent reviews outperform old spikes when buyers are deciding between two similar ratings.",
     impact: "medium",
   });
   rows.push({
@@ -119,14 +131,14 @@ export function buildRoadmapRows(payload: ReportPayload): RoadmapRow[] {
     category: "ai_visibility",
     title: "AI answer readiness (ChatGPT / Perplexity / Gemini)",
     detail:
-      "Track whether trusted local assistants describe you accurately — NAP, hours, and signature offers included.",
+      "Track whether assistants describe you accurately — NAP, hours, service area, and signature offers should match your site and listing.",
     impact: "medium",
   });
 
   const deduped: RoadmapRow[] = [];
   const seen = new Set<string>();
   for (const row of rows.sort((a, b) => impactRank(b.impact) - impactRank(a.impact))) {
-    const key = `${row.lane}:${row.title}`;
+    const key = `${row.lane}:${row.title.trim().toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);
     deduped.push(row);

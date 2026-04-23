@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { adminLogoutAction } from "@/app/actions/admin-login";
+import { AdminShellNav } from "@/components/admin-shell-nav";
 import { isAdminSession } from "@/lib/auth/admin-session";
 
 export const dynamic = "force-dynamic";
@@ -10,46 +11,57 @@ export default async function AdminDashboardLayout({ children }: { children: Rea
   if (!ok) redirect("/admin/login");
 
   return (
-    <div className="min-h-dvh bg-zinc-50 text-zinc-900">
-      <div className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-6 text-sm font-semibold">
-            <Link href="/admin" className="text-zinc-900">
-              Overview
+    <div className="min-h-dvh bg-zinc-100 text-zinc-900">
+      <div className="flex min-h-dvh">
+        <aside className="hidden w-56 shrink-0 flex-col border-r border-zinc-200 bg-white lg:flex">
+          <div className="border-b border-zinc-200 px-4 py-5">
+            <Link href="/admin" className="text-sm font-semibold uppercase tracking-wide text-red-800">
+              Operator
             </Link>
-            <Link href="/admin/reports" className="text-zinc-600 hover:text-zinc-900">
-              Reports
-            </Link>
-            <Link href="/admin/leads" className="text-zinc-600 hover:text-zinc-900">
-              Leads
-            </Link>
-            <Link href="/admin/businesses" className="text-zinc-600 hover:text-zinc-900">
-              Businesses
-            </Link>
-            <Link href="/admin/brands" className="text-zinc-600 hover:text-zinc-900">
-              Brands
-            </Link>
-            <Link href="/admin/locations" className="text-zinc-600 hover:text-zinc-900">
-              Locations
-            </Link>
-            <Link href="/admin/autopilot" className="text-zinc-600 hover:text-zinc-900">
-              Autopilot
-            </Link>
-            <Link href="/" className="hidden text-zinc-500 hover:text-zinc-900 sm:inline">
-              Marketing site
+            <p className="mt-1 text-xs text-zinc-500">GravyBlock backend</p>
+          </div>
+          <div className="flex-1 overflow-y-auto px-2 py-4">
+            <AdminShellNav variant="sidebar" />
+            <p className="mt-6 border-t border-zinc-100 px-3 pt-4 text-xs text-zinc-500">
+              Social URLs and signals are on each business detail page.
+            </p>
+          </div>
+          <div className="border-t border-zinc-200 p-3">
+            <Link href="/" className="block rounded-lg px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900">
+              ← Marketing site
             </Link>
           </div>
-          <form action={adminLogoutAction}>
-            <button
-              type="submit"
-              className="text-sm font-medium text-zinc-600 underline-offset-4 hover:text-zinc-900 hover:underline"
-            >
-              Log out
-            </button>
-          </form>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="border-b border-zinc-200 bg-white">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
+              <details className="group relative lg:hidden">
+                <summary className="cursor-pointer list-none rounded-lg border border-zinc-200 px-3 py-2 text-sm font-semibold text-zinc-800 marker:hidden [&::-webkit-details-marker]:hidden">
+                  <span className="inline-flex items-center gap-2">
+                    Menu
+                    <span className="text-zinc-400 group-open:rotate-180">▾</span>
+                  </span>
+                </summary>
+                <div className="absolute left-0 z-20 mt-1 w-56 rounded-xl border border-zinc-200 bg-white p-2 shadow-lg">
+                  <AdminShellNav variant="mobile" />
+                </div>
+              </details>
+              <p className="hidden text-sm font-semibold text-zinc-800 lg:block">Control center</p>
+              <form action={adminLogoutAction} className="ml-auto">
+                <button
+                  type="submit"
+                  className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                >
+                  Log out
+                </button>
+              </form>
+            </div>
+          </header>
+
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>
         </div>
       </div>
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">{children}</div>
     </div>
   );
 }

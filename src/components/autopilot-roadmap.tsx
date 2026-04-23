@@ -19,8 +19,8 @@ export function AutopilotRoadmap({ rows }: { rows: RoadmapRow[] }) {
       <div>
         <h2 className="text-xl font-semibold text-zinc-900">Autopilot roadmap</h2>
         <p className="text-sm text-zinc-600">
-          Same structure our operators use: ship the urgent fixes, queue the leverage plays, then let monitoring catch
-          drift before it costs you revenue.
+          Prioritized like an operator runbook: close urgent gaps, queue leverage work, then keep monitoring so listings
+          and site quality do not regress in silence.
         </p>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
@@ -40,7 +40,12 @@ export function AutopilotRoadmap({ rows }: { rows: RoadmapRow[] }) {
                     </p>
                   </li>
                 ))}
-                {!items.length ? <li className="text-sm text-zinc-500">Nothing queued in this lane yet.</li> : null}
+                {!items.length ? (
+                  <li className="text-sm text-zinc-500">
+                    No items in this lane for this scan — usually a sign scores are strong here, or the next actions live
+                    in another lane above.
+                  </li>
+                ) : null}
               </ul>
             </article>
           );

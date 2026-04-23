@@ -35,6 +35,12 @@ function samplePayload(input: { name: string; website: string; city: string; pla
       { source: "google_search_console", mode: "verified", used: false, note: "No property token linked in this seed." },
       { source: "estimated_local_rank", mode: "estimated", used: true, note: "Directional local-intent estimate." },
       { source: "google_business_profile", mode: "estimated", used: false, note: "Owner-auth flow not connected." },
+      {
+        source: "social_public_discovery",
+        mode: "estimated",
+        used: false,
+        note: "Seed payload — no homepage HTML attached in proof mode.",
+      },
     ],
     googlePresence: {
       confidence: 90,
@@ -119,6 +125,13 @@ function samplePayload(input: { name: string; website: string; city: string; pla
       { id: "p1", title: "Launch local trust page", detail: "Create a geo-relevant trust and proof page.", impact: "high" },
       { id: "p2", title: "Publish intent content", detail: "Ship a weekly local-intent content cadence.", impact: "medium" },
     ],
+    socialPresence: {
+      methodology: "Proof seed — social discovery skipped.",
+      profiles: [],
+      score: 42,
+      signalsNote: "No HTML crawl attached in this synthetic payload.",
+      websiteSocialLinkCount: 0,
+    },
     opportunityLevel: "medium",
   };
 }

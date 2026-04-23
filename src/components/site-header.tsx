@@ -3,10 +3,10 @@ import { BrandMark } from "@/components/brand-mark";
 
 const links = [
   { href: "/#how-it-works", label: "How it works" },
+  { href: "/scan", label: "Free scan" },
+  { href: "/#plans", label: "Plans" },
+  { href: "/#examples", label: "Industry examples" },
   { href: "/#ai-search", label: "AI search" },
-  { href: "/for-bars", label: "Bars" },
-  { href: "/for-restaurants", label: "Restaurants" },
-  { href: "/for-breweries", label: "Breweries" },
 ];
 
 export function SiteHeader() {

@@ -179,6 +179,19 @@ const placeProfiles: Array<{
   raw: unknown;
   createdAt: string;
 }> = [];
+const socialProfilesMem: Array<{
+  id: string;
+  businessId: string;
+  scanId: string;
+  platform: string;
+  url: string;
+  handle: string | null;
+  discoverySource: string;
+  confidence: number;
+  activityHint: string;
+  notes: string | null;
+  createdAt: string;
+}> = [];
 
 function now() {
   return new Date().toISOString();
@@ -319,6 +332,22 @@ export const memoryStore = {
       raw: input.payload.googlePresence,
       createdAt,
     });
+
+    for (const p of input.payload.socialPresence?.profiles ?? []) {
+      socialProfilesMem.push({
+        id: randomUUID(),
+        businessId: business.id,
+        scanId,
+        platform: p.platform,
+        url: p.url,
+        handle: p.handle ?? null,
+        discoverySource: p.discoverySource,
+        confidence: Math.round(p.confidence),
+        activityHint: p.activityHint,
+        notes: p.notes ?? null,
+        createdAt,
+      });
+    }
 
     snapshots.push({
       id: randomUUID(),
@@ -531,6 +560,7 @@ export const memoryStore = {
       rankingChecks: rankingChecks.filter((r) => r.businessId === businessId),
       auditFindings: auditFindings.filter((a) => a.businessId === businessId),
       placeProfiles: placeProfiles.filter((p) => p.businessId === businessId),
+      socialProfiles: socialProfilesMem.filter((s) => s.businessId === businessId),
       searchConsoleConnections: searchConsoleConnections.filter((s) => s.businessId === businessId),
     };
   },

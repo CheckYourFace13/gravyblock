@@ -7,12 +7,12 @@ export type ContentOpportunitySeed = {
   body: string;
 };
 
-/** Hospitality-flavored recurring content angles (Layer 1 → Layer 2 handoff). */
+/** Recurring content angles seeded from the scan (Layer 1 → Layer 2 handoff). */
 export function buildContentOpportunitySeeds(
   profile: BusinessProfile,
   payload: ReportPayload,
 ): ContentOpportunitySeed[] {
-  const place = profile.address?.split(",").slice(-2).join(",").trim() || "your neighborhood";
+  const place = profile.address?.split(",").slice(-2).join(",").trim() || "your market";
   const name = profile.name;
   const vertical =
     profile.vertical === "brewery"
@@ -21,7 +21,11 @@ export function buildContentOpportunitySeeds(
         ? "bar"
         : profile.vertical === "restaurant"
           ? "restaurant"
-          : "venue";
+          : profile.vertical === "home_services"
+            ? "crew"
+            : profile.vertical === "professional_services"
+              ? "practice"
+              : "business";
 
   const lowSection = payload.sections.length
     ? payload.sections.reduce((min, s) => (s.score < min.score ? s : min), payload.sections[0])
@@ -34,14 +38,14 @@ export function buildContentOpportunitySeeds(
       body: `Rewrite one hero block that names ${place} explicitly, what you serve first-timers, and the fastest way to visit ${name} tonight.`,
     },
     {
-      angle: "menu_or_tap",
-      title: `Publish a weekly “what’s pouring / plating” update`,
-      body: `Short posts or GBP updates beat static ${vertical} sites — they train Google (and AI summaries) that you are active this week.`,
+      angle: "freshness",
+      title: `Publish a weekly “what’s new” surface`,
+      body: `Short updates (site, email, or social) beat a static ${vertical} presence — they signal you are active this week to both people and discovery systems.`,
     },
     {
       angle: "events",
-      title: "Bundle events + reservations in one clear path",
-      body: `If you run trivia, live music, or pairings, give each event a landing snippet with date, cover, and CTA — reduces bounce from AI-generated lists.`,
+      title: "If you run events, give each one a clear landing path",
+      body: `Promotions, pop-ups, or seasonal pushes deserve a dated snippet with time, location/service area, and one obvious CTA — reduces bounce from comparison lists.`,
     },
     {
       angle: "trust",

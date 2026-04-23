@@ -57,6 +57,27 @@ export type ReportSummary = {
   verdict: string;
 };
 
+export type SocialPlatformId = "facebook" | "instagram" | "twitter" | "tiktok" | "youtube" | "linkedin";
+
+export type DiscoveredSocialProfile = {
+  platform: SocialPlatformId;
+  url: string;
+  handle?: string;
+  discoverySource: "json_ld_same_as" | "website_html" | "website_footer_nav";
+  confidence: number;
+  activityHint: "possibly_active" | "inactive" | "unknown" | "basic_only";
+  notes?: string;
+};
+
+export type SocialPresenceSummary = {
+  methodology: string;
+  profiles: DiscoveredSocialProfile[];
+  score: number;
+  signalsNote: string;
+  websiteSocialLinkCount: number;
+  crawlNotes?: string;
+};
+
 export type ReportPayload = {
   brand: "GravyBlock";
   generatedAt: string;
@@ -82,6 +103,8 @@ export type ReportPayload = {
   websiteConversionHealth: WebsiteAuditSummary;
   searchVisibility: SearchVisibilitySummary;
   localRankingSignals: LocalRankingSummary;
+  /** Public-page social discovery; omitted on legacy stored reports. */
+  socialPresence?: SocialPresenceSummary;
   sections: ReportSection[];
   prioritizedFixes: ReportFix[];
   opportunityLevel: "high" | "medium" | "low";
@@ -92,7 +115,8 @@ export type DataSourceId =
   | "google_business_profile"
   | "google_search_console"
   | "site_crawl"
-  | "estimated_local_rank";
+  | "estimated_local_rank"
+  | "social_public_discovery";
 
 export type DataSourceAttribution = {
   source: DataSourceId;

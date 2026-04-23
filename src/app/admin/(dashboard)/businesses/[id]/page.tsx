@@ -36,10 +36,11 @@ export default async function AdminBusinessDetailPage({ params }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Stat label="Snapshots" value={String(bundle.snapshots.length)} />
         <Stat label="Open recs" value={String(bundle.recommendations.filter((r) => r.status === "open").length)} />
         <Stat label="Content ideas" value={String(bundle.content.length)} />
+        <Stat label="Social URLs stored" value={String(bundle.socialProfiles?.length ?? 0)} />
       </div>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -112,6 +113,33 @@ export default async function AdminBusinessDetailPage({ params }: Props) {
             </li>
           ))}
           {!bundle.rankingChecks?.length ? <li className="text-zinc-500">No ranking checks yet.</li> : null}
+        </ul>
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-900">Discovered social profiles</h2>
+        <p className="mt-1 text-sm text-zinc-600">
+          From public scans (homepage / JSON-LD). Not platform analytics — confidence and activity hints are internal
+          heuristics.
+        </p>
+        <ul className="mt-4 space-y-2 text-sm text-zinc-700">
+          {bundle.socialProfiles?.map((row) => (
+            <li key={row.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+              <span className="font-semibold text-zinc-900">{row.platform}</span>
+              <span className="text-zinc-600"> · </span>
+              <a className="font-medium text-red-800 underline" href={row.url} target="_blank" rel="noreferrer">
+                {row.url}
+              </a>
+              <span className="block text-xs text-zinc-500">
+                source {row.discoverySource} · confidence {row.confidence} · {row.activityHint}
+                {row.handle ? ` · ${row.handle}` : null}
+              </span>
+              {row.notes ? <span className="mt-1 block text-xs text-zinc-500">{row.notes}</span> : null}
+            </li>
+          ))}
+          {!bundle.socialProfiles?.length ? (
+            <li className="text-zinc-500">No social profiles stored for this business yet.</li>
+          ) : null}
         </ul>
       </section>
 

@@ -125,6 +125,23 @@ export const placeProfiles = pgTable("place_profiles", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/** Social URLs discovered from public homepage / structured data at scan time (not platform analytics). */
+export const socialProfiles = pgTable("social_profiles", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  scanId: uuid("scan_id").references(() => scans.id, { onDelete: "cascade" }),
+  platform: text("platform").notNull(),
+  url: text("url").notNull(),
+  handle: text("handle"),
+  discoverySource: text("discovery_source").notNull(),
+  confidence: integer("confidence").notNull().default(70),
+  activityHint: text("activity_hint").notNull().default("unknown"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 /** Optional owner-authorized Search Console linkage. */
 export const searchConsolePropertyConnections = pgTable("search_console_property_connections", {
   id: uuid("id").defaultRandom().primaryKey(),

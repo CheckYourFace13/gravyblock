@@ -24,6 +24,7 @@ import {
   reports,
   scans,
   searchConsolePropertyConnections,
+  socialProfiles,
   visibilitySnapshots,
   websiteDomains,
 } from "@/lib/db";
@@ -576,11 +577,31 @@ export async function recordScanRun(input: {
       });
     }
 
-    await tx.insert(websiteDomains).values({
-      domain: normalizeWebsiteForLookup(input.profile.website) ?? input.profile.website ?? "unknown.local",
-      role: "primary",
-      cmsTarget: "manual",
-    });
+    const socialRows = input.payload.socialPresence?.profiles ?? [];
+    if (socialRows.length) {
+      await tx.insert(socialProfiles).values(
+        socialRows.map((p) => ({
+          businessId,
+          scanId: scan.id,
+          platform: p.platform,
+          url: p.url,
+          handle: p.handle ?? null,
+          discoverySource: p.discoverySource,
+          confidence: Math.round(p.confidence),
+          activityHint: p.activityHint,
+          notes: p.notes ?? null,
+        })),
+      );
+    }
+
+    const primaryDomain = normalizeWebsiteForLookup(input.profile.website) ?? input.profile.website;
+    if (primaryDomain) {
+      await tx.insert(websiteDomains).values({
+        domain: primaryDomain,
+        role: "primary",
+        cmsTarget: "manual",
+      });
+    }
 
     if (input.leadCapture?.email) {
       await upsertLeadDb(tx, {
@@ -773,7 +794,7 @@ export async function getWorkspaceBundle(businessId: string) {
     | undefined;
   if (!business) return null;
 
-  const [snapRows, recRows, contentRows, reportRows, rankRows, auditRows, scRows, placeRows] = sql
+  const [snapRows, recRows, contentRows, reportRows, rankRows, auditRows, scRows, placeRows, socialRows] = sql
     ? await Promise.all([
         sql.unsafe(
           `select id,overall_score as "overallScore",opportunity_level as "opportunityLevel",created_at as "createdAt" from visibility_snapshots where business_id='${safeBusinessId}' order by created_at desc limit 20`,
@@ -798,6 +819,9 @@ export async function getWorkspaceBundle(businessId: string) {
         ),
         sql.unsafe(
           `select id,place_id as "placeId",display_name as "displayName",formatted_address as "formattedAddress",maps_uri as "mapsUri",rating,review_count as "reviewCount",primary_type as "primaryType",business_status as "businessStatus",created_at as "createdAt" from place_profiles where business_id='${safeBusinessId}' order by created_at desc limit 10`,
+        ),
+        sql.unsafe(
+          `select id,platform,url,handle,discovery_source as "discoverySource",confidence,activity_hint as "activityHint",notes,created_at as "createdAt" from social_profiles where business_id='${safeBusinessId}' order by created_at desc limit 80`,
         ),
       ])
     : await Promise.all([
@@ -865,6 +889,22 @@ export async function getWorkspaceBundle(businessId: string) {
           .where(eq(placeProfiles.businessId, businessId))
           .orderBy(desc(placeProfiles.createdAt))
           .limit(10),
+        db
+          .select({
+            id: socialProfiles.id,
+            platform: socialProfiles.platform,
+            url: socialProfiles.url,
+            handle: socialProfiles.handle,
+            discoverySource: socialProfiles.discoverySource,
+            confidence: socialProfiles.confidence,
+            activityHint: socialProfiles.activityHint,
+            notes: socialProfiles.notes,
+            createdAt: socialProfiles.createdAt,
+          })
+          .from(socialProfiles)
+          .where(eq(socialProfiles.businessId, businessId))
+          .orderBy(desc(socialProfiles.createdAt))
+          .limit(80),
       ]);
 
   return {
@@ -955,6 +995,17 @@ export async function getWorkspaceBundle(businessId: string) {
       primaryType: p.primaryType,
       businessStatus: p.businessStatus,
       createdAt: toIso(p.createdAt),
+    })),
+    socialProfiles: socialRows.map((s) => ({
+      id: s.id,
+      platform: s.platform,
+      url: s.url,
+      handle: s.handle ?? null,
+      discoverySource: s.discoverySource,
+      confidence: s.confidence,
+      activityHint: s.activityHint,
+      notes: s.notes ?? null,
+      createdAt: toIso(s.createdAt),
     })),
   };
 }

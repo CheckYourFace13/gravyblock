@@ -14,14 +14,15 @@ export default function HomePage() {
       <section className="border-b border-zinc-200 bg-gradient-to-b from-red-50 via-white to-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 lg:flex-row lg:items-center lg:py-20">
           <div className="flex-1 space-y-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">AI growth autopilot</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Local growth autopilot</p>
             <h1 className="text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
-              More local traffic. Better “near me” conversion. Less guesswork.
+              Win local discovery, trust, and conversion — without drowning in tools.
             </h1>
             <p className="max-w-xl text-lg text-zinc-600">
-              GravyBlock is built for operators who need outcomes, not dashboard theater. Start with a free visibility
-              scan, then move into recurring strategy, content execution, authority growth, and monitoring that keeps
-              Google, Maps, AI answers, and conversion funnels working in your favor.
+              Built for <span className="font-medium text-zinc-800">local businesses of every kind</span> — storefront,
+              multi-location, service-area, and online-first brands that still have to prove “real” locally. Start with a
+              free scan, then move into roadmaps, execution queues, and monitoring that keeps Google, Maps, AI answers,
+              and your site aligned.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
@@ -127,8 +128,12 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl space-y-8 px-4 py-16 sm:px-6">
           <h2 className="text-3xl font-semibold text-zinc-900">How it works</h2>
           <ol className="grid gap-6 md:grid-cols-4">
-            {[
-              { step: "01", title: "Scan", body: "Tell us about your venue. We pull public signals and score visibility + conversion readiness." },
+              {[
+              {
+                step: "01",
+                title: "Scan",
+                body: "Pick your business on Google. We pull public listing + site signals and score visibility + conversion readiness.",
+              },
               { step: "02", title: "Roadmap", body: "Get Fix now / Improve next / Grow lanes plus prioritized recommendations you can delegate." },
               { step: "03", title: "Workspace", body: "Track snapshots, content ideas, authority queues, and scan history in one operator dashboard." },
               { step: "04", title: "Autopilot", body: "Upgrade to Pro or managed growth for monitoring, integrations, and recurring content support." },
@@ -145,11 +150,11 @@ export default function HomePage() {
 
       <section id="ai-search" className="mx-auto max-w-6xl space-y-6 px-4 py-16 sm:px-6">
         <div className="max-w-3xl space-y-3">
-          <h2 className="text-3xl font-semibold text-zinc-900">Why AI search matters for local-growth operators</h2>
+          <h2 className="text-3xl font-semibold text-zinc-900">Why AI-assisted search matters for local operators</h2>
           <p className="text-zinc-600">
-            Guests now ask assistants for “best patio near me” or “brewery with food trucks tonight.” If your facts
-            are scattered or outdated, AI summaries down-rank you even when traditional SEO looks fine. GravyBlock
-            tracks that shift and gives you language + structure to stay recommendable.
+            People now ask assistants for “best plumber near me,” “who delivers here tonight,” or “reliable clinic in my
+            area.” If your facts are scattered or outdated, summaries and maps quietly favor a competitor. GravyBlock
+            tracks that shift and gives you clear language + structure so humans and systems agree on who you are.
           </p>
         </div>
       </section>
@@ -177,8 +182,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl space-y-6 px-4 py-16 sm:px-6">
-        <h2 className="text-3xl font-semibold text-zinc-900">Built for real local-growth complexity</h2>
+      <section id="examples" className="mx-auto max-w-6xl space-y-6 px-4 py-16 sm:px-6">
+        <div className="max-w-3xl space-y-2">
+          <h2 className="text-3xl font-semibold text-zinc-900">Industry playbooks (examples)</h2>
+          <p className="text-sm text-zinc-600">
+            Hospitality pages below are <span className="font-medium text-zinc-800">sample verticals</span> — the same
+            scan and workspace model applies to retail, services, clinics, and online brands building local trust.
+          </p>
+        </div>
         <div className="grid gap-4 md:grid-cols-3">
           {[
             {

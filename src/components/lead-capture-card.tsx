@@ -27,11 +27,12 @@ export function LeadCaptureCard({
 
   return (
     <div className="rounded-2xl border border-black bg-black p-6 text-white shadow-lg">
-      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-300">Autopilot next step</p>
-      <h2 className="mt-2 text-xl font-semibold">Turn on growth autopilot for this business</h2>
+      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-300">Next step</p>
+      <h2 className="mt-2 text-xl font-semibold">Get an execution plan for this business</h2>
       <p className="mt-2 text-sm text-zinc-200">
-        Tell us who should own rollout. We will follow up with a short execution plan for content, authority, and
-        recurring visibility improvements.
+        Tell us who should own rollout. We will follow up with practical next steps for listings, site fixes, content,
+        authority, and recurring visibility — tuned to how you operate (single location, multi-location, or
+        service-area).
       </p>
 
       {state.status === "success" ? (
