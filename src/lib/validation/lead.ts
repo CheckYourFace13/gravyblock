@@ -32,6 +32,8 @@ export const leadSourceSchema = z.enum([
   "scan_form",
   "report_form",
   "contact_form",
+  "support_inquiry",
+  /** Legacy sources still stored on older rows */
   "upgrade_request",
   "demo_request",
 ]);

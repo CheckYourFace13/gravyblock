@@ -5,8 +5,11 @@ export type PlanFeatures = {
   recurringDashboard: boolean;
   scanHistoryTrends: boolean;
   contentIdeasQueue: boolean;
+  /** Recurring snapshot jobs + synthetic AI visibility checks (see autopilot executor). */
   automatedMonitoring: boolean;
+  /** Owner-authenticated Google Business Profile API — not shipped; listing data uses public Places in scan. */
   gbpSync: boolean;
+  /** Reserved; no separate playbook product surface today. */
   managedPlaybooks: boolean;
 };
 
@@ -18,8 +21,8 @@ export function planFeatures(tier: PlanTier): PlanFeatures {
         scanHistoryTrends: true,
         contentIdeasQueue: true,
         automatedMonitoring: true,
-        gbpSync: true,
-        managedPlaybooks: true,
+        gbpSync: false,
+        managedPlaybooks: false,
       };
     case "pro":
       return {
@@ -27,7 +30,7 @@ export function planFeatures(tier: PlanTier): PlanFeatures {
         scanHistoryTrends: true,
         contentIdeasQueue: true,
         automatedMonitoring: true,
-        gbpSync: true,
+        gbpSync: false,
         managedPlaybooks: false,
       };
     default:

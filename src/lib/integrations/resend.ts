@@ -66,8 +66,8 @@ export async function sendLeadEmails(payload: LeadEmailPayload, isNewLead: boole
         to: payload.leadEmail,
         subject: "Thanks for contacting GravyBlock",
         html: `<p>Hi ${payload.leadName},</p>
-               <p>Thanks for reaching out to GravyBlock. We received your request and will follow up shortly.</p>
-               <p>- GravyBlock Team</p>`,
+               <p>Thanks for your message. If a reply is needed, you will hear from us by email.</p>
+               <p>- GravyBlock</p>`,
       })
         .then(() => console.info("[lead-email] confirmation sent", { email: payload.leadEmail }))
         .catch((error) => console.error("[lead-email] confirmation failed", { error })),

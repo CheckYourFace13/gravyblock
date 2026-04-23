@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AutopilotRoadmap } from "@/components/autopilot-roadmap";
-import { CtaLeadForm } from "@/components/cta-lead-form";
 import { getAutopilotWorkspace } from "@/lib/autopilot/repository";
 import type { RoadmapLane } from "@/lib/growth/roadmap";
 import { getWorkspaceBundle } from "@/lib/report/repository";
@@ -51,8 +50,8 @@ export default async function WorkspacePage({ params }: Props) {
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Growth workspace</p>
           <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">{bundle.business.name}</h1>
           <p className="max-w-2xl text-sm text-zinc-600">
-            This is your always-on command center: scan history, visibility snapshots, prioritized work, and the
-            content angles GravyBlock will keep feeding as we wire up integrations.
+            Command center for scan history, visibility snapshots, prioritized work, and (on Pro) automation queues and
+            jobs that run on a schedule inside the product.
           </p>
           <div className="flex flex-wrap gap-2 text-xs font-medium text-zinc-600">
             {bundle.business.website ? (
@@ -83,22 +82,17 @@ export default async function WorkspacePage({ params }: Props) {
       </header>
 
       {!features.contentIdeasQueue ? (
-        <div className="grid gap-4 rounded-2xl border border-red-200 bg-red-50/60 px-5 py-5 text-sm text-zinc-900 lg:grid-cols-[1.2fr_1fr]">
-          <div>
-            <span className="font-semibold">Pro unlocks content autopilot.</span> You already have the roadmap and scan
-            history. Upgrade to generate rotating local posts, event pushes, and GBP-ready copy on a schedule - see{" "}
+        <div className="rounded-2xl border border-red-200 bg-red-50/60 px-5 py-5 text-sm text-zinc-900">
+          <p>
+            <span className="font-semibold">Pro unlocks the automation layer.</span> You already have the roadmap, scan
+            history, and snapshots. On Pro, the workspace exposes the content queue, publishing jobs, recurring visibility
+            refresh jobs, and synthetic AI visibility checks — see{" "}
             <Link href="/#plans" className="font-semibold underline">
-              plans
+              Entry vs Pro on the homepage
             </Link>
-            .
-          </div>
-          <CtaLeadForm
-            source="upgrade_request"
-            title="Request upgrade"
-            subtitle="Tell us where you need managed help first."
-            buttonLabel="Send upgrade request"
-            className="rounded-xl border border-red-200 bg-white p-4"
-          />
+            . When your business row is set to Pro, those sections fill in automatically; use Support in the site footer
+            only for account or access help.
+          </p>
         </div>
       ) : null}
 
@@ -121,17 +115,19 @@ export default async function WorkspacePage({ params }: Props) {
           </div>
         </div>
         <div className="space-y-4 rounded-2xl border border-zinc-200 bg-zinc-900 p-5 text-white shadow-sm">
-          <h2 className="text-lg font-semibold">Integration readiness</h2>
+          <h2 className="text-lg font-semibold">Automation & integrations</h2>
           <ul className="space-y-3 text-sm text-zinc-200">
-            <FeatureRow label="Google Business Profile sync" on={features.gbpSync} />
-            <FeatureRow label="Technical crawl monitoring" on={features.automatedMonitoring} />
-            <FeatureRow label="AI visibility probes" on={features.automatedMonitoring} />
-            <FeatureRow label="Search Console pull" on={features.automatedMonitoring} />
-            <FeatureRow label="Managed playbooks" on={features.managedPlaybooks} />
+            <FeatureRow
+              label="Recurring visibility snapshots + synthetic AI checks (job runner)"
+              on={features.automatedMonitoring}
+            />
+            <FeatureRow label="Content queue + publishing pipeline (internal artifacts)" on={features.contentIdeasQueue} />
+            <FeatureRow label="Owner Google Business Profile API (OAuth)" on={features.gbpSync} />
+            <FeatureRow label="Optional operator / account support (managed tier)" on={tier === "managed"} />
           </ul>
           <p className="text-xs text-zinc-400">
-            Interfaces are stubbed in code (`src/lib/integrations/contracts.ts`) — flip on when API keys and workers
-            land.
+            Listing snapshots in reports use public Places data. Owner-authenticated GBP APIs and third-party crawl
+            integrations are not connected in this build — see `src/lib/integrations/contracts.ts` for stubs.
           </p>
         </div>
       </section>

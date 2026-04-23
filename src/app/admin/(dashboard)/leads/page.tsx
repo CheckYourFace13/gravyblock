@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { listLeads } from "@/lib/report/repository";
-import type { LeadSource } from "@/lib/validation/lead";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +9,7 @@ type Props = {
 
 export default async function AdminLeadsPage({ searchParams }: Props) {
   const filters = await searchParams;
-  const source = (filters.source ?? "all") as "all" | LeadSource;
+  const source = filters.source ?? "all";
   const pipeline = filters.pipeline ?? "all";
   const linked = filters.linked ?? "all";
   const leads = await listLeads({
@@ -23,7 +22,9 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Leads</h1>
-        <p className="mt-2 text-sm text-zinc-600">Inbound interest captured from scan, report, contact, demo, and upgrade forms.</p>
+        <p className="mt-2 text-sm text-zinc-600">
+          Inbound messages from scan, report, contact, support, and legacy upgrade/demo sources.
+        </p>
       </div>
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
@@ -39,11 +40,14 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
           <FilterChip href="/admin/leads?source=contact_form" active={source === "contact_form"}>
             Contact
           </FilterChip>
+          <FilterChip href="/admin/leads?source=support_inquiry" active={source === "support_inquiry"}>
+            Support
+          </FilterChip>
           <FilterChip href="/admin/leads?source=upgrade_request" active={source === "upgrade_request"}>
-            Upgrade
+            Upgrade (legacy)
           </FilterChip>
           <FilterChip href="/admin/leads?source=demo_request" active={source === "demo_request"}>
-            Demo
+            Demo (legacy)
           </FilterChip>
           <FilterChip href="/admin/leads?linked=linked" active={linked === "linked"}>
             Linked business

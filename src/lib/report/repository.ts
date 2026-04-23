@@ -1041,7 +1041,7 @@ export async function saveLeadRecord(input: LeadFormInput) {
 }
 
 export async function listLeads(filters?: {
-  source?: LeadSource | "all";
+  source?: "all" | string;
   pipelineStatus?: string | "all";
   linked?: "all" | "linked" | "unlinked";
 }) {

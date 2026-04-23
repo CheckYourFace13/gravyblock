@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CtaLeadForm } from "@/components/cta-lead-form";
 
 export const metadata: Metadata = {
   title: "GravyBlock — Autopilot growth for local and multi-location businesses",
   description:
-    "GravyBlock helps local businesses, multi-location brands, service-area operators, and online-first companies improve discovery in Google, Maps, AI answers, and conversion funnels with ongoing autopilot execution.",
+    "Get your score free, unlock the full report by email, then choose Entry or Pro to keep visibility monitored and improved automatically — product-led local growth software.",
 };
 
 export default function HomePage() {
@@ -16,41 +15,42 @@ export default function HomePage() {
           <div className="flex-1 space-y-6">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Local growth autopilot</p>
             <h1 className="text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
-              Win local discovery, trust, and conversion — without drowning in tools.
+              Run your local growth engine on autopilot — from scan to queue to monitoring.
             </h1>
             <p className="max-w-xl text-lg text-zinc-600">
-              Built for <span className="font-medium text-zinc-800">local businesses of every kind</span> — storefront,
+              Win local discovery, trust, and conversion without drowning in tools. Built for{" "}
+              <span className="font-medium text-zinc-800">local businesses of every kind</span> — storefront,
               multi-location, service-area, and online-first brands that still have to prove “real” locally. Start with a
-              free scan, then move into roadmaps, execution queues, and monitoring that keeps Google, Maps, AI answers,
-              and your site aligned.
+              free automated scan, see score and verdict instantly, unlock the full report by email, then use your
+              workspace to track scores, recommendations, and (on Entry or Pro) recurring visibility and automation.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/scan"
                 className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800"
               >
-                Run free visibility scan
+                Get your score free
               </Link>
               <Link
                 href="#plans"
                 className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 shadow-sm transition hover:border-zinc-400"
               >
-                See plans
+                Compare Free, Entry, and Pro
               </Link>
             </div>
             <dl className="grid gap-4 sm:grid-cols-3">
               {[
                 {
                   k: "Always-on roadmap",
-                  v: "Fix now, improve next, grow, and monitor — the same structure great operators use.",
+                  v: "Fix now, improve next, and grow lanes — prioritized so you ship the highest-impact work first.",
                 },
                 {
                   k: "Business-model aware",
-                  v: "Supports single-location, multi-location, service-area, and online-first localization workflows.",
+                  v: "Single-location, multi-location, service-area, and online-first patterns shape the scan and report.",
                 },
                 {
-                  k: "Visible progress",
-                  v: "Snapshots over time so you can see scores move as fixes ship and demand returns.",
+                  k: "Progress you can graph",
+                  v: "Snapshots over time in your workspace so you can see scores move as fixes land and automation runs.",
                 },
               ].map((item) => (
                 <div key={item.k} className="rounded-2xl border border-red-100 bg-white/80 p-4 shadow-sm">
@@ -67,21 +67,22 @@ export default function HomePage() {
                 “Good foundation — a few key fixes will improve ‘near me’ conversion.”
               </p>
               <p className="mt-4 text-sm text-zinc-600">
-                Every scan ends with owner-friendly clarity — what is costing you opportunities, what to fix first, and how
-                GravyBlock can automate the follow-through.
+                Every scan ends with owner-friendly clarity — what is costing you opportunities, what to fix first, and
+                how the product keeps that work in a workspace you can return to without starting over.
               </p>
               <ul className="mt-6 space-y-3 text-sm text-zinc-700">
                 <li className="flex gap-2">
                   <span className="mt-1 h-2 w-2 rounded-full bg-red-500" />
-                  Surfaces Maps + organic + on-site conversion gaps in one pass.
+                  Surfaces Maps + organic + on-site conversion gaps in one automated pass.
                 </li>
                 <li className="flex gap-2">
                   <span className="mt-1 h-2 w-2 rounded-full bg-red-500" />
-                  Feeds a workspace with history, content ideas, and integration-ready hooks.
+                  Full report sent to your inbox after a quick unlock step — see score and top findings first on the
+                  report page.
                 </li>
                 <li className="flex gap-2">
                   <span className="mt-1 h-2 w-2 rounded-full bg-red-500" />
-                  Designed to convert into self-serve or managed autopilot without feeling salesy.
+                  Product-led automation: monitor, queue, and track improvements over time — not a demo-led agency flow.
                 </li>
               </ul>
             </div>
@@ -101,7 +102,7 @@ export default function HomePage() {
           {[
             {
               title: "Invisible on Maps & AI answers",
-              body: "Stale GBP data, weak categories, and thin site copy mean assistants and maps quietly recommend someone else.",
+              body: "Stale listing fields, weak categories, and thin site copy mean assistants and maps quietly recommend someone else.",
             },
             {
               title: "Traffic without conversion",
@@ -128,15 +129,27 @@ export default function HomePage() {
         <div className="mx-auto max-w-6xl space-y-8 px-4 py-16 sm:px-6">
           <h2 className="text-3xl font-semibold text-zinc-900">How it works</h2>
           <ol className="grid gap-6 md:grid-cols-4">
-              {[
+            {[
               {
                 step: "01",
                 title: "Scan",
-                body: "Pick your business on Google. We pull public listing + site signals and score visibility + conversion readiness.",
+                body: "Pick your business on Google Places. We pull public listing + site signals and score visibility + conversion readiness.",
               },
-              { step: "02", title: "Roadmap", body: "Get Fix now / Improve next / Grow lanes plus prioritized recommendations you can delegate." },
-              { step: "03", title: "Workspace", body: "Track snapshots, content ideas, authority queues, and scan history in one operator dashboard." },
-              { step: "04", title: "Autopilot", body: "Upgrade to Pro or managed growth for monitoring, integrations, and recurring content support." },
+              {
+                step: "02",
+                title: "Roadmap",
+                body: "Get Fix now / Improve next / Grow lanes plus prioritized recommendations you can execute or queue.",
+              },
+              {
+                step: "03",
+                title: "Workspace",
+                body: "Track snapshots, content ideas, authority queues, and scan history in one operator dashboard.",
+              },
+              {
+                step: "04",
+                title: "Autopilot",
+                body: "On Pro, run recurring visibility refresh jobs, content queues, internal publishing output, and synthetic AI visibility checks — on a schedule you control in software.",
+              },
             ].map((s) => (
               <li key={s.step} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-semibold text-red-700">{s.step}</p>
@@ -154,7 +167,9 @@ export default function HomePage() {
           <p className="text-zinc-600">
             People now ask assistants for “best plumber near me,” “who delivers here tonight,” or “reliable clinic in my
             area.” If your facts are scattered or outdated, summaries and maps quietly favor a competitor. GravyBlock
-            tracks that shift and gives you clear language + structure so humans and systems agree on who you are.
+            tracks that shift and helps you tighten facts and structure so humans and systems agree on who you are — and
+            Pro adds scheduled, synthetic visibility probes so you can monitor that story over time (directional, not a
+            guarantee of rank).
           </p>
         </div>
       </section>
@@ -221,83 +236,156 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="plans" className="border-t border-zinc-200 bg-zinc-50 py-16">
+      <section id="guides" className="border-y border-zinc-200 bg-white py-16">
         <div className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6">
           <div className="max-w-2xl space-y-3">
-            <h2 className="text-3xl font-semibold text-zinc-900">Plans built for traction</h2>
+            <h2 className="text-3xl font-semibold text-zinc-900">Guides: local growth without the fluff</h2>
             <p className="text-zinc-600">
-              Start free, graduate when you want autopilot. Billing hooks land next — today the product is structured
-              so engineering can flip tiers without rewrites.
+              Practical, indexable explainers on multi-location SEO, service-area visibility, AI search, trust signals,
+              and conversion — linked to what the product actually measures.
             </p>
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              {
-                name: "Free scan",
-                price: "$0",
-                bullets: ["Visibility + conversion report", "Autopilot roadmap preview", "Growth workspace (history)"],
-                cta: { href: "/scan", label: "Start scanning" },
-              },
-              {
-                name: "Pro (self-serve)",
-                price: "Coming soon",
-                bullets: ["Recurring content ideas", "Automated monitoring hooks", "GBP + crawl integrations"],
-                cta: { href: "/scan", label: "Join waitlist via scan" },
-              },
-              {
-                name: "Managed growth",
-                price: "Custom",
-                bullets: ["Operator-led execution", "Weekly cadence + QA", "Revenue reporting tied to bookings or sales"],
-                cta: { href: "/scan", label: "Talk with us after your scan" },
-              },
-            ].map((tier) => (
-              <article key={tier.name} className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wide text-red-800">{tier.name}</p>
-                <p className="mt-2 text-3xl font-semibold text-zinc-900">{tier.price}</p>
-                <ul className="mt-4 flex-1 space-y-2 text-sm text-zinc-600">
-                  {tier.bullets.map((b) => (
-                    <li key={b} className="flex gap-2">
-                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-red-500" />
-                      {b}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href={tier.cta.href}
-                  className="mt-6 inline-flex justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                >
-                  {tier.cta.label}
-                </Link>
-              </article>
+              { href: "/guides/multi-location-local-seo", title: "Multi-location local SEO", body: "Structure, consistency, and measurement across locations." },
+              { href: "/guides/service-area-business-visibility", title: "Service-area business visibility", body: "Radius markets, SAB patterns, and clarity for maps + site." },
+              { href: "/guides/ai-search-local-businesses", title: "AI search for local businesses", body: "Facts, entities, and how assistants summarize you." },
+              { href: "/guides/social-proof-and-local-conversion", title: "Social proof & local conversion", body: "Reviews, policies, and paths that close the visit." },
+              { href: "/guides/website-trust-signals", title: "Website trust signals", body: "Security, schema, contact clarity, and mobile friction." },
+              { href: "/guides", title: "All guides", body: "Browse the full list and cross-links." },
+            ].map((g) => (
+              <Link
+                key={g.href}
+                href={g.href}
+                className="rounded-2xl border border-zinc-200 bg-zinc-50/80 p-5 shadow-sm transition hover:border-red-200 hover:bg-white"
+              >
+                <h3 className="text-lg font-semibold text-zinc-900">{g.title}</h3>
+                <p className="mt-2 text-sm text-zinc-600">{g.body}</p>
+                <p className="mt-4 text-sm font-semibold text-red-800">Read →</p>
+              </Link>
             ))}
           </div>
         </div>
       </section>
 
+      <section id="plans" className="border-t border-zinc-200 bg-zinc-50 py-16">
+        <div className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6">
+          <div className="max-w-2xl space-y-3">
+            <h2 className="text-3xl font-semibold text-zinc-900">Free, Entry, and Pro</h2>
+            <p className="text-zinc-600">
+              Launch pricing shows regular monthly price plus the current discounted launch rate. The free tier includes
+              score, verdict, and top findings on the report page; unlock sends the full report by email and reveals every
+              section in your session. Entry and Pro add recurring automation in the product — no ranking guarantees.
+            </p>
+            <p className="text-sm text-zinc-500">
+              For billing or access, use Support in the footer — the product is built to run as automated software first.
+            </p>
+          </div>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <article className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-800">Free</p>
+              <p className="mt-2 text-3xl font-semibold text-zinc-900">$0</p>
+              <p className="mt-1 text-sm text-zinc-500">Get your score free; unlock the full report by email.</p>
+              <ul className="mt-4 flex-1 space-y-2 text-sm text-zinc-600">
+                {[
+                  "Score, verdict, and top 3 findings visible on the report first",
+                  "Rest of report locked until name + email unlock",
+                  "Full report emailed after unlock; same session shows the full report",
+                  "Public listing + website + social discovery in the full report",
+                  "Limited workspace access and saved report history where supported",
+                ].map((b) => (
+                  <li key={b} className="flex gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/scan"
+                className="mt-6 inline-flex justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+              >
+                Get your score free
+              </Link>
+            </article>
+            <article className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-800">Entry</p>
+              <div className="mt-2">
+                <p className="text-lg text-zinc-500 line-through">$29.99/month</p>
+                <p className="text-3xl font-semibold text-zinc-900">$19.99/month</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Launch special</p>
+              </div>
+              <p className="mt-1 text-sm text-zinc-500">Monthly automation layer for steady checks and summaries.</p>
+              <ul className="mt-4 flex-1 space-y-2 text-sm text-zinc-600">
+                {[
+                  "Monthly visibility refresh with score/history update",
+                  "Monthly Google listing, website, and social re-check",
+                  "Monthly AI visibility summary and 3–5 prioritized actions",
+                  "Monthly content ideas plus monthly summary email",
+                  "Workspace trend and history access",
+                ].map((b) => (
+                  <li key={b} className="flex gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/scan"
+                className="mt-6 inline-flex justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+              >
+                Start with free scan
+              </Link>
+            </article>
+            <article className="flex flex-col rounded-2xl border border-red-200 bg-white p-6 shadow-md ring-1 ring-red-100">
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-800">Pro</p>
+              <div className="mt-2">
+                <p className="text-lg text-zinc-500 line-through">$59.99/month</p>
+                <p className="text-3xl font-semibold text-zinc-900">$39.99/month</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Launch special</p>
+              </div>
+              <p className="mt-1 text-sm text-zinc-500">The fullest automation layer available in this build.</p>
+              <ul className="mt-4 flex-1 space-y-2 text-sm text-zinc-600">
+                {[
+                  "Everything in Entry, with more frequent recurring refreshes",
+                  "Content queue + publishing queue/history in workspace",
+                  "Autopilot workspace with AI visibility checks",
+                  "Local page/service-area content generation queue",
+                  "Citation/listing issue queue + review/reputation task queue",
+                  "Multi-location support where current schema/workspace supports it",
+                ].map((b) => (
+                  <li key={b} className="flex gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/scan"
+                className="mt-6 inline-flex justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+              >
+                Start with free scan
+              </Link>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section className="mx-auto max-w-6xl px-4 py-16 text-center sm:px-6">
-        <h2 className="text-3xl font-semibold text-zinc-900">Ready when you are</h2>
+        <h2 className="text-3xl font-semibold text-zinc-900">Turn on your engine</h2>
         <p className="mx-auto mt-3 max-w-2xl text-zinc-600">
-          Run the scan in a few minutes. If you want hands-on help, the report is designed to make the next call
-          productive — whether you DIY, delegate to staff, or bring in GravyBlock managed growth.
+          Run the scan in a few minutes, open your workspace, and keep monitoring and improvement inside the product. For
+          billing or access questions, use Support in the footer.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link href="/scan" className="rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500">
-            Start free scan
+            Get your score free
           </Link>
-        </div>
-        <div className="mt-10 grid gap-4 text-left lg:grid-cols-2">
-          <CtaLeadForm
-            source="contact_form"
-            title="General contact"
-            subtitle="Questions before scanning? Send a note and we will reply."
-            buttonLabel="Send message"
-          />
-          <CtaLeadForm
-            source="demo_request"
-            title="Book a walkthrough"
-            subtitle="Want a live review with your operator team? Request a demo."
-            buttonLabel="Request demo"
-          />
+          <Link
+            href="/#guides"
+            className="rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+          >
+            Read guides
+          </Link>
         </div>
       </section>
     </div>

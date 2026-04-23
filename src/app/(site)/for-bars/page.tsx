@@ -4,7 +4,7 @@ import { VerticalLanding } from "@/components/vertical-landing";
 export const metadata: Metadata = {
   title: "GravyBlock for bars & nightlife",
   description:
-    "Runway for AI answers, Maps dominance, and late-night conversion — scans, roadmaps, and recurring growth plays built for bars.",
+    "Maps-first scans, prioritized roadmaps, and a workspace for bars and nightlife — automated visibility and conversion checks.",
 };
 
 export default function ForBarsPage() {
@@ -16,7 +16,7 @@ export default function ForBarsPage() {
       bullets={[
         "Clarify what makes you different in one sentence above the fold.",
         "Make call, directions, and cover charge answers effortless on mobile.",
-        "Align Google Business Profile with what your website promises tonight.",
+        "Align your public Google listing with what your website promises tonight.",
       ]}
       ctaHref="/scan"
       ctaLabel="Run a bar scan"

@@ -12,7 +12,7 @@ export function CtaLeadForm({
   buttonLabel,
   className,
 }: {
-  source: "contact_form" | "upgrade_request" | "demo_request";
+  source: "contact_form" | "support_inquiry";
   title: string;
   subtitle: string;
   buttonLabel: string;
@@ -33,7 +33,7 @@ export function CtaLeadForm({
       <p className="mt-2 text-sm text-zinc-600">{subtitle}</p>
       {state.status === "success" ? (
         <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-          Thanks - we got your request.
+          Thanks — we received your message.
         </p>
       ) : null}
       <form ref={formRef} action={formAction} className="mt-4 grid gap-3 sm:grid-cols-2">
