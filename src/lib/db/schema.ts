@@ -82,6 +82,11 @@ export const businesses = pgTable("businesses", {
   businessStatus: text("business_status"),
   brandNotes: text("brand_notes"),
   planTier: text("plan_tier").notNull().default("free"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  subscriptionStatus: text("subscription_status"),
+  billingEmail: text("billing_email"),
+  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
 });
 
 /** Each visibility run (free scan, rescan, future scheduled job). */

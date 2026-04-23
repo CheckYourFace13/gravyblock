@@ -6,7 +6,7 @@ import { getAutopilotWorkspace } from "@/lib/autopilot/repository";
 import type { RoadmapLane } from "@/lib/growth/roadmap";
 import { getWorkspaceBundle } from "@/lib/report/repository";
 import { isPlanTier, planFeatures, type PlanTier } from "@/lib/plans";
-import { createBillingPortalAction, createCheckoutSessionAction } from "./billing-actions";
+import { CheckoutButton, PortalButton } from "./billing-buttons";
 
 export const dynamic = "force-dynamic";
 
@@ -81,30 +81,27 @@ export default async function WorkspacePage({ params }: Props) {
           </div>
           <div className="flex flex-wrap gap-2">
             {tier !== "entry" ? (
-              <form action={createCheckoutSessionAction}>
-                <input type="hidden" name="businessId" value={businessId} />
-                <input type="hidden" name="plan" value="entry" />
-                <button className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400">
-                  Start Entry
-                </button>
-              </form>
+              <CheckoutButton
+                businessId={businessId}
+                plan="entry"
+                label="Start Entry"
+                className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+              />
             ) : null}
             {tier !== "pro" ? (
-              <form action={createCheckoutSessionAction}>
-                <input type="hidden" name="businessId" value={businessId} />
-                <input type="hidden" name="plan" value="pro" />
-                <button className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500">
-                  Start Pro
-                </button>
-              </form>
+              <CheckoutButton
+                businessId={businessId}
+                plan="pro"
+                label="Start Pro"
+                className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+              />
             ) : null}
             {hasBillingCustomer ? (
-              <form action={createBillingPortalAction}>
-                <input type="hidden" name="businessId" value={businessId} />
-                <button className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400">
-                  Manage billing
-                </button>
-              </form>
+              <PortalButton
+                businessId={businessId}
+                label="Manage billing"
+                className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+              />
             ) : null}
           </div>
         </div>
@@ -155,36 +152,41 @@ export default async function WorkspacePage({ params }: Props) {
             </p>
           </div>
           {hasBillingCustomer ? (
-            <form action={createBillingPortalAction}>
-              <input type="hidden" name="businessId" value={businessId} />
-              <button className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400">
-                Manage billing
-              </button>
-            </form>
+            <PortalButton
+              businessId={businessId}
+              label="Manage billing"
+              className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+            />
           ) : null}
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           {tier !== "entry" ? (
-            <form action={createCheckoutSessionAction} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <input type="hidden" name="businessId" value={businessId} />
-              <input type="hidden" name="plan" value="entry" />
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
               <p className="text-sm font-semibold text-zinc-900">Entry</p>
               <p className="text-xs text-zinc-600">$29.99/month, launch price $19.99/month.</p>
-              <button className="mt-3 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
-                {tier === "free" ? "Upgrade to Entry" : "Switch to Entry"}
-              </button>
-            </form>
+              <div className="mt-3">
+                <CheckoutButton
+                  businessId={businessId}
+                  plan="entry"
+                  label={tier === "free" ? "Upgrade to Entry" : "Switch to Entry"}
+                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+                />
+              </div>
+            </div>
           ) : null}
           {tier !== "pro" ? (
-            <form action={createCheckoutSessionAction} className="rounded-xl border border-red-200 bg-red-50/50 p-4">
-              <input type="hidden" name="businessId" value={businessId} />
-              <input type="hidden" name="plan" value="pro" />
+            <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
               <p className="text-sm font-semibold text-zinc-900">Pro</p>
               <p className="text-xs text-zinc-600">$59.99/month, launch price $39.99/month.</p>
-              <button className="mt-3 rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500">
-                Upgrade to Pro
-              </button>
-            </form>
+              <div className="mt-3">
+                <CheckoutButton
+                  businessId={businessId}
+                  plan="pro"
+                  label="Upgrade to Pro"
+                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+                />
+              </div>
+            </div>
           ) : null}
         </div>
         <p className="mt-4 text-xs text-zinc-500">

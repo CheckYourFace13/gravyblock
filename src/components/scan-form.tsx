@@ -171,7 +171,7 @@ export function ScanForm() {
             <option value="professional_services">Professional services</option>
             <option value="online_brand">Online-first brand (local trust)</option>
             <option value="hybrid">Hybrid online + local</option>
-            <option value="other">Other local business</option>
+            <option value="other">Other local business (including apartment communities)</option>
           </select>
         </label>
       </div>

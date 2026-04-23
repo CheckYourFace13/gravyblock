@@ -36,6 +36,9 @@ import type { BusinessProfile, LocalRankingCheck, ReportPayload, Vertical, Websi
 import type { LeadFormInput } from "@/lib/validation/lead";
 
 type LeadSource = NonNullable<LeadFormInput["source"]>;
+type SocialPlatform = "facebook" | "instagram" | "twitter" | "tiktok" | "youtube" | "linkedin";
+type SocialActivityHint = "possibly_active" | "inactive" | "unknown" | "basic_only";
+type SocialDiscoverySource = "json_ld_same_as" | "website_html" | "website_footer_nav";
 type DbLike = {
   select: NonNullable<ReturnType<typeof getDb>>["select"];
   update: NonNullable<ReturnType<typeof getDb>>["update"];
@@ -57,6 +60,100 @@ function parseReviewCount(raw?: string) {
   if (!raw) return null;
   const n = Number.parseInt(raw.replace(/\D/g, ""), 10);
   return Number.isFinite(n) ? n : null;
+}
+
+const SOCIAL_PLATFORM_SET = new Set<SocialPlatform>([
+  "facebook",
+  "instagram",
+  "twitter",
+  "tiktok",
+  "youtube",
+  "linkedin",
+]);
+const SOCIAL_ACTIVITY_SET = new Set<SocialActivityHint>(["possibly_active", "inactive", "unknown", "basic_only"]);
+const SOCIAL_DISCOVERY_SET = new Set<SocialDiscoverySource>(["json_ld_same_as", "website_html", "website_footer_nav"]);
+
+function normalizeSocialUrlForDb(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const withProto = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const u = new URL(withProto);
+    if (!["http:", "https:"].includes(u.protocol)) return null;
+    u.hash = "";
+    u.search = "";
+    const path = u.pathname.replace(/\/+$/, "");
+    return `${u.protocol}//${u.host.toLowerCase()}${path}`;
+  } catch {
+    return null;
+  }
+}
+
+function clampConfidence(value: number | null | undefined): number {
+  if (!Number.isFinite(value)) return 70;
+  const rounded = Math.round(Number(value));
+  return Math.min(100, Math.max(0, rounded));
+}
+
+function truncate(value: string | null | undefined, max: number): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, max);
+}
+
+function sanitizeSocialRows(
+  rows: NonNullable<ReportPayload["socialPresence"]>["profiles"],
+): Array<{
+  platform: SocialPlatform;
+  url: string;
+  handle: string | null;
+  discoverySource: SocialDiscoverySource;
+  confidence: number;
+  activityHint: SocialActivityHint;
+  notes: string | null;
+}> {
+  const deduped = new Map<string, {
+    platform: SocialPlatform;
+    url: string;
+    handle: string | null;
+    discoverySource: SocialDiscoverySource;
+    confidence: number;
+    activityHint: SocialActivityHint;
+    notes: string | null;
+  }>();
+  for (const row of rows) {
+    if (!SOCIAL_PLATFORM_SET.has(row.platform)) continue;
+    if (!SOCIAL_DISCOVERY_SET.has(row.discoverySource)) continue;
+    const normalizedUrl = normalizeSocialUrlForDb(row.url);
+    if (!normalizedUrl) continue;
+    const normalized = {
+      platform: row.platform,
+      url: normalizedUrl,
+      handle: truncate(row.handle, 120),
+      discoverySource: row.discoverySource,
+      confidence: clampConfidence(row.confidence),
+      activityHint: SOCIAL_ACTIVITY_SET.has(row.activityHint) ? row.activityHint : "unknown",
+      notes: truncate(row.notes, 500),
+    };
+    const key = `${normalized.platform}:${normalized.url}`;
+    const prev = deduped.get(key);
+    if (!prev || normalized.confidence >= prev.confidence) {
+      deduped.set(key, normalized);
+    }
+  }
+  return [...deduped.values()];
+}
+
+function toLegacyCompatibleSocialRows(
+  rows: ReturnType<typeof sanitizeSocialRows>,
+): ReturnType<typeof sanitizeSocialRows> {
+  return rows.map((row) => ({
+    ...row,
+    discoverySource: row.discoverySource === "website_footer_nav" ? "website_html" : row.discoverySource,
+    activityHint: row.activityHint === "basic_only" ? "unknown" : row.activityHint,
+  }));
 }
 
 async function upsertBusinessDb(
@@ -279,6 +376,7 @@ export async function recordScanRun(input: {
   };
 }) {
   const db = getDb();
+  const socialRows = sanitizeSocialRows(input.payload.socialPresence?.profiles ?? []);
   if (!db) {
     assertMemoryFallbackAllowed();
     return memoryStore.recordScanRun({
@@ -293,11 +391,12 @@ export async function recordScanRun(input: {
       rankingChecksInput: input.rankingChecks,
       auditFindingsInput: input.auditFindings,
       competitorSnapshotsInput: input.competitorSnapshots,
+      socialProfilesInput: socialRows,
       leadCapture: input.leadCapture,
     });
   }
 
-  return db.transaction(async (tx) => {
+  const saved = await db.transaction(async (tx) => {
     const businessId = await upsertBusinessDb(tx, {
       profile: input.profile,
       businessModel: input.businessModel,
@@ -598,23 +697,6 @@ export async function recordScanRun(input: {
       });
     }
 
-    const socialRows = input.payload.socialPresence?.profiles ?? [];
-    if (socialRows.length) {
-      await tx.insert(socialProfiles).values(
-        socialRows.map((p) => ({
-          businessId,
-          scanId: scan.id,
-          platform: p.platform,
-          url: p.url,
-          handle: p.handle ?? null,
-          discoverySource: p.discoverySource,
-          confidence: Math.round(p.confidence),
-          activityHint: p.activityHint,
-          notes: p.notes ?? null,
-        })),
-      );
-    }
-
     const primaryDomain = normalizeWebsiteForLookup(input.profile.website) ?? input.profile.website;
     if (primaryDomain) {
       await tx.insert(websiteDomains).values({
@@ -644,6 +726,58 @@ export async function recordScanRun(input: {
 
     return { businessId, scanId: scan.id, reportId: report.id };
   });
+
+  // Keep social profile persistence non-fatal so scan/report persistence never fails on this side channel.
+  if (socialRows.length) {
+    try {
+      await db.insert(socialProfiles).values(
+        socialRows.map((p) => ({
+          businessId: saved.businessId,
+          scanId: saved.scanId,
+          platform: p.platform,
+          url: p.url,
+          handle: p.handle,
+          discoverySource: p.discoverySource,
+          confidence: p.confidence,
+          activityHint: p.activityHint,
+          notes: p.notes,
+        })),
+      );
+    } catch (error) {
+      const fallbackRows = toLegacyCompatibleSocialRows(socialRows);
+      try {
+        await db.insert(socialProfiles).values(
+          fallbackRows.map((p) => ({
+            businessId: saved.businessId,
+            scanId: saved.scanId,
+            platform: p.platform,
+            url: p.url,
+            handle: p.handle,
+            discoverySource: p.discoverySource,
+            confidence: p.confidence,
+            activityHint: p.activityHint,
+            notes: p.notes,
+          })),
+        );
+        console.error("[recordScanRun] social insert succeeded with legacy-compatible normalization", {
+          businessId: saved.businessId,
+          scanId: saved.scanId,
+          socialRowCount: socialRows.length,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } catch (fallbackError) {
+        console.error("[recordScanRun] social profile persistence failed; continuing without social rows", {
+          businessId: saved.businessId,
+          scanId: saved.scanId,
+          socialRowCount: socialRows.length,
+          error: error instanceof Error ? error.message : String(error),
+          fallbackError: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+        });
+      }
+    }
+  }
+
+  return saved;
 }
 
 export async function getReportWithContext(publicId: string): Promise<ReportContext | null> {
@@ -795,7 +929,7 @@ export async function getWorkspaceBundle(businessId: string) {
   if (sql && !safeBusinessId) return null;
   const businessRows = sql
     ? await sql.unsafe(
-        `select id,name,vertical,plan_tier as "planTier",website,phone,address,google_maps_uri as "googleMapsUri",brand_notes as "brandNotes",created_at as "createdAt",updated_at as "updatedAt" from businesses where id='${safeBusinessId}' limit 1`,
+        `select id,name,vertical,plan_tier as "planTier",website,phone,address,google_maps_uri as "googleMapsUri",brand_notes as "brandNotes",stripe_customer_id as "stripeCustomerId",stripe_subscription_id as "stripeSubscriptionId",subscription_status as "subscriptionStatus",billing_email as "billingEmail",current_period_end as "currentPeriodEnd",created_at as "createdAt",updated_at as "updatedAt" from businesses where id='${safeBusinessId}' limit 1`,
       )
     : await db.select().from(businesses).where(eq(businesses.id, businessId)).limit(1);
   const business = businessRows[0] as
@@ -809,6 +943,11 @@ export async function getWorkspaceBundle(businessId: string) {
         address?: string | null;
         googleMapsUri?: string | null;
         brandNotes?: string | null;
+        stripeCustomerId?: string | null;
+        stripeSubscriptionId?: string | null;
+        subscriptionStatus?: string | null;
+        billingEmail?: string | null;
+        currentPeriodEnd?: Date | string | null;
         createdAt: Date | string;
         updatedAt: Date | string;
       }
@@ -939,6 +1078,11 @@ export async function getWorkspaceBundle(businessId: string) {
       address: business.address ?? null,
       googleMapsUri: business.googleMapsUri ?? null,
       brandNotes: business.brandNotes ?? null,
+      stripeCustomerId: business.stripeCustomerId ?? null,
+      stripeSubscriptionId: business.stripeSubscriptionId ?? null,
+      subscriptionStatus: business.subscriptionStatus ?? null,
+      billingEmail: business.billingEmail ?? null,
+      currentPeriodEnd: business.currentPeriodEnd ? toIso(business.currentPeriodEnd) : null,
       createdAt: toIso(business.createdAt),
       updatedAt: toIso(business.updatedAt),
     },

@@ -25,6 +25,11 @@ type MemBusiness = {
   businessStatus: string | null;
   brandNotes: string | null;
   planTier: string;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  subscriptionStatus: string | null;
+  billingEmail: string | null;
+  currentPeriodEnd: string | null;
 };
 
 type MemScan = {
@@ -248,6 +253,11 @@ function upsertBusiness(profile: BusinessProfile, vertical: Vertical): MemBusine
     businessStatus: profile.businessStatus ?? null,
     brandNotes: null,
     planTier: "free",
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      subscriptionStatus: null,
+      billingEmail: null,
+      currentPeriodEnd: null,
   };
   businesses.set(id, created);
   if (websiteNormalized) websiteIndex.set(websiteNormalized, id);
@@ -273,6 +283,15 @@ export const memoryStore = {
       rating?: string;
       reviewCount?: number;
       estimatedPosition?: number;
+    }>;
+    socialProfilesInput?: Array<{
+      platform: string;
+      url: string;
+      handle: string | null;
+      discoverySource: string;
+      confidence: number;
+      activityHint: string;
+      notes: string | null;
     }>;
     leadCapture?: {
       name: string;
@@ -333,18 +352,18 @@ export const memoryStore = {
       createdAt,
     });
 
-    for (const p of input.payload.socialPresence?.profiles ?? []) {
+    for (const p of input.socialProfilesInput ?? []) {
       socialProfilesMem.push({
         id: randomUUID(),
         businessId: business.id,
         scanId,
         platform: p.platform,
         url: p.url,
-        handle: p.handle ?? null,
+        handle: p.handle,
         discoverySource: p.discoverySource,
-        confidence: Math.round(p.confidence),
+        confidence: p.confidence,
         activityHint: p.activityHint,
-        notes: p.notes ?? null,
+        notes: p.notes,
         createdAt,
       });
     }
