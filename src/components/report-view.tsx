@@ -50,16 +50,30 @@ export function ReportView({
   publicId,
   businessId,
   initiallyUnlocked,
+  selectedPlan,
 }: {
   payload: ReportPayload;
   publicId: string;
   businessId?: string;
   initiallyUnlocked: boolean;
+  selectedPlan?: "entry" | "pro" | null;
 }) {
   const [unlocked, setUnlocked] = useState(initiallyUnlocked);
   const badge = opportunityBadge(payload.opportunityLevel);
   const roadmapRows = buildRoadmapRows(payload);
   const topFindings = useMemo(() => payload.prioritizedFixes.slice(0, 3), [payload.prioritizedFixes]);
+  const chosenPlan = selectedPlan === "entry" || selectedPlan === "pro" ? selectedPlan : null;
+  const workspaceHref = businessId
+    ? chosenPlan
+      ? `/workspace/${businessId}?plan=${chosenPlan}#billing`
+      : `/workspace/${businessId}#billing`
+    : null;
+  const primaryLabel =
+    chosenPlan === "entry"
+      ? "Continue to Entry checkout"
+      : chosenPlan === "pro"
+        ? "Continue to Pro checkout"
+        : "Continue to billing";
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-12 sm:px-6">
@@ -90,7 +104,7 @@ export function ReportView({
           <p className="text-xs text-zinc-500">Generated {new Date(payload.generatedAt).toLocaleString()}</p>
           {businessId ? (
             <Link
-              href={`/workspace/${businessId}`}
+              href={chosenPlan ? `/workspace/${businessId}?plan=${chosenPlan}` : `/workspace/${businessId}`}
               className="inline-flex w-full items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-900 hover:border-zinc-400"
             >
               Open growth workspace
@@ -128,25 +142,42 @@ export function ReportView({
             <section className="rounded-2xl border border-red-200 bg-red-50/50 p-5 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-zinc-900">Turn on autopilot for this business</h2>
+                  <h2 className="text-lg font-semibold text-zinc-900">
+                    {chosenPlan === "entry"
+                      ? "You chose Entry. Continue to Entry checkout."
+                      : chosenPlan === "pro"
+                        ? "You chose Pro. Continue to Pro checkout."
+                        : "Turn on autopilot for this business"}
+                  </h2>
                   <p className="mt-1 text-sm text-zinc-700">
-                    Keep this business monitored automatically with recurring visibility refreshes, roadmap tracking, and
-                    workspace queues.
+                    Start with your business, then activate the plan. We&apos;ll connect this plan to this business and keep
+                    it monitored automatically.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Link
-                    href={`/workspace/${businessId}#billing`}
-                    className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
-                  >
-                    Start Entry
-                  </Link>
-                  <Link
-                    href={`/workspace/${businessId}#billing`}
-                    className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
-                  >
-                    Start Pro
-                  </Link>
+                  {workspaceHref ? (
+                    <Link
+                      href={workspaceHref}
+                      className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+                    >
+                      {primaryLabel}
+                    </Link>
+                  ) : null}
+                  {chosenPlan === "entry" ? (
+                    <Link
+                      href={`/workspace/${businessId}?plan=pro#billing`}
+                      className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                    >
+                      Continue to Pro checkout
+                    </Link>
+                  ) : chosenPlan !== "pro" ? (
+                    <Link
+                      href={`/workspace/${businessId}?plan=entry#billing`}
+                      className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                    >
+                      Continue to Entry checkout
+                    </Link>
+                  ) : null}
                 </div>
               </div>
             </section>
@@ -323,27 +354,44 @@ export function ReportView({
             <div className="h-40 rounded-2xl bg-zinc-100" />
           </div>
           <div className="relative mt-8">
-            <ReportUnlockCard publicId={publicId} onUnlocked={() => setUnlocked(true)} />
+            <ReportUnlockCard publicId={publicId} onUnlocked={() => setUnlocked(true)} selectedPlan={chosenPlan} />
             {businessId ? (
               <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4 text-sm">
-                <p className="font-semibold text-zinc-900">Upgrade path after unlock</p>
+                <p className="font-semibold text-zinc-900">
+                  {chosenPlan === "entry"
+                    ? "Entry selected"
+                    : chosenPlan === "pro"
+                      ? "Pro selected"
+                      : "Plan selection"}
+                </p>
                 <p className="mt-1 text-zinc-600">
-                  Unlock first, then use billing in workspace to start Entry or Start Pro and keep this business monitored
-                  automatically.
+                  Start with your business, then activate the plan. We&apos;ll connect this plan to this business when you
+                  continue to checkout.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Link
-                    href={`/workspace/${businessId}#billing`}
-                    className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
-                  >
-                    Start Entry
-                  </Link>
-                  <Link
-                    href={`/workspace/${businessId}#billing`}
-                    className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
-                  >
-                    Start Pro
-                  </Link>
+                  {workspaceHref ? (
+                    <Link
+                      href={workspaceHref}
+                      className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+                    >
+                      {primaryLabel}
+                    </Link>
+                  ) : null}
+                  {chosenPlan === "entry" ? (
+                    <Link
+                      href={`/workspace/${businessId}?plan=pro#billing`}
+                      className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                    >
+                      Continue to Pro checkout
+                    </Link>
+                  ) : chosenPlan !== "pro" ? (
+                    <Link
+                      href={`/workspace/${businessId}?plan=entry#billing`}
+                      className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                    >
+                      Continue to Entry checkout
+                    </Link>
+                  ) : null}
                 </div>
               </div>
             ) : null}

@@ -9,9 +9,11 @@ const initialState: ReportUnlockActionState = { status: "idle" };
 export function ReportUnlockCard({
   publicId,
   onUnlocked,
+  selectedPlan,
 }: {
   publicId: string;
   onUnlocked: () => void;
+  selectedPlan?: "entry" | "pro" | null;
 }) {
   const [state, formAction, pending] = useActionState(unlockReportAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
@@ -22,9 +24,13 @@ export function ReportUnlockCard({
       formRef.current?.reset();
       onUnlocked();
       const unlockPath = state.unlockUrl.replace(/^https?:\/\/[^/]+/i, "");
-      router.replace(unlockPath);
+      const url = new URL(unlockPath, window.location.origin);
+      if (selectedPlan && !url.searchParams.get("plan")) {
+        url.searchParams.set("plan", selectedPlan);
+      }
+      router.replace(`${url.pathname}${url.search}${url.hash}`);
     }
-  }, [onUnlocked, router, state]);
+  }, [onUnlocked, router, selectedPlan, state]);
 
   return (
     <div className="mx-auto max-w-xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-lg">

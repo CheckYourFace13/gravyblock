@@ -10,7 +10,10 @@ import { CheckoutButton, PortalButton } from "./billing-buttons";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ businessId: string }> };
+type Props = {
+  params: Promise<{ businessId: string }>;
+  searchParams: Promise<{ plan?: string }>;
+};
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { businessId } = await params;
@@ -22,8 +25,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function WorkspacePage({ params }: Props) {
+export default async function WorkspacePage({ params, searchParams }: Props) {
   const { businessId } = await params;
+  const query = await searchParams;
   const bundle = await getWorkspaceBundle(businessId);
   if (!bundle) notFound();
   const autopilot = await getAutopilotWorkspace(businessId);
@@ -49,6 +53,7 @@ export default async function WorkspacePage({ params }: Props) {
   const reviewTasks = autopilot.operatorTasks.filter(
     (task) => task.queue === "review_ops" || task.queue === "reputation_ops" || task.queue === "local_trust_ops",
   );
+  const selectedPlan = query.plan === "entry" || query.plan === "pro" ? query.plan : null;
   const billingStatus = bundle.business.subscriptionStatus ?? "none";
   const hasBillingCustomer = Boolean(bundle.business.stripeCustomerId);
 
@@ -78,21 +83,30 @@ export default async function WorkspacePage({ params }: Props) {
               {features.monthlyPrice > 0 ? `($${features.launchPrice.toFixed(2)}/mo launch)` : ""}
             </span>
             <span className="rounded-full bg-zinc-100 px-3 py-1">Refresh cadence: {features.refreshCadenceLabel}</span>
+            {selectedPlan ? (
+              <span className="rounded-full bg-red-100 px-3 py-1 text-red-950">
+                Selected plan: {selectedPlan === "entry" ? "Entry" : "Pro"}
+              </span>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             {tier !== "entry" ? (
               <CheckoutButton
                 businessId={businessId}
                 plan="entry"
-                label="Start Entry"
-                className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                label={selectedPlan === "entry" ? "Continue to Entry checkout" : "Turn on Entry"}
+                className={
+                  selectedPlan === "entry"
+                    ? "rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+                    : "rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                }
               />
             ) : null}
             {tier !== "pro" ? (
               <CheckoutButton
                 businessId={businessId}
                 plan="pro"
-                label="Start Pro"
+                label={selectedPlan === "pro" ? "Continue to Pro checkout" : "Turn on Pro"}
                 className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
               />
             ) : null}
@@ -148,7 +162,7 @@ export default async function WorkspacePage({ params }: Props) {
                 : ""}
             </p>
             <p className="mt-1 text-xs font-medium text-zinc-600">
-              Turn on autopilot to keep this business monitored automatically.
+              Start with your business, then activate the plan. We&apos;ll connect this plan to this business.
             </p>
           </div>
           {hasBillingCustomer ? (
@@ -168,10 +182,23 @@ export default async function WorkspacePage({ params }: Props) {
                 <CheckoutButton
                   businessId={businessId}
                   plan="entry"
-                  label={tier === "free" ? "Upgrade to Entry" : "Switch to Entry"}
+                  label={selectedPlan === "entry" ? "Continue to Entry checkout" : tier === "free" ? "Turn on Entry" : "Switch to Entry"}
                   className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
                 />
               </div>
+              {selectedPlan === "entry" && tier !== "pro" ? (
+                <div className="mt-3 rounded-lg border border-red-200 bg-red-50/60 p-3">
+                  <p className="text-xs text-zinc-700">Need the fullest automation layer? Start Pro instead.</p>
+                  <div className="mt-2">
+                    <CheckoutButton
+                      businessId={businessId}
+                      plan="pro"
+                      label="Continue to Pro checkout"
+                      className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+                    />
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
           {tier !== "pro" ? (
@@ -182,7 +209,7 @@ export default async function WorkspacePage({ params }: Props) {
                 <CheckoutButton
                   businessId={businessId}
                   plan="pro"
-                  label="Upgrade to Pro"
+                  label={selectedPlan === "pro" ? "Continue to Pro checkout" : "Turn on Pro"}
                   className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
                 />
               </div>

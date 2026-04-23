@@ -23,6 +23,9 @@ export async function generateReportAction(
   _prev: ReportActionState,
   formData: FormData,
 ): Promise<ReportActionState> {
+  const planIntentRaw = field(formData, "planIntent").toLowerCase();
+  const selectedPlan = planIntentRaw === "entry" || planIntentRaw === "pro" ? planIntentRaw : null;
+
   const parsed = scanFormSchema.safeParse({
     query: field(formData, "query"),
     locationHint: field(formData, "locationHint"),
@@ -74,5 +77,6 @@ export async function generateReportAction(
     return { status: "error", formError: message };
   }
 
-  redirect(`/report/${publicId}`);
+  const nextUrl = selectedPlan ? `/report/${publicId}?plan=${selectedPlan}` : `/report/${publicId}`;
+  redirect(nextUrl);
 }

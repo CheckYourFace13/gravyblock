@@ -32,13 +32,13 @@ export default function HomePage() {
                 Get your score free
               </Link>
               <Link
-                href="/scan"
+                href="/scan?plan=entry"
                 className="inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-500"
               >
                 Start Entry
               </Link>
               <Link
-                href="/scan"
+                href="/scan?plan=pro"
                 className="inline-flex items-center justify-center rounded-full bg-red-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-600"
               >
                 Start Pro
@@ -356,7 +356,7 @@ export default function HomePage() {
                 ))}
               </ul>
               <Link
-                href="/scan"
+                href="/scan?plan=entry"
                 className="mt-6 inline-flex justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
               >
                 Start Entry
@@ -386,7 +386,7 @@ export default function HomePage() {
                 ))}
               </ul>
               <Link
-                href="/scan"
+                href="/scan?plan=pro"
                 className="mt-6 inline-flex justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
               >
                 Start Pro

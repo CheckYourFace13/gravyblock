@@ -16,7 +16,7 @@ type PlaceCandidate = {
   confidence: number;
 };
 
-export function ScanForm() {
+export function ScanForm({ selectedPlan }: { selectedPlan?: "entry" | "pro" | null }) {
   const [state, formAction, pending] = useActionState(generateReportAction, initialState);
   const [query, setQuery] = useState("");
   const [locationHint, setLocationHint] = useState("");
@@ -138,6 +138,7 @@ export function ScanForm() {
       <input type="hidden" name="locationHint" value={locationHint} />
       <input type="hidden" name="placeId" value={selectedPlaceId} />
       <input type="hidden" name="candidateConfidence" value={selectedConfidence || 0} />
+      <input type="hidden" name="planIntent" value={selectedPlan ?? ""} />
 
       <div className="grid gap-4">
         <label className="space-y-2">

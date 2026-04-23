@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ publicId: string }>;
-  searchParams: Promise<{ unlock?: string }>;
+  searchParams: Promise<{ unlock?: string; plan?: string }>;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -28,12 +28,14 @@ export default async function ReportPage({ params, searchParams }: Props) {
   const record = await getReportWithContext(publicId);
   if (!record) notFound();
   const initiallyUnlocked = verifyReportUnlockToken(publicId, query.unlock);
+  const selectedPlan = query.plan === "entry" || query.plan === "pro" ? query.plan : null;
   return (
     <ReportView
       payload={record.payload}
       publicId={publicId}
       businessId={record.businessId}
       initiallyUnlocked={initiallyUnlocked}
+      selectedPlan={selectedPlan}
     />
   );
 }
