@@ -6,6 +6,27 @@ type LeadEmailPayload = {
   message?: string;
 };
 
+type ReportDeliveryPayload = {
+  leadName: string;
+  leadEmail: string;
+  businessName: string;
+  score: number;
+  verdict: string;
+  topFindings: string[];
+  unlockUrl: string;
+};
+
+type AutomationSummaryPayload = {
+  leadEmail: string;
+  businessName: string;
+  planLabel: "Entry" | "Pro";
+  cadenceLabel: string;
+  score: number;
+  completedAt: string;
+  highlights: string[];
+  workspaceUrl: string;
+};
+
 function resendConfig() {
   return {
     apiKey: process.env.RESEND_API_KEY ?? "",
@@ -75,4 +96,31 @@ export async function sendLeadEmails(payload: LeadEmailPayload, isNewLead: boole
   }
 
   await Promise.allSettled(tasks);
+}
+
+export async function sendReportDeliveryEmail(payload: ReportDeliveryPayload) {
+  return sendEmail({
+    to: payload.leadEmail,
+    subject: `${payload.businessName} report unlocked — score ${payload.score}`,
+    html: `<p>Hi ${payload.leadName},</p>
+           <p>Your full GravyBlock report is unlocked.</p>
+           <p><strong>${payload.businessName}</strong><br/>Score: <strong>${payload.score}</strong><br/>Verdict: ${payload.verdict}</p>
+           <p>Top findings:</p>
+           <ul>${payload.topFindings.map((f) => `<li>${f}</li>`).join("")}</ul>
+           <p><a href="${payload.unlockUrl}">Open full report</a></p>
+           <p>- GravyBlock</p>`,
+  });
+}
+
+export async function sendAutomationSummaryEmail(payload: AutomationSummaryPayload) {
+  return sendEmail({
+    to: payload.leadEmail,
+    subject: `${payload.planLabel} automation summary: ${payload.businessName}`,
+    html: `<p>Automation summary for <strong>${payload.businessName}</strong></p>
+           <p>Plan: ${payload.planLabel}<br/>Cadence: ${payload.cadenceLabel}<br/>Latest score: ${payload.score}<br/>Completed: ${payload.completedAt}</p>
+           <p>Highlights:</p>
+           <ul>${payload.highlights.map((h) => `<li>${h}</li>`).join("")}</ul>
+           <p><a href="${payload.workspaceUrl}">Open workspace</a></p>
+           <p>This is a scaffold summary generated from current automation queues.</p>`,
+  });
 }

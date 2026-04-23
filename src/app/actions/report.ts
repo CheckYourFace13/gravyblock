@@ -1,7 +1,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { sendLeadEmails } from "@/lib/integrations/resend";
 import { createPublicId, generateReportFromPlace } from "@/lib/report/generator";
 import { recordScanRun } from "@/lib/report/repository";
 import { scanFormSchema } from "@/lib/validation/scan";
@@ -28,8 +27,6 @@ export async function generateReportAction(
     query: field(formData, "query"),
     locationHint: field(formData, "locationHint"),
     placeId: field(formData, "placeId"),
-    contactName: field(formData, "contactName"),
-    contactEmail: field(formData, "contactEmail"),
     businessModel: field(formData, "businessModel"),
     vertical: field(formData, "vertical"),
     candidateConfidence: field(formData, "candidateConfidence"),
@@ -71,21 +68,7 @@ export async function generateReportAction(
       competitorSnapshots: generated.competitorSnapshots,
       businessModel: parsed.data.businessModel,
       vertical: parsed.data.vertical,
-      leadCapture: {
-        name: parsed.data.contactName,
-        email: parsed.data.contactEmail,
-        source: "scan_form",
-      },
     });
-    void sendLeadEmails(
-      {
-        leadName: parsed.data.contactName,
-        leadEmail: parsed.data.contactEmail,
-        source: "scan_form",
-        businessName: generated.profile.name,
-      },
-      true,
-    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Could not save report";
     return { status: "error", formError: message };

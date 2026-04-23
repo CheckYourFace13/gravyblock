@@ -30,15 +30,22 @@ export const metadata: Metadata = {
     siteName: "GravyBlock",
     locale: "en_US",
     type: "website",
-    // Images: use `src/app/opengraph-image.png` (Next serves it automatically). Do not set broken `/brand/*` URLs here.
+    images: [{ url: "/brand/og.png", width: 1024, height: 1024, alt: "GravyBlock" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "GravyBlock",
     description: "AI-powered local growth autopilot for local, multi-location, and locally-positioned online businesses.",
-    // Images: use `src/app/twitter-image.png` via file convention — avoids conflicting metadata.
+    images: ["/brand/og.png"],
   },
-  // Icons: use `src/app/icon.png`, `favicon.ico`, and `apple-icon.png` (App Router file convention). No `icons` key — explicit `/brand/*` paths were 404ing on Hostinger because those files are not in /public.
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/brand/favicon.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/brand/favicon.png", type: "image/png", sizes: "512x512" }],
+    shortcut: ["/favicon.ico"],
+  },
 };
 
 export const viewport: Viewport = {

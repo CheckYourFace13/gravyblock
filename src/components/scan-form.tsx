@@ -139,30 +139,6 @@ export function ScanForm() {
       <input type="hidden" name="placeId" value={selectedPlaceId} />
       <input type="hidden" name="candidateConfidence" value={selectedConfidence || 0} />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="space-y-2">
-          <span className="text-sm font-medium text-zinc-800">Your name</span>
-          <input
-            name="contactName"
-            required
-            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none ring-red-500/30 focus:ring-4"
-            placeholder="Alex from Northside"
-          />
-          <FieldError messages={state.status === "error" ? state.fieldErrors?.contactName : undefined} />
-        </label>
-        <label className="space-y-2">
-          <span className="text-sm font-medium text-zinc-800">Work email</span>
-          <input
-            name="contactEmail"
-            type="email"
-            required
-            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none ring-red-500/30 focus:ring-4"
-            placeholder="you@business.com"
-          />
-          <FieldError messages={state.status === "error" ? state.fieldErrors?.contactEmail : undefined} />
-        </label>
-      </div>
-
       <div className="grid gap-4">
         <label className="space-y-2">
           <span className="text-sm font-medium text-zinc-800">Business model</span>
@@ -209,8 +185,12 @@ export function ScanForm() {
         disabled={pending || !selected}
         className="inline-flex w-full items-center justify-center rounded-full bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
-        {pending ? "Running real scan..." : "Generate report"}
+        {pending ? "Running real scan..." : "Get free score preview"}
       </button>
+      <p className="text-xs text-zinc-500">
+        You will see your score, verdict, and top findings immediately. Enter name + email on the next step to unlock
+        the full report and have it sent to your inbox.
+      </p>
       <p className="text-xs text-zinc-500">
         Data sources: Google Places (verified), homepage crawl (verified), public social link discovery from that page
         (observational), and localized rank checks (estimated). Your website URL is taken from the Google listing when
@@ -222,9 +202,4 @@ export function ScanForm() {
       </p>
     </form>
   );
-}
-
-function FieldError({ messages }: { messages?: string[] }) {
-  if (!messages?.length) return null;
-  return <p className="text-xs text-red-700">{messages.join(" ")}</p>;
 }

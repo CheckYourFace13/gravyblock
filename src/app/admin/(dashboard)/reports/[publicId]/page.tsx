@@ -28,7 +28,7 @@ export default async function AdminReportDetailPage({ params }: Props) {
           </Link>
         </div>
       </div>
-      <ReportView payload={record.payload} publicId={publicId} businessId={record.businessId} />
+      <ReportView payload={record.payload} publicId={publicId} businessId={record.businessId} initiallyUnlocked />
     </div>
   );
 }

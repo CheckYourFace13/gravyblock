@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { AutopilotRoadmap } from "@/components/autopilot-roadmap";
-import { LeadCaptureCard } from "@/components/lead-capture-card";
+import { ReportUnlockCard } from "@/components/report-unlock-card";
 import { buildRoadmapRows } from "@/lib/growth/roadmap";
 import type { DataSourceAttribution, ReportPayload } from "@/lib/report/types";
 
@@ -46,13 +49,17 @@ export function ReportView({
   payload,
   publicId,
   businessId,
+  initiallyUnlocked,
 }: {
   payload: ReportPayload;
   publicId: string;
   businessId?: string;
+  initiallyUnlocked: boolean;
 }) {
+  const [unlocked, setUnlocked] = useState(initiallyUnlocked);
   const badge = opportunityBadge(payload.opportunityLevel);
   const roadmapRows = buildRoadmapRows(payload);
+  const topFindings = useMemo(() => payload.prioritizedFixes.slice(0, 3), [payload.prioritizedFixes]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-12 sm:px-6">
@@ -92,240 +99,206 @@ export function ReportView({
         </div>
       </div>
 
-      <AutopilotRoadmap rows={roadmapRows} />
-
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-900">Data sources used</h2>
+        <h2 className="text-lg font-semibold text-zinc-900">Top findings (free preview)</h2>
         <p className="mt-1 text-sm text-zinc-600">
-          Verified listing data, on-page crawl, observational social links, and modeled local rank — labeled so you know
-          what is authoritative vs directional.
+          You can view score, verdict, and top findings for free. Unlock sends the full report to your inbox and reveals
+          all sections in this session.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {payload.sourceAttribution.map((source) => (
-            <div key={source.source} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-sm">
-              <p className="font-semibold text-zinc-900">{sourceLabel(source.source)}</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">{sourceModeLine(source)}</p>
-              <p className="mt-1 text-xs text-zinc-600">{source.note}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Business snapshot</h2>
-          <p className="mt-1 text-sm text-zinc-600">Core identity fields from the live Google listing.</p>
-          <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-            <Metric k="Website (from Google)" v={payload.business.website} />
-            <Metric k="Google place ID" v={payload.googlePresence.placeId} />
-            <Metric k="Category" v={payload.googlePresence.category} />
-            <Metric k="Rating" v={payload.googlePresence.rating?.toString()} />
-            <Metric k="Review count" v={payload.googlePresence.reviewCount?.toString()} />
-            <Metric k="Open now" v={typeof payload.googlePresence.openNow === "boolean" ? String(payload.googlePresence.openNow) : undefined} />
-            <Metric k="Match confidence" v={`${payload.googlePresence.confidence}%`} />
-          </dl>
-        </article>
-        <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Google presence</h2>
-          <p className="mt-1 text-sm text-zinc-600">Public Maps-oriented fields from Google Places.</p>
-          <div className="mt-4 space-y-2 text-sm text-zinc-700">
-            <p>
-              <span className="font-semibold text-zinc-900">Address:</span> {payload.googlePresence.address ?? "n/a"}
-            </p>
-            <p>
-              <span className="font-semibold text-zinc-900">Status:</span> {payload.googlePresence.businessStatus ?? "n/a"}
-            </p>
-            {payload.googlePresence.mapsUri ? (
-              <a href={payload.googlePresence.mapsUri} className="font-semibold text-zinc-900 underline">
-                Open Google Maps profile
-              </a>
-            ) : null}
-          </div>
-        </article>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Website conversion health</h2>
-          <p className="mt-1 text-sm text-zinc-600">Homepage fetch for on-page trust and conversion signals.</p>
-          <p className={`mt-3 text-3xl font-semibold ${scoreTone(payload.websiteConversionHealth.score)}`}>
-            {payload.websiteConversionHealth.score}
-          </p>
-          <ul className="mt-3 space-y-2 text-sm text-zinc-700">
-            {payload.websiteConversionHealth.findings.slice(0, 6).map((f) => (
-              <li key={f.key} className="rounded-lg bg-zinc-50 px-3 py-2">
-                <span className="font-semibold text-zinc-900">{f.title}</span>
-                <span className="text-zinc-600"> — {f.detail}</span>
-              </li>
-            ))}
-          </ul>
-        </article>
-        <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Search visibility</h2>
-          <p className="mt-1 text-sm text-zinc-600">
-            {payload.searchVisibility.verified
-              ? "Verified Search Console metrics (owner token)."
-              : "Estimated from sampled local queries — owner Search Console was not linked on this public scan."}
-          </p>
-          {payload.searchVisibility.aggregate ? (
-            <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-              <Metric k="Clicks" v={String(payload.searchVisibility.aggregate.clicks)} />
-              <Metric k="Impressions" v={String(payload.searchVisibility.aggregate.impressions)} />
-              <Metric k="CTR" v={`${(payload.searchVisibility.aggregate.ctr * 100).toFixed(2)}%`} />
-              <Metric k="Avg position" v={String(payload.searchVisibility.aggregate.averagePosition)} />
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-zinc-600">{payload.searchVisibility.note}</p>
-          )}
-          {payload.searchVisibility.topQueries.length ? (
-            <ul className="mt-4 space-y-2 text-sm text-zinc-700">
-              {payload.searchVisibility.topQueries.slice(0, 5).map((q) => (
-                <li key={q.query} className="rounded-lg bg-zinc-50 px-3 py-2">
-                  <span className="font-semibold text-zinc-900">{q.query}</span>
-                  <span className="text-zinc-600"> · {q.impressions} imp · pos {q.position}</span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </article>
-      </section>
-
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-900">Local ranking signals</h2>
-        <p className="mt-1 text-sm text-zinc-600">
-          Per-query map-style estimates — read together with Search visibility (one shared story, expanded by query).
-        </p>
-        <ul className="mt-4 grid gap-3 md:grid-cols-2">
-          {payload.localRankingSignals.checks.map((check) => (
-            <li key={check.query} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-sm">
-              <p className="font-semibold text-zinc-900">{check.query}</p>
-              <p className="mt-1 text-zinc-600">
-                Estimated position: {check.estimatedPosition ?? "not in sampled results"} · confidence {check.confidence}%
-              </p>
-              <p className="text-xs text-zinc-500">
-                Map-pack presence: {check.inMapPack ? "yes" : "no"} · source: estimated_local_rank
-              </p>
+        <ol className="mt-4 space-y-3">
+          {topFindings.map((fix, idx) => (
+            <li key={fix.id} className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
+                  {idx + 1}
+                </span>
+                <div>
+                  <p className="font-semibold text-zinc-900">{fix.title}</p>
+                  <p className="mt-1 text-sm text-zinc-600">{fix.detail}</p>
+                </div>
+              </div>
             </li>
           ))}
-        </ul>
+        </ol>
       </section>
 
-      {payload.socialPresence ? (
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-zinc-900">Social presence</h2>
-              <p className="mt-1 max-w-3xl text-sm text-zinc-600">{payload.socialPresence.methodology}</p>
-            </div>
-            <p className={`text-3xl font-semibold ${scoreTone(payload.socialPresence.score)}`}>
-              {payload.socialPresence.score}
+      {unlocked ? (
+        <>
+          <AutopilotRoadmap rows={roadmapRows} />
+
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-zinc-900">Data sources used</h2>
+            <p className="mt-1 text-sm text-zinc-600">
+              Verified listing data, on-page crawl, observational social links, and modeled local rank.
             </p>
-          </div>
-          <p className="mt-3 text-sm text-zinc-700">{payload.socialPresence.signalsNote}</p>
-          {payload.socialPresence.crawlNotes ? (
-            <p className="mt-2 text-xs text-amber-800">Homepage fetch note: {payload.socialPresence.crawlNotes}</p>
-          ) : null}
-          {payload.socialPresence.profiles.length ? (
-            <ul className="mt-4 grid gap-3 md:grid-cols-2">
-              {payload.socialPresence.profiles.map((p) => (
-                <li key={`${p.platform}-${p.url}`} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-sm">
-                  <p className="font-semibold capitalize text-zinc-900">{p.platform}</p>
-                  <a className="mt-1 block truncate text-zinc-800 underline" href={p.url} target="_blank" rel="noreferrer">
-                    {p.url}
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {payload.sourceAttribution.map((source) => (
+                <div key={source.source} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-sm">
+                  <p className="font-semibold text-zinc-900">{sourceLabel(source.source)}</p>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">{sourceModeLine(source)}</p>
+                  <p className="mt-1 text-xs text-zinc-600">{source.note}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="grid gap-4 lg:grid-cols-2">
+            <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-zinc-900">Business snapshot</h2>
+              <p className="mt-1 text-sm text-zinc-600">Core identity fields from the live Google listing.</p>
+              <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                <Metric k="Website (from Google)" v={payload.business.website} />
+                <Metric k="Google place ID" v={payload.googlePresence.placeId} />
+                <Metric k="Category" v={payload.googlePresence.category} />
+                <Metric k="Rating" v={payload.googlePresence.rating?.toString()} />
+                <Metric k="Review count" v={payload.googlePresence.reviewCount?.toString()} />
+                <Metric k="Open now" v={typeof payload.googlePresence.openNow === "boolean" ? String(payload.googlePresence.openNow) : undefined} />
+                <Metric k="Match confidence" v={`${payload.googlePresence.confidence}%`} />
+              </dl>
+            </article>
+            <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-zinc-900">Google presence</h2>
+              <p className="mt-1 text-sm text-zinc-600">Public Maps-oriented fields from Google Places.</p>
+              <div className="mt-4 space-y-2 text-sm text-zinc-700">
+                <p>
+                  <span className="font-semibold text-zinc-900">Address:</span> {payload.googlePresence.address ?? "n/a"}
+                </p>
+                <p>
+                  <span className="font-semibold text-zinc-900">Status:</span> {payload.googlePresence.businessStatus ?? "n/a"}
+                </p>
+                {payload.googlePresence.mapsUri ? (
+                  <a href={payload.googlePresence.mapsUri} className="font-semibold text-zinc-900 underline">
+                    Open Google Maps profile
                   </a>
-                  <p className="mt-2 text-xs text-zinc-600">
-                    Source:                     {p.discoverySource.replaceAll("_", " ")} · confidence {p.confidence}% · activity hint:{" "}
-                    {p.activityHint.replaceAll("_", " ")}
-                    {p.handle ? ` · handle: ${p.handle.startsWith("@") ? p.handle : `@${p.handle}`}` : null}
+                ) : null}
+              </div>
+            </article>
+          </section>
+
+          <section className="grid gap-4 lg:grid-cols-2">
+            <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-zinc-900">Website conversion health</h2>
+              <p className="mt-1 text-sm text-zinc-600">Homepage fetch for on-page trust and conversion signals.</p>
+              <p className={`mt-3 text-3xl font-semibold ${scoreTone(payload.websiteConversionHealth.score)}`}>
+                {payload.websiteConversionHealth.score}
+              </p>
+              <ul className="mt-3 space-y-2 text-sm text-zinc-700">
+                {payload.websiteConversionHealth.findings.slice(0, 6).map((f) => (
+                  <li key={f.key} className="rounded-lg bg-zinc-50 px-3 py-2">
+                    <span className="font-semibold text-zinc-900">{f.title}</span>
+                    <span className="text-zinc-600"> — {f.detail}</span>
+                  </li>
+                ))}
+              </ul>
+            </article>
+            <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-zinc-900">Search visibility</h2>
+              <p className="mt-1 text-sm text-zinc-600">
+                {payload.searchVisibility.verified
+                  ? "Verified Search Console metrics (owner token)."
+                  : "Estimated from sampled local queries — owner Search Console was not linked on this public scan."}
+              </p>
+              {payload.searchVisibility.aggregate ? (
+                <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                  <Metric k="Clicks" v={String(payload.searchVisibility.aggregate.clicks)} />
+                  <Metric k="Impressions" v={String(payload.searchVisibility.aggregate.impressions)} />
+                  <Metric k="CTR" v={`${(payload.searchVisibility.aggregate.ctr * 100).toFixed(2)}%`} />
+                  <Metric k="Avg position" v={String(payload.searchVisibility.aggregate.averagePosition)} />
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-zinc-600">{payload.searchVisibility.note}</p>
+              )}
+            </article>
+          </section>
+
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-zinc-900">Local ranking signals</h2>
+            <ul className="mt-4 grid gap-3 md:grid-cols-2">
+              {payload.localRankingSignals.checks.map((check) => (
+                <li key={check.query} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-sm">
+                  <p className="font-semibold text-zinc-900">{check.query}</p>
+                  <p className="mt-1 text-zinc-600">
+                    Estimated position: {check.estimatedPosition ?? "not in sampled results"} · confidence {check.confidence}%
                   </p>
-                  {p.notes ? <p className="mt-1 text-xs text-zinc-500">{p.notes}</p> : null}
+                  <p className="text-xs text-zinc-500">Map-pack presence: {check.inMapPack ? "yes" : "no"}</p>
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="mt-4 text-sm text-zinc-600">No social URLs were extracted from the fetched homepage.</p>
-          )}
-        </section>
-      ) : null}
+          </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm lg:col-span-2">
-          <h2 className="text-lg font-semibold text-zinc-900">Highest-impact fixes</h2>
-          <p className="mt-1 text-sm text-zinc-600">
-            Deduplicated priorities — each item appears once even when it influenced multiple sections above.
-          </p>
-          <ol className="mt-4 space-y-4">
-            {payload.prioritizedFixes.map((fix, idx) => (
-              <li key={fix.id} className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
-                    {idx + 1}
-                  </span>
-                  <div>
-                    <p className="font-semibold text-zinc-900">{fix.title}</p>
-                    <p className="mt-1 text-sm text-zinc-600">{fix.detail}</p>
-                    <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-red-700">
-                      Impact: {fix.impact}
-                    </p>
-                  </div>
+          {payload.socialPresence ? (
+            <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-zinc-900">Social presence</h2>
+                  <p className="mt-1 max-w-3xl text-sm text-zinc-600">{payload.socialPresence.methodology}</p>
                 </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-        <LeadCaptureCard
-          publicId={publicId}
-          businessId={businessId}
-          website={payload.business.website}
-          placeId={payload.business.placeId}
-        />
-      </section>
-
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold text-zinc-900">Section breakdown</h2>
-          <p className="text-sm text-zinc-600">
-            Each category blends what humans respond to with what search and maps systems tend to reward.
-          </p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {payload.sections.map((section) => (
-            <article key={section.key} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-base font-semibold text-zinc-900">{section.title}</h3>
-                <span className={`text-2xl font-semibold ${scoreTone(section.score)}`}>{section.score}</span>
+                <p className={`text-3xl font-semibold ${scoreTone(payload.socialPresence.score)}`}>{payload.socialPresence.score}</p>
               </div>
-              <p className="mt-2 text-sm text-zinc-600">{section.summary}</p>
-              {section.issues.length ? (
-                <div className="mt-4 space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Findings</p>
-                  <ul className="space-y-2 text-sm text-zinc-700">
-                    {section.issues.map((issue) => (
-                      <li key={issue.id} className="rounded-lg bg-zinc-50 px-3 py-2">
-                        <span className="font-semibold text-zinc-900">{issue.title}</span>
-                        <span className="text-zinc-600"> — {issue.detail}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              {section.fixes.length ? (
-                <div className="mt-4 space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Recommended fixes</p>
-                  <ul className="space-y-2 text-sm text-zinc-700">
-                    {section.fixes.map((fix) => (
-                      <li key={fix.id} className="rounded-lg border border-dashed border-red-200 bg-red-50/60 px-3 py-2">
-                        <span className="font-semibold text-zinc-900">{fix.title}</span>
-                        <span className="text-zinc-600"> — {fix.detail}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </article>
-          ))}
-        </div>
-      </section>
+              {payload.socialPresence.profiles.length ? (
+                <ul className="mt-4 grid gap-3 md:grid-cols-2">
+                  {payload.socialPresence.profiles.map((p) => (
+                    <li key={`${p.platform}-${p.url}`} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-sm">
+                      <p className="font-semibold capitalize text-zinc-900">{p.platform}</p>
+                      <a className="mt-1 block truncate text-zinc-800 underline" href={p.url} target="_blank" rel="noreferrer">
+                        {p.url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-4 text-sm text-zinc-600">No social URLs were extracted from the fetched homepage.</p>
+              )}
+            </section>
+          ) : null}
+
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-zinc-900">Highest-impact fixes</h2>
+            <p className="mt-1 text-sm text-zinc-600">Full prioritized list after unlock.</p>
+            <ol className="mt-4 space-y-3">
+              {payload.prioritizedFixes.map((fix, idx) => (
+                <li key={fix.id} className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
+                  <p className="font-semibold text-zinc-900">
+                    {idx + 1}. {fix.title}
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-600">{fix.detail}</p>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold text-zinc-900">Section breakdown</h2>
+              <p className="text-sm text-zinc-600">Detailed findings and fixes across all scored categories.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {payload.sections.map((section) => (
+                <article key={section.key} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-base font-semibold text-zinc-900">{section.title}</h3>
+                    <span className={`text-2xl font-semibold ${scoreTone(section.score)}`}>{section.score}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-zinc-600">{section.summary}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        </>
+      ) : (
+        <section className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-white/70 to-white backdrop-blur-[2px]" />
+          <div className="space-y-3 opacity-60">
+            <div className="h-7 w-56 rounded bg-zinc-100" />
+            <div className="h-4 w-full rounded bg-zinc-100" />
+            <div className="h-4 w-4/5 rounded bg-zinc-100" />
+            <div className="h-40 rounded-2xl bg-zinc-100" />
+          </div>
+          <div className="relative mt-8">
+            <ReportUnlockCard publicId={publicId} onUnlocked={() => setUnlocked(true)} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }

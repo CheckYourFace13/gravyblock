@@ -1,15 +1,21 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, isNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lte, or } from "drizzle-orm";
 import {
   aiVisibilityChecks,
+  businesses,
+  citationMonitors,
   contentQueue,
   getDb,
   jobs,
+  leads,
+  operatorTasks,
   publishedContent,
   publishingJobs,
   publishingTargets,
   visibilitySnapshots,
 } from "@/lib/db";
+import { sendAutomationSummaryEmail } from "@/lib/integrations/resend";
+import { planFeatures, type PlanTier } from "@/lib/plans";
 
 function levelForScore(score: number) {
   if (score >= 78) return "low";
@@ -19,6 +25,11 @@ function levelForScore(score: number) {
 
 function clampScore(score: number) {
   return Math.max(1, Math.min(100, score));
+}
+
+function recurringJobTypeForPlan(tier: PlanTier) {
+  if (tier === "pro" || tier === "managed") return "pro_recurring_refresh";
+  return "entry_monthly_refresh";
 }
 
 export async function executeContentPublishPath(businessId: string) {
@@ -108,7 +119,11 @@ export async function executeContentPublishPath(businessId: string) {
   }
 }
 
-export async function scheduleRecurringSnapshotJob(input: { businessId: string; runAfterMs?: number }) {
+export async function scheduleRecurringSnapshotJob(input: {
+  businessId: string;
+  runAfterMs?: number;
+  type?: "entry_monthly_refresh" | "pro_recurring_refresh" | "recurring_snapshot_refresh";
+}) {
   const db = getDb();
   if (!db) {
     throw new Error("DATABASE_URL is required for recurring automation scheduling");
@@ -118,12 +133,25 @@ export async function scheduleRecurringSnapshotJob(input: { businessId: string; 
   await db.insert(jobs).values({
     id,
     businessId: input.businessId,
-    type: "recurring_snapshot_refresh",
+    type: input.type ?? "recurring_snapshot_refresh",
     payload: { source: "manual_schedule", scheduledAt: new Date().toISOString() },
     status: "pending",
     runAfter,
   });
   return { jobId: id, runAfter: runAfter.toISOString() };
+}
+
+export async function schedulePlanRecurringSnapshotJob(input: { businessId: string; planTier: PlanTier }) {
+  const feature = planFeatures(input.planTier);
+  if (!feature.recurringRefresh || !feature.refreshIntervalDays) {
+    return { scheduled: false as const };
+  }
+  const result = await scheduleRecurringSnapshotJob({
+    businessId: input.businessId,
+    runAfterMs: feature.refreshIntervalDays * 24 * 60 * 60 * 1000,
+    type: recurringJobTypeForPlan(input.planTier),
+  });
+  return { scheduled: true as const, ...result };
 }
 
 export async function runPendingRecurringSnapshotJobs(limit = 10) {
@@ -137,7 +165,7 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
     .from(jobs)
     .where(
       and(
-        eq(jobs.type, "recurring_snapshot_refresh"),
+        inArray(jobs.type, ["recurring_snapshot_refresh", "entry_monthly_refresh", "pro_recurring_refresh"]),
         eq(jobs.status, "pending"),
         or(lte(jobs.runAfter, new Date()), isNull(jobs.runAfter)),
       ),
@@ -177,12 +205,63 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
       await db.insert(aiVisibilityChecks).values({
         businessId: job.businessId,
         locationId: null,
-        prompt: "recurring local-intent autopilot probe",
+        prompt: `recurring local-intent autopilot probe (${job.type})`,
         engine: "synthetic",
         mentionFound: nextScore >= 65 ? "true" : "false",
         sentiment: nextScore >= 70 ? "positive" : "neutral",
         confidence: Math.min(95, nextScore),
       });
+
+      await db.insert(contentQueue).values({
+        id: randomUUID(),
+        businessId: job.businessId,
+        kind: job.type === "pro_recurring_refresh" ? "location_page" : "article",
+        title:
+          job.type === "pro_recurring_refresh"
+            ? "Local service-area page refresh idea"
+            : "Monthly local content idea refresh",
+        status: "queued",
+        variant: job.type === "pro_recurring_refresh" ? "geo_variant" : "primary_market",
+        outline:
+          job.type === "pro_recurring_refresh"
+            ? "Update service-area proof, local FAQs, and neighborhood trust cues."
+            : "Publish one localized update tied to current demand and recent customer questions.",
+      });
+
+      await db.insert(citationMonitors).values({
+        id: randomUUID(),
+        businessId: job.businessId,
+        sourceName: "Monthly listing consistency monitor",
+        status: "pending",
+        mismatchNote: "Run generated from recurring refresh cycle.",
+      });
+
+      await db.insert(operatorTasks).values([
+        {
+          id: randomUUID(),
+          businessId: job.businessId,
+          title: "Resolve citation/listing mismatches",
+          detail: "Audit map/listing inconsistencies surfaced in this cycle.",
+          queue: "citation_ops",
+          status: "queued",
+        },
+        {
+          id: randomUUID(),
+          businessId: job.businessId,
+          title: "Review and reputation follow-up",
+          detail: "Respond to recent reviews and request new social proof.",
+          queue: "review_ops",
+          status: "queued",
+        },
+        {
+          id: randomUUID(),
+          businessId: job.businessId,
+          title: "Local trust signal refresh",
+          detail: "Verify hours, contact, and service clarity on key pages.",
+          queue: "local_trust_ops",
+          status: "queued",
+        },
+      ]);
 
       await db
         .update(jobs)
@@ -191,6 +270,44 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
           payload: { ...(typeof job.payload === "object" && job.payload ? job.payload : {}), completedAt: new Date().toISOString(), snapshotId },
         })
         .where(eq(jobs.id, job.id));
+
+      const [business] = await db
+        .select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier })
+        .from(businesses)
+        .where(eq(businesses.id, job.businessId))
+        .limit(1);
+
+      const planTier = (business?.planTier as PlanTier | undefined) ?? (job.type === "pro_recurring_refresh" ? "pro" : "entry");
+      const features = planFeatures(planTier);
+      const [lead] = await db
+        .select({ email: leads.email })
+        .from(leads)
+        .where(eq(leads.businessId, job.businessId))
+        .orderBy(desc(leads.lastSeenAt))
+        .limit(1);
+      if (lead?.email && features.monthlySummaryEmail) {
+        const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+        const workspaceUrl = `${base.replace(/\/$/, "")}/workspace/${job.businessId}`;
+        void sendAutomationSummaryEmail({
+          leadEmail: lead.email,
+          businessName: business?.name ?? "Your business",
+          planLabel: features.label === "Pro" ? "Pro" : "Entry",
+          cadenceLabel: features.refreshCadenceLabel,
+          score: nextScore,
+          completedAt: new Date().toISOString(),
+          highlights: [
+            "Visibility score refreshed and history updated.",
+            "AI visibility summary probe recorded.",
+            "New content and trust tasks queued for this cycle.",
+          ],
+          workspaceUrl,
+        });
+      }
+
+      if (business?.planTier && (business.planTier === "entry" || business.planTier === "pro" || business.planTier === "managed")) {
+        const planForSchedule: PlanTier = business.planTier as PlanTier;
+        void schedulePlanRecurringSnapshotJob({ businessId: job.businessId, planTier: planForSchedule });
+      }
 
       results.push({ jobId: job.id, businessId: job.businessId, snapshotId, status: "completed" });
     } catch {

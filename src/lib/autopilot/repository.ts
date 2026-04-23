@@ -1,9 +1,10 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import {
   aiVisibilityChecks,
   backlinkOpportunities,
   brands,
   businesses,
+  citationMonitors,
   contentQueue,
   assertMemoryFallbackAllowed,
   getDb,
@@ -33,8 +34,10 @@ export async function getAutopilotWorkspace(businessId: string) {
       aiVisibilityChecks: [] as Array<{ id: string; prompt: string; mentionFound: string; confidence: number | null; createdAt: string }>,
       operatorTasks: [] as Array<{ id: string; title: string; queue: string; status: string; createdAt: string }>,
       automationJobs: [] as Array<{ id: string; type: string; status: string; createdAt: string }>,
+      upcomingJobs: [] as Array<{ id: string; type: string; status: string; runAfter: string | null; createdAt: string }>,
       publishingJobs: [] as Array<{ id: string; status: string; createdAt: string }>,
       publishedContent: [] as Array<{ id: string; title: string; channel: string; publicUrl: string | null; createdAt: string }>,
+      citationIssues: [] as Array<{ id: string; sourceName: string; status: string; mismatchNote: string | null; createdAt: string }>,
     };
   }
   if (!db) {
@@ -70,12 +73,14 @@ export async function getAutopilotWorkspace(businessId: string) {
         createdAt: r.createdAt,
       })),
       automationJobs: [] as Array<{ id: string; type: string; status: string; createdAt: string }>,
+      upcomingJobs: [] as Array<{ id: string; type: string; status: string; runAfter: string | null; createdAt: string }>,
       publishingJobs: [] as Array<{ id: string; status: string; createdAt: string }>,
       publishedContent: [] as Array<{ id: string; title: string; channel: string; publicUrl: string | null; createdAt: string }>,
+      citationIssues: [] as Array<{ id: string; sourceName: string; status: string; mismatchNote: string | null; createdAt: string }>,
     };
   }
 
-  const [contentRows, backlinkRows, aiRows, taskRows, jobRows, publishingRows, publishedRows] = sql
+  const [contentRows, backlinkRows, aiRows, taskRows, jobRows, publishingRows, publishedRows, citationRows] = sql
     ? await Promise.all([
         sql.unsafe(
           `select id,title,kind,status,created_at as "createdAt" from content_queue where business_id='${safeBusinessId}' order by created_at desc limit 20`,
@@ -89,10 +94,15 @@ export async function getAutopilotWorkspace(businessId: string) {
         sql.unsafe(
           `select id,title,queue,status,created_at as "createdAt" from operator_tasks where business_id='${safeBusinessId}' order by created_at desc limit 20`,
         ),
-        sql.unsafe(`select id,type,status,created_at as "createdAt" from jobs where business_id='${safeBusinessId}' order by created_at desc limit 20`),
+        sql.unsafe(
+          `select id,type,status,run_after as "runAfter",created_at as "createdAt" from jobs where business_id='${safeBusinessId}' order by created_at desc limit 20`,
+        ),
         sql`select id,status,created_at as "createdAt" from publishing_jobs order by created_at desc limit 20`,
         sql.unsafe(
           `select id,title,channel,public_url as "publicUrl",created_at as "createdAt" from published_content where business_id='${safeBusinessId}' order by created_at desc limit 20`,
+        ),
+        sql.unsafe(
+          `select id,source_name as "sourceName",status,mismatch_note as "mismatchNote",created_at as "createdAt" from citation_monitors where business_id='${safeBusinessId}' order by created_at desc limit 20`,
         ),
       ])
     : await Promise.all([
@@ -121,6 +131,12 @@ export async function getAutopilotWorkspace(businessId: string) {
           .from(publishedContent)
           .where(eq(publishedContent.businessId, businessId))
           .orderBy(desc(publishedContent.createdAt))
+          .limit(20),
+        db
+          .select()
+          .from(citationMonitors)
+          .where(eq(citationMonitors.businessId, businessId))
+          .orderBy(desc(citationMonitors.createdAt))
           .limit(20),
       ]);
 
@@ -159,6 +175,21 @@ export async function getAutopilotWorkspace(businessId: string) {
       status: j.status,
       createdAt: toIso(j.createdAt),
     })),
+    upcomingJobs: jobRows
+      .filter((j) => j.status === "pending")
+      .sort((a, b) => {
+        const aTime = a.runAfter ? new Date(a.runAfter).getTime() : 0;
+        const bTime = b.runAfter ? new Date(b.runAfter).getTime() : 0;
+        return aTime - bTime;
+      })
+      .slice(0, 6)
+      .map((j) => ({
+        id: j.id,
+        type: j.type,
+        status: j.status,
+        runAfter: j.runAfter ? toIso(j.runAfter) : null,
+        createdAt: toIso(j.createdAt),
+      })),
     publishingJobs: publishingRows.map((p) => ({
       id: p.id,
       status: p.status,
@@ -170,6 +201,13 @@ export async function getAutopilotWorkspace(businessId: string) {
       channel: p.channel,
       publicUrl: p.publicUrl,
       createdAt: toIso(p.createdAt),
+    })),
+    citationIssues: citationRows.map((c) => ({
+      id: c.id,
+      sourceName: c.sourceName,
+      status: c.status,
+      mismatchNote: c.mismatchNote ?? null,
+      createdAt: toIso(c.createdAt),
     })),
   };
 }
@@ -278,25 +316,75 @@ export async function getAutopilotOpsSummary() {
   const sql = getSqlClient();
   if (!db) {
     assertMemoryFallbackAllowed();
-    return { businessesTracked: memoryStore.listBusinesses().length, queuedTasks: 0, queuedJobs: 0, queuedPublishing: 0 };
+    return {
+      businessesTracked: memoryStore.listBusinesses().length,
+      queuedTasks: 0,
+      queuedJobs: 0,
+      queuedPublishing: 0,
+      entryRecurringPending: 0,
+      proRecurringPending: 0,
+      queuedCitationOps: 0,
+      queuedReviewOps: 0,
+      queuedLocalPageContent: 0,
+    };
   }
-  const [businessRows, taskRows, jobRows, publishingRows] = sql
+  const [businessRows, taskRows, jobRows, publishingRows, citationTaskRows, reviewTaskRows, localPageRows, entryRows, proRows] = sql
     ? await Promise.all([
         sql`select id from businesses limit 10000`,
         sql`select id from operator_tasks where status='queued' limit 10000`,
         sql`select id from jobs where status='pending' limit 10000`,
         sql`select id from publishing_jobs where status='pending' limit 10000`,
+        sql`select id from operator_tasks where status='queued' and queue='citation_ops' limit 10000`,
+        sql`select id from operator_tasks where status='queued' and (queue='review_ops' or queue='reputation_ops' or queue='local_trust_ops') limit 10000`,
+        sql`select id from content_queue where status='queued' and kind='location_page' limit 10000`,
+        sql`select id from jobs where status='pending' and type='entry_monthly_refresh' limit 10000`,
+        sql`select id from jobs where status='pending' and type='pro_recurring_refresh' limit 10000`,
       ])
     : await Promise.all([
         db.select({ id: businesses.id }).from(businesses).limit(10000),
         db.select({ id: operatorTasks.id }).from(operatorTasks).where(eq(operatorTasks.status, "queued")).limit(10000),
         db.select({ id: jobs.id }).from(jobs).where(eq(jobs.status, "pending")).limit(10000),
         db.select({ id: publishingJobs.id }).from(publishingJobs).where(eq(publishingJobs.status, "pending")).limit(10000),
+        db
+          .select({ id: operatorTasks.id })
+          .from(operatorTasks)
+          .where(and(eq(operatorTasks.status, "queued"), eq(operatorTasks.queue, "citation_ops")))
+          .limit(10000),
+        db
+          .select({ id: operatorTasks.id })
+          .from(operatorTasks)
+          .where(
+            and(
+              eq(operatorTasks.status, "queued"),
+              inArray(operatorTasks.queue, ["review_ops", "reputation_ops", "local_trust_ops"]),
+            ),
+          )
+          .limit(10000),
+        db
+          .select({ id: contentQueue.id })
+          .from(contentQueue)
+          .where(and(eq(contentQueue.status, "queued"), eq(contentQueue.kind, "location_page")))
+          .limit(10000),
+        db
+          .select({ id: jobs.id })
+          .from(jobs)
+          .where(and(eq(jobs.status, "pending"), eq(jobs.type, "entry_monthly_refresh")))
+          .limit(10000),
+        db
+          .select({ id: jobs.id })
+          .from(jobs)
+          .where(and(eq(jobs.status, "pending"), eq(jobs.type, "pro_recurring_refresh")))
+          .limit(10000),
       ]);
   return {
     businessesTracked: businessRows.length,
     queuedTasks: taskRows.length,
     queuedJobs: jobRows.length,
     queuedPublishing: publishingRows.length,
+    entryRecurringPending: entryRows.length,
+    proRecurringPending: proRows.length,
+    queuedCitationOps: citationTaskRows.length,
+    queuedReviewOps: reviewTaskRows.length,
+    queuedLocalPageContent: localPageRows.length,
   };
 }

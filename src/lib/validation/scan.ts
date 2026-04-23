@@ -22,8 +22,6 @@ export const scanFormSchema = z.object({
   query: z.string().trim().min(2, "Business query is required"),
   locationHint: z.string().trim().min(2, "City or address is required"),
   placeId: z.string().trim().min(8, "Select a business from the Google matches list"),
-  contactName: z.string().trim().min(2, "Contact name is required"),
-  contactEmail: z.string().trim().email("Valid contact email is required"),
   businessModel: z
     .enum(["single_location", "multi_location", "service_area", "online_only", "hybrid", "franchise"])
     .default("single_location"),

@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GravyBlock — Autopilot growth for local and multi-location businesses",
   description:
-    "Get your score free, unlock the full report by email, then choose Entry or Pro to keep visibility monitored and improved automatically — product-led local growth software.",
+    "Get your score free, unlock the full report by email, then choose Entry or Pro to keep visibility monitored and improved automatically — product-led local growth software. No sales-call gate.",
 };
 
 export default function HomePage() {
@@ -21,7 +21,7 @@ export default function HomePage() {
               Win local discovery, trust, and conversion without drowning in tools. Built for{" "}
               <span className="font-medium text-zinc-800">local businesses of every kind</span> — storefront,
               multi-location, service-area, and online-first brands that still have to prove “real” locally. Start with a
-              free automated scan, see score and verdict instantly, unlock the full report by email, then use your
+              free automated scan, view score and verdict instantly, unlock the full report by email, then use your
               workspace to track scores, recommendations, and (on Entry or Pro) recurring visibility and automation.
             </p>
             <div className="flex flex-wrap gap-3">
@@ -275,7 +275,8 @@ export default function HomePage() {
             <p className="text-zinc-600">
               Launch pricing shows regular monthly price plus the current discounted launch rate. The free tier includes
               score, verdict, and top findings on the report page; unlock sends the full report by email and reveals every
-              section in your session. Entry and Pro add recurring automation in the product — no ranking guarantees.
+              section in your session. Entry and Pro add recurring automation in the product — no ranking guarantees and
+              no sales-call gate.
             </p>
             <p className="text-sm text-zinc-500">
               For billing or access, use Support in the footer — the product is built to run as automated software first.
@@ -285,11 +286,13 @@ export default function HomePage() {
             <article className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-wide text-red-800">Free</p>
               <p className="mt-2 text-3xl font-semibold text-zinc-900">$0</p>
-              <p className="mt-1 text-sm text-zinc-500">Get your score free; unlock the full report by email.</p>
+              <p className="mt-1 text-sm text-zinc-500">
+                Get your score free; unlock the full report by email after a quick name + email step.
+              </p>
               <ul className="mt-4 flex-1 space-y-2 text-sm text-zinc-600">
                 {[
                   "Score, verdict, and top 3 findings visible on the report first",
-                  "Rest of report locked until name + email unlock",
+                  "Rest of report locked until name + email unlock (lead capture)",
                   "Full report emailed after unlock; same session shows the full report",
                   "Public listing + website + social discovery in the full report",
                   "Limited workspace access and saved report history where supported",
@@ -343,7 +346,7 @@ export default function HomePage() {
                 <p className="text-3xl font-semibold text-zinc-900">$39.99/month</p>
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Launch special</p>
               </div>
-              <p className="mt-1 text-sm text-zinc-500">The fullest automation layer available in this build.</p>
+              <p className="mt-1 text-sm text-zinc-500">The fullest available automation layer in this build.</p>
               <ul className="mt-4 flex-1 space-y-2 text-sm text-zinc-600">
                 {[
                   "Everything in Entry, with more frequent recurring refreshes",

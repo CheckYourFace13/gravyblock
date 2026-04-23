@@ -42,6 +42,12 @@ export default async function WorkspacePage({ params }: Props) {
   const previous = bundle.snapshots[1];
   const delta =
     latest && previous ? latest.overallScore - previous.overallScore : latest && !previous ? null : null;
+  const latestAutomation = autopilot.automationJobs[0];
+  const upcomingAutomation = autopilot.upcomingJobs[0];
+  const localPageQueue = autopilot.contentQueue.filter((item) => item.kind === "location_page");
+  const reviewTasks = autopilot.operatorTasks.filter(
+    (task) => task.queue === "review_ops" || task.queue === "reputation_ops" || task.queue === "local_trust_ops",
+  );
 
   return (
     <div className="mx-auto max-w-6xl space-y-12 px-4 py-14 sm:px-6">
@@ -64,7 +70,11 @@ export default async function WorkspacePage({ params }: Props) {
                 Maps
               </a>
             ) : null}
-            <span className="rounded-full bg-red-100 px-3 py-1 text-red-950">Plan: {tier}</span>
+            <span className="rounded-full bg-red-100 px-3 py-1 text-red-950">
+              Plan: {features.label}{" "}
+              {features.monthlyPrice > 0 ? `($${features.launchPrice.toFixed(2)}/mo launch)` : ""}
+            </span>
+            <span className="rounded-full bg-zinc-100 px-3 py-1">Refresh cadence: {features.refreshCadenceLabel}</span>
           </div>
         </div>
         <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -81,17 +91,16 @@ export default async function WorkspacePage({ params }: Props) {
         </div>
       </header>
 
-      {!features.contentIdeasQueue ? (
+      {!features.recurringRefresh ? (
         <div className="rounded-2xl border border-red-200 bg-red-50/60 px-5 py-5 text-sm text-zinc-900">
           <p>
-            <span className="font-semibold">Pro unlocks the automation layer.</span> You already have the roadmap, scan
-            history, and snapshots. On Pro, the workspace exposes the content queue, publishing jobs, recurring visibility
-            refresh jobs, and synthetic AI visibility checks — see{" "}
+            <span className="font-semibold">Entry unlocks recurring automation.</span> Free includes scan history and core
+            report storage. Entry adds monthly refresh + summary cycles, and Pro adds more frequent runs with full queue
+            surfaces — see{" "}
             <Link href="/#plans" className="font-semibold underline">
-              Entry vs Pro on the homepage
+              Free vs Entry vs Pro
             </Link>
-            . When your business row is set to Pro, those sections fill in automatically; use Support in the site footer
-            only for account or access help.
+            .
           </p>
         </div>
       ) : null}
@@ -115,19 +124,30 @@ export default async function WorkspacePage({ params }: Props) {
           </div>
         </div>
         <div className="space-y-4 rounded-2xl border border-zinc-200 bg-zinc-900 p-5 text-white shadow-sm">
-          <h2 className="text-lg font-semibold">Automation & integrations</h2>
+          <h2 className="text-lg font-semibold">Automation status</h2>
           <ul className="space-y-3 text-sm text-zinc-200">
-            <FeatureRow
-              label="Recurring visibility snapshots + synthetic AI checks (job runner)"
-              on={features.automatedMonitoring}
-            />
-            <FeatureRow label="Content queue + publishing pipeline (internal artifacts)" on={features.contentIdeasQueue} />
+            <FeatureRow label="Recurring visibility refreshes" on={features.recurringRefresh} />
+            <FeatureRow label="Monthly summary email scaffold" on={features.monthlySummaryEmail} />
+            <FeatureRow label="Monthly content ideas" on={features.monthlyContentIdeas} />
+            <FeatureRow label="Content queue + publishing history" on={features.contentQueue && features.publishingQueue} />
+            <FeatureRow label="Citation/listing issue queue" on={features.citationQueue} />
+            <FeatureRow label="Review/reputation task queue" on={features.reviewQueue} />
+            <FeatureRow label="Multi-location readiness" on={features.multiLocationReady} />
             <FeatureRow label="Owner Google Business Profile API (OAuth)" on={features.gbpSync} />
-            <FeatureRow label="Optional operator / account support (managed tier)" on={tier === "managed"} />
           </ul>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs">
+            <p className="font-semibold text-zinc-100">
+              Latest run: {latestAutomation ? `${latestAutomation.type} · ${latestAutomation.status}` : "none yet"}
+            </p>
+            <p className="mt-1 text-zinc-300">
+              Upcoming:{" "}
+              {upcomingAutomation?.runAfter
+                ? `${upcomingAutomation.type} at ${new Date(upcomingAutomation.runAfter).toLocaleString()}`
+                : "no pending recurring jobs"}
+            </p>
+          </div>
           <p className="text-xs text-zinc-400">
-            Listing snapshots in reports use public Places data. Owner-authenticated GBP APIs and third-party crawl
-            integrations are not connected in this build — see `src/lib/integrations/contracts.ts` for stubs.
+            Listing snapshots use public Places data. Owner-authenticated GBP APIs are not connected in this build.
           </p>
         </div>
       </section>
@@ -136,7 +156,7 @@ export default async function WorkspacePage({ params }: Props) {
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Autopilot content queue</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">Content queue</h2>
           <p className="mt-1 text-sm text-zinc-600">Scheduled and queued content assets across local + conversion intent.</p>
           <ul className="mt-4 space-y-2 text-sm">
             {autopilot.contentQueue.slice(0, 8).map((item) => (
@@ -151,18 +171,19 @@ export default async function WorkspacePage({ params }: Props) {
           </ul>
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Backlink + authority queue</h2>
-          <p className="mt-1 text-sm text-zinc-600">Contextual authority opportunities tracked for sustainable growth.</p>
+          <h2 className="text-lg font-semibold text-zinc-900">Citation + listing issue queue</h2>
+          <p className="mt-1 text-sm text-zinc-600">Listing mismatches and citation integrity checks.</p>
           <ul className="mt-4 space-y-2 text-sm">
-            {autopilot.backlinkQueue.slice(0, 8).map((item) => (
+            {autopilot.citationIssues.slice(0, 8).map((item) => (
               <li key={item.id} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
                 <p className="font-semibold text-zinc-900">{item.sourceName}</p>
                 <p className="text-xs uppercase tracking-wide text-zinc-500">
-                  {item.status} · quality {item.qualityScore ?? "n/a"}
+                  {item.status}
                 </p>
+                {item.mismatchNote ? <p className="text-xs text-zinc-600">{item.mismatchNote}</p> : null}
               </li>
             ))}
-            {!autopilot.backlinkQueue.length ? <li className="text-zinc-500">No authority opportunities queued.</li> : null}
+            {!autopilot.citationIssues.length ? <li className="text-zinc-500">No citation/listing issues queued.</li> : null}
           </ul>
         </div>
       </section>
@@ -183,9 +204,9 @@ export default async function WorkspacePage({ params }: Props) {
           </ul>
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-zinc-900">Operator tasks</h3>
+          <h3 className="text-base font-semibold text-zinc-900">Review and local trust tasks</h3>
           <ul className="mt-3 space-y-2 text-sm">
-            {autopilot.operatorTasks.slice(0, 6).map((task) => (
+            {reviewTasks.slice(0, 6).map((task) => (
               <li key={task.id} className="rounded-lg bg-zinc-50 px-3 py-2">
                 <p className="font-medium text-zinc-900">{task.title}</p>
                 <p className="text-xs uppercase text-zinc-500">
@@ -193,7 +214,7 @@ export default async function WorkspacePage({ params }: Props) {
                 </p>
               </li>
             ))}
-            {!autopilot.operatorTasks.length ? <li className="text-zinc-500">No queued tasks.</li> : null}
+            {!reviewTasks.length ? <li className="text-zinc-500">No review/local trust tasks queued.</li> : null}
           </ul>
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -235,6 +256,37 @@ export default async function WorkspacePage({ params }: Props) {
               </li>
             ))}
             {!autopilot.publishedContent.length ? <li className="text-zinc-500">No published artifacts yet.</li> : null}
+          </ul>
+        </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-zinc-900">Local page / service-area queue</h3>
+          <ul className="mt-3 space-y-2 text-sm">
+            {localPageQueue.slice(0, 8).map((item) => (
+              <li key={item.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+                <p className="font-medium text-zinc-900">{item.title}</p>
+                <p className="text-xs uppercase text-zinc-500">
+                  {item.kind} · {item.status}
+                </p>
+              </li>
+            ))}
+            {!localPageQueue.length ? <li className="text-zinc-500">No local page items queued yet.</li> : null}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-zinc-900">Authority queue</h3>
+          <ul className="mt-3 space-y-2 text-sm">
+            {autopilot.backlinkQueue.slice(0, 8).map((item) => (
+              <li key={item.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+                <p className="font-medium text-zinc-900">{item.sourceName}</p>
+                <p className="text-xs uppercase text-zinc-500">
+                  {item.status} · quality {item.qualityScore ?? "n/a"}
+                </p>
+              </li>
+            ))}
+            {!autopilot.backlinkQueue.length ? <li className="text-zinc-500">No authority opportunities queued.</li> : null}
           </ul>
         </div>
       </section>

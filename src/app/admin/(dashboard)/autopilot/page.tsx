@@ -16,14 +16,19 @@ export default async function AdminAutopilotPage() {
         <Stat label="Queued tasks" value={String(summary.queuedTasks)} />
         <Stat label="Queued jobs" value={String(summary.queuedJobs)} />
         <Stat label="Queued publishing" value={String(summary.queuedPublishing)} />
+        <Stat label="Entry monthly jobs pending" value={String(summary.entryRecurringPending)} />
+        <Stat label="Pro recurring jobs pending" value={String(summary.proRecurringPending)} />
+        <Stat label="Citation ops queued" value={String(summary.queuedCitationOps)} />
+        <Stat label="Review/local trust queued" value={String(summary.queuedReviewOps)} />
+        <Stat label="Local page queue items" value={String(summary.queuedLocalPageContent)} />
       </div>
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-900">Execution model</h2>
         <ul className="mt-3 space-y-2 text-sm text-zinc-700">
-          <li>Content queue supports AI-generated articles, location pages, and local-intent variants.</li>
-          <li>Publishing jobs support manual approval mode now, with adapter hooks for CMS integrations.</li>
-          <li>Authority queue tracks contextual backlink workflows with quality-first status states.</li>
-          <li>AI visibility checks and operator tasks provide recurring autopilot monitoring surfaces.</li>
+          <li>Entry runs monthly recurring refresh jobs; Pro runs a tighter recurring cadence.</li>
+          <li>Every recurring cycle can add AI visibility summary checks and queue new tasks.</li>
+          <li>Content queue and local-page queue are persisted; publishing jobs track execution state.</li>
+          <li>Citation, review, and trust tasks are surfaced from operator task queues.</li>
         </ul>
       </div>
     </div>

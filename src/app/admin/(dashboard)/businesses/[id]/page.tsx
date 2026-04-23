@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { getAutopilotWorkspace } from "@/lib/autopilot/repository";
+import { isPlanTier, planFeatures } from "@/lib/plans";
 import { notFound } from "next/navigation";
 import { getWorkspaceBundle, listLeadsForBusiness } from "@/lib/report/repository";
 
@@ -11,6 +13,9 @@ export default async function AdminBusinessDetailPage({ params }: Props) {
   const bundle = await getWorkspaceBundle(id);
   if (!bundle) notFound();
   const leads = await listLeadsForBusiness(id);
+  const autopilot = await getAutopilotWorkspace(id);
+  const tier = isPlanTier(bundle.business.planTier) ? bundle.business.planTier : "free";
+  const features = planFeatures(tier);
 
   return (
     <div className="space-y-8">
@@ -21,6 +26,10 @@ export default async function AdminBusinessDetailPage({ params }: Props) {
           <p className="mt-2 text-sm text-zinc-600">
             Plan <span className="font-semibold text-zinc-900">{bundle.business.planTier}</span> · Updated{" "}
             {new Date(bundle.business.updatedAt).toLocaleString()}
+          </p>
+          <p className="mt-1 text-sm text-zinc-600">
+            Cadence <span className="font-semibold text-zinc-900">{features.refreshCadenceLabel}</span> · Launch price{" "}
+            {features.monthlyPrice ? `$${features.launchPrice.toFixed(2)}/mo` : "$0"}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-sm font-semibold">
@@ -41,7 +50,33 @@ export default async function AdminBusinessDetailPage({ params }: Props) {
         <Stat label="Open recs" value={String(bundle.recommendations.filter((r) => r.status === "open").length)} />
         <Stat label="Content ideas" value={String(bundle.content.length)} />
         <Stat label="Social URLs stored" value={String(bundle.socialProfiles?.length ?? 0)} />
+        <Stat label="Automation jobs" value={String(autopilot.automationJobs.length)} />
+        <Stat label="Upcoming jobs" value={String(autopilot.upcomingJobs.length)} />
+        <Stat label="Publishing jobs" value={String(autopilot.publishingJobs.length)} />
+        <Stat label="Citation issues" value={String(autopilot.citationIssues.length)} />
       </div>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-900">Automation status</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="rounded-xl bg-zinc-50 p-3 text-sm">
+            <p className="font-semibold text-zinc-900">Latest run</p>
+            <p className="text-zinc-600">
+              {autopilot.automationJobs[0]
+                ? `${autopilot.automationJobs[0].type} · ${autopilot.automationJobs[0].status}`
+                : "No completed/pending jobs yet"}
+            </p>
+          </div>
+          <div className="rounded-xl bg-zinc-50 p-3 text-sm">
+            <p className="font-semibold text-zinc-900">Upcoming</p>
+            <p className="text-zinc-600">
+              {autopilot.upcomingJobs[0]?.runAfter
+                ? `${autopilot.upcomingJobs[0].type} at ${new Date(autopilot.upcomingJobs[0].runAfter).toLocaleString()}`
+                : "No pending scheduled work"}
+            </p>
+          </div>
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-900">Profile</h2>

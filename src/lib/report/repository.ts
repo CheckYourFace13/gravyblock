@@ -515,6 +515,27 @@ export async function recordScanRun(input: {
         queue: "authority_ops",
         status: "queued",
       },
+      {
+        businessId,
+        title: "Resolve first citation consistency check",
+        detail: "Review baseline listing mismatch note and confirm canonical business details.",
+        queue: "citation_ops",
+        status: "queued",
+      },
+      {
+        businessId,
+        title: "Review/reputation cadence kickoff",
+        detail: "Identify the first set of review response and request actions.",
+        queue: "review_ops",
+        status: "queued",
+      },
+      {
+        businessId,
+        title: "Local trust signal pass",
+        detail: "Confirm hours, service area, and contact clarity across key pages.",
+        queue: "local_trust_ops",
+        status: "queued",
+      },
     ]);
 
     if (input.rankingChecks.length) {
