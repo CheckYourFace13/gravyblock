@@ -4,7 +4,7 @@ import Link from "next/link";
 const faqItems = [
   {
     q: "How does GravyBlock work?",
-    a: "Run a free scan, confirm your business profile, view score and top findings, then unlock the full report by email. From there, activate Entry or Pro in workspace billing to keep the same business monitored over time.",
+    a: "Run a free scan, confirm your business profile, view score and top findings, then unlock the full report by email. From there, activate Base or Pro in workspace billing to keep the same business monitored over time.",
   },
   {
     q: "Who is GravyBlock for?",
@@ -15,12 +15,12 @@ const faqItems = [
     a: "The scan uses Google Places details, website crawl signals, and observational social link discovery to generate a score, verdict, and top findings. Full report sections unlock after name and email.",
   },
   {
-    q: "What does Entry include?",
-    a: "Entry adds monthly visibility refreshes, monthly listing and website re-checks, AI visibility summaries, content ideas, and trend history in workspace.",
+    q: "What does Base include?",
+    a: "Base adds monthly visibility refreshes, monthly listing and website re-checks, AI visibility summaries, content ideas, and trend history in workspace.",
   },
   {
     q: "What does Pro include?",
-    a: "Pro includes everything in Entry plus more frequent refreshes, content and publishing queues, AI visibility checks, local page and service-area queue, citation queue, review queue, and broader multi-location support where current schema supports it.",
+    a: "Pro includes everything in Base plus more frequent refreshes, content and publishing queues, AI visibility checks, local page and service-area queue, citation queue, review queue, and broader multi-location support where current schema supports it.",
   },
   {
     q: "Does it support multi-location businesses?",
@@ -40,14 +40,18 @@ const faqItems = [
   },
   {
     q: "How do reports and ongoing monitoring work?",
-    a: "Reports are generated from each scan. Entry and Pro add recurring monitoring and workspace history so you can track changes over time for the same business.",
+    a: "Reports are generated from each scan. Base and Pro add recurring monitoring and workspace history so you can track changes over time for the same business.",
+  },
+  {
+    q: "Where does Stripe checkout run?",
+    a: "After the scan saves a business profile, open workspace billing for that business and start Base or Pro. Checkout uses Stripe with price IDs from your environment (Base supports STRIPE_PRICE_BASE_MONTHLY or legacy STRIPE_PRICE_ENTRY_MONTHLY).",
   },
 ] as const;
 
 export const metadata: Metadata = {
   title: "GravyBlock - Local growth software for real businesses",
   description:
-    "Scan a business, unlock a full report, then activate Entry or Pro to keep that business monitored automatically.",
+    "Scan a business, unlock a full report, then activate Base or Pro to keep that business monitored automatically.",
 };
 
 export default function HomePage() {
@@ -75,20 +79,20 @@ export default function HomePage() {
             </h1>
             <p className="max-w-2xl text-lg text-zinc-600">
               GravyBlock is built for local operators who need clear priorities and repeatable execution. Run a free scan,
-              unlock the full report, then turn on Entry or Pro for the exact business you want to monitor.
+              unlock the full report, then turn on Base or Pro for the exact business you want to monitor.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/scan"
                 className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
               >
-                Start with free scan
+                Free report
               </Link>
               <Link
-                href="/scan?plan=entry"
+                href="/scan?plan=base"
                 className="inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500"
               >
-                Start Entry
+                Start Base
               </Link>
               <Link
                 href="/scan?plan=pro"
@@ -108,7 +112,7 @@ export default function HomePage() {
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-red-500" />Score and verdict in minutes</li>
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-red-500" />Top findings before unlock</li>
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-red-500" />Full report by email after unlock</li>
-                <li className="flex gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-red-500" />Workspace path into Entry or Pro checkout</li>
+                <li className="flex gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-red-500" />Workspace path into Base or Pro checkout</li>
               </ul>
             </div>
           </div>
@@ -118,18 +122,30 @@ export default function HomePage() {
       <section id="plans" className="border-b border-zinc-200 bg-zinc-50 py-16">
         <div className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6">
           <div className="space-y-3">
-            <h2 className="text-3xl font-semibold text-zinc-900">Free, Entry, and Pro</h2>
+            <h2 className="text-3xl font-semibold text-zinc-900">Free, Base, and Pro</h2>
             <p className="max-w-3xl text-zinc-600">
               Choose your operating mode after scan context is created. Plan checkout is real and tied to one business
               profile in workspace billing.
             </p>
           </div>
-          <div className="flex justify-start">
+          <div className="flex flex-wrap justify-start gap-2">
             <Link
               href="/scan"
               className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
             >
-              Start with free scan
+              Free report
+            </Link>
+            <Link
+              href="/scan?plan=base"
+              className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+            >
+              Start Base
+            </Link>
+            <Link
+              href="/scan?plan=pro"
+              className="inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500"
+            >
+              Start Pro
             </Link>
           </div>
           <div className="grid gap-6 lg:grid-cols-3">
@@ -152,7 +168,7 @@ export default function HomePage() {
               </Link>
             </article>
             <article className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-red-800">Entry</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-800">Base</p>
               <div className="mt-2">
                 <p className="text-lg text-zinc-500 line-through">$29.99/month</p>
                 <p className="text-3xl font-semibold text-zinc-900">$19.99/month</p>
@@ -170,8 +186,8 @@ export default function HomePage() {
                   <li key={b} className="flex gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-red-500" />{b}</li>
                 ))}
               </ul>
-              <Link href="/scan?plan=entry" className="mt-6 inline-flex justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
-                Start Entry
+              <Link href="/scan?plan=base" className="mt-6 inline-flex justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
+                Start Base
               </Link>
             </article>
             <article className="flex flex-col rounded-2xl border border-red-200 bg-white p-6 shadow-md ring-1 ring-red-100">
@@ -199,7 +215,7 @@ export default function HomePage() {
             </article>
           </div>
           <p className="text-center text-xs text-zinc-500">
-            Run the free scan first, then turn on Entry or Pro for this business.
+            Run the free scan first, then turn on Base or Pro for this business.
           </p>
         </div>
       </section>
@@ -239,7 +255,7 @@ export default function HomePage() {
               "Pick your business from Google Places",
               "Get score, verdict, and top findings",
               "Unlock full report and open workspace",
-              "Activate Entry or Pro and keep monitoring",
+              "Activate Base or Pro and keep monitoring",
             ].map((step, idx) => (
               <li key={step} className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-700">
                 <p className="text-xs font-semibold text-red-700">0{idx + 1}</p>
@@ -317,14 +333,14 @@ export default function HomePage() {
       <section className="mx-auto max-w-6xl px-4 pb-16 text-center sm:px-6">
         <h2 className="text-3xl font-semibold text-zinc-900">Start with your business, then activate the plan</h2>
         <p className="mx-auto mt-3 max-w-2xl text-zinc-600">
-          Run scan first. Then continue to Entry or Pro checkout in workspace billing for that business.
+          Run scan first. Then continue to Base or Pro checkout in workspace billing for that business.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link href="/scan" className="rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800">
             Start with free scan
           </Link>
-          <Link href="/scan?plan=entry" className="rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500">
-            Start Entry
+          <Link href="/scan?plan=base" className="rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500">
+            Start Base
           </Link>
           <Link href="/scan?plan=pro" className="rounded-full bg-red-700 px-6 py-3 text-sm font-semibold text-white hover:bg-red-600">
             Start Pro

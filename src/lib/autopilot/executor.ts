@@ -277,7 +277,11 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         .where(eq(businesses.id, job.businessId))
         .limit(1);
 
-      const planTier = (business?.planTier as PlanTier | undefined) ?? (job.type === "pro_recurring_refresh" ? "pro" : "entry");
+      const raw = business?.planTier as string | undefined;
+      const normalized =
+        raw === "entry" ? "base" : raw && (raw === "base" || raw === "pro" || raw === "managed") ? raw : undefined;
+      const planTier =
+        (normalized as PlanTier | undefined) ?? (job.type === "pro_recurring_refresh" ? "pro" : "base");
       const features = planFeatures(planTier);
       const [lead] = await db
         .select({ email: leads.email })
@@ -291,7 +295,7 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         void sendAutomationSummaryEmail({
           leadEmail: lead.email,
           businessName: business?.name ?? "Your business",
-          planLabel: features.label === "Pro" ? "Pro" : "Entry",
+          planLabel: features.label === "Pro" ? "Pro" : "Base",
           cadenceLabel: features.refreshCadenceLabel,
           score: nextScore,
           completedAt: new Date().toISOString(),
@@ -304,8 +308,15 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         });
       }
 
-      if (business?.planTier && (business.planTier === "entry" || business.planTier === "pro" || business.planTier === "managed")) {
-        const planForSchedule: PlanTier = business.planTier as PlanTier;
+      if (
+        business?.planTier &&
+        (business.planTier === "entry" ||
+          business.planTier === "base" ||
+          business.planTier === "pro" ||
+          business.planTier === "managed")
+      ) {
+        const planForSchedule: PlanTier =
+          business.planTier === "entry" ? "base" : (business.planTier as PlanTier);
         void schedulePlanRecurringSnapshotJob({ businessId: job.businessId, planTier: planForSchedule });
       }
 

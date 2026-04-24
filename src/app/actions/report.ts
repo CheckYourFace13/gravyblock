@@ -24,14 +24,13 @@ export async function generateReportAction(
   formData: FormData,
 ): Promise<ReportActionState> {
   const planIntentRaw = field(formData, "planIntent").toLowerCase();
-  const selectedPlan = planIntentRaw === "entry" || planIntentRaw === "pro" ? planIntentRaw : null;
+  const selectedPlan =
+    planIntentRaw === "pro" ? "pro" : planIntentRaw === "base" || planIntentRaw === "entry" ? "base" : null;
 
   const parsed = scanFormSchema.safeParse({
     query: field(formData, "query"),
     locationHint: field(formData, "locationHint"),
     placeId: field(formData, "placeId"),
-    businessModel: field(formData, "businessModel"),
-    vertical: field(formData, "vertical"),
     candidateConfidence: field(formData, "candidateConfidence"),
   });
 
@@ -46,7 +45,7 @@ export async function generateReportAction(
   try {
     generated = await generateReportFromPlace({
       placeId: parsed.data.placeId,
-      vertical: parsed.data.vertical,
+      vertical: "other",
       query: parsed.data.query,
       locationHint: parsed.data.locationHint,
       candidateConfidence: parsed.data.candidateConfidence,
@@ -69,8 +68,8 @@ export async function generateReportAction(
       rankingChecks: generated.rankings,
       auditFindings: generated.crawlFindings,
       competitorSnapshots: generated.competitorSnapshots,
-      businessModel: parsed.data.businessModel,
-      vertical: parsed.data.vertical,
+      businessModel: "single_location",
+      vertical: "other",
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Could not save report";

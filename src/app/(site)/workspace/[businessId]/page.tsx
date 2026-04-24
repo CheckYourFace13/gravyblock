@@ -5,7 +5,7 @@ import { AutopilotRoadmap } from "@/components/autopilot-roadmap";
 import { getAutopilotWorkspace } from "@/lib/autopilot/repository";
 import type { RoadmapLane } from "@/lib/growth/roadmap";
 import { getWorkspaceBundle } from "@/lib/report/repository";
-import { isPlanTier, planFeatures, type PlanTier } from "@/lib/plans";
+import { normalizePlanTierFromDb, planFeatures, type PlanTier } from "@/lib/plans";
 import { CheckoutButton, PortalButton } from "./billing-buttons";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +30,22 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
   const query = await searchParams;
   const bundle = await getWorkspaceBundle(businessId);
   if (!bundle) notFound();
-  const autopilot = await getAutopilotWorkspace(businessId);
+  const autopilot = await getAutopilotWorkspace(businessId).catch((err) => {
+    console.error("[workspace] autopilot load failed", err);
+    return {
+      contentQueue: [] as Awaited<ReturnType<typeof getAutopilotWorkspace>>["contentQueue"],
+      backlinkQueue: [] as Awaited<ReturnType<typeof getAutopilotWorkspace>>["backlinkQueue"],
+      aiVisibilityChecks: [] as Awaited<ReturnType<typeof getAutopilotWorkspace>>["aiVisibilityChecks"],
+      operatorTasks: [] as Awaited<ReturnType<typeof getAutopilotWorkspace>>["operatorTasks"],
+      automationJobs: [] as Awaited<ReturnType<typeof getAutopilotWorkspace>>["automationJobs"],
+      upcomingJobs: [] as Awaited<ReturnType<typeof getAutopilotWorkspace>>["upcomingJobs"],
+      publishingJobs: [] as Awaited<ReturnType<typeof getAutopilotWorkspace>>["publishingJobs"],
+      publishedContent: [] as Awaited<ReturnType<typeof getAutopilotWorkspace>>["publishedContent"],
+      citationIssues: [] as Awaited<ReturnType<typeof getAutopilotWorkspace>>["citationIssues"],
+    };
+  });
 
-  const tier: PlanTier = isPlanTier(bundle.business.planTier) ? bundle.business.planTier : "free";
+  const tier: PlanTier = normalizePlanTierFromDb(bundle.business.planTier);
   const features = planFeatures(tier);
 
   const roadmapRows = bundle.recommendations.map((r) => ({
@@ -53,7 +66,8 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
   const reviewTasks = autopilot.operatorTasks.filter(
     (task) => task.queue === "review_ops" || task.queue === "reputation_ops" || task.queue === "local_trust_ops",
   );
-  const selectedPlan = query.plan === "entry" || query.plan === "pro" ? query.plan : null;
+  const rawPlan = query.plan?.toLowerCase() ?? "";
+  const selectedPlan = rawPlan === "pro" ? "pro" : rawPlan === "base" || rawPlan === "entry" ? "base" : null;
   const billingStatus = bundle.business.subscriptionStatus ?? "none";
   const hasBillingCustomer = Boolean(bundle.business.stripeCustomerId);
 
@@ -85,18 +99,19 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <span className="rounded-full bg-zinc-100 px-3 py-1">Refresh cadence: {features.refreshCadenceLabel}</span>
             {selectedPlan ? (
               <span className="rounded-full bg-red-100 px-3 py-1 text-red-950">
-                Selected plan: {selectedPlan === "entry" ? "Entry" : "Pro"}
+                Selected plan: {selectedPlan === "base" ? "Base" : "Pro"}
               </span>
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
-            {tier !== "entry" ? (
+            {tier !== "base" ? (
               <CheckoutButton
                 businessId={businessId}
-                plan="entry"
-                label={selectedPlan === "entry" ? "Continue to Entry checkout" : "Turn on Entry"}
+                plan="base"
+                requireProUpsell
+                label={selectedPlan === "base" ? "Continue to Base checkout" : "Turn on Base"}
                 className={
-                  selectedPlan === "entry"
+                  selectedPlan === "base"
                     ? "rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
                     : "rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                 }
@@ -136,11 +151,10 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       {!features.recurringRefresh ? (
         <div className="rounded-2xl border border-red-200 bg-red-50/60 px-5 py-5 text-sm text-zinc-900">
           <p>
-            <span className="font-semibold">Entry unlocks recurring automation.</span> Free includes scan history and core
-            report storage. Entry adds monthly refresh + summary cycles, and Pro adds more frequent runs with full queue
-            surfaces — see{" "}
+            <span className="font-semibold">Base unlocks recurring automation.</span> Free includes scan history and core
+            report storage. Base adds monthly refresh and summary cycles. Pro adds a faster cadence plus automation queues. See{" "}
             <Link href="/#plans" className="font-semibold underline">
-              Free vs Entry vs Pro
+              Free vs Base vs Pro
             </Link>
             .
           </p>
@@ -174,41 +188,19 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           ) : null}
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
-          {tier !== "entry" ? (
+          {tier !== "base" ? (
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Entry</p>
+              <p className="text-sm font-semibold text-zinc-900">Base</p>
               <p className="text-xs text-zinc-600">$29.99/month, launch price $19.99/month.</p>
               <div className="mt-3">
                 <CheckoutButton
                   businessId={businessId}
-                  plan="entry"
-                  label={selectedPlan === "entry" ? "Continue to Entry checkout" : tier === "free" ? "Turn on Entry" : "Switch to Entry"}
+                  plan="base"
+                  requireProUpsell
+                  label={selectedPlan === "base" ? "Continue to Base checkout" : tier === "free" ? "Turn on Base" : "Switch to Base"}
                   className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
                 />
               </div>
-              {selectedPlan === "entry" && tier !== "pro" ? (
-                <div className="mt-3 rounded-lg border border-red-200 bg-red-50/60 p-3">
-                  <p className="text-xs text-zinc-700">
-                    Are you sure you want to skip Pro? Need the fullest automation layer? Start Pro instead.
-                  </p>
-                  <div className="mt-2">
-                    <CheckoutButton
-                      businessId={businessId}
-                      plan="pro"
-                      label="Upgrade to Pro instead"
-                      className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
-                    />
-                  </div>
-                  <div className="mt-2">
-                    <CheckoutButton
-                      businessId={businessId}
-                      plan="entry"
-                      label="No, continue with Entry"
-                      className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
-                    />
-                  </div>
-                </div>
-              ) : null}
             </div>
           ) : null}
           {tier !== "pro" ? (

@@ -543,6 +543,30 @@ export const memoryStore = {
       .sort((a, b) => new Date(b.lastSeenAt).getTime() - new Date(a.lastSeenAt).getTime());
   },
 
+  updateBusinessBilling(input: {
+    businessId: string;
+    planTier?: string;
+    stripeCustomerId?: string | null;
+    stripeSubscriptionId?: string | null;
+    subscriptionStatus?: string | null;
+    billingEmail?: string | null;
+    currentPeriodEnd?: string | null;
+  }) {
+    const b = businesses.get(input.businessId);
+    if (!b) return;
+    const next: MemBusiness = {
+      ...b,
+      updatedAt: now(),
+      planTier: input.planTier !== undefined ? input.planTier : b.planTier,
+      stripeCustomerId: input.stripeCustomerId !== undefined ? input.stripeCustomerId : b.stripeCustomerId,
+      stripeSubscriptionId: input.stripeSubscriptionId !== undefined ? input.stripeSubscriptionId : b.stripeSubscriptionId,
+      subscriptionStatus: input.subscriptionStatus !== undefined ? input.subscriptionStatus : b.subscriptionStatus,
+      billingEmail: input.billingEmail !== undefined ? input.billingEmail : b.billingEmail,
+      currentPeriodEnd: input.currentPeriodEnd !== undefined ? input.currentPeriodEnd : b.currentPeriodEnd,
+    };
+    businesses.set(input.businessId, next);
+  },
+
   getReport(publicId: string) {
     return reportsByPublicId.get(publicId) ?? null;
   },

@@ -58,7 +58,7 @@ export default async function AdminHomePage() {
           <StatCard label="Autopilot · queued tasks" value={String(autopilot.queuedTasks)} />
           <StatCard label="Autopilot · pending jobs" value={String(autopilot.queuedJobs)} />
           <StatCard label="Autopilot · publishing queue" value={String(autopilot.queuedPublishing)} />
-          <StatCard label="Autopilot · entry monthly jobs" value={String(autopilot.entryRecurringPending)} />
+          <StatCard label="Autopilot · Base monthly jobs" value={String(autopilot.entryRecurringPending)} />
           <StatCard label="Autopilot · pro recurring jobs" value={String(autopilot.proRecurringPending)} />
           <StatCard label="Autopilot · citation ops" value={String(autopilot.queuedCitationOps)} />
           <StatCard

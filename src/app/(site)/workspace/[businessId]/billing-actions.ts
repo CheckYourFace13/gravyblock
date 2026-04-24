@@ -1,6 +1,6 @@
 "use server";
 
-import { getBusinessById } from "@/lib/billing/repository";
+import { getBusinessById, persistStripeCustomerId } from "@/lib/billing/repository";
 import { getAppBaseUrl, getPriceIdForPlan, getStripeServerClient } from "@/lib/stripe/server";
 
 function requiredField(formData: FormData, key: string): string {
@@ -9,13 +9,17 @@ function requiredField(formData: FormData, key: string): string {
   return String(value);
 }
 
+function normalizeCheckoutPlan(raw: string): "base" | "pro" {
+  const p = raw.toLowerCase();
+  if (p === "entry") return "base";
+  if (p === "base" || p === "pro") return p;
+  throw new Error("Invalid plan");
+}
+
 export async function createCheckoutSessionAction(formData: FormData) {
   try {
     const businessId = requiredField(formData, "businessId");
-    const plan = requiredField(formData, "plan");
-    if (plan !== "entry" && plan !== "pro") {
-      throw new Error("Invalid plan");
-    }
+    const plan = normalizeCheckoutPlan(requiredField(formData, "plan"));
 
     const stripe = getStripeServerClient();
     if (!stripe) throw new Error("Stripe is not configured");
@@ -30,6 +34,7 @@ export async function createCheckoutSessionAction(formData: FormData) {
         metadata: { businessId },
       });
       customerId = customer.id;
+      await persistStripeCustomerId(businessId, customerId);
     }
 
     const baseUrl = getAppBaseUrl();

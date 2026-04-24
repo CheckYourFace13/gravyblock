@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { isPlanTier, planFeatures } from "@/lib/plans";
+import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { listBusinessSummaries } from "@/lib/report/repository";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export default async function AdminBusinessesPage() {
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {businesses.map((b) => {
-              const tier = isPlanTier(b.planTier) ? b.planTier : "free";
+              const tier = normalizePlanTierFromDb(b.planTier);
               const features = planFeatures(tier);
               return (
                 <tr key={b.id}>

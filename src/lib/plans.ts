@@ -1,15 +1,23 @@
-export const PLAN_TIERS = ["free", "entry", "pro", "managed"] as const;
+export const PLAN_TIERS = ["free", "base", "pro", "managed"] as const;
 export type PlanTier = (typeof PLAN_TIERS)[number];
+
+/** Legacy DB / Stripe rows may still use `entry`; treat as Base everywhere in app logic. */
+export function normalizePlanTierFromDb(value: string | null | undefined): PlanTier {
+  const v = (value ?? "free").toLowerCase();
+  if (v === "entry") return "base";
+  if ((PLAN_TIERS as readonly string[]).includes(v)) return v as PlanTier;
+  return "free";
+}
 
 export const stripePlanMapping = {
   free: { stripeLookupKey: null, stripePriceIdEnv: null },
-  entry: { stripeLookupKey: "gravyblock_entry_monthly", stripePriceIdEnv: "STRIPE_PRICE_ENTRY_MONTHLY" },
+  base: { stripeLookupKey: "gravyblock_base_monthly", stripePriceIdEnv: "STRIPE_PRICE_BASE_MONTHLY" },
   pro: { stripeLookupKey: "gravyblock_pro_monthly", stripePriceIdEnv: "STRIPE_PRICE_PRO_MONTHLY" },
   managed: { stripeLookupKey: "gravyblock_pro_monthly", stripePriceIdEnv: "STRIPE_PRICE_PRO_MONTHLY" },
 } as const;
 
 export type PlanFeatures = {
-  label: "Free" | "Entry" | "Pro";
+  label: "Free" | "Base" | "Pro";
   monthlyPrice: number | 0;
   launchPrice: number | 0;
   refreshCadenceLabel: "On-demand" | "Monthly" | "Weekly";
@@ -31,9 +39,9 @@ export type PlanFeatures = {
 
 export function planFeatures(tier: PlanTier): PlanFeatures {
   switch (tier) {
-    case "entry":
+    case "base":
       return {
-        label: "Entry",
+        label: "Base",
         monthlyPrice: 29.99,
         launchPrice: 19.99,
         refreshCadenceLabel: "Monthly",

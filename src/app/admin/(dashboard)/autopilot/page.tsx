@@ -16,7 +16,7 @@ export default async function AdminAutopilotPage() {
         <Stat label="Queued tasks" value={String(summary.queuedTasks)} />
         <Stat label="Queued jobs" value={String(summary.queuedJobs)} />
         <Stat label="Queued publishing" value={String(summary.queuedPublishing)} />
-        <Stat label="Entry monthly jobs pending" value={String(summary.entryRecurringPending)} />
+        <Stat label="Base monthly jobs pending" value={String(summary.entryRecurringPending)} />
         <Stat label="Pro recurring jobs pending" value={String(summary.proRecurringPending)} />
         <Stat label="Citation ops queued" value={String(summary.queuedCitationOps)} />
         <Stat label="Review/local trust queued" value={String(summary.queuedReviewOps)} />
@@ -25,7 +25,7 @@ export default async function AdminAutopilotPage() {
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-900">Execution model</h2>
         <ul className="mt-3 space-y-2 text-sm text-zinc-700">
-          <li>Entry runs monthly recurring refresh jobs; Pro runs a tighter recurring cadence.</li>
+          <li>Base runs monthly recurring refresh jobs; Pro runs a tighter recurring cadence.</li>
           <li>Every recurring cycle can add AI visibility summary checks and queue new tasks.</li>
           <li>Content queue and local-page queue are persisted; publishing jobs track execution state.</li>
           <li>Citation, review, and trust tasks are surfaced from operator task queues.</li>

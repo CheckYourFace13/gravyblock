@@ -6,16 +6,18 @@ export async function POST(req: Request) {
   const denied = verifyAutopilotOperatorRequest(req);
   if (denied) return denied;
   const body = (await req.json().catch(() => null)) as
-    | { businessId?: string; runAfterMs?: number; planTier?: PlanTier }
+    | { businessId?: string; runAfterMs?: number; planTier?: string }
     | null;
   const businessId = body?.businessId?.trim();
   if (!businessId) {
     return Response.json({ error: "businessId is required" }, { status: 400 });
   }
-  if (body?.planTier === "entry" || body?.planTier === "pro" || body?.planTier === "managed") {
+  const rawTier = body?.planTier?.toLowerCase();
+  if (rawTier === "base" || rawTier === "entry" || rawTier === "pro" || rawTier === "managed") {
+    const planTier: PlanTier = rawTier === "entry" ? "base" : (rawTier as PlanTier);
     const result = await schedulePlanRecurringSnapshotJob({
       businessId,
-      planTier: body.planTier,
+      planTier,
     });
     return Response.json(result);
   }

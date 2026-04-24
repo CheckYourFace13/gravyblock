@@ -56,21 +56,21 @@ export function ReportView({
   publicId: string;
   businessId?: string;
   initiallyUnlocked: boolean;
-  selectedPlan?: "entry" | "pro" | null;
+  selectedPlan?: "base" | "pro" | null;
 }) {
   const [unlocked, setUnlocked] = useState(initiallyUnlocked);
   const badge = opportunityBadge(payload.opportunityLevel);
   const roadmapRows = buildRoadmapRows(payload);
   const topFindings = useMemo(() => payload.prioritizedFixes.slice(0, 3), [payload.prioritizedFixes]);
-  const chosenPlan = selectedPlan === "entry" || selectedPlan === "pro" ? selectedPlan : null;
+  const chosenPlan = selectedPlan === "base" || selectedPlan === "pro" ? selectedPlan : null;
   const workspaceHref = businessId
     ? chosenPlan
       ? `/workspace/${businessId}?plan=${chosenPlan}#billing`
       : `/workspace/${businessId}#billing`
     : null;
   const primaryLabel =
-    chosenPlan === "entry"
-      ? "Continue to Entry checkout"
+    chosenPlan === "base"
+      ? "Continue to Base checkout"
       : chosenPlan === "pro"
         ? "Continue to Pro checkout"
         : "Continue to billing";
@@ -143,8 +143,8 @@ export function ReportView({
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-zinc-900">
-                    {chosenPlan === "entry"
-                      ? "You chose Entry. Continue to Entry checkout."
+                    {chosenPlan === "base"
+                      ? "You chose Base. Continue to Base checkout."
                       : chosenPlan === "pro"
                         ? "You chose Pro. Continue to Pro checkout."
                         : "Turn on autopilot for this business"}
@@ -163,7 +163,7 @@ export function ReportView({
                       {primaryLabel}
                     </Link>
                   ) : null}
-                  {chosenPlan === "entry" ? (
+                  {chosenPlan === "base" ? (
                     <Link
                       href={`/workspace/${businessId}?plan=pro#billing`}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
@@ -172,15 +172,15 @@ export function ReportView({
                     </Link>
                   ) : chosenPlan !== "pro" ? (
                     <Link
-                      href={`/workspace/${businessId}?plan=entry#billing`}
+                      href={`/workspace/${businessId}?plan=base#billing`}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     >
-                      Continue to Entry checkout
+                      Continue to Base checkout
                     </Link>
                   ) : null}
                 </div>
               </div>
-              {chosenPlan === "entry" ? (
+              {chosenPlan === "base" ? (
                 <div className="mt-4 rounded-xl border border-red-200 bg-white p-4">
                   <h3 className="text-base font-semibold text-zinc-900">Are you sure you want to skip Pro?</h3>
                   <p className="mt-1 text-sm text-zinc-700">
@@ -196,10 +196,10 @@ export function ReportView({
                       Upgrade to Pro instead
                     </Link>
                     <Link
-                      href={`/workspace/${businessId}?plan=entry#billing`}
+                      href={`/workspace/${businessId}?plan=base#billing`}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     >
-                      No, continue with Entry
+                      No, continue with Base
                     </Link>
                   </div>
                 </div>
@@ -378,12 +378,17 @@ export function ReportView({
             <div className="h-40 rounded-2xl bg-zinc-100" />
           </div>
           <div className="relative mt-8">
-            <ReportUnlockCard publicId={publicId} onUnlocked={() => setUnlocked(true)} selectedPlan={chosenPlan} />
+            <ReportUnlockCard
+              publicId={publicId}
+              onUnlocked={() => setUnlocked(true)}
+              selectedPlan={chosenPlan}
+              businessId={businessId}
+            />
             {businessId ? (
               <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4 text-sm">
                 <p className="font-semibold text-zinc-900">
-                  {chosenPlan === "entry"
-                    ? "Entry selected"
+                  {chosenPlan === "base"
+                    ? "Base selected"
                     : chosenPlan === "pro"
                       ? "Pro selected"
                       : "Plan selection"}
@@ -401,7 +406,7 @@ export function ReportView({
                       {primaryLabel}
                     </Link>
                   ) : null}
-                  {chosenPlan === "entry" ? (
+                  {chosenPlan === "base" ? (
                     <Link
                       href={`/workspace/${businessId}?plan=pro#billing`}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
@@ -410,14 +415,14 @@ export function ReportView({
                     </Link>
                   ) : chosenPlan !== "pro" ? (
                     <Link
-                      href={`/workspace/${businessId}?plan=entry#billing`}
+                      href={`/workspace/${businessId}?plan=base#billing`}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     >
-                      Continue to Entry checkout
+                      Continue to Base checkout
                     </Link>
                   ) : null}
                 </div>
-                {chosenPlan === "entry" ? (
+                {chosenPlan === "base" ? (
                   <div className="mt-3 rounded-lg border border-red-200 bg-white p-3">
                     <p className="text-sm font-semibold text-zinc-900">Are you sure you want to skip Pro?</p>
                     <p className="mt-1 text-xs text-zinc-600">
@@ -431,10 +436,10 @@ export function ReportView({
                         Upgrade to Pro instead
                       </Link>
                       <Link
-                        href={`/workspace/${businessId}?plan=entry#billing`}
+                        href={`/workspace/${businessId}?plan=base#billing`}
                         className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                       >
-                        No, continue with Entry
+                        No, continue with Base
                       </Link>
                     </div>
                   </div>

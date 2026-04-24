@@ -23,26 +23,36 @@ export function getAppBaseUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000";
 }
 
-export function getPriceIdForPlan(plan: "entry" | "pro"): string {
-  const fromEnv =
-    plan === "entry"
-      ? process.env.STRIPE_PRICE_ENTRY_MONTHLY?.trim()
-      : process.env.STRIPE_PRICE_PRO_MONTHLY?.trim();
-  if (!fromEnv) {
+function basePriceIdFromEnv(): string {
+  const fromNew = process.env.STRIPE_PRICE_BASE_MONTHLY?.trim();
+  const fromLegacy = process.env.STRIPE_PRICE_ENTRY_MONTHLY?.trim();
+  const id = fromNew || fromLegacy;
+  if (!id) {
     throw new Error(
-      plan === "entry"
-        ? "STRIPE_PRICE_ENTRY_MONTHLY is not configured"
-        : "STRIPE_PRICE_PRO_MONTHLY is not configured",
+      "Stripe Base price is not configured. Set STRIPE_PRICE_BASE_MONTHLY (or legacy STRIPE_PRICE_ENTRY_MONTHLY).",
     );
   }
-  return fromEnv;
+  return id;
 }
 
-export function getPlanFromPriceId(priceId: string | null | undefined): "entry" | "pro" | null {
-  if (!priceId) return null;
-  const entry = process.env.STRIPE_PRICE_ENTRY_MONTHLY?.trim();
+export function getPriceIdForPlan(plan: "base" | "pro"): string {
+  if (plan === "base") {
+    return basePriceIdFromEnv();
+  }
   const pro = process.env.STRIPE_PRICE_PRO_MONTHLY?.trim();
-  if (entry && priceId === entry) return "entry";
+  if (!pro) {
+    throw new Error("STRIPE_PRICE_PRO_MONTHLY is not configured");
+  }
+  return pro;
+}
+
+export function getPlanFromPriceId(priceId: string | null | undefined): "base" | "pro" | null {
+  if (!priceId) return null;
+  const base =
+    process.env.STRIPE_PRICE_BASE_MONTHLY?.trim() ||
+    process.env.STRIPE_PRICE_ENTRY_MONTHLY?.trim();
+  const pro = process.env.STRIPE_PRICE_PRO_MONTHLY?.trim();
+  if (base && priceId === base) return "base";
   if (pro && priceId === pro) return "pro";
   return null;
 }

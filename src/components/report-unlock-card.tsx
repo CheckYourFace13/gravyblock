@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { unlockReportAction, type ReportUnlockActionState } from "@/app/actions/report-unlock";
@@ -10,10 +11,12 @@ export function ReportUnlockCard({
   publicId,
   onUnlocked,
   selectedPlan,
+  businessId,
 }: {
   publicId: string;
   onUnlocked: () => void;
-  selectedPlan?: "entry" | "pro" | null;
+  selectedPlan?: "base" | "pro" | null;
+  businessId?: string;
 }) {
   const [state, formAction, pending] = useActionState(unlockReportAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
@@ -69,6 +72,26 @@ export function ReportUnlockCard({
           {pending ? "Unlocking..." : "Email and unlock full report"}
         </button>
       </form>
+      {businessId ? (
+        <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-xs text-zinc-700">
+          <p className="font-semibold text-zinc-900">Want ongoing automation?</p>
+          <p className="mt-1">After unlock, open your workspace and start Base or Pro checkout for this business.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Link
+              href={`/workspace/${businessId}?plan=base#billing`}
+              className="rounded-full border border-zinc-300 bg-white px-3 py-1.5 font-semibold text-zinc-900 hover:border-zinc-400"
+            >
+              Upgrade to Base
+            </Link>
+            <Link
+              href={`/workspace/${businessId}?plan=pro#billing`}
+              className="rounded-full bg-red-600 px-3 py-1.5 font-semibold text-white hover:bg-red-500"
+            >
+              Upgrade to Pro
+            </Link>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

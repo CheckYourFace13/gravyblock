@@ -16,13 +16,13 @@ export default function WebsiteTrustSignalsGuidePage() {
       related={[
         { href: "/guides/social-proof-and-local-conversion", label: "Social proof and local conversion" },
         { href: "/guides/ai-search-local-businesses", label: "AI search for local businesses" },
-        { href: "/#plans", label: "Entry vs Pro" },
+        { href: "/#plans", label: "Base vs Pro" },
       ]}
     >
       <h2>Common checks that still fail audits</h2>
       <p>
         Valid SSL, no mixed content, fast LCP on mobile, tap targets that are not microscopic, and a phone number that
-        matches your listing. These are table stakes — and they are still common losses in automated checks.
+        matches your listing. These are table stakes, and they are still common losses in automated checks.
       </p>
       <h2>Schema where it helps humans too</h2>
       <p>

@@ -16,7 +16,7 @@ export default function MultiLocationLocalSeoGuidePage() {
       related={[
         { href: "/guides/service-area-business-visibility", label: "Service-area business visibility" },
         { href: "/guides/website-trust-signals", label: "Website trust signals" },
-        { href: "/#plans", label: "GravyBlock Entry vs Pro" },
+        { href: "/#plans", label: "GravyBlock Base vs Pro" },
       ]}
     >
       <h2>One entity, many surfaces</h2>
@@ -38,7 +38,7 @@ export default function MultiLocationLocalSeoGuidePage() {
       </p>
       <h2>Multi-location readiness in the product</h2>
       <p>
-        The data model supports brands and locations; scans run per business today. Use Entry for a single-location
+        The data model supports brands and locations; scans run per business today. Use Base for a single-location
         baseline, then Pro when you want recurring automation jobs and publishing queues on a workspace that is already on
         the Pro plan.{" "}
         <Link href="/scan" className="font-medium text-red-800 hover:underline">

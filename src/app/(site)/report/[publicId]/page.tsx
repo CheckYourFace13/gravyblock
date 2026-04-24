@@ -28,7 +28,8 @@ export default async function ReportPage({ params, searchParams }: Props) {
   const record = await getReportWithContext(publicId);
   if (!record) notFound();
   const initiallyUnlocked = verifyReportUnlockToken(publicId, query.unlock);
-  const selectedPlan = query.plan === "entry" || query.plan === "pro" ? query.plan : null;
+  const raw = query.plan?.toLowerCase() ?? "";
+  const selectedPlan = raw === "pro" ? "pro" : raw === "base" || raw === "entry" ? "base" : null;
   return (
     <ReportView
       payload={record.payload}

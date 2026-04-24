@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getAutopilotWorkspace } from "@/lib/autopilot/repository";
-import { isPlanTier, planFeatures } from "@/lib/plans";
+import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { notFound } from "next/navigation";
 import { getWorkspaceBundle, listLeadsForBusiness } from "@/lib/report/repository";
 
@@ -14,7 +14,7 @@ export default async function AdminBusinessDetailPage({ params }: Props) {
   if (!bundle) notFound();
   const leads = await listLeadsForBusiness(id);
   const autopilot = await getAutopilotWorkspace(id);
-  const tier = isPlanTier(bundle.business.planTier) ? bundle.business.planTier : "free";
+  const tier = normalizePlanTierFromDb(bundle.business.planTier);
   const features = planFeatures(tier);
 
   return (

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
 import { generateReportAction, type ReportActionState } from "@/app/actions/report";
 
@@ -10,13 +11,13 @@ type PlaceCandidate = {
   displayName: string;
   formattedAddress: string;
   rating?: number;
-  reviewCount?: number;
+  reviewCount: number;
   types: string[];
   mapsUri: string;
   confidence: number;
 };
 
-export function ScanForm({ selectedPlan }: { selectedPlan?: "entry" | "pro" | null }) {
+export function ScanForm({ selectedPlan }: { selectedPlan?: "base" | "pro" | null }) {
   const [state, formAction, pending] = useActionState(generateReportAction, initialState);
   const [query, setQuery] = useState("");
   const [locationHint, setLocationHint] = useState("");
@@ -67,7 +68,7 @@ export function ScanForm({ selectedPlan }: { selectedPlan?: "entry" | "pro" | nu
     <form action={formAction} className="mx-auto max-w-2xl space-y-6">
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">
-          {selectedPlan ? "Step 1 - identify business profile" : "Step 1 - find your business"}
+          {selectedPlan ? "Step 1 · Identify the listing" : "Step 1 · Find your business"}
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="space-y-2 sm:col-span-2">
@@ -76,7 +77,7 @@ export function ScanForm({ selectedPlan }: { selectedPlan?: "entry" | "pro" | nu
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none ring-red-500/30 focus:ring-4"
-              placeholder="e.g. Northside Public House"
+              placeholder="e.g. Bright Smile Dental"
             />
           </label>
           <label className="space-y-2 sm:col-span-2">
@@ -85,7 +86,7 @@ export function ScanForm({ selectedPlan }: { selectedPlan?: "entry" | "pro" | nu
               value={locationHint}
               onChange={(e) => setLocationHint(e.target.value)}
               className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none ring-red-500/30 focus:ring-4"
-              placeholder="e.g. Denver CO or 123 Main St Denver"
+              placeholder="e.g. Austin TX"
             />
           </label>
         </div>
@@ -131,7 +132,7 @@ export function ScanForm({ selectedPlan }: { selectedPlan?: "entry" | "pro" | nu
             ))}
           </div>
           <p className="mt-3 text-xs text-zinc-500">
-            Confidence is based on name + location matching heuristics over Google Places results.
+            Confidence is based on name and location matching over Google Places results.
           </p>
         </div>
       ) : null}
@@ -142,70 +143,50 @@ export function ScanForm({ selectedPlan }: { selectedPlan?: "entry" | "pro" | nu
       <input type="hidden" name="candidateConfidence" value={selectedConfidence || 0} />
       <input type="hidden" name="planIntent" value={selectedPlan ?? ""} />
 
-      <div className="grid gap-4">
-        <label className="space-y-2">
-          <span className="text-sm font-medium text-zinc-800">Business model</span>
-          <select
-            name="businessModel"
-            defaultValue="single_location"
-            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none ring-red-500/30 focus:ring-4"
-          >
-            <option value="single_location">Single location</option>
-            <option value="multi_location">Multi-location / chain</option>
-            <option value="franchise">Franchise network</option>
-            <option value="service_area">Service-area business</option>
-            <option value="online_only">Online-only building local trust</option>
-            <option value="hybrid">Hybrid online + local</option>
-          </select>
-        </label>
-        <label className="space-y-2">
-          <span className="text-sm font-medium text-zinc-800">Vertical</span>
-          <select
-            name="vertical"
-            defaultValue="restaurant"
-            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none ring-red-500/30 focus:ring-4"
-          >
-            <option value="restaurant">Restaurant / food service</option>
-            <option value="bar">Bar / nightlife</option>
-            <option value="brewery">Brewery / taproom</option>
-            <option value="retail">Retail / storefront</option>
-            <option value="healthcare">Healthcare / clinic</option>
-            <option value="home_services">Home / field service</option>
-            <option value="professional_services">Professional services</option>
-            <option value="online_brand">Online-first brand (local trust)</option>
-            <option value="hybrid">Hybrid online + local</option>
-            <option value="other">Other local business (including apartment communities)</option>
-          </select>
-        </label>
-      </div>
-
       {state.status === "error" && state.formError ? (
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.formError}</p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={pending || !selected}
-        className="inline-flex w-full items-center justify-center rounded-full bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
-      >
-        {pending
-          ? "Running real scan..."
-          : selectedPlan
-            ? `Continue to ${selectedPlan === "entry" ? "Entry" : "Pro"} activation`
-            : "Get free score preview"}
-      </button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <button
+          type="submit"
+          disabled={pending || !selected}
+          className="inline-flex w-full items-center justify-center rounded-full bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+        >
+          {pending
+            ? "Running scan..."
+            : selectedPlan
+              ? `Continue (${selectedPlan === "base" ? "Base" : "Pro"})`
+              : "Get free score preview"}
+        </button>
+        <div className="flex flex-wrap gap-2 text-xs font-semibold">
+          {!selectedPlan ? (
+            <>
+              <Link href="/scan?plan=base" className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-zinc-900 hover:border-zinc-400">
+                Start Base
+              </Link>
+              <Link href="/scan?plan=pro" className="rounded-full bg-red-600 px-3 py-2 text-white hover:bg-red-500">
+                Start Pro
+              </Link>
+            </>
+          ) : selectedPlan === "base" ? (
+            <Link href="/scan?plan=pro" className="rounded-full bg-red-600 px-3 py-2 text-white hover:bg-red-500">
+              Prefer Pro instead?
+            </Link>
+          ) : (
+            <Link href="/scan?plan=base" className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-zinc-900 hover:border-zinc-400">
+              Choose Base instead
+            </Link>
+          )}
+        </div>
+      </div>
+
       <p className="text-xs text-zinc-500">
-        You will see your score, verdict, and top findings immediately. Enter name + email on the next step to unlock
-        the full report and have it sent to your inbox.
+        You see score, verdict, and top findings first. Unlock sends the full report to your inbox.
       </p>
       <p className="text-xs text-zinc-500">
-        Data sources: Google Places (verified), homepage crawl (verified), public social link discovery from that page
-        (observational), and localized rank checks (estimated). Your website URL is taken from the Google listing when
-        available — no manual URL field on this flow.
-      </p>
-      <p className="text-xs text-zinc-500">
-        Search Console and owner Google Business Profile APIs are available for future authenticated connections in
-        workspace/admin — not part of this public scan.
+        Sources: Google Places, homepage crawl, public social links from that page (when found), and sampled local rank
+        estimates. Website URL comes from the listing when Google provides it.
       </p>
     </form>
   );
