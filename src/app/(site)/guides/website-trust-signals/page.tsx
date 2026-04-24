@@ -19,7 +19,7 @@ export default function WebsiteTrustSignalsGuidePage() {
         { href: "/#plans", label: "Entry vs Pro" },
       ]}
     >
-      <h2>Basics that still fail audits</h2>
+      <h2>Common checks that still fail audits</h2>
       <p>
         Valid SSL, no mixed content, fast LCP on mobile, tap targets that are not microscopic, and a phone number that
         matches your listing. These are table stakes — and they are still common losses in automated checks.

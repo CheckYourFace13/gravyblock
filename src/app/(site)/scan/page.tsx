@@ -16,20 +16,19 @@ export default async function ScanPage({ searchParams }: Props) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
       <div className="mx-auto max-w-3xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Layer 1 · Free scan</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">See how you look to local-intent demand</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Step 1 of plan activation</p>
+        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">Confirm the business you want to monitor</h1>
         <p className="mt-4 text-lg text-zinc-600">
-          One flow for <span className="font-medium text-zinc-800">any local business</span> — storefront, franchise,
-          apartment complexes, service-area operators, or online brand with a local footprint. We use your Google
-          listing (including website when Google provides it), a homepage crawl, observational social links, and sampled
-          local visibility checks. You get score + verdict + top findings free, then unlock and email the full report.
+          We support storefronts, service-area businesses, multi-location brands, and online-first brands building
+          local trust. You get score, verdict, and top findings first, then unlock the full report by email.
         </p>
       </div>
       {selectedPlan ? (
         <div className="mx-auto mt-6 max-w-3xl rounded-2xl border border-red-200 bg-red-50/70 p-4 text-sm text-zinc-900">
-          <p className="font-semibold">You&apos;re starting {selectedPlan === "entry" ? "Entry" : "Pro"}.</p>
+          <p className="font-semibold">{selectedPlan === "entry" ? "Entry selected" : "Pro selected"}</p>
           <p className="mt-1 text-zinc-700">
-            We&apos;ll identify the business first, generate your score, then take you to checkout for this plan.
+            First, confirm the business you want to monitor. We use this to attach your selected plan to the right
+            business profile. After the score preview, continue to activate {selectedPlan === "entry" ? "Entry" : "Pro"}.
           </p>
         </div>
       ) : null}

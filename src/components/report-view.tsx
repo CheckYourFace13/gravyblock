@@ -180,6 +180,30 @@ export function ReportView({
                   ) : null}
                 </div>
               </div>
+              {chosenPlan === "entry" ? (
+                <div className="mt-4 rounded-xl border border-red-200 bg-white p-4">
+                  <h3 className="text-base font-semibold text-zinc-900">Are you sure you want to skip Pro?</h3>
+                  <p className="mt-1 text-sm text-zinc-700">
+                    Pro includes more frequent refreshes, content queue, publishing queue/history, autopilot workspace,
+                    AI visibility checks, local page/service-area queue, citation and review queues, and multi-location
+                    support where available.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link
+                      href={`/workspace/${businessId}?plan=pro#billing`}
+                      className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+                    >
+                      Upgrade to Pro instead
+                    </Link>
+                    <Link
+                      href={`/workspace/${businessId}?plan=entry#billing`}
+                      className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                    >
+                      No, continue with Entry
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
             </section>
           ) : null}
 
@@ -393,6 +417,28 @@ export function ReportView({
                     </Link>
                   ) : null}
                 </div>
+                {chosenPlan === "entry" ? (
+                  <div className="mt-3 rounded-lg border border-red-200 bg-white p-3">
+                    <p className="text-sm font-semibold text-zinc-900">Are you sure you want to skip Pro?</p>
+                    <p className="mt-1 text-xs text-zinc-600">
+                      Pro adds the fullest automation layer that is already available in this build.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Link
+                        href={`/workspace/${businessId}?plan=pro#billing`}
+                        className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+                      >
+                        Upgrade to Pro instead
+                      </Link>
+                      <Link
+                        href={`/workspace/${businessId}?plan=entry#billing`}
+                        className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                      >
+                        No, continue with Entry
+                      </Link>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>

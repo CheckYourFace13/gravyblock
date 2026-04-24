@@ -188,13 +188,23 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               </div>
               {selectedPlan === "entry" && tier !== "pro" ? (
                 <div className="mt-3 rounded-lg border border-red-200 bg-red-50/60 p-3">
-                  <p className="text-xs text-zinc-700">Need the fullest automation layer? Start Pro instead.</p>
+                  <p className="text-xs text-zinc-700">
+                    Are you sure you want to skip Pro? Need the fullest automation layer? Start Pro instead.
+                  </p>
                   <div className="mt-2">
                     <CheckoutButton
                       businessId={businessId}
                       plan="pro"
-                      label="Continue to Pro checkout"
+                      label="Upgrade to Pro instead"
                       className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+                    />
+                  </div>
+                  <div className="mt-2">
+                    <CheckoutButton
+                      businessId={businessId}
+                      plan="entry"
+                      label="No, continue with Entry"
+                      className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     />
                   </div>
                 </div>

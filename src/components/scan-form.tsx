@@ -66,7 +66,9 @@ export function ScanForm({ selectedPlan }: { selectedPlan?: "entry" | "pro" | nu
   return (
     <form action={formAction} className="mx-auto max-w-2xl space-y-6">
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">Step 1 · Find your business</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">
+          {selectedPlan ? "Step 1 - identify business profile" : "Step 1 - find your business"}
+        </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="space-y-2 sm:col-span-2">
             <span className="text-sm font-medium text-zinc-800">Business name</span>
@@ -186,7 +188,11 @@ export function ScanForm({ selectedPlan }: { selectedPlan?: "entry" | "pro" | nu
         disabled={pending || !selected}
         className="inline-flex w-full items-center justify-center rounded-full bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
-        {pending ? "Running real scan..." : "Get free score preview"}
+        {pending
+          ? "Running real scan..."
+          : selectedPlan
+            ? `Continue to ${selectedPlan === "entry" ? "Entry" : "Pro"} activation`
+            : "Get free score preview"}
       </button>
       <p className="text-xs text-zinc-500">
         You will see your score, verdict, and top findings immediately. Enter name + email on the next step to unlock
