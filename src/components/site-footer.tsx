@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
 import { CtaLeadForm } from "@/components/cta-lead-form";
 import { getBuildVersion } from "@/lib/build-metadata";
+import { INDUSTRY_PAGES, INDUSTRY_SLUGS } from "@/lib/content/industries/registry";
 
 export function SiteFooter() {
   return (
@@ -33,6 +34,9 @@ export function SiteFooter() {
               <Link href="/#how-it-works" className="hover:underline">
                 How it works
               </Link>
+              <Link href="/login" className="hover:underline">
+                Customer login
+              </Link>
             </div>
           </div>
           <div>
@@ -47,19 +51,37 @@ export function SiteFooter() {
               <Link href="/guides/ai-search-local-businesses" className="hover:underline">
                 AI search visibility
               </Link>
+              <Link href="/guides/how-to-rank-higher-in-google-maps" className="hover:underline">
+                Maps ranking guide
+              </Link>
             </div>
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Industry examples</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Industries</p>
+            <div className="mt-2 flex flex-col gap-1.5">
+              <Link href="/industries" className="font-medium text-zinc-900 hover:underline">
+                All industries
+              </Link>
+              <div className="flex flex-col gap-1 text-xs text-zinc-600">
+                {INDUSTRY_SLUGS.map((slug) => (
+                  <Link key={slug} href={`/industries/${slug}`} className="hover:text-zinc-900 hover:underline">
+                    {INDUSTRY_PAGES[slug].eyebrow}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Proof and compare</p>
             <div className="mt-2 flex flex-col gap-2 text-zinc-600">
-              <Link href="/for-restaurants" className="hover:text-zinc-900 hover:underline">
-                Restaurants
+              <Link href="/examples" className="hover:text-zinc-900 hover:underline">
+                Examples
               </Link>
-              <Link href="/for-bars" className="hover:text-zinc-900 hover:underline">
-                Bars
+              <Link href="/compare" className="hover:text-zinc-900 hover:underline">
+                Compare pages
               </Link>
-              <Link href="/for-breweries" className="hover:text-zinc-900 hover:underline">
-                Breweries
+              <Link href="/examples/sample-local-growth-report" className="hover:text-zinc-900 hover:underline">
+                Sample report
               </Link>
             </div>
           </div>

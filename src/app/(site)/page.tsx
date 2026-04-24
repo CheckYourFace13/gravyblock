@@ -119,6 +119,33 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="border-b border-zinc-800 bg-zinc-900 text-white">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-9 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+          <div className="max-w-xl space-y-3 lg:flex-1">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-red-400">Proof, not jargon</p>
+            <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              Scores owners understand in one glance
+            </h2>
+            <p className="text-sm leading-snug text-zinc-300 sm:text-[0.9375rem]">
+              Visibility, trust, clarity, conversion, listings, mobile, and calls to action are rolled into one simple
+              readiness score with a verdict you can understand fast.
+            </p>
+          </div>
+          <div className="w-full shrink-0 rounded-2xl border border-white/10 bg-zinc-800/60 p-5 shadow-lg sm:p-6 lg:max-w-sm">
+            <p className="text-center text-6xl font-semibold tabular-nums tracking-tight text-white sm:text-7xl">72</p>
+            <p className="mt-2 text-center text-xs leading-snug text-zinc-400 sm:text-sm">
+              Sample score only. Run your free scan for your real result.
+            </p>
+            <Link
+              href="/scan"
+              className="mt-4 flex w-full items-center justify-center rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500"
+            >
+              Get my score
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section id="plans" className="border-b border-zinc-200 bg-zinc-50 py-16">
         <div className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6">
           <div className="space-y-3">
@@ -223,7 +250,11 @@ export default function HomePage() {
       <section id="who-its-for" className="mx-auto max-w-6xl space-y-6 px-4 py-16 sm:px-6">
         <h2 className="text-3xl font-semibold text-zinc-900">Who GravyBlock is for</h2>
         <p className="max-w-3xl text-zinc-600">
-          GravyBlock is for local teams that depend on local discovery and local trust to win revenue.
+          GravyBlock is for local teams that depend on local discovery and local trust to win revenue.{" "}
+          <Link href="/industries" className="font-semibold text-red-800 hover:underline">
+            Explore industries
+          </Link>{" "}
+          for sector-specific notes on listings, websites, reviews, and AI discovery.
         </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[
@@ -295,9 +326,21 @@ export default function HomePage() {
           <div className="max-w-3xl space-y-3">
             <h2 className="text-3xl font-semibold text-zinc-900">Guides for local growth execution</h2>
             <p className="text-zinc-600">Use these playbooks to improve trust, visibility, and conversion quality.</p>
+            <div className="flex flex-wrap gap-3 text-sm font-semibold">
+              <Link href="/industries" className="text-red-800 hover:underline">
+                Browse industries
+              </Link>
+              <Link href="/compare" className="text-red-800 hover:underline">
+                Compare approaches
+              </Link>
+              <Link href="/examples" className="text-red-800 hover:underline">
+                See sample workflows
+              </Link>
+            </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
+              { href: "/industries", title: "Industries: trades, clinics, retail, and more" },
               { href: "/guides/multi-location-local-seo", title: "Multi-location local SEO" },
               { href: "/guides/service-area-business-visibility", title: "Service-area business visibility" },
               { href: "/guides/ai-search-local-businesses", title: "AI search for local businesses" },

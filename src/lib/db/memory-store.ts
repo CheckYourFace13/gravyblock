@@ -82,6 +82,23 @@ const scans = new Map<string, MemScan>();
 const reportsByPublicId = new Map<string, MemReport>();
 const leads: MemLead[] = [];
 const leadEmailIndex = new Map<string, string>();
+const customerMagicLinks: Array<{
+  id: string;
+  emailNormalized: string;
+  tokenHash: string;
+  redirectTo: string | null;
+  createdAt: string;
+  expiresAt: string;
+  usedAt: string | null;
+}> = [];
+const customerSessions = new Map<string, {
+  id: string;
+  emailNormalized: string;
+  businessIds: string[];
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+}>();
 const recommendations: Array<{
   id: string;
   businessId: string;
@@ -541,6 +558,103 @@ export const memoryStore = {
     return leads
       .filter((lead) => lead.businessId === businessId)
       .sort((a, b) => new Date(b.lastSeenAt).getTime() - new Date(a.lastSeenAt).getTime());
+  },
+
+  saveCustomerMagicLink(input: {
+    emailNormalized: string;
+    tokenHash: string;
+    redirectTo?: string | null;
+    expiresAt: string;
+  }) {
+    customerMagicLinks.push({
+      id: randomUUID(),
+      emailNormalized: input.emailNormalized,
+      tokenHash: input.tokenHash,
+      redirectTo: input.redirectTo ?? null,
+      createdAt: now(),
+      expiresAt: input.expiresAt,
+      usedAt: null,
+    });
+  },
+
+  consumeCustomerMagicLink(tokenHash: string) {
+    const entry = customerMagicLinks.find((item) => item.tokenHash === tokenHash);
+    if (!entry) return null;
+    if (entry.usedAt) return null;
+    if (new Date(entry.expiresAt).getTime() < Date.now()) return null;
+    entry.usedAt = now();
+    return {
+      emailNormalized: entry.emailNormalized,
+      redirectTo: entry.redirectTo,
+    };
+  },
+
+  saveCustomerSession(input: {
+    id: string;
+    emailNormalized: string;
+    businessIds: string[];
+    expiresAt: string;
+  }) {
+    const timestamp = now();
+    customerSessions.set(input.id, {
+      id: input.id,
+      emailNormalized: input.emailNormalized,
+      businessIds: [...new Set(input.businessIds)],
+      createdAt: timestamp,
+      lastSeenAt: timestamp,
+      expiresAt: input.expiresAt,
+    });
+  },
+
+  getCustomerSession(id: string) {
+    const session = customerSessions.get(id);
+    if (!session) return null;
+    session.lastSeenAt = now();
+    return session;
+  },
+
+  deleteCustomerSession(id: string) {
+    customerSessions.delete(id);
+  },
+
+  listCustomerBusinessAccess(emailNormalized: string) {
+    const ids = new Set<string>();
+    for (const lead of leads) {
+      if (lead.emailNormalized !== emailNormalized) continue;
+      if (lead.businessId) ids.add(lead.businessId);
+      if (!lead.businessId && lead.reportPublicId) {
+        const report = reportsByPublicId.get(lead.reportPublicId);
+        if (report?.businessId) ids.add(report.businessId);
+      }
+    }
+    for (const business of businesses.values()) {
+      if (business.billingEmail?.trim().toLowerCase() === emailNormalized) ids.add(business.id);
+    }
+    const reportsByBusiness = new Map<string, { publicId: string; createdAt: string }>();
+    for (const report of reportsByPublicId.values()) {
+      const prev = reportsByBusiness.get(report.businessId);
+      if (!prev || new Date(report.createdAt).getTime() > new Date(prev.createdAt).getTime()) {
+        reportsByBusiness.set(report.businessId, {
+          publicId: report.publicId,
+          createdAt: report.createdAt,
+        });
+      }
+    }
+    return [...ids]
+      .map((id) => {
+        const business = businesses.get(id);
+        if (!business) return null;
+        return {
+          id: business.id,
+          name: business.name,
+          planTier: business.planTier,
+          latestReportAt: reportsByBusiness.get(id)?.createdAt ?? null,
+          latestReportPublicId: reportsByBusiness.get(id)?.publicId ?? null,
+          billingEmail: business.billingEmail,
+          subscriptionStatus: business.subscriptionStatus,
+        };
+      })
+      .filter((v): v is NonNullable<typeof v> => !!v);
   },
 
   updateBusinessBilling(input: {

@@ -6,6 +6,7 @@ import { getAutopilotWorkspace } from "@/lib/autopilot/repository";
 import type { RoadmapLane } from "@/lib/growth/roadmap";
 import { getWorkspaceBundle } from "@/lib/report/repository";
 import { normalizePlanTierFromDb, planFeatures, type PlanTier } from "@/lib/plans";
+import { requireBusinessAccess } from "@/lib/auth/customer-guards";
 import { CheckoutButton, PortalButton } from "./billing-buttons";
 
 export const dynamic = "force-dynamic";
@@ -16,17 +17,16 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { businessId } = await params;
-  const bundle = await getWorkspaceBundle(businessId);
-  if (!bundle) return { title: "Workspace — GravyBlock" };
+  await params;
   return {
-    title: `${bundle.business.name} — growth workspace`,
-    description: "Track visibility, recommendations, content execution, authority growth, and automation queues for this business.",
+    title: "Workspace — GravyBlock",
+    description: "Customer workspace for visibility, reports, and automation status.",
   };
 }
 
 export default async function WorkspacePage({ params, searchParams }: Props) {
   const { businessId } = await params;
+  await requireBusinessAccess(businessId, `/workspace/${businessId}`);
   const query = await searchParams;
   const bundle = await getWorkspaceBundle(businessId);
   if (!bundle) notFound();

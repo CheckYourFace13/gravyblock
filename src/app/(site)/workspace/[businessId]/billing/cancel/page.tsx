@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { requireBusinessAccess } from "@/lib/auth/customer-guards";
 
 type Props = { params: Promise<{ businessId: string }> };
 
 export default async function BillingCancelPage({ params }: Props) {
   const { businessId } = await params;
+  await requireBusinessAccess(businessId, `/workspace/${businessId}/billing/cancel`);
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-14 sm:px-6">
       <h1 className="text-3xl font-semibold text-zinc-900">Checkout canceled</h1>

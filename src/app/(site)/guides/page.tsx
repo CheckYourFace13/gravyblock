@@ -33,6 +33,56 @@ const guides = [
     title: "Website trust signals",
     description: "Security, schema, contact clarity, and friction that quietly costs you leads.",
   },
+  {
+    href: "/guides/how-to-rank-higher-in-google-maps",
+    title: "How to rank higher in Google Maps",
+    description: "Direct, practical actions that improve map visibility without spam tactics.",
+  },
+  {
+    href: "/guides/how-to-improve-local-trust-on-your-website",
+    title: "How to improve local trust on your website",
+    description: "Trust-building elements that help local visitors choose you faster.",
+  },
+  {
+    href: "/guides/how-to-show-up-in-ai-search-for-local-businesses",
+    title: "How to show up in AI search for local businesses",
+    description: "Entity consistency and direct-answer content for AI-ready local visibility.",
+  },
+  {
+    href: "/guides/how-to-get-more-calls-from-google-business-profile",
+    title: "How to get more calls from Google Business Profile",
+    description: "Profile and trust improvements that lift call conversion.",
+  },
+  {
+    href: "/guides/how-to-improve-near-me-conversion",
+    title: "How to improve near me conversion",
+    description: "Turn local intent traffic into more calls, bookings, and qualified leads.",
+  },
+  {
+    href: "/guides/how-to-build-better-location-pages",
+    title: "How to build better location pages",
+    description: "Build unique, useful local pages instead of thin duplicate content.",
+  },
+  {
+    href: "/guides/local-seo-for-apartment-complexes",
+    title: "Local SEO for apartment complexes",
+    description: "Leasing-focused local visibility and conversion strategy.",
+  },
+  {
+    href: "/guides/local-seo-for-home-services",
+    title: "Local SEO for home services",
+    description: "Service-area trust and profile clarity for call-first operators.",
+  },
+  {
+    href: "/guides/local-seo-for-law-firms",
+    title: "Local SEO for law firms",
+    description: "Credibility and intake conversion improvements for legal teams.",
+  },
+  {
+    href: "/guides/local-seo-for-dentists",
+    title: "Local SEO for dentists",
+    description: "Patient-intent visibility and booking confidence improvements.",
+  },
 ];
 
 export default function GuidesIndexPage() {
@@ -43,6 +93,13 @@ export default function GuidesIndexPage() {
       <p className="mt-4 text-lg text-zinc-600">
         These pages are written to be useful on their own and to complement an automated scan: they describe what
         “good” looks like without promising specific rankings.
+      </p>
+      <p className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-700">
+        Looking for sector-specific context (trades, clinics, retail, auto, property, hospitality)?{" "}
+        <Link href="/industries" className="font-semibold text-red-800 hover:underline">
+          Browse industries
+        </Link>
+        .
       </p>
       <ul className="mt-10 space-y-4">
         {guides.map((g) => (
@@ -62,6 +119,14 @@ export default function GuidesIndexPage() {
         </Link>
         .
       </p>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link href="/compare" className="text-sm font-semibold text-red-800 hover:underline">
+          Compare tool approaches
+        </Link>
+        <Link href="/examples" className="text-sm font-semibold text-red-800 hover:underline">
+          Browse sample workflows
+        </Link>
+      </div>
     </div>
   );
 }

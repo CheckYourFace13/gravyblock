@@ -459,3 +459,23 @@ export const leads = pgTable("leads", {
   sources: jsonb("sources"),
   pipelineStatus: text("pipeline_status").notNull().default("new"),
 });
+
+export const customerMagicLinks = pgTable("customer_magic_links", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  email: text("email").notNull(),
+  emailNormalized: text("email_normalized").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  redirectTo: text("redirect_to"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+});
+
+export const customerSessions = pgTable("customer_sessions", {
+  id: text("id").primaryKey(),
+  emailNormalized: text("email_normalized").notNull(),
+  businessIds: jsonb("business_ids").notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});

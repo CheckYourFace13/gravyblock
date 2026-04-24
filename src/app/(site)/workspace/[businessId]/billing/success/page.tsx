@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { syncCheckoutSession } from "@/lib/billing/stripe-events";
+import { requireBusinessAccess } from "@/lib/auth/customer-guards";
 
 type Props = {
   params: Promise<{ businessId: string }>;
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function BillingSuccessPage({ params, searchParams }: Props) {
   const { businessId } = await params;
+  await requireBusinessAccess(businessId, `/workspace/${businessId}/billing/success`);
   const { session_id: sessionId } = await searchParams;
 
   let syncMessage = "Billing details will finalize shortly after Stripe webhook delivery.";

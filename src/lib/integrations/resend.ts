@@ -27,6 +27,12 @@ type AutomationSummaryPayload = {
   workspaceUrl: string;
 };
 
+type CustomerMagicLinkPayload = {
+  email: string;
+  verifyUrl: string;
+  expiresMinutes: number;
+};
+
 function resendConfig() {
   return {
     apiKey: process.env.RESEND_API_KEY ?? "",
@@ -122,5 +128,16 @@ export async function sendAutomationSummaryEmail(payload: AutomationSummaryPaylo
            <ul>${payload.highlights.map((h) => `<li>${h}</li>`).join("")}</ul>
            <p><a href="${payload.workspaceUrl}">Open workspace</a></p>
            <p>This is a scaffold summary generated from current automation queues.</p>`,
+  });
+}
+
+export async function sendCustomerMagicLinkEmail(payload: CustomerMagicLinkPayload) {
+  return sendEmail({
+    to: payload.email,
+    subject: "Your secure sign-in link",
+    html: `<p>Your secure GravyBlock sign-in link is ready.</p>
+           <p><a href="${payload.verifyUrl}">Open dashboard</a></p>
+           <p>Use this link to open your GravyBlock dashboard. It expires in ${payload.expiresMinutes} minutes.</p>
+           <p>No password required.</p>`,
   });
 }

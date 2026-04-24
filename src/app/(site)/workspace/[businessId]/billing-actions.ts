@@ -2,6 +2,8 @@
 
 import { getBusinessById, persistStripeCustomerId } from "@/lib/billing/repository";
 import { getAppBaseUrl, getPriceIdForPlan, getStripeServerClient } from "@/lib/stripe/server";
+import { canAccessBusiness } from "@/lib/auth/customer-auth";
+import { isAdminSession } from "@/lib/auth/admin-session";
 
 function requiredField(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -20,6 +22,8 @@ export async function createCheckoutSessionAction(formData: FormData) {
   try {
     const businessId = requiredField(formData, "businessId");
     const plan = normalizeCheckoutPlan(requiredField(formData, "plan"));
+    const authorized = (await isAdminSession()) || (await canAccessBusiness(businessId));
+    if (!authorized) throw new Error("Unauthorized business access");
 
     const stripe = getStripeServerClient();
     if (!stripe) throw new Error("Stripe is not configured");
@@ -78,6 +82,8 @@ export async function createCheckoutSessionAction(formData: FormData) {
 export async function createBillingPortalAction(formData: FormData) {
   try {
     const businessId = requiredField(formData, "businessId");
+    const authorized = (await isAdminSession()) || (await canAccessBusiness(businessId));
+    if (!authorized) throw new Error("Unauthorized business access");
     const stripe = getStripeServerClient();
     if (!stripe) throw new Error("Stripe is not configured");
     const business = await getBusinessById(businessId);
