@@ -8,6 +8,8 @@ import {
   getBusinessByStripeSubscriptionId,
   stripeSubscriptionSnapshot,
 } from "@/lib/billing/repository";
+import { schedulePlanRecurringSnapshotJob, scheduleRecurringSnapshotJob } from "@/lib/autopilot/executor";
+import { getPlanFromPriceId } from "@/lib/stripe/server";
 import { getStripeServerClient } from "@/lib/stripe/server";
 
 function customerIdFromUnknown(customer: string | Stripe.Customer | Stripe.DeletedCustomer | null): string | null {
@@ -72,6 +74,20 @@ export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Se
     priceId: snap.priceId,
     billingEmail,
   });
+
+  const planTier = getPlanFromPriceId(snap.priceId);
+  if (planTier === "base" || planTier === "pro") {
+    const jobType = planTier === "pro" ? "pro_recurring_refresh" : "entry_monthly_refresh";
+    await scheduleRecurringSnapshotJob({
+      businessId,
+      runAfterMs: 0,
+      type: jobType,
+    });
+    await schedulePlanRecurringSnapshotJob({
+      businessId,
+      planTier,
+    });
+  }
 }
 
 export async function handleSubscriptionUpsert(subscription: Stripe.Subscription) {

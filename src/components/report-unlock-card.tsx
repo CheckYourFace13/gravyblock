@@ -12,11 +12,13 @@ export function ReportUnlockCard({
   onUnlocked,
   selectedPlan,
   businessId,
+  promoCode,
 }: {
   publicId: string;
   onUnlocked: () => void;
   selectedPlan?: "base" | "pro" | null;
   businessId?: string;
+  promoCode?: "ILoveYouFree" | "ILikeYou50" | null;
 }) {
   const [state, formAction, pending] = useActionState(unlockReportAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);
@@ -31,9 +33,12 @@ export function ReportUnlockCard({
       if (selectedPlan && !url.searchParams.get("plan")) {
         url.searchParams.set("plan", selectedPlan);
       }
+      if (promoCode && !url.searchParams.get("promo")) {
+        url.searchParams.set("promo", promoCode);
+      }
       router.replace(`${url.pathname}${url.search}${url.hash}`);
     }
-  }, [onUnlocked, router, selectedPlan, state]);
+  }, [onUnlocked, promoCode, router, selectedPlan, state]);
 
   return (
     <div className="mx-auto max-w-xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-lg">
@@ -78,13 +83,13 @@ export function ReportUnlockCard({
           <p className="mt-1">After unlock, open your workspace and start Base or Pro checkout for this business.</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <Link
-              href={`/workspace/${businessId}?plan=base#billing`}
+              href={promoCode ? `/workspace/${businessId}?plan=base&promo=${encodeURIComponent(promoCode)}#billing` : `/workspace/${businessId}?plan=base#billing`}
               className="rounded-full border border-zinc-300 bg-white px-3 py-1.5 font-semibold text-zinc-900 hover:border-zinc-400"
             >
-              Upgrade to Base
+              Upgrade to Basic
             </Link>
             <Link
-              href={`/workspace/${businessId}?plan=pro#billing`}
+              href={promoCode ? `/workspace/${businessId}?plan=pro&promo=${encodeURIComponent(promoCode)}#billing` : `/workspace/${businessId}?plan=pro#billing`}
               className="rounded-full bg-red-600 px-3 py-1.5 font-semibold text-white hover:bg-red-500"
             >
               Upgrade to Pro

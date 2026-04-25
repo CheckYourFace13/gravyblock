@@ -78,6 +78,77 @@ export default async function AdminBusinessDetailPage({ params }: Props) {
         </div>
       </section>
 
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Publishing execution</h2>
+          <ul className="mt-4 space-y-2 text-sm">
+            {autopilot.publishingJobs.slice(0, 10).map((job) => (
+              <li key={job.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+                <p className="font-medium text-zinc-900">{job.id}</p>
+                <p className="text-xs uppercase text-zinc-500">{job.status}</p>
+                {job.responseLog ? <p className="text-xs text-zinc-600">{job.responseLog}</p> : null}
+              </li>
+            ))}
+            {!autopilot.publishingJobs.length ? <li className="text-zinc-500">No publishing jobs yet.</li> : null}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Published content</h2>
+          <ul className="mt-4 space-y-2 text-sm">
+            {autopilot.publishedContent.slice(0, 10).map((item) => (
+              <li key={item.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+                <p className="font-medium text-zinc-900">{item.title}</p>
+                <p className="text-xs uppercase text-zinc-500">
+                  {item.channel} · {item.status}
+                </p>
+                {item.publicUrl ? (
+                  <a className="text-xs text-red-800 underline" href={item.publicUrl} target="_blank" rel="noreferrer">
+                    {item.publicUrl}
+                  </a>
+                ) : null}
+              </li>
+            ))}
+            {!autopilot.publishedContent.length ? <li className="text-zinc-500">No published content yet.</li> : null}
+          </ul>
+        </div>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Outreach statuses</h2>
+          <ul className="mt-4 space-y-2 text-sm">
+            {autopilot.operatorTasks
+              .filter((task) => task.queue === "outreach_ops")
+              .slice(0, 10)
+              .map((task) => (
+                <li key={task.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+                  <p className="font-medium text-zinc-900">{task.title}</p>
+                  <p className="text-xs uppercase text-zinc-500">{task.status}</p>
+                  {task.detail ? <p className="text-xs text-zinc-600">{task.detail}</p> : null}
+                </li>
+              ))}
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Authority/backlink statuses</h2>
+          <ul className="mt-4 space-y-2 text-sm">
+            {autopilot.backlinkQueue.slice(0, 10).map((row) => (
+              <li key={row.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+                <p className="font-medium text-zinc-900">{row.sourceName}</p>
+                <p className="text-xs uppercase text-zinc-500">
+                  {row.status} · quality {row.qualityScore ?? "n/a"}
+                </p>
+                {row.targetUrl ? (
+                  <a className="text-xs text-red-800 underline" href={row.targetUrl} target="_blank" rel="noreferrer">
+                    {row.targetUrl}
+                  </a>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-900">Profile</h2>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">

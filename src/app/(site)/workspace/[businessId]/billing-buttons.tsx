@@ -8,10 +8,11 @@ function InlineError({ message }: { message: string | null }) {
   return <p className="mt-2 text-xs font-medium text-red-700">{message}</p>;
 }
 
-async function runCheckout(businessId: string, plan: "base" | "pro") {
+async function runCheckout(businessId: string, plan: "base" | "pro", promoCode?: "ILoveYouFree" | "ILikeYou50" | null) {
   const formData = new FormData();
   formData.set("businessId", businessId);
   formData.set("plan", plan);
+  if (promoCode) formData.set("promoCode", promoCode);
   return createCheckoutSessionAction(formData);
 }
 
@@ -31,6 +32,7 @@ export function CheckoutButton({
   label,
   className,
   requireProUpsell,
+  promoCode,
 }: {
   businessId: string;
   plan: "base" | "pro";
@@ -38,6 +40,7 @@ export function CheckoutButton({
   className: string;
   /** When true, Base checkout opens an upsell step before Stripe. */
   requireProUpsell?: boolean;
+  promoCode?: "ILoveYouFree" | "ILikeYou50" | null;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -54,7 +57,7 @@ export function CheckoutButton({
             startTransition(async () => {
               setError(null);
               try {
-                const result = await runCheckout(businessId, plan);
+                const result = await runCheckout(businessId, plan, promoCode);
                 if (!result.ok) {
                   setError(result.error);
                   return;
@@ -68,6 +71,7 @@ export function CheckoutButton({
         >
           {pending ? "Opening checkout..." : label}
         </button>
+        {promoCode ? <p className="mt-2 text-xs font-medium text-zinc-600">Promo code ready: {promoCode}</p> : null}
         <InlineError message={error} />
       </div>
     );
@@ -116,7 +120,7 @@ export function CheckoutButton({
                 onClick={() => {
                   startTransition(async () => {
                     setError(null);
-                    const result = await runCheckout(businessId, "pro");
+                    const result = await runCheckout(businessId, "pro", promoCode);
                     if (!result.ok) {
                       setError(result.error);
                       return;
@@ -134,7 +138,7 @@ export function CheckoutButton({
                 onClick={() => {
                   startTransition(async () => {
                     setError(null);
-                    const result = await runCheckout(businessId, "base");
+                    const result = await runCheckout(businessId, "base", promoCode);
                     if (!result.ok) {
                       setError(result.error);
                       return;

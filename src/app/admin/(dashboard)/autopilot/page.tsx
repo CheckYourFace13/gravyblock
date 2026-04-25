@@ -21,14 +21,18 @@ export default async function AdminAutopilotPage() {
         <Stat label="Citation ops queued" value={String(summary.queuedCitationOps)} />
         <Stat label="Review/local trust queued" value={String(summary.queuedReviewOps)} />
         <Stat label="Local page queue items" value={String(summary.queuedLocalPageContent)} />
+        <Stat label="Backlink opportunities queued" value={String(summary.queuedBacklinkOps)} />
+        <Stat label="Drafts generated" value={String(summary.generatedDrafts)} />
+        <Stat label="Published artifacts" value={String(summary.publishedArtifacts)} />
+        <Stat label="Completed automation jobs" value={String(summary.completedJobs)} />
       </div>
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-900">Execution model</h2>
         <ul className="mt-3 space-y-2 text-sm text-zinc-700">
-          <li>Base runs monthly recurring refresh jobs; Pro runs a tighter recurring cadence.</li>
-          <li>Every recurring cycle can add AI visibility summary checks and queue new tasks.</li>
-          <li>Content queue and local-page queue are persisted; publishing jobs track execution state.</li>
-          <li>Citation, review, and trust tasks are surfaced from operator task queues.</li>
+          <li>Basic runs monthly recurring refresh jobs; Pro runs weekly recurring jobs.</li>
+          <li>Each run persists snapshots, AI checks, action queues, and content queues.</li>
+          <li>Draft generation and publishing queues are tracked separately from externally published artifacts.</li>
+          <li>Backlink rows represent surfaced opportunities/tasks, not guaranteed placed links.</li>
         </ul>
       </div>
     </div>

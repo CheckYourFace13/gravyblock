@@ -8,8 +8,15 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ publicId: string }>;
-  searchParams: Promise<{ unlock?: string; plan?: string }>;
+  searchParams: Promise<{ unlock?: string; plan?: string; promo?: string }>;
 };
+
+function normalizePromoCodeIntent(raw?: string): "ILoveYouFree" | "ILikeYou50" | null {
+  if (!raw) return null;
+  const value = raw.trim();
+  if (value === "ILoveYouFree" || value === "ILikeYou50") return value;
+  return null;
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { publicId } = await params;
@@ -30,6 +37,7 @@ export default async function ReportPage({ params, searchParams }: Props) {
   const initiallyUnlocked = verifyReportUnlockToken(publicId, query.unlock);
   const raw = query.plan?.toLowerCase() ?? "";
   const selectedPlan = raw === "pro" ? "pro" : raw === "base" || raw === "entry" ? "base" : null;
+  const promoCode = normalizePromoCodeIntent(query.promo);
   return (
     <ReportView
       payload={record.payload}
@@ -37,6 +45,7 @@ export default async function ReportPage({ params, searchParams }: Props) {
       businessId={record.businessId}
       initiallyUnlocked={initiallyUnlocked}
       selectedPlan={selectedPlan}
+      promoCode={promoCode}
     />
   );
 }

@@ -13,8 +13,15 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ businessId: string }>;
-  searchParams: Promise<{ plan?: string }>;
+  searchParams: Promise<{ plan?: string; promo?: string }>;
 };
+
+function normalizePromoCodeIntent(raw?: string): "ILoveYouFree" | "ILikeYou50" | null {
+  if (!raw) return null;
+  const value = raw.trim();
+  if (value === "ILoveYouFree" || value === "ILikeYou50") return value;
+  return null;
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   await params;
@@ -66,8 +73,34 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
   const reviewTasks = autopilot.operatorTasks.filter(
     (task) => task.queue === "review_ops" || task.queue === "reputation_ops" || task.queue === "local_trust_ops",
   );
+  const outreachTasks = autopilot.operatorTasks.filter((task) => task.queue === "outreach_ops");
+  const latestRunSummary =
+    latestAutomation && latestAutomation.payload && typeof latestAutomation.payload === "object" && "runSummary" in latestAutomation.payload
+      ? ((latestAutomation.payload as { runSummary?: Record<string, unknown> }).runSummary ?? null)
+      : null;
+  const latestDetectedChanges =
+    latestRunSummary && Array.isArray(latestRunSummary.detectedChanges)
+      ? (latestRunSummary.detectedChanges as string[])
+      : [];
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const isThisMonth = (value: string) => new Date(value).getTime() >= monthStart.getTime();
+  const contentIdeasThisMonth = autopilot.contentQueue.filter((item) => isThisMonth(item.createdAt)).length;
+  const localPagesThisMonth = localPageQueue.filter((item) => isThisMonth(item.createdAt)).length;
+  const draftsThisMonth = autopilot.publishedContent.filter(
+    (item) => item.channel === "internal_draft" && isThisMonth(item.createdAt),
+  ).length;
+  const publishingQueuedThisMonth = autopilot.publishingJobs.filter(
+    (job) => job.status === "pending" && isThisMonth(job.createdAt),
+  ).length;
+  const citationQueuedThisMonth = autopilot.citationIssues.filter((item) => isThisMonth(item.createdAt)).length;
+  const reviewQueuedThisMonth = reviewTasks.filter((item) => isThisMonth(item.createdAt)).length;
+  const backlinkQueuedThisMonth = autopilot.backlinkQueue.filter((item) => isThisMonth(item.createdAt)).length;
+  const aiChecksThisMonth = autopilot.aiVisibilityChecks.filter((item) => isThisMonth(item.createdAt)).length;
   const rawPlan = query.plan?.toLowerCase() ?? "";
   const selectedPlan = rawPlan === "pro" ? "pro" : rawPlan === "base" || rawPlan === "entry" ? "base" : null;
+  const promoCode = normalizePromoCodeIntent(query.promo);
   const billingStatus = bundle.business.subscriptionStatus ?? "none";
   const hasBillingCustomer = Boolean(bundle.business.stripeCustomerId);
 
@@ -99,7 +132,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <span className="rounded-full bg-zinc-100 px-3 py-1">Refresh cadence: {features.refreshCadenceLabel}</span>
             {selectedPlan ? (
               <span className="rounded-full bg-red-100 px-3 py-1 text-red-950">
-                Selected plan: {selectedPlan === "base" ? "Base" : "Pro"}
+                Selected plan: {selectedPlan === "base" ? "Basic" : "Pro"}
               </span>
             ) : null}
           </div>
@@ -109,7 +142,8 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 businessId={businessId}
                 plan="base"
                 requireProUpsell
-                label={selectedPlan === "base" ? "Continue to Base checkout" : "Turn on Base"}
+                label={selectedPlan === "base" ? "Continue to Basic checkout" : "Start Basic"}
+                promoCode={promoCode}
                 className={
                   selectedPlan === "base"
                     ? "rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
@@ -121,7 +155,8 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               <CheckoutButton
                 businessId={businessId}
                 plan="pro"
-                label={selectedPlan === "pro" ? "Continue to Pro checkout" : "Turn on Pro"}
+                label={selectedPlan === "pro" ? "Continue to Pro checkout" : "Start Pro"}
+                promoCode={promoCode}
                 className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
               />
             ) : null}
@@ -151,10 +186,10 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       {!features.recurringRefresh ? (
         <div className="rounded-2xl border border-red-200 bg-red-50/60 px-5 py-5 text-sm text-zinc-900">
           <p>
-            <span className="font-semibold">Base unlocks recurring automation.</span> Free includes scan history and core
-            report storage. Base adds monthly refresh and summary cycles. Pro adds a faster cadence plus automation queues. See{" "}
+            <span className="font-semibold">Basic unlocks recurring automation.</span> Free includes scan history and core
+            report storage. Basic adds monthly refresh and summary cycles. Pro adds a faster cadence plus automation queues. See{" "}
             <Link href="/#plans" className="font-semibold underline">
-              Free vs Base vs Pro
+              Free vs Basic vs Pro
             </Link>
             .
           </p>
@@ -178,6 +213,8 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <p className="mt-1 text-xs font-medium text-zinc-600">
               Start with your business, then activate the plan. We&apos;ll connect this plan to this business.
             </p>
+            <p className="mt-1 text-xs text-zinc-500">You can enter Stripe promotion codes during checkout.</p>
+            {promoCode ? <p className="mt-1 text-xs font-medium text-zinc-700">Promo code ready: {promoCode}</p> : null}
           </div>
           {hasBillingCustomer ? (
             <PortalButton
@@ -190,14 +227,17 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           {tier !== "base" ? (
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Base</p>
+              <p className="text-sm font-semibold text-zinc-900">Basic</p>
               <p className="text-xs text-zinc-600">$29.99/month, launch price $19.99/month.</p>
               <div className="mt-3">
                 <CheckoutButton
                   businessId={businessId}
                   plan="base"
                   requireProUpsell
-                  label={selectedPlan === "base" ? "Continue to Base checkout" : tier === "free" ? "Turn on Base" : "Switch to Base"}
+                  label={
+                    selectedPlan === "base" ? "Continue to Basic checkout" : "Start Basic"
+                  }
+                  promoCode={promoCode}
                   className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
                 />
               </div>
@@ -211,7 +251,8 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 <CheckoutButton
                   businessId={businessId}
                   plan="pro"
-                  label={selectedPlan === "pro" ? "Continue to Pro checkout" : "Turn on Pro"}
+                  label={selectedPlan === "pro" ? "Continue to Pro checkout" : "Start Pro"}
+                  promoCode={promoCode}
                   className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
                 />
               </div>
@@ -263,6 +304,17 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 ? `${upcomingAutomation.type} at ${new Date(upcomingAutomation.runAfter).toLocaleString()}`
                 : "no pending recurring jobs"}
             </p>
+            {latestRunSummary ? (
+              <p className="mt-2 text-zinc-300">
+                Latest run output:{" "}
+                {[
+                  `${Number(latestRunSummary.contentIdeas ?? 0)} ideas`,
+                  `${Number(latestRunSummary.draftsGenerated ?? 0)} drafts`,
+                  `${Number(latestRunSummary.publishingJobsQueued ?? 0)} publishing jobs`,
+                  `${Number(latestRunSummary.outreachDraftsGenerated ?? 0)} outreach drafts`,
+                ].join(" · ")}
+              </p>
+            ) : null}
           </div>
           <p className="text-xs text-zinc-400">
             Listing snapshots use public Places data. Owner-authenticated GBP APIs are not connected in this build.
@@ -270,12 +322,43 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         </div>
       </section>
 
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard label="Generated this month" value={String(contentIdeasThisMonth)} note="content ideas queued" />
+        <KpiCard label="Drafts generated" value={String(draftsThisMonth)} note="internal drafts" />
+        <KpiCard label="Queued for publishing" value={String(publishingQueuedThisMonth)} note="published where target supports it" />
+        <KpiCard label="AI checks completed" value={String(aiChecksThisMonth)} note="this month" />
+        <KpiCard label="Citation tasks queued" value={String(citationQueuedThisMonth)} note="listing cleanup work" />
+        <KpiCard label="Review tasks queued" value={String(reviewQueuedThisMonth)} note="reputation work" />
+        <KpiCard label="Outreach drafted" value={String(outreachTasks.filter((item) => isThisMonth(item.createdAt)).length)} note="this month" />
+        <KpiCard label="Authority opportunities found" value={String(backlinkQueuedThisMonth)} note="queued opportunities" />
+        <KpiCard label="Local page queue items" value={String(localPagesThisMonth)} note="service-area and local pages" />
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-900">Changes detected on your site and public profile</h2>
+        <p className="mt-1 text-sm text-zinc-600">
+          Refresh cycles re-check homepage, listing details, and public social footprint where supported.
+        </p>
+        <ul className="mt-3 space-y-2 text-sm">
+          {latestDetectedChanges.map((change) => (
+            <li key={change} className="rounded-lg bg-zinc-50 px-3 py-2 text-zinc-700">
+              {change}
+            </li>
+          ))}
+          {!latestDetectedChanges.length ? (
+            <li className="rounded-lg bg-zinc-50 px-3 py-2 text-zinc-600">
+              No major changes detected in the latest refresh cycle.
+            </li>
+          ) : null}
+        </ul>
+      </section>
+
       <AutopilotRoadmap rows={roadmapRows} />
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-zinc-900">Content queue</h2>
-          <p className="mt-1 text-sm text-zinc-600">Scheduled and queued content assets across local + conversion intent.</p>
+          <p className="mt-1 text-sm text-zinc-600">Generated content ideas and queue items. External publishing runs where a target is configured.</p>
           <ul className="mt-4 space-y-2 text-sm">
             {autopilot.contentQueue.slice(0, 8).map((item) => (
               <li key={item.id} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
@@ -347,6 +430,19 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             {!autopilot.automationJobs.length ? <li className="text-zinc-500">No automation jobs running yet.</li> : null}
           </ul>
         </div>
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-zinc-900">Outreach execution</h3>
+          <ul className="mt-3 space-y-2 text-sm">
+            {outreachTasks.slice(0, 8).map((task) => (
+              <li key={task.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+                <p className="font-medium text-zinc-900">{task.title}</p>
+                <p className="text-xs uppercase text-zinc-500">{task.status}</p>
+                <p className="text-xs text-zinc-600">{task.detail}</p>
+              </li>
+            ))}
+            {!outreachTasks.length ? <li className="text-zinc-500">No outreach drafts generated yet.</li> : null}
+          </ul>
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
@@ -357,6 +453,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               <li key={job.id} className="rounded-lg bg-zinc-50 px-3 py-2">
                 <p className="font-medium text-zinc-900">{job.id}</p>
                 <p className="text-xs uppercase text-zinc-500">{job.status}</p>
+                {job.responseLog ? <p className="text-xs text-zinc-600">{job.responseLog}</p> : null}
               </li>
             ))}
             {!autopilot.publishingJobs.length ? <li className="text-zinc-500">No publishing jobs yet.</li> : null}
@@ -364,18 +461,44 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <h3 className="text-base font-semibold text-zinc-900">Published artifacts</h3>
+          <p className="mt-1 text-xs text-zinc-500">Includes internal drafts and published items in this workspace.</p>
           <ul className="mt-3 space-y-2 text-sm">
             {autopilot.publishedContent.slice(0, 8).map((item) => (
               <li key={item.id} className="rounded-lg bg-zinc-50 px-3 py-2">
                 <p className="font-medium text-zinc-900">{item.title}</p>
                 <p className="text-xs uppercase text-zinc-500">
-                  {item.channel} {item.publicUrl ? `· ${item.publicUrl}` : ""}
+                  {item.channel} · {item.status}
                 </p>
+                {item.publicUrl ? (
+                  <a className="text-xs text-red-800 underline" href={item.publicUrl} target="_blank" rel="noreferrer">
+                    {item.publicUrl}
+                  </a>
+                ) : null}
               </li>
             ))}
             {!autopilot.publishedContent.length ? <li className="text-zinc-500">No published artifacts yet.</li> : null}
           </ul>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <h3 className="text-base font-semibold text-zinc-900">Recent completed work log</h3>
+        <ul className="mt-3 space-y-2 text-sm">
+          {autopilot.automationJobs
+            .filter((job) => job.status === "completed")
+            .slice(0, 10)
+            .map((job) => (
+              <li key={job.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+                <p className="font-medium text-zinc-900">{job.type}</p>
+                <p className="text-xs text-zinc-500">
+                  {new Date(job.createdAt).toLocaleString()} · refresh completed
+                </p>
+              </li>
+            ))}
+          {!autopilot.automationJobs.filter((job) => job.status === "completed").length ? (
+            <li className="text-zinc-500">No completed automation cycles yet.</li>
+          ) : null}
+        </ul>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
@@ -395,6 +518,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <h3 className="text-base font-semibold text-zinc-900">Authority queue</h3>
+          <p className="mt-1 text-xs text-zinc-500">Opportunities found and queued. This does not mean links are already placed.</p>
           <ul className="mt-3 space-y-2 text-sm">
             {autopilot.backlinkQueue.slice(0, 8).map((item) => (
               <li key={item.id} className="rounded-lg bg-zinc-50 px-3 py-2">
@@ -402,6 +526,11 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 <p className="text-xs uppercase text-zinc-500">
                   {item.status} · quality {item.qualityScore ?? "n/a"}
                 </p>
+                {item.targetUrl ? (
+                  <a className="text-xs text-red-800 underline" href={item.targetUrl} target="_blank" rel="noreferrer">
+                    {item.targetUrl}
+                  </a>
+                ) : null}
               </li>
             ))}
             {!autopilot.backlinkQueue.length ? <li className="text-zinc-500">No authority opportunities queued.</li> : null}
@@ -462,5 +591,15 @@ function FeatureRow({ label, on }: { label: string; on: boolean }) {
       <span>{label}</span>
       <span className={on ? "text-red-300" : "text-zinc-500"}>{on ? "Included" : "Locked"}</span>
     </li>
+  );
+}
+
+function KpiCard({ label, value, note }: { label: string; value: string; note: string }) {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-zinc-900">{value}</p>
+      <p className="mt-1 text-xs text-zinc-500">{note}</p>
+    </div>
   );
 }

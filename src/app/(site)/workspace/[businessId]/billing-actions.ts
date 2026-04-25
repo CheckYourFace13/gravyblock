@@ -18,10 +18,17 @@ function normalizeCheckoutPlan(raw: string): "base" | "pro" {
   throw new Error("Invalid plan");
 }
 
+function normalizePromoCodeIntent(raw: string): "ILoveYouFree" | "ILikeYou50" | null {
+  const value = raw.trim();
+  if (value === "ILoveYouFree" || value === "ILikeYou50") return value;
+  return null;
+}
+
 export async function createCheckoutSessionAction(formData: FormData) {
   try {
     const businessId = requiredField(formData, "businessId");
     const plan = normalizeCheckoutPlan(requiredField(formData, "plan"));
+    const promoIntent = normalizePromoCodeIntent(String(formData.get("promoCode") ?? ""));
     const authorized = (await isAdminSession()) || (await canAccessBusiness(businessId));
     if (!authorized) throw new Error("Unauthorized business access");
 
@@ -49,6 +56,7 @@ export async function createCheckoutSessionAction(formData: FormData) {
       metadata: {
         businessId,
         requestedPlan: plan,
+        ...(promoIntent ? { promoIntent } : {}),
       },
       line_items: [
         {

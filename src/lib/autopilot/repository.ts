@@ -30,13 +30,20 @@ export async function getAutopilotWorkspace(businessId: string) {
   if (sql && !safeBusinessId) {
     return {
       contentQueue: [] as Array<{ id: string; title: string; kind: string; status: string; createdAt: string }>,
-      backlinkQueue: [] as Array<{ id: string; sourceName: string; status: string; qualityScore: number | null; createdAt: string }>,
+      backlinkQueue: [] as Array<{
+        id: string;
+        sourceName: string;
+        targetUrl: string | null;
+        status: string;
+        qualityScore: number | null;
+        createdAt: string;
+      }>,
       aiVisibilityChecks: [] as Array<{ id: string; prompt: string; mentionFound: string; confidence: number | null; createdAt: string }>,
-      operatorTasks: [] as Array<{ id: string; title: string; queue: string; status: string; createdAt: string }>,
-      automationJobs: [] as Array<{ id: string; type: string; status: string; createdAt: string }>,
-      upcomingJobs: [] as Array<{ id: string; type: string; status: string; runAfter: string | null; createdAt: string }>,
-      publishingJobs: [] as Array<{ id: string; status: string; createdAt: string }>,
-      publishedContent: [] as Array<{ id: string; title: string; channel: string; publicUrl: string | null; createdAt: string }>,
+      operatorTasks: [] as Array<{ id: string; title: string; detail: string; queue: string; status: string; createdAt: string }>,
+      automationJobs: [] as Array<{ id: string; type: string; status: string; payload: unknown; createdAt: string }>,
+      upcomingJobs: [] as Array<{ id: string; type: string; status: string; runAfter: string | null; createdAt: string; payload: unknown }>,
+      publishingJobs: [] as Array<{ id: string; status: string; responseLog: string | null; createdAt: string }>,
+      publishedContent: [] as Array<{ id: string; title: string; channel: string; status: string; publicUrl: string | null; createdAt: string }>,
       citationIssues: [] as Array<{ id: string; sourceName: string; status: string; mismatchNote: string | null; createdAt: string }>,
     };
   }
@@ -54,6 +61,7 @@ export async function getAutopilotWorkspace(businessId: string) {
       backlinkQueue: workspace.recommendations.slice(0, 4).map((r) => ({
         id: r.id,
         sourceName: r.title,
+        targetUrl: null,
         status: "prospecting",
         qualityScore: 60,
         createdAt: r.createdAt,
@@ -68,14 +76,15 @@ export async function getAutopilotWorkspace(businessId: string) {
       operatorTasks: workspace.recommendations.slice(0, 5).map((r) => ({
         id: r.id,
         title: r.title,
+        detail: r.detail,
         queue: "general",
         status: "queued",
         createdAt: r.createdAt,
       })),
-      automationJobs: [] as Array<{ id: string; type: string; status: string; createdAt: string }>,
-      upcomingJobs: [] as Array<{ id: string; type: string; status: string; runAfter: string | null; createdAt: string }>,
-      publishingJobs: [] as Array<{ id: string; status: string; createdAt: string }>,
-      publishedContent: [] as Array<{ id: string; title: string; channel: string; publicUrl: string | null; createdAt: string }>,
+      automationJobs: [] as Array<{ id: string; type: string; status: string; payload: unknown; createdAt: string }>,
+      upcomingJobs: [] as Array<{ id: string; type: string; status: string; runAfter: string | null; createdAt: string; payload: unknown }>,
+      publishingJobs: [] as Array<{ id: string; status: string; responseLog: string | null; createdAt: string }>,
+      publishedContent: [] as Array<{ id: string; title: string; channel: string; status: string; publicUrl: string | null; createdAt: string }>,
       citationIssues: [] as Array<{ id: string; sourceName: string; status: string; mismatchNote: string | null; createdAt: string }>,
     };
   }
@@ -86,20 +95,20 @@ export async function getAutopilotWorkspace(businessId: string) {
           `select id,title,kind,status,created_at as "createdAt" from content_queue where business_id='${safeBusinessId}' order by created_at desc limit 20`,
         ),
         sql.unsafe(
-          `select id,source_name as "sourceName",status,quality_score as "qualityScore",created_at as "createdAt" from backlink_opportunities where business_id='${safeBusinessId}' order by created_at desc limit 20`,
+          `select id,source_name as "sourceName",target_url as "targetUrl",status,quality_score as "qualityScore",created_at as "createdAt" from backlink_opportunities where business_id='${safeBusinessId}' order by created_at desc limit 20`,
         ),
         sql.unsafe(
           `select id,prompt,mention_found as "mentionFound",confidence,created_at as "createdAt" from ai_visibility_checks where business_id='${safeBusinessId}' order by created_at desc limit 20`,
         ),
         sql.unsafe(
-          `select id,title,queue,status,created_at as "createdAt" from operator_tasks where business_id='${safeBusinessId}' order by created_at desc limit 20`,
+          `select id,title,detail,queue,status,created_at as "createdAt" from operator_tasks where business_id='${safeBusinessId}' order by created_at desc limit 20`,
         ),
         sql.unsafe(
-          `select id,type,status,run_after as "runAfter",created_at as "createdAt" from jobs where business_id='${safeBusinessId}' order by created_at desc limit 20`,
+          `select id,type,status,payload,run_after as "runAfter",created_at as "createdAt" from jobs where business_id='${safeBusinessId}' order by created_at desc limit 20`,
         ),
-        sql`select id,status,created_at as "createdAt" from publishing_jobs order by created_at desc limit 20`,
+        sql`select id,status,response_log as "responseLog",created_at as "createdAt" from publishing_jobs order by created_at desc limit 20`,
         sql.unsafe(
-          `select id,title,channel,public_url as "publicUrl",created_at as "createdAt" from published_content where business_id='${safeBusinessId}' order by created_at desc limit 20`,
+          `select id,title,channel,status,public_url as "publicUrl",created_at as "createdAt" from published_content where business_id='${safeBusinessId}' order by created_at desc limit 20`,
         ),
         sql.unsafe(
           `select id,source_name as "sourceName",status,mismatch_note as "mismatchNote",created_at as "createdAt" from citation_monitors where business_id='${safeBusinessId}' order by created_at desc limit 20`,
@@ -120,14 +129,26 @@ export async function getAutopilotWorkspace(businessId: string) {
           .orderBy(desc(aiVisibilityChecks.createdAt))
           .limit(20),
         db.select().from(operatorTasks).where(eq(operatorTasks.businessId, businessId)).orderBy(desc(operatorTasks.createdAt)).limit(20),
-        db.select().from(jobs).where(eq(jobs.businessId, businessId)).orderBy(desc(jobs.createdAt)).limit(20),
         db
-          .select()
+          .select({ id: jobs.id, type: jobs.type, status: jobs.status, payload: jobs.payload, runAfter: jobs.runAfter, createdAt: jobs.createdAt })
+          .from(jobs)
+          .where(eq(jobs.businessId, businessId))
+          .orderBy(desc(jobs.createdAt))
+          .limit(20),
+        db
+          .select({ id: publishingJobs.id, status: publishingJobs.status, responseLog: publishingJobs.responseLog, createdAt: publishingJobs.createdAt })
           .from(publishingJobs)
           .orderBy(desc(publishingJobs.createdAt))
           .limit(20),
         db
-          .select()
+          .select({
+            id: publishedContent.id,
+            title: publishedContent.title,
+            channel: publishedContent.channel,
+            status: publishedContent.status,
+            publicUrl: publishedContent.publicUrl,
+            createdAt: publishedContent.createdAt,
+          })
           .from(publishedContent)
           .where(eq(publishedContent.businessId, businessId))
           .orderBy(desc(publishedContent.createdAt))
@@ -151,6 +172,7 @@ export async function getAutopilotWorkspace(businessId: string) {
     backlinkQueue: backlinkRows.map((b) => ({
       id: b.id,
       sourceName: b.sourceName,
+      targetUrl: b.targetUrl ?? null,
       status: b.status,
       qualityScore: b.qualityScore,
       createdAt: toIso(b.createdAt),
@@ -165,6 +187,7 @@ export async function getAutopilotWorkspace(businessId: string) {
     operatorTasks: taskRows.map((t) => ({
       id: t.id,
       title: t.title,
+      detail: t.detail,
       queue: t.queue,
       status: t.status,
       createdAt: toIso(t.createdAt),
@@ -173,6 +196,7 @@ export async function getAutopilotWorkspace(businessId: string) {
       id: j.id,
       type: j.type,
       status: j.status,
+      payload: j.payload ?? null,
       createdAt: toIso(j.createdAt),
     })),
     upcomingJobs: jobRows
@@ -188,17 +212,20 @@ export async function getAutopilotWorkspace(businessId: string) {
         type: j.type,
         status: j.status,
         runAfter: j.runAfter ? toIso(j.runAfter) : null,
+        payload: j.payload ?? null,
         createdAt: toIso(j.createdAt),
       })),
     publishingJobs: publishingRows.map((p) => ({
       id: p.id,
       status: p.status,
+      responseLog: p.responseLog ?? null,
       createdAt: toIso(p.createdAt),
     })),
     publishedContent: publishedRows.map((p) => ({
       id: p.id,
       title: p.title,
       channel: p.channel,
+      status: p.status,
       publicUrl: p.publicUrl,
       createdAt: toIso(p.createdAt),
     })),
@@ -326,9 +353,27 @@ export async function getAutopilotOpsSummary() {
       queuedCitationOps: 0,
       queuedReviewOps: 0,
       queuedLocalPageContent: 0,
+      queuedBacklinkOps: 0,
+      publishedArtifacts: 0,
+      generatedDrafts: 0,
+      completedJobs: 0,
     };
   }
-  const [businessRows, taskRows, jobRows, publishingRows, citationTaskRows, reviewTaskRows, localPageRows, entryRows, proRows] = sql
+  const [
+    businessRows,
+    taskRows,
+    jobRows,
+    publishingRows,
+    citationTaskRows,
+    reviewTaskRows,
+    localPageRows,
+    entryRows,
+    proRows,
+    backlinkRows,
+    publishedRows,
+    draftRows,
+    completedRows,
+  ] = sql
     ? await Promise.all([
         sql`select id from businesses limit 10000`,
         sql`select id from operator_tasks where status='queued' limit 10000`,
@@ -339,6 +384,10 @@ export async function getAutopilotOpsSummary() {
         sql`select id from content_queue where status='queued' and kind='location_page' limit 10000`,
         sql`select id from jobs where status='pending' and type='entry_monthly_refresh' limit 10000`,
         sql`select id from jobs where status='pending' and type='pro_recurring_refresh' limit 10000`,
+        sql`select id from backlink_opportunities where status in ('prospecting','outreach_queued') limit 10000`,
+        sql`select id from published_content where status='published' limit 10000`,
+        sql`select id from published_content where status='draft' limit 10000`,
+        sql`select id from jobs where status='completed' limit 10000`,
       ])
     : await Promise.all([
         db.select({ id: businesses.id }).from(businesses).limit(10000),
@@ -375,6 +424,18 @@ export async function getAutopilotOpsSummary() {
           .from(jobs)
           .where(and(eq(jobs.status, "pending"), eq(jobs.type, "pro_recurring_refresh")))
           .limit(10000),
+        db
+          .select({ id: backlinkOpportunities.id })
+          .from(backlinkOpportunities)
+          .where(inArray(backlinkOpportunities.status, ["prospecting", "outreach_queued"]))
+          .limit(10000),
+        db
+          .select({ id: publishedContent.id })
+          .from(publishedContent)
+          .where(eq(publishedContent.status, "published"))
+          .limit(10000),
+        db.select({ id: publishedContent.id }).from(publishedContent).where(eq(publishedContent.status, "draft")).limit(10000),
+        db.select({ id: jobs.id }).from(jobs).where(eq(jobs.status, "completed")).limit(10000),
       ]);
   return {
     businessesTracked: businessRows.length,
@@ -386,5 +447,9 @@ export async function getAutopilotOpsSummary() {
     queuedCitationOps: citationTaskRows.length,
     queuedReviewOps: reviewTaskRows.length,
     queuedLocalPageContent: localPageRows.length,
+    queuedBacklinkOps: backlinkRows.length,
+    publishedArtifacts: publishedRows.length,
+    generatedDrafts: draftRows.length,
+    completedJobs: completedRows.length,
   };
 }

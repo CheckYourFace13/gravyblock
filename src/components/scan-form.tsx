@@ -17,7 +17,13 @@ type PlaceCandidate = {
   confidence: number;
 };
 
-export function ScanForm({ selectedPlan }: { selectedPlan?: "base" | "pro" | null }) {
+export function ScanForm({
+  selectedPlan,
+  promoCode,
+}: {
+  selectedPlan?: "base" | "pro" | null;
+  promoCode?: "ILoveYouFree" | "ILikeYou50" | null;
+}) {
   const [state, formAction, pending] = useActionState(generateReportAction, initialState);
   const [query, setQuery] = useState("");
   const [locationHint, setLocationHint] = useState("");
@@ -142,6 +148,7 @@ export function ScanForm({ selectedPlan }: { selectedPlan?: "base" | "pro" | nul
       <input type="hidden" name="placeId" value={selectedPlaceId} />
       <input type="hidden" name="candidateConfidence" value={selectedConfidence || 0} />
       <input type="hidden" name="planIntent" value={selectedPlan ?? ""} />
+      <input type="hidden" name="promoCodeIntent" value={promoCode ?? ""} />
 
       {state.status === "error" && state.formError ? (
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.formError}</p>
@@ -156,26 +163,38 @@ export function ScanForm({ selectedPlan }: { selectedPlan?: "base" | "pro" | nul
           {pending
             ? "Running scan..."
             : selectedPlan
-              ? `Continue (${selectedPlan === "base" ? "Base" : "Pro"})`
+              ? `Continue (${selectedPlan === "base" ? "Basic" : "Pro"})`
               : "Get free score preview"}
         </button>
         <div className="flex flex-wrap gap-2 text-xs font-semibold">
           {!selectedPlan ? (
             <>
-              <Link href="/scan?plan=base" className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-zinc-900 hover:border-zinc-400">
-                Start Base
+              <Link
+                href={promoCode ? `/scan?plan=base&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=base"}
+                className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-zinc-900 hover:border-zinc-400"
+              >
+                Start Basic
               </Link>
-              <Link href="/scan?plan=pro" className="rounded-full bg-red-600 px-3 py-2 text-white hover:bg-red-500">
+              <Link
+                href={promoCode ? `/scan?plan=pro&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=pro"}
+                className="rounded-full bg-red-600 px-3 py-2 text-white hover:bg-red-500"
+              >
                 Start Pro
               </Link>
             </>
           ) : selectedPlan === "base" ? (
-            <Link href="/scan?plan=pro" className="rounded-full bg-red-600 px-3 py-2 text-white hover:bg-red-500">
+            <Link
+              href={promoCode ? `/scan?plan=pro&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=pro"}
+              className="rounded-full bg-red-600 px-3 py-2 text-white hover:bg-red-500"
+            >
               Prefer Pro instead?
             </Link>
           ) : (
-            <Link href="/scan?plan=base" className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-zinc-900 hover:border-zinc-400">
-              Choose Base instead
+            <Link
+              href={promoCode ? `/scan?plan=base&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=base"}
+              className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-zinc-900 hover:border-zinc-400"
+            >
+              Choose Basic instead
             </Link>
           )}
         </div>

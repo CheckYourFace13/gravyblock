@@ -92,7 +92,7 @@ export default function HomePage() {
                 href="/scan?plan=base"
                 className="inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500"
               >
-                Start Base
+                Start Basic
               </Link>
               <Link
                 href="/scan?plan=pro"
@@ -112,7 +112,7 @@ export default function HomePage() {
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-red-500" />Score and verdict in minutes</li>
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-red-500" />Top findings before unlock</li>
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-red-500" />Full report by email after unlock</li>
-                <li className="flex gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-red-500" />Workspace path into Base or Pro checkout</li>
+                <li className="flex gap-2"><span className="mt-1 h-2 w-2 rounded-full bg-red-500" />Workspace path into Basic or Pro checkout</li>
               </ul>
             </div>
           </div>
@@ -149,7 +149,7 @@ export default function HomePage() {
       <section id="plans" className="border-b border-zinc-200 bg-zinc-50 py-16">
         <div className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6">
           <div className="space-y-3">
-            <h2 className="text-3xl font-semibold text-zinc-900">Free, Base, and Pro</h2>
+            <h2 className="text-3xl font-semibold text-zinc-900">Free, Basic, and Pro</h2>
             <p className="max-w-3xl text-zinc-600">
               Choose your operating mode after scan context is created. Plan checkout is real and tied to one business
               profile in workspace billing.
@@ -166,7 +166,7 @@ export default function HomePage() {
               href="/scan?plan=base"
               className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
             >
-              Start Base
+              Start Basic
             </Link>
             <Link
               href="/scan?plan=pro"
@@ -195,26 +195,26 @@ export default function HomePage() {
               </Link>
             </article>
             <article className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-red-800">Base</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-800">Basic</p>
               <div className="mt-2">
                 <p className="text-lg text-zinc-500 line-through">$29.99/month</p>
                 <p className="text-3xl font-semibold text-zinc-900">$19.99/month</p>
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Launch special</p>
               </div>
-              <p className="mt-1 text-sm text-zinc-500">Monthly monitoring and summary execution layer.</p>
+              <p className="mt-1 text-sm text-zinc-500">Monthly monitoring with action and content output.</p>
               <ul className="mt-4 flex-1 space-y-2 text-sm text-zinc-600">
                 {[
-                  "Monthly visibility refresh",
-                  "Monthly listing and website re-check",
-                  "Monthly AI visibility summary",
-                  "Monthly content ideas",
-                  "Workspace trend history",
+                  "1 monthly visibility refresh + score history update",
+                  "1 monthly website audit re-check + listing/social re-check",
+                  "1 monthly AI visibility summary check",
+                  "3 prioritized action items + 4 content ideas monthly",
+                  "Monthly summary email and workspace trend tracking",
                 ].map((b) => (
                   <li key={b} className="flex gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-red-500" />{b}</li>
                 ))}
               </ul>
               <Link href="/scan?plan=base" className="mt-6 inline-flex justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
-                Start Base
+                Start Basic
               </Link>
             </article>
             <article className="flex flex-col rounded-2xl border border-red-200 bg-white p-6 shadow-md ring-1 ring-red-100">
@@ -224,14 +224,14 @@ export default function HomePage() {
                 <p className="text-3xl font-semibold text-zinc-900">$39.99/month</p>
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Launch special</p>
               </div>
-              <p className="mt-1 text-sm text-zinc-500">Fullest automation layer currently shipped.</p>
+              <p className="mt-1 text-sm text-zinc-500">Execution-heavy automation layer with queued output.</p>
               <ul className="mt-4 flex-1 space-y-2 text-sm text-zinc-600">
                 {[
-                  "More frequent recurring refreshes",
-                  "Content queue and publishing queue/history",
-                  "Autopilot workspace with AI visibility checks",
-                  "Local page/service-area queue",
-                  "Citation and review queues",
+                  "Weekly recurring refreshes (about 4 runs/month)",
+                  "12 ideas/month, 4 internal drafts/month, and 4 publishing jobs queued/month",
+                  "8 citation/listing tasks + 4 review/reputation tasks/month",
+                  "8 backlink/authority opportunities queued/month",
+                  "AI visibility checks + local/service-area page queue where relevant",
                 ].map((b) => (
                   <li key={b} className="flex gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-red-500" />{b}</li>
                 ))}
@@ -242,7 +242,7 @@ export default function HomePage() {
             </article>
           </div>
           <p className="text-center text-xs text-zinc-500">
-            Run the free scan first, then turn on Base or Pro for this business.
+            Run the free scan first, then turn on Basic or Pro for this business.
           </p>
         </div>
       </section>

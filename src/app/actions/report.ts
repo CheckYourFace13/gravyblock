@@ -26,6 +26,9 @@ export async function generateReportAction(
   const planIntentRaw = field(formData, "planIntent").toLowerCase();
   const selectedPlan =
     planIntentRaw === "pro" ? "pro" : planIntentRaw === "base" || planIntentRaw === "entry" ? "base" : null;
+  const promoCodeIntentRaw = field(formData, "promoCodeIntent");
+  const promoCodeIntent =
+    promoCodeIntentRaw === "ILoveYouFree" || promoCodeIntentRaw === "ILikeYou50" ? promoCodeIntentRaw : null;
 
   const parsed = scanFormSchema.safeParse({
     query: field(formData, "query"),
@@ -76,6 +79,9 @@ export async function generateReportAction(
     return { status: "error", formError: message };
   }
 
-  const nextUrl = selectedPlan ? `/report/${publicId}?plan=${selectedPlan}` : `/report/${publicId}`;
+  const next = new URL(`/report/${publicId}`, "http://localhost");
+  if (selectedPlan) next.searchParams.set("plan", selectedPlan);
+  if (promoCodeIntent) next.searchParams.set("promo", promoCodeIntent);
+  const nextUrl = `${next.pathname}${next.search}`;
   redirect(nextUrl);
 }

@@ -19,7 +19,7 @@ type ReportDeliveryPayload = {
 type AutomationSummaryPayload = {
   leadEmail: string;
   businessName: string;
-  planLabel: "Base" | "Pro";
+  planLabel: "Basic" | "Pro";
   cadenceLabel: string;
   score: number;
   completedAt: string;
@@ -31,6 +31,15 @@ type CustomerMagicLinkPayload = {
   email: string;
   verifyUrl: string;
   expiresMinutes: number;
+};
+
+type OutreachEmailPayload = {
+  to: string;
+  businessName: string;
+  targetName: string;
+  angle: string;
+  pitch: string;
+  referenceUrl: string;
 };
 
 function resendConfig() {
@@ -139,5 +148,16 @@ export async function sendCustomerMagicLinkEmail(payload: CustomerMagicLinkPaylo
            <p><a href="${payload.verifyUrl}">Open dashboard</a></p>
            <p>Use this link to open your GravyBlock dashboard. It expires in ${payload.expiresMinutes} minutes.</p>
            <p>No password required.</p>`,
+  });
+}
+
+export async function sendOutreachEmail(payload: OutreachEmailPayload) {
+  return sendEmail({
+    to: payload.to,
+    subject: `${payload.businessName}: ${payload.angle}`,
+    html: `<p>Hello ${payload.targetName},</p>
+           <p>${payload.pitch}</p>
+           <p>Reference: <a href="${payload.referenceUrl}">${payload.referenceUrl}</a></p>
+           <p>Thanks,<br/>${payload.businessName}</p>`,
   });
 }

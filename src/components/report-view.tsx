@@ -51,26 +51,63 @@ export function ReportView({
   businessId,
   initiallyUnlocked,
   selectedPlan,
+  promoCode,
 }: {
   payload: ReportPayload;
   publicId: string;
   businessId?: string;
   initiallyUnlocked: boolean;
   selectedPlan?: "base" | "pro" | null;
+  promoCode?: "ILoveYouFree" | "ILikeYou50" | null;
 }) {
   const [unlocked, setUnlocked] = useState(initiallyUnlocked);
   const badge = opportunityBadge(payload.opportunityLevel);
   const roadmapRows = buildRoadmapRows(payload);
   const topFindings = useMemo(() => payload.prioritizedFixes.slice(0, 3), [payload.prioritizedFixes]);
+  const freeEvidence = useMemo(() => {
+    const entries: Array<{ label: string; value: string }> = [];
+    if (payload.googlePresence.category) entries.push({ label: "Google category", value: payload.googlePresence.category });
+    if (payload.googlePresence.reviewCount != null)
+      entries.push({ label: "Review count", value: String(payload.googlePresence.reviewCount) });
+    entries.push({
+      label: "Website conversion score",
+      value: String(payload.websiteConversionHealth.score),
+    });
+    if (payload.socialPresence) {
+      entries.push({
+        label: "Social profiles found",
+        value: String(payload.socialPresence.profiles.length),
+      });
+      entries.push({
+        label: "Social coverage score",
+        value: String(payload.socialPresence.score),
+      });
+    }
+    const firstRank = payload.localRankingSignals.checks[0];
+    if (firstRank) {
+      entries.push({
+        label: `Estimated local rank (${firstRank.query})`,
+        value: firstRank.estimatedPosition ? `#${firstRank.estimatedPosition}` : "not in sampled results",
+      });
+    }
+    entries.push({
+      label: "AI-answer clarity signal",
+      value: payload.searchVisibility.verified ? "Verified search metrics linked" : "Estimated from scan data",
+    });
+    return entries.slice(0, 6);
+  }, [payload]);
   const chosenPlan = selectedPlan === "base" || selectedPlan === "pro" ? selectedPlan : null;
+  const promoQuery = promoCode ? `promo=${encodeURIComponent(promoCode)}` : "";
+  const workspacePlanHref = (plan: "base" | "pro") =>
+    `/workspace/${businessId}?plan=${plan}${promoQuery ? `&${promoQuery}` : ""}#billing`;
   const workspaceHref = businessId
     ? chosenPlan
-      ? `/workspace/${businessId}?plan=${chosenPlan}#billing`
-      : `/workspace/${businessId}#billing`
+      ? workspacePlanHref(chosenPlan)
+      : `/workspace/${businessId}${promoQuery ? `?${promoQuery}` : ""}#billing`
     : null;
   const primaryLabel =
     chosenPlan === "base"
-      ? "Continue to Base checkout"
+      ? "Continue to Basic checkout"
       : chosenPlan === "pro"
         ? "Continue to Pro checkout"
         : "Continue to billing";
@@ -104,7 +141,11 @@ export function ReportView({
           <p className="text-xs text-zinc-500">Generated {new Date(payload.generatedAt).toLocaleString()}</p>
           {businessId ? (
             <Link
-              href={chosenPlan ? `/workspace/${businessId}?plan=${chosenPlan}` : `/workspace/${businessId}`}
+              href={
+                chosenPlan
+                  ? `/workspace/${businessId}?plan=${chosenPlan}${promoQuery ? `&${promoQuery}` : ""}`
+                  : `/workspace/${businessId}${promoQuery ? `?${promoQuery}` : ""}`
+              }
               className="inline-flex w-full items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-900 hover:border-zinc-400"
             >
               Open growth workspace
@@ -119,6 +160,14 @@ export function ReportView({
           You can view score, verdict, and top findings for free. Unlock sends the full report to your inbox and reveals
           all sections in this session.
         </p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {freeEvidence.map((item) => (
+            <div key={item.label} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{item.label}</p>
+              <p className="text-sm font-semibold text-zinc-900">{item.value}</p>
+            </div>
+          ))}
+        </div>
         <ol className="mt-4 space-y-3">
           {topFindings.map((fix, idx) => (
             <li key={fix.id} className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
@@ -144,7 +193,7 @@ export function ReportView({
                 <div>
                   <h2 className="text-lg font-semibold text-zinc-900">
                     {chosenPlan === "base"
-                      ? "You chose Base. Continue to Base checkout."
+                      ? "You chose Basic. Continue to Basic checkout."
                       : chosenPlan === "pro"
                         ? "You chose Pro. Continue to Pro checkout."
                         : "Turn on autopilot for this business"}
@@ -165,21 +214,22 @@ export function ReportView({
                   ) : null}
                   {chosenPlan === "base" ? (
                     <Link
-                      href={`/workspace/${businessId}?plan=pro#billing`}
+                      href={workspacePlanHref("pro")}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     >
                       Continue to Pro checkout
                     </Link>
                   ) : chosenPlan !== "pro" ? (
                     <Link
-                      href={`/workspace/${businessId}?plan=base#billing`}
+                      href={workspacePlanHref("base")}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     >
-                      Continue to Base checkout
+                      Continue to Basic checkout
                     </Link>
                   ) : null}
                 </div>
               </div>
+              {promoCode ? <p className="mt-3 text-xs font-medium text-zinc-700">Promo code ready: {promoCode}</p> : null}
               {chosenPlan === "base" ? (
                 <div className="mt-4 rounded-xl border border-red-200 bg-white p-4">
                   <h3 className="text-base font-semibold text-zinc-900">Are you sure you want to skip Pro?</h3>
@@ -190,16 +240,16 @@ export function ReportView({
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Link
-                      href={`/workspace/${businessId}?plan=pro#billing`}
+                      href={workspacePlanHref("pro")}
                       className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
                     >
                       Upgrade to Pro instead
                     </Link>
                     <Link
-                      href={`/workspace/${businessId}?plan=base#billing`}
+                      href={workspacePlanHref("base")}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     >
-                      No, continue with Base
+                      No, continue with Basic
                     </Link>
                   </div>
                 </div>
@@ -383,12 +433,13 @@ export function ReportView({
               onUnlocked={() => setUnlocked(true)}
               selectedPlan={chosenPlan}
               businessId={businessId}
+              promoCode={promoCode}
             />
             {businessId ? (
               <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4 text-sm">
                 <p className="font-semibold text-zinc-900">
                   {chosenPlan === "base"
-                    ? "Base selected"
+                    ? "Basic selected"
                     : chosenPlan === "pro"
                       ? "Pro selected"
                       : "Plan selection"}
@@ -408,20 +459,21 @@ export function ReportView({
                   ) : null}
                   {chosenPlan === "base" ? (
                     <Link
-                      href={`/workspace/${businessId}?plan=pro#billing`}
+                      href={workspacePlanHref("pro")}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     >
                       Continue to Pro checkout
                     </Link>
                   ) : chosenPlan !== "pro" ? (
                     <Link
-                      href={`/workspace/${businessId}?plan=base#billing`}
+                      href={workspacePlanHref("base")}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     >
-                      Continue to Base checkout
+                      Continue to Basic checkout
                     </Link>
                   ) : null}
                 </div>
+                {promoCode ? <p className="mt-2 text-xs font-medium text-zinc-700">Promo code ready: {promoCode}</p> : null}
                 {chosenPlan === "base" ? (
                   <div className="mt-3 rounded-lg border border-red-200 bg-white p-3">
                     <p className="text-sm font-semibold text-zinc-900">Are you sure you want to skip Pro?</p>
@@ -430,16 +482,16 @@ export function ReportView({
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Link
-                        href={`/workspace/${businessId}?plan=pro#billing`}
+                        href={workspacePlanHref("pro")}
                         className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
                       >
                         Upgrade to Pro instead
                       </Link>
                       <Link
-                        href={`/workspace/${businessId}?plan=base#billing`}
+                        href={workspacePlanHref("base")}
                         className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                       >
-                        No, continue with Base
+                        No, continue with Basic
                       </Link>
                     </div>
                   </div>

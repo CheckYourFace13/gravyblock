@@ -17,7 +17,7 @@ export const stripePlanMapping = {
 } as const;
 
 export type PlanFeatures = {
-  label: "Free" | "Base" | "Pro";
+  label: "Free" | "Basic" | "Pro";
   monthlyPrice: number | 0;
   launchPrice: number | 0;
   refreshCadenceLabel: "On-demand" | "Monthly" | "Weekly";
@@ -41,7 +41,7 @@ export function planFeatures(tier: PlanTier): PlanFeatures {
   switch (tier) {
     case "base":
       return {
-        label: "Base",
+        label: "Basic",
         monthlyPrice: 29.99,
         launchPrice: 19.99,
         refreshCadenceLabel: "Monthly",
