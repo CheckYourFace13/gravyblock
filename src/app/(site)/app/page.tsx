@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { customerLogoutAction } from "@/app/actions/customer-login";
 import { requireCustomerSession } from "@/lib/auth/customer-guards";
 import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { resolveAccessibleBusinesses } from "@/lib/auth/customer-auth";
+import { LogoutButton } from "./logout-button";
 
 export const dynamic = "force-dynamic";
 
@@ -30,14 +30,7 @@ export default async function CustomerDashboardPage() {
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-900">Your businesses</h1>
           <p className="mt-2 text-sm text-zinc-600">Access your workspace, reports, and billing-linked details in one place.</p>
         </div>
-        <form action={customerLogoutAction}>
-          <button
-            type="submit"
-            className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
-          >
-            Sign out
-          </button>
-        </form>
+        <LogoutButton />
       </header>
 
       {!businesses.length ? (

@@ -1,12 +1,20 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { requestCustomerMagicLinkAction, type CustomerLoginState } from "@/app/actions/customer-login";
 
 const initialState: CustomerLoginState = { status: "idle" };
 
 export function CustomerLoginForm({ nextPath }: { nextPath: string }) {
   const [state, formAction, pending] = useActionState(requestCustomerMagicLinkAction, initialState);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (state.status === "success") {
+      router.push(state.nextPath);
+    }
+  }, [router, state]);
 
   return (
     <form action={formAction} className="mt-8 space-y-4">
