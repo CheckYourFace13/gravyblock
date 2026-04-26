@@ -20,6 +20,7 @@ import { planFeatures, type PlanTier } from "@/lib/plans";
 import { getGooglePlaceDetails } from "@/lib/integrations/google-places";
 import { runSiteCrawlAudit } from "@/lib/audit/site-crawl";
 import { buildSocialPresence } from "@/lib/social/discover";
+import { generateArticleBody, generateLocalPageBody } from "@/lib/content/generator";
 
 type AutomationRunProfile = {
   aiChecks: number;
@@ -212,6 +213,14 @@ function hostFromUrl(url: string | null | undefined) {
   }
 }
 
+function cityFromAddress(address: string | null | undefined): string {
+  if (!address) return "your area";
+  // "123 Main St, Austin, TX 78701" → "Austin"
+  const parts = address.split(",");
+  if (parts.length >= 2) return parts[1].trim();
+  return address.trim();
+}
+
 function outreachEmailForTarget(targetUrl: string | null, fallbackEmail: string | null) {
   const host = hostFromUrl(targetUrl);
   if (host) return `partnerships@${host}`;
@@ -263,7 +272,25 @@ export async function executeContentPublishPath(businessId: string) {
   }
 
   try {
-    const body = [
+    const [biz] = await db
+      .select({ name: businesses.name, vertical: businesses.vertical, address: businesses.address })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1);
+
+    const generatorParams = {
+      businessName: biz?.name ?? "Local business",
+      city: cityFromAddress(biz?.address),
+      vertical: biz?.vertical ?? null,
+      title: queuedItem.title,
+      outline: queuedItem.outline ?? "",
+      targetKeyword: queuedItem.targetKeyword ?? null,
+      address: biz?.address ?? null,
+    };
+    const aiBody = queuedItem.kind === "location_page"
+      ? await generateLocalPageBody(generatorParams)
+      : await generateArticleBody(generatorParams);
+    const body = aiBody ?? [
       `# ${queuedItem.title}`,
       "",
       "Published by GravyBlock autopilot execution path.",
@@ -384,7 +411,7 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
       let publishedThisRun = 0;
       let outreachSentThisRun = 0;
       const [business] = await db
-        .select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier, vertical: businesses.vertical })
+        .select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier, vertical: businesses.vertical, address: businesses.address })
         .from(businesses)
         .where(eq(businesses.id, businessId))
         .limit(1);
@@ -487,19 +514,33 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
           const publicPath = `/published/${artifactId}`;
           const publicUrl = `${base.replace(/\/$/, "")}${publicPath}`;
           publishedUrls.push(publicUrl);
+          const generatorParams = {
+            businessName: business?.name ?? "Local business",
+            city: cityFromAddress(business?.address),
+            vertical: business?.vertical ?? null,
+            title: queueRow.title,
+            outline: queueRow.outline ?? "",
+            targetKeyword: queueRow.targetKeyword ?? null,
+            changeSummary: changeResult.summary,
+            address: business?.address ?? null,
+          };
+          const aiBody = queueRow.kind === "location_page"
+            ? await generateLocalPageBody(generatorParams)
+            : await generateArticleBody(generatorParams);
+          const body = aiBody ?? buildPublishBody({
+            title: queueRow.title,
+            changeSummary: changeResult.summary,
+            changeSignals: changeResult.changes,
+            keyword: queueRow.targetKeyword ?? null,
+            kind: queueRow.kind,
+          });
           await db.insert(publishedContent).values({
             id: artifactId,
             businessId,
             locationId: null,
             queueId,
             title: queueRow.title,
-            body: buildPublishBody({
-              title: queueRow.title,
-              changeSummary: changeResult.summary,
-              changeSignals: changeResult.changes,
-              keyword: queueRow.targetKeyword ?? null,
-              kind: queueRow.kind,
-            }),
+            body,
             channel: "internal_site",
             publicUrl,
             status: "published",
