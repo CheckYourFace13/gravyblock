@@ -11,6 +11,9 @@ import {
 import { schedulePlanRecurringSnapshotJob, scheduleRecurringSnapshotJob } from "@/lib/autopilot/executor";
 import { getPlanFromPriceId } from "@/lib/stripe/server";
 import { getStripeServerClient } from "@/lib/stripe/server";
+import { sendSetupEmail } from "@/lib/setup/send-setup-email";
+import { getDb, businesses } from "@/lib/db";
+import { eq } from "drizzle-orm";
 
 function customerIdFromUnknown(customer: string | Stripe.Customer | Stripe.DeletedCustomer | null): string | null {
   if (!customer) return null;
@@ -74,6 +77,15 @@ export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Se
     priceId: snap.priceId,
     billingEmail,
   });
+
+  // Send setup email so owner can configure autopilot context
+  if (billingEmail) {
+    const db = getDb();
+    if (db) {
+      const [biz] = await db.select({ name: businesses.name }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
+      void sendSetupEmail(businessId, biz?.name ?? "your business", billingEmail);
+    }
+  }
 
   const planTier = getPlanFromPriceId(snap.priceId);
   if (planTier && planTier !== "free") {

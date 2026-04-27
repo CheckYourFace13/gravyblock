@@ -479,3 +479,44 @@ export const customerSessions = pgTable("customer_sessions", {
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
+
+/**
+ * Owner-supplied configuration for autopilot context.
+ * Populated via /setup/[token] email link, or auto-scraped from website/social.
+ */
+export const businessConfigs = pgTable("business_configs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull()
+    .unique(),
+  /** How this config was populated. */
+  source: text("source").notNull().default("owner_form"),
+  targetKeywords: text("target_keywords"),
+  targetCities: text("target_cities"),
+  serviceDescription: text("service_description"),
+  uniqueSellingPoints: text("unique_selling_points"),
+  tone: text("tone").notNull().default("professional"),
+  competitorNames: text("competitor_names"),
+  instagramHandle: text("instagram_handle"),
+  facebookUrl: text("facebook_url"),
+  tiktokHandle: text("tiktok_handle"),
+  youtubeUrl: text("youtube_url"),
+  linkedinUrl: text("linkedin_url"),
+  additionalContext: text("additional_context"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** Single-use token links emailed to business owners for no-login setup. */
+export const setupTokens = pgTable("setup_tokens", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  token: text("token").notNull().unique(),
+  email: text("email").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+});
