@@ -72,6 +72,26 @@ export function SiteFooter() {
             </div>
           </div>
           <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Local SEO</p>
+            <div className="mt-2 flex flex-col gap-2 text-zinc-600">
+              <Link href="/local-seo" className="font-medium text-zinc-900 hover:underline">
+                All cities &amp; industries
+              </Link>
+              <Link href="/local-seo/austin-tx/restaurant" className="hover:text-zinc-900 hover:underline">
+                Restaurants in Austin
+              </Link>
+              <Link href="/local-seo/dallas-tx/dentist" className="hover:text-zinc-900 hover:underline">
+                Dentists in Dallas
+              </Link>
+              <Link href="/local-seo/miami-fl/attorney" className="hover:text-zinc-900 hover:underline">
+                Attorneys in Miami
+              </Link>
+              <Link href="/local-seo/chicago-il/plumber" className="hover:text-zinc-900 hover:underline">
+                Plumbers in Chicago
+              </Link>
+            </div>
+          </div>
+          <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Proof and compare</p>
             <div className="mt-2 flex flex-col gap-2 text-zinc-600">
               <Link href="/examples" className="hover:text-zinc-900 hover:underline">
