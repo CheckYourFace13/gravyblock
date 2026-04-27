@@ -129,7 +129,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             ) : null}
             <span className="rounded-full bg-red-100 px-3 py-1 text-red-950">
               Plan: {features.label}{" "}
-              {features.monthlyPrice > 0 ? `($${features.introPrice}/mo intro)` : ""}
+              {features.monthlyPrice > 0 ? `($${features.introPrice}/mo introductory)` : ""}
             </span>
             <span className="rounded-full bg-zinc-100 px-3 py-1">Refresh cadence: {features.refreshCadenceLabel}</span>
             {selectedPlan ? (
@@ -239,7 +239,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           {tier !== "starter" && tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
               <p className="text-sm font-semibold text-zinc-900">Starter</p>
-              <p className="text-xs text-zinc-600">$79.99/month · intro $39.99/month (INTRO50)</p>
+              <p className="text-xs text-zinc-600">$79.99/month · introductory: $39.99/month with code INTRO50</p>
               <div className="mt-3">
                 <CheckoutButton
                   businessId={businessId}
@@ -255,7 +255,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           {tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
             <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
               <p className="text-sm font-semibold text-zinc-900">Growth</p>
-              <p className="text-xs text-zinc-600">$149.99/month · intro $74.99/month (INTRO50)</p>
+              <p className="text-xs text-zinc-600">$149.99/month · introductory: $74.99/month with code INTRO50</p>
               <div className="mt-3">
                 <CheckoutButton
                   businessId={businessId}
@@ -270,7 +270,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           {tier !== "pro" && tier !== "agency" ? (
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
               <p className="text-sm font-semibold text-zinc-900">Pro</p>
-              <p className="text-xs text-zinc-600">$299.99/month · intro $149.99/month (INTRO50)</p>
+              <p className="text-xs text-zinc-600">$299.99/month · introductory: $149.99/month with code INTRO50</p>
               <div className="mt-3">
                 <CheckoutButton
                   businessId={businessId}
@@ -285,7 +285,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           {tier !== "agency" ? (
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
               <p className="text-sm font-semibold text-zinc-900">Agency</p>
-              <p className="text-xs text-zinc-600">$499.99/month · intro $249.99/month (INTRO50)</p>
+              <p className="text-xs text-zinc-600">$499.99/month · introductory: $249.99/month with code INTRO50</p>
               <div className="mt-3">
                 <CheckoutButton
                   businessId={businessId}

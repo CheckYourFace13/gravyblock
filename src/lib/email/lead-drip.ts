@@ -1,0 +1,329 @@
+import { and, eq, gte, inArray, lt, ne, notInArray, sql } from "drizzle-orm";
+import { getDb, leads, businesses, jobs, visibilitySnapshots } from "@/lib/db";
+
+const DRIP_DAYS = 7;
+
+type DripEmail = {
+  day: number;
+  subject: (ctx: DripContext) => string;
+  html: (ctx: DripContext) => string;
+};
+
+type DripContext = {
+  name: string;
+  businessName: string;
+  score: number | null;
+  vertical: string | null;
+  reportUrl: string;
+  scanUrl: string;
+};
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
+
+function btn(href: string, label: string, style = "#dc2626") {
+  return `<a href="${href}" style="display:inline-block;background:${style};color:#fff;font-weight:700;font-size:13px;padding:10px 24px;border-radius:100px;text-decoration:none">${label}</a>`;
+}
+
+function wrap(content: string) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:system-ui,sans-serif;background:#f9f9f9;margin:0;padding:24px">
+<div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e4e4e7;padding:32px">
+${content}
+<p style="margin:32px 0 0;font-size:12px;color:#a1a1aa">GravyBlock &middot; <a href="${siteUrl}/scan" style="color:#a1a1aa">Run another scan</a></p>
+</div></body></html>`;
+}
+
+const DRIP_SEQUENCE: DripEmail[] = [
+  {
+    day: 1,
+    subject: ({ businessName, score }) =>
+      score ? `${businessName} scored ${score} on your free local SEO scan` : `Your free local SEO scan for ${businessName}`,
+    html: ({ name, businessName, score, reportUrl }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Your Scan Results</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Hi ${name}, here is what we found</h1>
+      <p style="color:#52525b;font-size:15px;margin:16px 0">
+        ${score !== null ? `<strong>${businessName}</strong> scored <strong>${score}/100</strong> on local visibility, trust signals, and AI search coverage.` : `We completed the local SEO scan for <strong>${businessName}</strong>.`}
+        Your full report has the exact gaps and a prioritized action list.
+      </p>
+      ${btn(reportUrl, "Open my full report")}
+      <p style="color:#71717a;font-size:13px;margin:20px 0 0">
+        The biggest drivers of local search rankings are Google Business Profile completeness, review volume and recency, consistent citations across directories, and published local content. Your report shows exactly where ${businessName} stands on each.
+      </p>
+    `),
+  },
+  {
+    day: 2,
+    subject: ({ businessName }) => `The most common reason ${businessName} loses customers before they call`,
+    html: ({ name, businessName, scanUrl }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Local SEO Insight</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Most customers decide before they call</h1>
+      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        When someone searches for a business like ${businessName}, they compare three to five options in about 90 seconds. The businesses that win are the ones with complete profiles, recent reviews, and clear service information.
+      </p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        The ones that lose are often great businesses with outdated listings, inconsistent phone numbers across directories, or no recent content for Google to surface.
+      </p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        GravyBlock fixes all of that automatically. Every month it refreshes your visibility score, queues citation fixes, and generates content ideas to keep your listing fresh and competitive.
+      </p>
+      ${btn(`${siteUrl}/scan?plan=starter`, "Start Starter for $39.99 introductory")}
+    `),
+  },
+  {
+    day: 3,
+    subject: ({ businessName }) => `Is ${businessName} showing up when people ask ChatGPT for recommendations?`,
+    html: ({ name, businessName, scanUrl }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">AI Search Visibility</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">AI assistants are the new word of mouth</h1>
+      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        More and more people ask ChatGPT, Perplexity, and Google AI Overviews to recommend local businesses. The results are not random. They come from businesses with consistent information, strong review profiles, and published content that AI systems can verify.
+      </p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        GravyBlock monitors whether ${businessName} is being mentioned in AI-assisted search results and helps build the signals that get you recommended.
+      </p>
+      ${btn(`${siteUrl}/scan?plan=growth`, "Start Growth for $74.99 introductory")}
+      <p style="color:#71717a;font-size:13px;margin:16px 0">
+        Growth includes AI visibility monitoring, weekly refreshes, published content, and Reddit outreach. Use code <strong>INTRO50</strong> for 50% off your first month.
+      </p>
+    `),
+  },
+  {
+    day: 4,
+    subject: ({ businessName }) => `What 30 days of autopilot looks like for ${businessName}`,
+    html: ({ name, businessName }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">What to Expect</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Here is what happens in month one</h1>
+      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
+      <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
+        <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 1</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#52525b">GravyBlock scans ${businessName}, scores all visibility signals, and queues the first set of citation and review tasks for your action list.</p>
+        <p style="margin:12px 0 0;font-size:13px;font-weight:700;color:#18181b">Week 2</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#52525b">First AI-written article published to your site. Reddit posting begins in relevant local communities. Review request campaign queued.</p>
+        <p style="margin:12px 0 0;font-size:13px;font-weight:700;color:#18181b">Week 3</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#52525b">Backlink opportunities identified and queued. Second content piece drafted. Citation inconsistencies surfaced for correction.</p>
+        <p style="margin:12px 0 0;font-size:13px;font-weight:700;color:#18181b">Week 4</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#52525b">Monthly visibility refresh runs. Score updates. Summary email with everything that was done and what is queued next.</p>
+      </div>
+      ${btn(`${siteUrl}/scan?plan=growth`, "Start Growth today")}
+    `),
+  },
+  {
+    day: 5,
+    subject: ({ businessName }) => `Your competitors are publishing content. ${businessName} should be too.`,
+    html: ({ name, businessName, vertical }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Content and Rankings</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Local content drives local rankings</h1>
+      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        Google rewards businesses that publish relevant, local content regularly. ${vertical ? `For ${vertical.toLowerCase()}s, t` : "T"}hat means articles about your services, your city, your customers' questions, and your differentiators.
+      </p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        GravyBlock writes and publishes these articles for ${businessName} automatically, targeting the exact keywords your customers search for in your city.
+      </p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        It also posts to Reddit and local community forums, creating backlinks and awareness in the places your potential customers actually spend time.
+      </p>
+      ${btn(`${siteUrl}/scan?plan=growth`, "Get content running for $74.99/mo")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> for 50% off your first month.</p>
+    `),
+  },
+  {
+    day: 6,
+    subject: ({ businessName }) => `50% off this week: GravyBlock Growth for ${businessName}`,
+    html: ({ name, businessName }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Limited Offer</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Start Growth for $74.99 this month</h1>
+      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        Use code <strong>INTRO50</strong> at checkout and your first month of Growth is $74.99 instead of $149.99.
+      </p>
+      <div style="margin:20px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
+        <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b">Growth includes:</p>
+        <ul style="margin:8px 0 0;padding-left:20px;color:#3f3f46;font-size:13px;line-height:1.9">
+          <li>Weekly visibility refreshes for ${businessName}</li>
+          <li>AI-written articles published to your site every month</li>
+          <li>Reddit and blog posting in your city and industry</li>
+          <li>Multi-step outreach sequences with follow-ups</li>
+          <li>12 citation tasks and 8 review tasks per month</li>
+          <li>8 backlink opportunities queued monthly</li>
+        </ul>
+      </div>
+      ${btn(`${siteUrl}/scan?plan=growth&promo=ILikeYou50`, "Claim 50% off Growth")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Applies to first month only. Regular pricing of $149.99/month resumes at renewal.</p>
+    `),
+  },
+  {
+    day: 7,
+    subject: ({ businessName }) => `Last note about ${businessName}`,
+    html: ({ name, businessName, reportUrl }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">One Last Thing</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Still thinking it over?</h1>
+      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        This is the last email in this series. Your free scan report for ${businessName} is still available if you want to review it.
+      </p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        If the timing is not right, no problem. When you are ready to automate local SEO for ${businessName}, run a new scan and the workspace will still be there.
+      </p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        One thing worth knowing: Starter is $39.99 for your first month with code <strong>INTRO50</strong>. That is monthly monitoring, content ideas, citation tasks, and a review queue. No contract.
+      </p>
+      ${btn(reportUrl, "Open my report")}
+      <p style="color:#71717a;font-size:13px;margin:16px 0">No more emails after this unless you start a new scan.</p>
+    `),
+  },
+];
+
+async function getLeadScore(businessId: string | null): Promise<number | null> {
+  if (!businessId) return null;
+  const db = getDb();
+  if (!db) return null;
+  const [snap] = await db
+    .select({ score: visibilitySnapshots.overallScore })
+    .from(visibilitySnapshots)
+    .where(eq(visibilitySnapshots.businessId, businessId))
+    .orderBy(visibilitySnapshots.createdAt)
+    .limit(1);
+  return snap?.score ?? null;
+}
+
+function dripJobType(day: number) {
+  return `lead_drip_day_${day}`;
+}
+
+async function hasDripSent(leadId: string, day: number): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  const [row] = await db
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(and(eq(jobs.type, dripJobType(day)), eq(sql`payload->>'leadId'`, leadId)))
+    .limit(1);
+  return Boolean(row);
+}
+
+async function recordDripSent(leadId: string, day: number) {
+  const db = getDb();
+  if (!db) return;
+  await db.insert(jobs).values({
+    type: dripJobType(day),
+    status: "completed",
+    payload: { leadId },
+  });
+}
+
+async function sendDripEmail(lead: { email: string }, subject: string, html: string) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
+  if (!apiKey) return false;
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ from, to: [lead.email], subject, html }),
+  });
+  return res.ok;
+}
+
+export async function runLeadDripBatch(): Promise<{ sent: number; skipped: number }> {
+  const db = getDb();
+  if (!db) return { sent: 0, skipped: 0 };
+
+  const cutoffDate = new Date(Date.now() - DRIP_DAYS * 24 * 60 * 60 * 1000);
+
+  // Get all unconverted leads created in the drip window
+  const allLeads = await db
+    .select({
+      id: leads.id,
+      name: leads.name,
+      email: leads.email,
+      businessId: leads.businessId,
+      reportPublicId: leads.reportPublicId,
+      vertical: leads.vertical,
+      createdAt: leads.createdAt,
+    })
+    .from(leads)
+    .where(
+      and(
+        gte(leads.createdAt, cutoffDate),
+        ne(leads.pipelineStatus, "converted"),
+        ne(leads.email, ""),
+      ),
+    )
+    .limit(200);
+
+  // Get emails of converted leads (have a paid business)
+  const convertedEmails = new Set<string>();
+  const paidTiers = ["starter", "growth", "pro", "agency"];
+  const paidBusinesses = await db
+    .select({ billingEmail: businesses.billingEmail })
+    .from(businesses)
+    .where(inArray(businesses.planTier, paidTiers));
+  for (const b of paidBusinesses) {
+    if (b.billingEmail) convertedEmails.add(b.billingEmail.toLowerCase());
+  }
+
+  let sent = 0;
+  let skipped = 0;
+
+  for (const lead of allLeads) {
+    // Skip if they converted
+    if (convertedEmails.has(lead.email.toLowerCase())) {
+      skipped++;
+      continue;
+    }
+
+    const ageMs = Date.now() - new Date(lead.createdAt).getTime();
+    const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
+
+    // Day 0 = same day as scan, send day 1 email
+    // Day 1 = next day, send day 2 email, etc.
+    const targetDay = Math.min(ageDays + 1, DRIP_DAYS);
+    if (targetDay < 1 || targetDay > DRIP_DAYS) {
+      skipped++;
+      continue;
+    }
+
+    const emailDef = DRIP_SEQUENCE[targetDay - 1];
+    if (!emailDef) { skipped++; continue; }
+
+    if (await hasDripSent(lead.id, targetDay)) {
+      skipped++;
+      continue;
+    }
+
+    const score = await getLeadScore(lead.businessId);
+    const reportUrl = lead.reportPublicId
+      ? `${siteUrl}/report/${lead.reportPublicId}`
+      : `${siteUrl}/scan`;
+
+    const ctx: DripContext = {
+      name: lead.name.split(" ")[0] || lead.name,
+      businessName: lead.name,
+      score,
+      vertical: lead.vertical,
+      reportUrl,
+      scanUrl: `${siteUrl}/scan`,
+    };
+
+    try {
+      const ok = await sendDripEmail(
+        lead,
+        emailDef.subject(ctx),
+        emailDef.html(ctx),
+      );
+      if (ok) {
+        await recordDripSent(lead.id, targetDay);
+        sent++;
+      } else {
+        skipped++;
+      }
+    } catch {
+      skipped++;
+    }
+  }
+
+  return { sent, skipped };
+}

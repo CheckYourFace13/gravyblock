@@ -209,7 +209,7 @@ export function ReportView({
                       href={workspacePlanHref("growth")}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     >
-                      Growth — $74/mo intro
+                      Growth: $74.99/mo introductory
                     </Link>
                   ) : null}
                 </div>
@@ -217,7 +217,7 @@ export function ReportView({
               {promoCode ? <p className="mt-3 text-xs font-medium text-zinc-700">Promo code ready: {promoCode}</p> : null}
               {chosenPlan === "starter" ? (
                 <div className="mt-4 rounded-xl border border-red-200 bg-white p-4">
-                  <h3 className="text-base font-semibold text-zinc-900">Growth adds full execution for $74.99/mo intro</h3>
+                  <h3 className="text-base font-semibold text-zinc-900">Growth adds full execution for $74.99/mo introductory pricing</h3>
                   <p className="mt-1 text-sm text-zinc-700">
                     Growth includes weekly refreshes, AI-written content published to your site, Reddit and blog posting on
                     third-party channels, multi-step outreach sequences, and 8 backlink opportunities queued monthly.
@@ -444,7 +444,7 @@ export function ReportView({
                       href={workspacePlanHref("growth")}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     >
-                      Growth — $74/mo intro
+                      Growth: $74.99/mo introductory
                     </Link>
                   ) : null}
                 </div>

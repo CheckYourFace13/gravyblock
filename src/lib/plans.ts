@@ -168,7 +168,7 @@ export function planFeatures(tier: PlanTier): PlanFeatures {
         multiLocationReady: true,
         coldOutreachEngine: true,
         whiteLabel: true,
-        clientSeats: 25,
+        clientSeats: 10,
       };
     default:
       return {

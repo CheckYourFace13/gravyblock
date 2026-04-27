@@ -18,14 +18,14 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   applicationName: "GravyBlock",
   title: {
-    default: "GravyBlock — Autopilot growth for local and multi-location businesses",
-    template: "%s — GravyBlock",
+    default: "GravyBlock: Local SEO Autopilot for Small Businesses",
+    template: "%s | GravyBlock",
   },
   description:
-    "Autopilot growth for local businesses, multi-location brands, service-area operators, and online businesses building local trust — scans, execution queues, publishing workflows, and recurring visibility monitoring.",
+    "GravyBlock automates local SEO for small businesses. Publish content, build backlinks, manage reviews, run Reddit outreach, and monitor AI search visibility. Start with a free business scan.",
   openGraph: {
-    title: "GravyBlock",
-    description: "AI-powered local growth autopilot for local, multi-location, and locally-positioned online businesses.",
+    title: "GravyBlock: Local SEO Autopilot",
+    description: "Automated local SEO for small businesses. Content, reviews, backlinks, Reddit outreach, and AI search monitoring on autopilot.",
     url: siteUrl,
     siteName: "GravyBlock",
     locale: "en_US",

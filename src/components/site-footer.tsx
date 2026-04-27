@@ -11,8 +11,8 @@ export function SiteFooter() {
         <div>
           <BrandMark compact />
           <p className="mt-2 max-w-md">
-            Autopilot growth for <span className="font-medium text-zinc-800">all local businesses</span> — single
-            location, multi-location, service-area, and online brands that need to earn local trust and convert better.
+            Autopilot local SEO for <span className="font-medium text-zinc-800">small and local businesses</span>: single
+            location, multi-location, service-area, and online brands that need to rank higher and convert better.
           </p>
           <p className="mt-3 text-xs text-zinc-500">
             <Link href="#contact" className="font-medium text-zinc-700 hover:underline">
@@ -120,7 +120,7 @@ export function SiteFooter() {
           <CtaLeadForm
             source="support_inquiry"
             title="Support"
-            subtitle="Billing, access, or product questions — we reply by email. This is not a demo booking form."
+            subtitle="Billing, access, or product questions. We reply by email. This is not a demo booking form."
             buttonLabel="Send message"
             className="mx-auto max-w-lg rounded-2xl border border-zinc-200 bg-zinc-50/80 p-5 shadow-sm"
           />

@@ -28,7 +28,7 @@ const faqItems = [
   },
   {
     q: "What does Agency include?",
-    a: "Agency is built for marketing agencies. It includes up to 25 client seats, unlimited monthly output, white-label reporting, the cold outreach engine (GravyBlock finds weak local competitors and pitches them), and daily refresh cadence.",
+    a: "Agency is built for marketing agencies. It includes up to 10 client seats, unlimited monthly output, white-label reporting, the cold outreach engine (GravyBlock finds weak local competitors and pitches them for you), and daily refresh cadence.",
   },
   {
     q: "Does it post on Reddit and other blogs?",
@@ -39,8 +39,8 @@ const faqItems = [
     a: "No. GravyBlock does not guarantee rankings. It automates the work that improves local visibility and conversion readiness over time.",
   },
   {
-    q: "What is the intro pricing?",
-    a: "Intro pricing is available at launch. Use code INTRO50 at checkout for 50% off your first month. Regular pricing resumes at renewal.",
+    q: "What is the introductory pricing?",
+    a: "Introductory pricing is available now. Use code INTRO50 at checkout for 50% off your first month. Regular pricing resumes at renewal.",
   },
   {
     q: "Does it support multi-location businesses?",
@@ -49,9 +49,9 @@ const faqItems = [
 ] as const;
 
 export const metadata: Metadata = {
-  title: "GravyBlock - Local growth autopilot for real businesses",
+  title: "GravyBlock: Local SEO Autopilot for Small Businesses",
   description:
-    "AI-powered local marketing automation. Scan a business, unlock the full report, then activate Starter, Growth, Pro, or Agency to run content, outreach, and monitoring on autopilot.",
+    "GravyBlock automates local SEO for small businesses. Get a free visibility score, then activate autopilot to publish content, manage reviews, build backlinks, run Reddit outreach, and monitor AI search rankings.",
 };
 
 const plans = [
@@ -116,11 +116,11 @@ const plans = [
     monthly: 499.99,
     intro: 249.99,
     highlight: false,
-    tagline: "Run 25 clients on full autopilot.",
+    tagline: "Run up to 10 clients on full autopilot.",
     bullets: [
-      "25 client seats, all features unlocked",
+      "10 client seats, all features unlocked",
       "Unlimited content drafts and publishing",
-      "Cold outreach engine — GravyBlock finds weak businesses and pitches them for you",
+      "Cold outreach engine: GravyBlock finds weak local businesses and pitches them for you",
       "White-label reporting",
       "Daily refresh cadence",
     ],
@@ -155,7 +155,7 @@ export default function HomePage() {
             </h1>
             <p className="max-w-2xl text-lg text-zinc-600">
               GravyBlock writes content, posts it on Reddit and blogs, builds backlinks, manages reviews, and monitors
-              your local visibility — all automatically. Run a free scan to start.
+              your local visibility. All of it runs automatically. Start with a free scan.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
@@ -168,7 +168,7 @@ export default function HomePage() {
                 href="/scan?plan=growth"
                 className="inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500"
               >
-                Start Growth — $74.99/mo intro
+                Start Growth: $74.99/mo introductory pricing
               </Link>
             </div>
             <p className="text-sm text-zinc-500">
@@ -199,7 +199,7 @@ export default function HomePage() {
             </h2>
             <p className="text-sm leading-snug text-zinc-300 sm:text-[0.9375rem]">
               Visibility, trust, listings, reviews, AI search coverage, and conversion readiness rolled into one
-              score — with a prioritized action plan attached.
+              score, with a prioritized action plan attached.
             </p>
           </div>
           <div className="w-full shrink-0 rounded-2xl border border-white/10 bg-zinc-800/60 p-5 shadow-lg sm:p-6 lg:max-w-sm">
@@ -223,8 +223,8 @@ export default function HomePage() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-800">Pricing</p>
             <h2 className="text-3xl font-semibold text-zinc-900">Four plans. One autopilot.</h2>
             <p className="max-w-3xl text-zinc-600">
-              Every plan starts with a free scan. Intro pricing available now — use code{" "}
-              <strong className="text-zinc-900">INTRO50</strong> at checkout for 50% off month one.
+              Every plan starts with a free scan. Introductory pricing is available now. Use code{" "}
+              <strong className="text-zinc-900">INTRO50</strong> at checkout for 50% off your first month.
             </p>
           </div>
 
@@ -247,7 +247,7 @@ export default function HomePage() {
                 <div className="mt-2">
                   <p className="text-sm text-zinc-400 line-through">${plan.monthly}/mo</p>
                   <p className="text-3xl font-semibold text-zinc-900">${plan.intro}<span className="text-base font-normal text-zinc-500">/mo</span></p>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Intro — code INTRO50</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Introductory pricing · code INTRO50</p>
                 </div>
                 <p className="mt-2 text-sm text-zinc-500">{plan.tagline}</p>
                 <ul className="mt-4 flex-1 space-y-2 text-sm text-zinc-600">

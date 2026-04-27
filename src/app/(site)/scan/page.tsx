@@ -40,7 +40,7 @@ export default async function ScanPage({ searchParams }: Props) {
         <div className="text-left text-sm text-zinc-700">
           <p className="font-semibold text-zinc-900">Plans</p>
           <p className="mt-1 text-xs text-zinc-600">
-            Free: score preview and email unlock. Starter: monthly monitoring. Growth: full publishing + Reddit outreach. Pro: programmatic SEO + GBP. Agency: 25 clients.
+            Free: score preview and email unlock. Starter: monthly monitoring. Growth: full publishing and Reddit outreach. Pro: programmatic SEO and GBP sync. Agency: up to 10 clients.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

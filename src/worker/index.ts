@@ -12,6 +12,7 @@
  *   2. For each active paid business with queued content, publishes one item
  *   3. Daily (8am UTC): sends owner report to chris@gravyblock.com
  *   4. Monday (9am UTC): sends weekly upsell emails to paid non-Agency subscribers
+ *   5. Every tick: processes 7-day lead nurture drip for unconverted scan leads
  */
 
 import { eq, and, inArray, gte, lte } from "drizzle-orm";
@@ -19,6 +20,7 @@ import { runPendingRecurringSnapshotJobs, executeContentPublishPath } from "@/li
 import { getDb, businesses, contentQueue, jobs } from "@/lib/db";
 import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
+import { runLeadDripBatch } from "@/lib/email/lead-drip";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -139,6 +141,15 @@ async function tick() {
 
   await maybeSendDailyReport();
   await maybeSendWeeklyUpsell();
+
+  try {
+    const dripResult = await runLeadDripBatch();
+    if (dripResult.sent > 0) {
+      console.info("[worker] lead drip emails sent", dripResult);
+    }
+  } catch (error) {
+    console.error("[worker] lead drip failed", { error: error instanceof Error ? error.message : String(error) });
+  }
 
   console.info("[worker] tick done", { durationMs: Date.now() - new Date(startedAt).getTime() });
 }

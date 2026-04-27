@@ -33,7 +33,7 @@ const UPSELL_PITCH: Record<string, { headline: string; bullets: string[] }> = {
   pro: {
     headline: "Agency would have also done this week:",
     bullets: [
-      "Run the same full autopilot for up to 25 client businesses",
+      "Run the same full autopilot for up to 10 client businesses",
       "Generated white-label PDF reports for each client",
       "Used the cold outreach engine to find and pitch new prospects",
       "Refreshed all clients daily instead of weekly",
@@ -82,7 +82,7 @@ async function sendUpsellEmail(to: string, businessName: string, tier: PlanTier,
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="font-family:system-ui,sans-serif;background:#f9f9f9;margin:0;padding:24px">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e4e4e7;padding:32px">
-  <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">GravyBlock — Weekly Update</p>
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">GravyBlock Weekly Update</p>
   <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">What happened for ${businessName} this week</h1>
 
   <div style="margin:20px 0;padding:16px;background:#f4f4f5;border-radius:12px">
@@ -103,7 +103,7 @@ async function sendUpsellEmail(to: string, businessName: string, tier: PlanTier,
   </div>
 
   <p style="color:#52525b;font-size:14px;margin:16px 0">
-    Upgrade to <strong>${nextFeatures.label}</strong> for $${nextFeatures.introPrice}/month intro (use code <strong>INTRO50</strong>).
+    Upgrade to <strong>${nextFeatures.label}</strong> for $${nextFeatures.introPrice}/month introductory pricing (use code <strong>INTRO50</strong>).
   </p>
   <div style="display:flex;gap:12px;flex-wrap:wrap">
     <a href="${upgradeUrl}" style="display:inline-block;background:#dc2626;color:#fff;font-weight:700;font-size:13px;padding:10px 22px;border-radius:100px;text-decoration:none">
