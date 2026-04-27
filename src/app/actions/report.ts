@@ -25,7 +25,11 @@ export async function generateReportAction(
 ): Promise<ReportActionState> {
   const planIntentRaw = field(formData, "planIntent").toLowerCase();
   const selectedPlan =
-    planIntentRaw === "pro" ? "pro" : planIntentRaw === "base" || planIntentRaw === "entry" ? "base" : null;
+    planIntentRaw === "agency" ? "agency"
+    : planIntentRaw === "pro" ? "pro"
+    : planIntentRaw === "growth" ? "growth"
+    : planIntentRaw === "starter" || planIntentRaw === "base" || planIntentRaw === "entry" ? "starter"
+    : null;
   const promoCodeIntentRaw = field(formData, "promoCodeIntent");
   const promoCodeIntent =
     promoCodeIntentRaw === "ILoveYouFree" || promoCodeIntentRaw === "ILikeYou50" ? promoCodeIntentRaw : null;

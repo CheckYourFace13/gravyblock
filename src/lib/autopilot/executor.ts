@@ -47,7 +47,7 @@ function clampScore(score: number) {
 }
 
 function recurringJobTypeForPlan(tier: PlanTier) {
-  if (tier === "pro" || tier === "managed") return "pro_recurring_refresh";
+  if (tier === "pro" || tier === "agency") return "pro_recurring_refresh";
   return "entry_monthly_refresh";
 }
 
