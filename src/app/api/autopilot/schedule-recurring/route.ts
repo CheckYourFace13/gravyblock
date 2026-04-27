@@ -13,11 +13,12 @@ export async function POST(req: Request) {
     return Response.json({ error: "businessId is required" }, { status: 400 });
   }
   const rawTier = body?.planTier?.toLowerCase();
-  if (rawTier === "base" || rawTier === "entry" || rawTier === "pro" || rawTier === "managed") {
-    const planTier: PlanTier = rawTier === "entry" ? "base" : (rawTier as PlanTier);
+  const LEGACY_MAP: Record<string, PlanTier> = { base: "starter", entry: "starter", managed: "pro" };
+  const normalizedTier = LEGACY_MAP[rawTier ?? ""] ?? (rawTier as PlanTier | undefined);
+  if (normalizedTier && normalizedTier !== "free") {
     const result = await schedulePlanRecurringSnapshotJob({
       businessId,
-      planTier,
+      planTier: normalizedTier,
     });
     return Response.json(result);
   }
