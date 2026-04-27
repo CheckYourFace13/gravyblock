@@ -422,11 +422,9 @@ export function ReportView({
             {businessId ? (
               <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4 text-sm">
                 <p className="font-semibold text-zinc-900">
-                  {chosenPlan === "base"
-                    ? "Basic selected"
-                    : chosenPlan === "pro"
-                      ? "Pro selected"
-                      : "Plan selection"}
+                  {chosenPlan
+                    ? `${chosenPlan.charAt(0).toUpperCase() + chosenPlan.slice(1)} selected`
+                    : "Plan selection"}
                 </p>
                 <p className="mt-1 text-zinc-600">
                   Start with your business, then activate the plan. We&apos;ll connect this plan to this business when you
@@ -451,24 +449,24 @@ export function ReportView({
                   ) : null}
                 </div>
                 {promoCode ? <p className="mt-2 text-xs font-medium text-zinc-700">Promo code ready: {promoCode}</p> : null}
-                {chosenPlan === "base" ? (
+                {chosenPlan === "starter" ? (
                   <div className="mt-3 rounded-lg border border-red-200 bg-white p-3">
-                    <p className="text-sm font-semibold text-zinc-900">Are you sure you want to skip Pro?</p>
+                    <p className="text-sm font-semibold text-zinc-900">Are you sure you want to skip Growth?</p>
                     <p className="mt-1 text-xs text-zinc-600">
-                      Pro adds the fullest automation layer that is already available in this build.
+                      Growth adds the full execution layer: AI drafts, Reddit posting, multi-step outreach, and backlink queue.
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Link
-                        href={workspacePlanHref("pro")}
+                        href={workspacePlanHref("growth")}
                         className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
                       >
-                        Upgrade to Pro instead
+                        Upgrade to Growth instead
                       </Link>
                       <Link
-                        href={workspacePlanHref("base")}
+                        href={workspacePlanHref("starter")}
                         className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                       >
-                        No, continue with Basic
+                        No, continue with Starter
                       </Link>
                     </div>
                   </div>
