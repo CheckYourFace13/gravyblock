@@ -15,9 +15,10 @@
  *   5. Every tick: processes 7-day lead nurture drip for unconverted scan leads
  */
 
-import { eq, and, inArray, gte, lte } from "drizzle-orm";
+import { eq, and, inArray, gte, lte, count } from "drizzle-orm";
 import { runPendingRecurringSnapshotJobs, executeContentPublishPath } from "@/lib/autopilot/executor";
 import { getDb, businesses, contentQueue, jobs } from "@/lib/db";
+import { queueContentForBusiness } from "@/lib/content-gen/queue-content";
 import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
 import { runLeadDripBatch } from "@/lib/email/lead-drip";
@@ -25,6 +26,50 @@ import { runLeadDripBatch } from "@/lib/email/lead-drip";
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
 const CONTENT_PER_TICK = Number(process.env.CONTENT_PER_TICK ?? 3);
+
+const CONTENT_GEN_PER_TICK = 3;
+const PAID_TIERS_FOR_CONTENT = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
+
+async function processContentGeneration() {
+  const db = getDb();
+  if (!db) return;
+
+  // Find paid businesses that currently have zero queued content items
+  const allPaidBizIds = await db
+    .select({ id: businesses.id })
+    .from(businesses)
+    .where(inArray(businesses.planTier, PAID_TIERS_FOR_CONTENT))
+    .limit(100);
+
+  if (allPaidBizIds.length === 0) return;
+
+  // For each candidate, check their queue depth; collect those with none queued
+  const candidates: string[] = [];
+  for (const row of allPaidBizIds) {
+    if (candidates.length >= CONTENT_GEN_PER_TICK) break;
+    const [countRow] = await db
+      .select({ count: count() })
+      .from(contentQueue)
+      .where(and(eq(contentQueue.businessId, row.id), eq(contentQueue.status, "queued")));
+    if ((countRow?.count ?? 0) === 0) {
+      candidates.push(row.id);
+    }
+  }
+
+  for (const businessId of candidates) {
+    try {
+      const result = await queueContentForBusiness(businessId);
+      if (result.queued > 0) {
+        console.info("[worker] content generation queued", { businessId, queued: result.queued });
+      }
+    } catch (error) {
+      console.error("[worker] content generation failed", {
+        businessId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+}
 
 async function processContentQueue() {
   const db = getDb();
@@ -131,6 +176,12 @@ async function tick() {
     console.info("[worker] snapshot jobs", snapshotResult);
   } catch (error) {
     console.error("[worker] snapshot jobs failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    await processContentGeneration();
+  } catch (error) {
+    console.error("[worker] content generation failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   try {
