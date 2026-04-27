@@ -20,7 +20,8 @@ import { planFeatures, type PlanTier } from "@/lib/plans";
 import { getGooglePlaceDetails } from "@/lib/integrations/google-places";
 import { runSiteCrawlAudit } from "@/lib/audit/site-crawl";
 import { buildSocialPresence } from "@/lib/social/discover";
-import { generateArticleBody, generateLocalPageBody } from "@/lib/content/generator";
+import { generateArticleBody, generateLocalPageBody, generateOutreachPitch } from "@/lib/content/generator";
+import { checkBusinessVisibilityInAI } from "@/lib/integrations/perplexity";
 
 type AutomationRunProfile = {
   aiChecks: number;
@@ -439,17 +440,34 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         source: "automation",
       });
 
-      await db.insert(aiVisibilityChecks).values(
-        Array.from({ length: runProfile.aiChecks }).map((_, idx) => ({
-          businessId,
-          locationId: null,
-          prompt: `recurring local-intent autopilot probe ${idx + 1} (${job.type})`,
-          engine: "synthetic",
-          mentionFound: nextScore >= 65 ? "true" : "false",
-          sentiment: nextScore >= 70 ? "positive" : "neutral",
-          confidence: Math.min(95, nextScore - idx),
-        })),
-      );
+      {
+        const city = cityFromAddress(business?.address);
+        const realChecks = await checkBusinessVisibilityInAI({
+          businessName: business?.name ?? "Local business",
+          city,
+          vertical: business?.vertical ?? null,
+        });
+        const checksToInsert = realChecks.length > 0
+          ? realChecks.slice(0, runProfile.aiChecks).map((check) => ({
+              businessId,
+              locationId: null as string | null,
+              prompt: check.query,
+              engine: check.platform,
+              mentionFound: check.mentioned ? "true" : "false",
+              sentiment: check.sentiment,
+              confidence: check.confidence,
+            }))
+          : Array.from({ length: runProfile.aiChecks }).map((_, idx) => ({
+              businessId,
+              locationId: null as string | null,
+              prompt: `recurring local-intent autopilot probe ${idx + 1} (${job.type})`,
+              engine: "synthetic",
+              mentionFound: nextScore >= 65 ? "true" : "false",
+              sentiment: nextScore >= 70 ? "positive" : "neutral",
+              confidence: Math.min(95, nextScore - idx),
+            }));
+        await db.insert(aiVisibilityChecks).values(checksToInsert);
+      }
 
       const queuedContentIds: string[] = [];
       const publishedUrls: string[] = [];
@@ -657,13 +675,22 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
           const targetEmail = outreachEmailForTarget(opportunity.targetUrl, lead?.email ?? null);
           if (!targetEmail) continue;
           try {
+            const aiPitch = await generateOutreachPitch({
+              businessName,
+              city: cityFromAddress(business?.address),
+              targetName: opportunity.sourceName,
+              targetUrl: opportunity.targetUrl ?? "",
+              referenceUrl: publishedReference,
+              changeSummary: changeResult.summary,
+            });
+            const pitch = aiPitch ??
+              "We have a newly refreshed local visibility page and can provide an audience-relevant contribution tied to current service-area demand.";
             const sendResult = await sendOutreachEmail({
               to: targetEmail,
               businessName,
               targetName: opportunity.sourceName,
               angle: "Local resource collaboration",
-              pitch:
-                "We have a newly refreshed local visibility page and can provide an audience-relevant contribution tied to current service-area demand.",
+              pitch,
               referenceUrl: publishedReference,
             });
             if (sendResult.ok && !sendResult.skipped) {

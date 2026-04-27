@@ -71,6 +71,29 @@ Write the full article in markdown now.`;
   return callClaude(client, prompt);
 }
 
+export async function generateOutreachPitch(params: {
+  businessName: string;
+  city: string;
+  targetName: string;
+  targetUrl: string;
+  referenceUrl: string;
+  changeSummary: string;
+}): Promise<string | null> {
+  const client = getClient();
+  if (!client) return null;
+
+  const prompt = `Write a short, professional outreach email pitch (3-4 sentences max) from a local business to a community website or directory.
+
+Business: ${params.businessName} (${params.city})
+Target site: ${params.targetName} (${params.targetUrl})
+Reference content: ${params.referenceUrl}
+Context: ${params.changeSummary}
+
+The pitch should propose a relevant local resource contribution or listing. Do not be salesy. Be direct, local, and specific. Write only the pitch body — no subject line, no greeting, no sign-off.`;
+
+  return callClaude(client, prompt);
+}
+
 export async function generateLocalPageBody(params: GenerateParams): Promise<string | null> {
   const client = getClient();
   if (!client) return null;

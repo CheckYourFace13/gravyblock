@@ -15,3 +15,29 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
+
+/* Rendered markdown body for /published/[id] pages */
+.article-body {
+  color: #27272a;
+  font-size: 0.9375rem;
+  line-height: 1.75;
+}
+.article-body h1 { font-size: 1.5rem; font-weight: 600; margin: 1.75rem 0 0.75rem; color: #18181b; }
+.article-body h2 { font-size: 1.25rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #18181b; }
+.article-body h3 { font-size: 1.0625rem; font-weight: 600; margin: 1.25rem 0 0.4rem; color: #18181b; }
+.article-body p  { margin: 0 0 1rem; }
+.article-body ul,
+.article-body ol { margin: 0.75rem 0 1rem 1.5rem; }
+.article-body ul { list-style-type: disc; }
+.article-body ol { list-style-type: decimal; }
+.article-body li { margin-bottom: 0.25rem; }
+.article-body strong { font-weight: 600; color: #18181b; }
+.article-body em { font-style: italic; }
+.article-body a { color: #dc2626; text-decoration: underline; }
+.article-body a:hover { color: #b91c1c; }
+.article-body blockquote {
+  border-left: 3px solid #e4e4e7;
+  padding-left: 1rem;
+  color: #71717a;
+  margin: 1rem 0;
+}

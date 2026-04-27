@@ -11,13 +11,15 @@
     "db:server": "node scripts/start-pglite-server.mjs",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "worker": "tsx src/worker/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.55.1",
     "@electric-sql/pglite": "^0.4.4",
     "@tailwindcss/postcss": "^4.2.4",
     "drizzle-orm": "^0.45.2",
+    "marked": "^18.0.2",
     "nanoid": "^5.1.9",
     "next": "16.2.4",
     "pglite-server": "^0.1.5",
@@ -36,6 +38,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

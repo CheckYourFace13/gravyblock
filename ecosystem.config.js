@@ -28,13 +28,23 @@ module.exports = {
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
     },
     {
-      // Runs the autopilot loop every hour via PM2 cron
-      // Processes up to 10 pending jobs per tick
+      // Persistent background worker — processes snapshot jobs and content queue
+      // every WORKER_INTERVAL_MS (default 15 min). No external cron needed.
       name: "gravyblock-worker",
-      script: "bash",
-      args: `-c "curl -sS -X POST '${siteUrl}/api/autopilot/run-recurring' -H 'Authorization: Bearer ${secret}' -H 'Content-Type: application/json' -d '{\"limit\":10}' | head -c 2000"`,
-      cron_restart: "0 * * * *",  // every hour on the hour
-      autorestart: false,          // cron jobs should not auto-restart between fires
+      script: "npx",
+      args: "tsx src/worker/index.ts",
+      cwd: "/home/deploy/gravyblock",
+      instances: 1,
+      exec_mode: "fork",
+      env: {
+        NODE_ENV: "production",
+        WORKER_INTERVAL_MS: 900000,  // 15 minutes
+        JOBS_PER_TICK: 5,
+        CONTENT_PER_TICK: 3,
+      },
+      max_restarts: 20,
+      min_uptime: "30s",
+      restart_delay: 5000,
       watch: false,
       out_file: "/home/deploy/logs/worker-out.log",
       error_file: "/home/deploy/logs/worker-err.log",
