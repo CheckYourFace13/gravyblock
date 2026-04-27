@@ -1,5 +1,7 @@
+import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
+
 export type AIVisibilityResult = {
-  platform: "perplexity" | "chatgpt" | "gemini";
+  platform: "perplexity" | "openrouter";
   query: string;
   mentioned: boolean;
   sentiment: "positive" | "neutral" | "negative";
@@ -7,84 +9,28 @@ export type AIVisibilityResult = {
   confidence: number;
 };
 
-type PerplexityMessage = {
-  role: "user" | "assistant";
-  content: string;
-};
-
-type PerplexityResponse = {
-  choices: Array<{
-    message: { content: string };
-    finish_reason: string;
-  }>;
-};
-
-function getApiKey(): string | null {
-  return process.env.PERPLEXITY_API_KEY ?? null;
-}
-
-async function queryPerplexity(prompt: string): Promise<string | null> {
-  const apiKey = getApiKey();
-  if (!apiKey) return null;
-
-  try {
-    const res = await fetch("https://api.perplexity.ai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "sonar",
-        messages: [{ role: "user", content: prompt }] satisfies PerplexityMessage[],
-        max_tokens: 512,
-        temperature: 0.2,
-      }),
-    });
-
-    if (!res.ok) {
-      console.error("[perplexity] API error", res.status);
-      return null;
-    }
-
-    const data = (await res.json()) as PerplexityResponse;
-    return data.choices?.[0]?.message?.content ?? null;
-  } catch (error) {
-    console.error("[perplexity] fetch failed", { error: error instanceof Error ? error.message : String(error) });
-    return null;
-  }
-}
-
 function detectMention(text: string, businessName: string): boolean {
-  const needle = businessName.toLowerCase();
-  return text.toLowerCase().includes(needle);
+  return text.toLowerCase().includes(businessName.toLowerCase());
 }
 
 function detectSentiment(text: string, businessName: string): "positive" | "neutral" | "negative" {
   const lower = text.toLowerCase();
-  const name = businessName.toLowerCase();
-  const nameIdx = lower.indexOf(name);
+  const nameIdx = lower.indexOf(businessName.toLowerCase());
   if (nameIdx === -1) return "neutral";
-
-  // Look at the 200 chars surrounding the mention
   const context = lower.slice(Math.max(0, nameIdx - 80), nameIdx + 120);
-  const positiveWords = ["great", "excellent", "top", "best", "highly", "recommended", "loved", "well-regarded", "popular"];
+  const positiveWords = ["great", "excellent", "top", "best", "highly", "recommended", "loved", "popular"];
   const negativeWords = ["poor", "bad", "worst", "avoid", "negative", "complaint", "issue", "problem"];
-
-  const positiveCount = positiveWords.filter((w) => context.includes(w)).length;
-  const negativeCount = negativeWords.filter((w) => context.includes(w)).length;
-
-  if (positiveCount > negativeCount) return "positive";
-  if (negativeCount > positiveCount) return "negative";
+  const pos = positiveWords.filter((w) => context.includes(w)).length;
+  const neg = negativeWords.filter((w) => context.includes(w)).length;
+  if (pos > neg) return "positive";
+  if (neg > pos) return "negative";
   return "neutral";
 }
 
 function extractSnippet(text: string, businessName: string, maxLen = 200): string | null {
-  const nameIdx = text.toLowerCase().indexOf(businessName.toLowerCase());
-  if (nameIdx === -1) return null;
-  const start = Math.max(0, nameIdx - 40);
-  const end = Math.min(text.length, nameIdx + 160);
-  const snippet = text.slice(start, end).trim();
+  const idx = text.toLowerCase().indexOf(businessName.toLowerCase());
+  if (idx === -1) return null;
+  const snippet = text.slice(Math.max(0, idx - 40), Math.min(text.length, idx + 160)).trim();
   return snippet.length > maxLen ? snippet.slice(0, maxLen) + "…" : snippet;
 }
 
@@ -104,11 +50,20 @@ export async function checkBusinessVisibilityInAI(input: {
   ];
 
   for (const query of queries) {
-    const prompt = `${query} Give me a short answer with specific business names if you know them.`;
-    const responseText = await queryPerplexity(prompt);
+    const responseText = await openRouterChat({
+      model: MODELS.visibility,
+      maxTokens: 512,
+      temperature: 0.2,
+      messages: [
+        {
+          role: "user",
+          content: `${query} Give a short answer with specific business names if you know them.`,
+        },
+      ],
+    });
 
     if (responseText === null) {
-      // API not available — return empty (caller falls back to synthetic)
+      // API key not configured — return empty so caller uses synthetic fallback
       return [];
     }
 
