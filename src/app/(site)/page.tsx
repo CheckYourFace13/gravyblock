@@ -20,19 +20,19 @@ const faqItems = [
   },
   {
     q: "What does Growth include?",
-    a: "Growth includes everything in Starter plus weekly refreshes, AI-generated content drafts and published articles, Reddit and blog posting on relevant third-party channels, multi-step outreach sequences, and backlink opportunity queue.",
+    a: "Growth includes everything in Starter plus weekly refreshes, AI-written articles published to your site automatically, Reddit and blog content written and queued, backlink outreach emails sent to relevant sites, and citation and review tasks surfaced monthly.",
   },
   {
     q: "What does Pro include?",
-    a: "Pro includes everything in Growth plus programmatic SEO pages, Google Business Profile sync, up to 3 business locations, and significantly higher monthly output limits across all queues.",
+    a: "Pro includes everything in Growth plus programmatic local SEO pages generated for your city and industry, up to 3 business locations under one account, and significantly higher monthly output limits across all queues.",
   },
   {
     q: "What does Agency include?",
-    a: "Agency is built for marketing agencies. It includes up to 10 client seats, unlimited monthly output, white-label reporting, the cold outreach engine (GravyBlock finds weak local competitors and pitches them for you), and daily refresh cadence.",
+    a: "Agency is built for marketing agencies. It includes up to 10 client workspaces, unlimited monthly output, the cold outreach engine (GravyBlock finds weak local businesses and emails them on your behalf), and daily refresh cadence across all clients.",
   },
   {
-    q: "Does it post on Reddit and other blogs?",
-    a: "Yes, on Growth and above. GravyBlock finds relevant subreddits, community forums, and third-party blogs in your client's industry and city, then posts helpful content with contextual backlinks — on those external channels, not just the client's own site.",
+    q: "What happens with Reddit and blog content?",
+    a: "On Growth and above, GravyBlock writes Reddit-style posts and blog content targeting your city and industry. That content is queued and can be published to those channels. Backlink outreach emails are sent automatically to relevant local sites and blogs.",
   },
   {
     q: "Does GravyBlock guarantee rankings?",
@@ -44,7 +44,7 @@ const faqItems = [
   },
   {
     q: "Does it support multi-location businesses?",
-    a: "Yes. Growth supports multi-location, and Pro adds up to 3 seats. Agency is designed for multi-client agency operations.",
+    a: "Yes. Pro supports up to 3 business locations under one account. Agency supports up to 10 client workspaces for agencies managing multiple businesses.",
   },
 ] as const;
 
@@ -79,14 +79,14 @@ const plans = [
     monthly: 149.99,
     intro: 74.99,
     highlight: true,
-    tagline: "Full execution — content written, published, and distributed.",
+    tagline: "AI writes, publishes, and outreaches for you every week.",
     bullets: [
-      "Weekly refreshes (4 runs/month)",
-      "AI content drafts + publishing to your site",
-      "Reddit and blog posting on relevant third-party channels",
-      "Multi-step outreach sequences (3-step follow-up)",
-      "12 citation tasks + 8 review tasks/month",
-      "8 backlink opportunities queued monthly",
+      "Weekly visibility refreshes (4 runs/month)",
+      "AI-written articles published to your site automatically",
+      "Reddit and blog content written and queued for distribution",
+      "Backlink outreach emails sent automatically to relevant sites",
+      "12 citation tasks + 8 review tasks surfaced monthly",
+      "8 backlink opportunities identified monthly",
     ],
     cta: "Start Growth",
     href: "/scan?plan=growth",
@@ -98,13 +98,13 @@ const plans = [
     monthly: 299.99,
     intro: 149.99,
     highlight: false,
-    tagline: "Programmatic SEO and Google Business Profile sync.",
+    tagline: "Higher output, more locations, deeper SEO coverage.",
     bullets: [
       "Everything in Growth, amplified",
-      "Programmatic SEO pages for city + industry combos",
-      "Google Business Profile sync and post scheduling",
-      "Up to 3 business locations",
-      "12 published articles + 8 local pages/month",
+      "Programmatic local SEO pages generated for your city and industry",
+      "Up to 3 business locations under one account",
+      "12 published articles + 8 local pages per month",
+      "AI visibility monitoring across ChatGPT, Perplexity, and Google AI",
     ],
     cta: "Start Pro",
     href: "/scan?plan=pro",
@@ -118,11 +118,11 @@ const plans = [
     highlight: false,
     tagline: "Run up to 10 clients on full autopilot.",
     bullets: [
-      "10 client seats, all features unlocked",
+      "10 client workspaces, all features unlocked",
       "Unlimited content drafts and publishing",
-      "Cold outreach engine: GravyBlock finds weak local businesses and pitches them for you",
-      "White-label reporting",
-      "Daily refresh cadence",
+      "Cold outreach engine: GravyBlock finds weak local businesses and emails them for you",
+      "Daily refresh cadence across all clients",
+      "Priority support",
     ],
     cta: "Start Agency",
     href: "/scan?plan=agency",
@@ -154,8 +154,7 @@ export default function HomePage() {
               Your marketing on autopilot. Every day.
             </h1>
             <p className="max-w-2xl text-lg text-zinc-600">
-              GravyBlock writes content, posts it on Reddit and blogs, builds backlinks, manages reviews, and monitors
-              your local visibility. All of it runs automatically. Start with a free scan.
+              GravyBlock writes and publishes local SEO content, sends backlink outreach emails, surfaces citation and review tasks, and monitors your AI search visibility. All of it runs on a schedule. Start with a free scan.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
@@ -180,7 +179,7 @@ export default function HomePage() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-700">What runs automatically</p>
               <ul className="mt-4 space-y-3 text-sm text-zinc-700">
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />AI-written articles published to your site</li>
-                <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />Posts on Reddit, forums, and niche blogs</li>
+                <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />Reddit and blog content written and queued</li>
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />Review request campaigns + AI response drafts</li>
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />Citation and backlink building queue</li>
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />AI search visibility monitoring (Perplexity, ChatGPT)</li>
