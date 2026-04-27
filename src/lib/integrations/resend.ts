@@ -19,7 +19,7 @@ type ReportDeliveryPayload = {
 type AutomationSummaryPayload = {
   leadEmail: string;
   businessName: string;
-  planLabel: "Basic" | "Pro";
+  planLabel: string;
   cadenceLabel: string;
   score: number;
   completedAt: string;

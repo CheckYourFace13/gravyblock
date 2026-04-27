@@ -10,11 +10,15 @@
  * What it does on each tick (every WORKER_INTERVAL_MS, default 15 min):
  *   1. Processes up to JOBS_PER_TICK pending recurring snapshot jobs
  *   2. For each active paid business with queued content, publishes one item
+ *   3. Daily (8am UTC): sends owner report to chris@gravyblock.com
+ *   4. Monday (9am UTC): sends weekly upsell emails to paid non-Agency subscribers
  */
 
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, gte, lte } from "drizzle-orm";
 import { runPendingRecurringSnapshotJobs, executeContentPublishPath } from "@/lib/autopilot/executor";
-import { getDb, businesses, contentQueue } from "@/lib/db";
+import { getDb, businesses, contentQueue, jobs } from "@/lib/db";
+import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
+import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -24,7 +28,6 @@ async function processContentQueue() {
   const db = getDb();
   if (!db) return;
 
-  // Find businesses with queued content and an active paid plan
   const withQueued = await db
     .selectDistinct({ businessId: contentQueue.businessId })
     .from(contentQueue)
@@ -54,6 +57,69 @@ async function processContentQueue() {
   }
 }
 
+async function hasJobRunToday(jobType: string): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const [row] = await db
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(and(eq(jobs.type, jobType), gte(jobs.createdAt, todayStart)))
+    .limit(1);
+  return Boolean(row);
+}
+
+async function hasJobRunThisWeek(jobType: string): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  const weekStart = new Date();
+  weekStart.setUTCHours(0, 0, 0, 0);
+  weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay()); // Sunday
+  const [row] = await db
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(and(eq(jobs.type, jobType), gte(jobs.createdAt, weekStart)))
+    .limit(1);
+  return Boolean(row);
+}
+
+async function recordWorkerJob(jobType: string, payload?: Record<string, unknown>) {
+  const db = getDb();
+  if (!db) return;
+  await db.insert(jobs).values({ type: jobType, status: "completed", payload: payload ?? {} });
+}
+
+async function maybeSendDailyReport() {
+  const nowHour = new Date().getUTCHours();
+  if (nowHour < 8 || nowHour > 9) return; // only fire in the 8am UTC window
+  if (await hasJobRunToday("daily_owner_report")) return;
+  try {
+    const ok = await sendDailyOwnerReport();
+    if (ok) {
+      await recordWorkerJob("daily_owner_report");
+      console.info("[worker] daily owner report sent");
+    }
+  } catch (error) {
+    console.error("[worker] daily report failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+async function maybeSendWeeklyUpsell() {
+  const now = new Date();
+  if (now.getUTCDay() !== 1) return; // Monday only
+  const nowHour = now.getUTCHours();
+  if (nowHour < 9 || nowHour > 10) return; // 9am UTC window
+  if (await hasJobRunThisWeek("weekly_upsell_batch")) return;
+  try {
+    const result = await sendWeeklyUpsellEmails();
+    await recordWorkerJob("weekly_upsell_batch", result);
+    console.info("[worker] weekly upsell emails", result);
+  } catch (error) {
+    console.error("[worker] weekly upsell failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 async function tick() {
   const startedAt = new Date().toISOString();
   console.info("[worker] tick start", { startedAt, jobsPerTick: JOBS_PER_TICK });
@@ -62,23 +128,21 @@ async function tick() {
     const snapshotResult = await runPendingRecurringSnapshotJobs(JOBS_PER_TICK);
     console.info("[worker] snapshot jobs", snapshotResult);
   } catch (error) {
-    console.error("[worker] snapshot jobs failed", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    console.error("[worker] snapshot jobs failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   try {
     await processContentQueue();
   } catch (error) {
-    console.error("[worker] content queue failed", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    console.error("[worker] content queue failed", { error: error instanceof Error ? error.message : String(error) });
   }
+
+  await maybeSendDailyReport();
+  await maybeSendWeeklyUpsell();
 
   console.info("[worker] tick done", { durationMs: Date.now() - new Date(startedAt).getTime() });
 }
 
-// Run immediately on start, then on interval
 void tick();
 setInterval(() => void tick(), WORKER_INTERVAL_MS);
 
