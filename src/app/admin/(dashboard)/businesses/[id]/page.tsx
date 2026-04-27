@@ -28,8 +28,8 @@ export default async function AdminBusinessDetailPage({ params }: Props) {
             {new Date(bundle.business.updatedAt).toLocaleString()}
           </p>
           <p className="mt-1 text-sm text-zinc-600">
-            Cadence <span className="font-semibold text-zinc-900">{features.refreshCadenceLabel}</span> · Launch price{" "}
-            {features.monthlyPrice ? `$${features.launchPrice.toFixed(2)}/mo` : "$0"}
+            Cadence <span className="font-semibold text-zinc-900">{features.refreshCadenceLabel}</span> · Intro price{" "}
+            {features.monthlyPrice ? `$${features.introPrice.toFixed(2)}/mo` : "$0"}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-sm font-semibold">
