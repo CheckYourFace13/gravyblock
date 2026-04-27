@@ -57,7 +57,7 @@ export function ReportView({
   publicId: string;
   businessId?: string;
   initiallyUnlocked: boolean;
-  selectedPlan?: "base" | "pro" | null;
+  selectedPlan?: "starter" | "growth" | "pro" | "agency" | null;
   promoCode?: "ILoveYouFree" | "ILikeYou50" | null;
 }) {
   const [unlocked, setUnlocked] = useState(initiallyUnlocked);
@@ -96,21 +96,17 @@ export function ReportView({
     });
     return entries.slice(0, 6);
   }, [payload]);
-  const chosenPlan = selectedPlan === "base" || selectedPlan === "pro" ? selectedPlan : null;
+  const chosenPlan = (["starter", "growth", "pro", "agency"] as string[]).includes(selectedPlan ?? "") ? selectedPlan : null;
   const promoQuery = promoCode ? `promo=${encodeURIComponent(promoCode)}` : "";
-  const workspacePlanHref = (plan: "base" | "pro") =>
+  const workspacePlanHref = (plan: string) =>
     `/workspace/${businessId}?plan=${plan}${promoQuery ? `&${promoQuery}` : ""}#billing`;
   const workspaceHref = businessId
     ? chosenPlan
       ? workspacePlanHref(chosenPlan)
       : `/workspace/${businessId}${promoQuery ? `?${promoQuery}` : ""}#billing`
     : null;
-  const primaryLabel =
-    chosenPlan === "base"
-      ? "Continue to Basic checkout"
-      : chosenPlan === "pro"
-        ? "Continue to Pro checkout"
-        : "Continue to billing";
+  const planLabel = chosenPlan ? (chosenPlan.charAt(0).toUpperCase() + chosenPlan.slice(1)) : null;
+  const primaryLabel = planLabel ? `Continue to ${planLabel} checkout` : "Continue to billing";
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 py-12 sm:px-6">
@@ -192,11 +188,7 @@ export function ReportView({
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold text-zinc-900">
-                    {chosenPlan === "base"
-                      ? "You chose Basic. Continue to Basic checkout."
-                      : chosenPlan === "pro"
-                        ? "You chose Pro. Continue to Pro checkout."
-                        : "Turn on autopilot for this business"}
+                    {planLabel ? `You chose ${planLabel}. Continue to checkout.` : "Turn on autopilot for this business"}
                   </h2>
                   <p className="mt-1 text-sm text-zinc-700">
                     Start with your business, then activate the plan. We&apos;ll connect this plan to this business and keep
@@ -212,44 +204,36 @@ export function ReportView({
                       {primaryLabel}
                     </Link>
                   ) : null}
-                  {chosenPlan === "base" ? (
+                  {chosenPlan !== "growth" ? (
                     <Link
-                      href={workspacePlanHref("pro")}
+                      href={workspacePlanHref("growth")}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     >
-                      Continue to Pro checkout
-                    </Link>
-                  ) : chosenPlan !== "pro" ? (
-                    <Link
-                      href={workspacePlanHref("base")}
-                      className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
-                    >
-                      Continue to Basic checkout
+                      Growth — $74/mo intro
                     </Link>
                   ) : null}
                 </div>
               </div>
               {promoCode ? <p className="mt-3 text-xs font-medium text-zinc-700">Promo code ready: {promoCode}</p> : null}
-              {chosenPlan === "base" ? (
+              {chosenPlan === "starter" ? (
                 <div className="mt-4 rounded-xl border border-red-200 bg-white p-4">
-                  <h3 className="text-base font-semibold text-zinc-900">Are you sure you want to skip Pro?</h3>
+                  <h3 className="text-base font-semibold text-zinc-900">Growth adds full execution for $74.99/mo intro</h3>
                   <p className="mt-1 text-sm text-zinc-700">
-                    Pro includes more frequent refreshes, content queue, publishing queue/history, autopilot workspace,
-                    AI visibility checks, local page/service-area queue, citation and review queues, and multi-location
-                    support where available.
+                    Growth includes weekly refreshes, AI-written content published to your site, Reddit and blog posting on
+                    third-party channels, multi-step outreach sequences, and 8 backlink opportunities queued monthly.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Link
-                      href={workspacePlanHref("pro")}
+                      href={workspacePlanHref("growth")}
                       className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
                     >
-                      Upgrade to Pro instead
+                      Upgrade to Growth instead
                     </Link>
                     <Link
-                      href={workspacePlanHref("base")}
+                      href={workspacePlanHref("starter")}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     >
-                      No, continue with Basic
+                      No, continue with Starter
                     </Link>
                   </div>
                 </div>
@@ -457,19 +441,12 @@ export function ReportView({
                       {primaryLabel}
                     </Link>
                   ) : null}
-                  {chosenPlan === "base" ? (
+                  {chosenPlan !== "growth" ? (
                     <Link
-                      href={workspacePlanHref("pro")}
+                      href={workspacePlanHref("growth")}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                     >
-                      Continue to Pro checkout
-                    </Link>
-                  ) : chosenPlan !== "pro" ? (
-                    <Link
-                      href={workspacePlanHref("base")}
-                      className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
-                    >
-                      Continue to Basic checkout
+                      Growth — $74/mo intro
                     </Link>
                   ) : null}
                 </div>

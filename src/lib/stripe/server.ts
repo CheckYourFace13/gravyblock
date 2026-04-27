@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import type { PlanTier } from "@/lib/plans";
 
 let stripeClient: Stripe | null | undefined;
 
@@ -23,36 +24,34 @@ export function getAppBaseUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000";
 }
 
-function basePriceIdFromEnv(): string {
-  const fromNew = process.env.STRIPE_PRICE_BASE_MONTHLY?.trim();
-  const fromLegacy = process.env.STRIPE_PRICE_ENTRY_MONTHLY?.trim();
-  const id = fromNew || fromLegacy;
-  if (!id) {
-    throw new Error(
-      "Stripe Base price is not configured. Set STRIPE_PRICE_BASE_MONTHLY (or legacy STRIPE_PRICE_ENTRY_MONTHLY).",
-    );
+export type CheckoutPlan = "starter" | "growth" | "pro" | "agency";
+
+export function getPriceIdForPlan(plan: CheckoutPlan): string {
+  const envMap: Record<CheckoutPlan, string | undefined> = {
+    starter: process.env.STRIPE_PRICE_STARTER_MONTHLY?.trim() ||
+             process.env.STRIPE_PRICE_BASE_MONTHLY?.trim() ||
+             process.env.STRIPE_PRICE_ENTRY_MONTHLY?.trim(),
+    growth:  process.env.STRIPE_PRICE_GROWTH_MONTHLY?.trim(),
+    pro:     process.env.STRIPE_PRICE_PRO_MONTHLY?.trim(),
+    agency:  process.env.STRIPE_PRICE_AGENCY_MONTHLY?.trim(),
+  };
+  const priceId = envMap[plan];
+  if (!priceId) {
+    throw new Error(`Stripe price ID not configured for plan "${plan}". Check your environment variables.`);
   }
-  return id;
+  return priceId;
 }
 
-export function getPriceIdForPlan(plan: "base" | "pro"): string {
-  if (plan === "base") {
-    return basePriceIdFromEnv();
-  }
-  const pro = process.env.STRIPE_PRICE_PRO_MONTHLY?.trim();
-  if (!pro) {
-    throw new Error("STRIPE_PRICE_PRO_MONTHLY is not configured");
-  }
-  return pro;
-}
-
-export function getPlanFromPriceId(priceId: string | null | undefined): "base" | "pro" | null {
+export function getPlanFromPriceId(priceId: string | null | undefined): PlanTier | null {
   if (!priceId) return null;
-  const base =
-    process.env.STRIPE_PRICE_BASE_MONTHLY?.trim() ||
-    process.env.STRIPE_PRICE_ENTRY_MONTHLY?.trim();
-  const pro = process.env.STRIPE_PRICE_PRO_MONTHLY?.trim();
-  if (base && priceId === base) return "base";
-  if (pro && priceId === pro) return "pro";
+  const pairs: Array<[string | undefined, PlanTier]> = [
+    [process.env.STRIPE_PRICE_STARTER_MONTHLY?.trim() || process.env.STRIPE_PRICE_BASE_MONTHLY?.trim() || process.env.STRIPE_PRICE_ENTRY_MONTHLY?.trim(), "starter"],
+    [process.env.STRIPE_PRICE_GROWTH_MONTHLY?.trim(), "growth"],
+    [process.env.STRIPE_PRICE_PRO_MONTHLY?.trim(), "pro"],
+    [process.env.STRIPE_PRICE_AGENCY_MONTHLY?.trim(), "agency"],
+  ];
+  for (const [id, tier] of pairs) {
+    if (id && priceId === id) return tier;
+  }
   return null;
 }

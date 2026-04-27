@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { createBillingPortalAction, createCheckoutSessionAction } from "@/app/(site)/workspace/[businessId]/billing-actions";
+import type { CheckoutPlan } from "@/lib/stripe/server";
 
 function InlineError({ message }: { message: string | null }) {
   if (!message) return null;
   return <p className="mt-2 text-xs font-medium text-red-700">{message}</p>;
 }
 
-async function runCheckout(businessId: string, plan: "base" | "pro", promoCode?: "ILoveYouFree" | "ILikeYou50" | null) {
+async function runCheckout(businessId: string, plan: CheckoutPlan, promoCode?: "ILoveYouFree" | "ILikeYou50" | null) {
   const formData = new FormData();
   formData.set("businessId", businessId);
   formData.set("plan", plan);
@@ -16,14 +17,13 @@ async function runCheckout(businessId: string, plan: "base" | "pro", promoCode?:
   return createCheckoutSessionAction(formData);
 }
 
-const proExtras = [
-  "Faster refresh cadence than Base (weekly vs monthly in product settings)",
-  "Content queue and publishing history",
-  "Local and service-area page queue",
-  "Citation and listing issue queue",
-  "Review and reputation task queue",
-  "AI visibility checks in workspace",
-  "Multi-location support where the workspace supports it",
+const growthExtras = [
+  "AI-written content drafts + auto-published articles",
+  "Reddit and blog posting on third-party channels",
+  "Multi-step outreach sequences (3-step follow-up)",
+  "8 backlink opportunities queued every month",
+  "12 citation tasks + 8 review tasks/month",
+  "Multi-location support",
 ];
 
 export function CheckoutButton({
@@ -31,22 +31,21 @@ export function CheckoutButton({
   plan,
   label,
   className,
-  requireProUpsell,
+  requireGrowthUpsell,
   promoCode,
 }: {
   businessId: string;
-  plan: "base" | "pro";
+  plan: CheckoutPlan;
   label: string;
   className: string;
-  /** When true, Base checkout opens an upsell step before Stripe. */
-  requireProUpsell?: boolean;
+  requireGrowthUpsell?: boolean;
   promoCode?: "ILoveYouFree" | "ILikeYou50" | null;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [showUpsell, setShowUpsell] = useState(false);
 
-  if (plan === "pro" || !requireProUpsell) {
+  if (plan !== "starter" || !requireGrowthUpsell) {
     return (
       <div>
         <button
@@ -97,18 +96,18 @@ export function CheckoutButton({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="base-upsell-title"
+          aria-labelledby="growth-upsell-title"
         >
           <div className="max-w-lg rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl">
-            <h2 id="base-upsell-title" className="text-lg font-semibold text-zinc-900">
-              Before you choose Base, Pro adds more automation
+            <h2 id="growth-upsell-title" className="text-lg font-semibold text-zinc-900">
+              Before you choose Starter, Growth adds full execution
             </h2>
             <p className="mt-2 text-sm text-zinc-600">
-              Pro is the fullest automation layer in this build. Base covers monthly monitoring and summaries; Pro adds
-              the queues and cadence below.
+              Starter covers monthly monitoring and content ideas. Growth adds automated publishing, Reddit/blog posting,
+              and outreach sequences.
             </p>
             <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-zinc-700">
-              {proExtras.map((line) => (
+              {growthExtras.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
@@ -120,7 +119,7 @@ export function CheckoutButton({
                 onClick={() => {
                   startTransition(async () => {
                     setError(null);
-                    const result = await runCheckout(businessId, "pro", promoCode);
+                    const result = await runCheckout(businessId, "growth", promoCode);
                     if (!result.ok) {
                       setError(result.error);
                       return;
@@ -129,7 +128,7 @@ export function CheckoutButton({
                   });
                 }}
               >
-                {pending ? "Opening checkout..." : "Upgrade to Pro"}
+                {pending ? "Opening checkout..." : "Upgrade to Growth"}
               </button>
               <button
                 type="button"
@@ -138,7 +137,7 @@ export function CheckoutButton({
                 onClick={() => {
                   startTransition(async () => {
                     setError(null);
-                    const result = await runCheckout(businessId, "base", promoCode);
+                    const result = await runCheckout(businessId, "starter", promoCode);
                     if (!result.ok) {
                       setError(result.error);
                       return;
@@ -148,7 +147,7 @@ export function CheckoutButton({
                   });
                 }}
               >
-                {pending ? "Opening checkout..." : "Continue with Base"}
+                {pending ? "Opening checkout..." : "Continue with Starter"}
               </button>
               <button
                 type="button"

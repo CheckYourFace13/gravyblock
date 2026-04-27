@@ -1,7 +1,7 @@
 "use server";
 
 import { getBusinessById, persistStripeCustomerId } from "@/lib/billing/repository";
-import { getAppBaseUrl, getPriceIdForPlan, getStripeServerClient } from "@/lib/stripe/server";
+import { getAppBaseUrl, getPriceIdForPlan, getStripeServerClient, type CheckoutPlan } from "@/lib/stripe/server";
 import { canAccessBusiness } from "@/lib/auth/customer-auth";
 import { isAdminSession } from "@/lib/auth/admin-session";
 
@@ -11,10 +11,10 @@ function requiredField(formData: FormData, key: string): string {
   return String(value);
 }
 
-function normalizeCheckoutPlan(raw: string): "base" | "pro" {
+function normalizeCheckoutPlan(raw: string): CheckoutPlan {
   const p = raw.toLowerCase();
-  if (p === "entry") return "base";
-  if (p === "base" || p === "pro") return p;
+  if (p === "entry" || p === "base") return "starter";
+  if (p === "starter" || p === "growth" || p === "pro" || p === "agency") return p as CheckoutPlan;
   throw new Error("Invalid plan");
 }
 

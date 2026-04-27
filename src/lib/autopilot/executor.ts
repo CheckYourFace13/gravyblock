@@ -16,7 +16,7 @@ import {
   visibilitySnapshots,
 } from "@/lib/db";
 import { sendAutomationSummaryEmail, sendOutreachEmail } from "@/lib/integrations/resend";
-import { planFeatures, type PlanTier } from "@/lib/plans";
+import { planFeatures, normalizePlanTierFromDb, type PlanTier } from "@/lib/plans";
 import { getGooglePlaceDetails } from "@/lib/integrations/google-places";
 import { runSiteCrawlAudit } from "@/lib/audit/site-crawl";
 import { buildSocialPresence } from "@/lib/social/discover";
@@ -749,9 +749,12 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
 
       const raw = business?.planTier as string | undefined;
       const normalized =
-        raw === "entry" ? "base" : raw && (raw === "base" || raw === "pro" || raw === "managed") ? raw : undefined;
+        raw === "entry" || raw === "base" ? "starter"
+        : raw === "managed" ? "pro"
+        : raw && (["starter", "growth", "pro", "agency"] as string[]).includes(raw) ? raw
+        : undefined;
       const planTier =
-        (normalized as PlanTier | undefined) ?? (job.type === "pro_recurring_refresh" ? "pro" : "base");
+        (normalized as PlanTier | undefined) ?? (job.type === "pro_recurring_refresh" ? "pro" : "starter");
       const features = planFeatures(planTier);
       const [lead] = await db
         .select({ email: leads.email })
@@ -765,7 +768,7 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         void sendAutomationSummaryEmail({
           leadEmail: lead.email,
           businessName: business?.name ?? "Your business",
-          planLabel: features.label === "Pro" ? "Pro" : "Basic",
+          planLabel: features.label,
           cadenceLabel: features.refreshCadenceLabel,
           score: nextScore,
           completedAt,
@@ -780,16 +783,11 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         });
       }
 
-      if (
-        business?.planTier &&
-        (business.planTier === "entry" ||
-          business.planTier === "base" ||
-          business.planTier === "pro" ||
-          business.planTier === "managed")
-      ) {
-        const planForSchedule: PlanTier =
-          business.planTier === "entry" ? "base" : (business.planTier as PlanTier);
-        void schedulePlanRecurringSnapshotJob({ businessId, planTier: planForSchedule });
+      if (business?.planTier) {
+        const planForSchedule = normalizePlanTierFromDb(business.planTier);
+        if (planForSchedule !== "free") {
+          void schedulePlanRecurringSnapshotJob({ businessId, planTier: planForSchedule });
+        }
       }
 
       results.push({ jobId: job.id, businessId, snapshotId, status: "completed" });

@@ -21,7 +21,7 @@ export function ScanForm({
   selectedPlan,
   promoCode,
 }: {
-  selectedPlan?: "base" | "pro" | null;
+  selectedPlan?: "starter" | "growth" | "pro" | "agency" | null;
   promoCode?: "ILoveYouFree" | "ILikeYou50" | null;
 }) {
   const [state, formAction, pending] = useActionState(generateReportAction, initialState);
@@ -163,38 +163,38 @@ export function ScanForm({
           {pending
             ? "Running scan..."
             : selectedPlan
-              ? `Continue (${selectedPlan === "base" ? "Basic" : "Pro"})`
+              ? `Continue (${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)})`
               : "Get free score preview"}
         </button>
         <div className="flex flex-wrap gap-2 text-xs font-semibold">
           {!selectedPlan ? (
             <>
               <Link
-                href={promoCode ? `/scan?plan=base&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=base"}
+                href={promoCode ? `/scan?plan=starter&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=starter"}
                 className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-zinc-900 hover:border-zinc-400"
               >
-                Start Basic
+                Start Starter
               </Link>
               <Link
-                href={promoCode ? `/scan?plan=pro&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=pro"}
+                href={promoCode ? `/scan?plan=growth&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=growth"}
                 className="rounded-full bg-red-600 px-3 py-2 text-white hover:bg-red-500"
               >
-                Start Pro
+                Start Growth
               </Link>
             </>
-          ) : selectedPlan === "base" ? (
+          ) : selectedPlan === "starter" ? (
             <Link
-              href={promoCode ? `/scan?plan=pro&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=pro"}
+              href={promoCode ? `/scan?plan=growth&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=growth"}
               className="rounded-full bg-red-600 px-3 py-2 text-white hover:bg-red-500"
             >
-              Prefer Pro instead?
+              Prefer Growth instead?
             </Link>
           ) : (
             <Link
-              href={promoCode ? `/scan?plan=base&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=base"}
+              href={promoCode ? `/scan?plan=starter&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=starter"}
               className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-zinc-900 hover:border-zinc-400"
             >
-              Choose Basic instead
+              Choose Starter instead
             </Link>
           )}
         </div>

@@ -99,7 +99,9 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
   const backlinkQueuedThisMonth = autopilot.backlinkQueue.filter((item) => isThisMonth(item.createdAt)).length;
   const aiChecksThisMonth = autopilot.aiVisibilityChecks.filter((item) => isThisMonth(item.createdAt)).length;
   const rawPlan = query.plan?.toLowerCase() ?? "";
-  const selectedPlan = rawPlan === "pro" ? "pro" : rawPlan === "base" || rawPlan === "entry" ? "base" : null;
+  const selectedPlan = (["starter", "growth", "pro", "agency"].includes(rawPlan)
+    ? rawPlan
+    : rawPlan === "base" || rawPlan === "entry" ? "starter" : null) as "starter" | "growth" | "pro" | "agency" | null;
   const promoCode = normalizePromoCodeIntent(query.promo);
   const billingStatus = bundle.business.subscriptionStatus ?? "none";
   const hasBillingCustomer = Boolean(bundle.business.stripeCustomerId);
@@ -111,8 +113,8 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Growth workspace</p>
           <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">{bundle.business.name}</h1>
           <p className="max-w-2xl text-sm text-zinc-600">
-            Command center for scan history, visibility snapshots, prioritized work, and (on Pro) automation queues and
-            jobs that run on a schedule inside the product.
+            Command center for scan history, visibility snapshots, prioritized work, and (on Growth+) automation queues,
+            content publishing, Reddit outreach, and jobs that run on a schedule.
           </p>
           <div className="flex flex-wrap gap-2 text-xs font-medium text-zinc-600">
             {bundle.business.website ? (
@@ -127,37 +129,46 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             ) : null}
             <span className="rounded-full bg-red-100 px-3 py-1 text-red-950">
               Plan: {features.label}{" "}
-              {features.monthlyPrice > 0 ? `($${features.launchPrice.toFixed(2)}/mo launch)` : ""}
+              {features.monthlyPrice > 0 ? `($${features.introPrice}/mo intro)` : ""}
             </span>
             <span className="rounded-full bg-zinc-100 px-3 py-1">Refresh cadence: {features.refreshCadenceLabel}</span>
             {selectedPlan ? (
               <span className="rounded-full bg-red-100 px-3 py-1 text-red-950">
-                Selected plan: {selectedPlan === "base" ? "Basic" : "Pro"}
+                Selected plan: {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}
               </span>
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
-            {tier !== "base" ? (
+            {tier !== "starter" && tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
               <CheckoutButton
                 businessId={businessId}
-                plan="base"
-                requireProUpsell
-                label={selectedPlan === "base" ? "Continue to Basic checkout" : "Start Basic"}
+                plan="starter"
+                requireGrowthUpsell
+                label={selectedPlan === "starter" ? "Continue to Starter checkout" : "Start Starter"}
                 promoCode={promoCode}
                 className={
-                  selectedPlan === "base"
+                  selectedPlan === "starter"
                     ? "rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
                     : "rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
                 }
               />
             ) : null}
-            {tier !== "pro" ? (
+            {tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
+              <CheckoutButton
+                businessId={businessId}
+                plan="growth"
+                label={selectedPlan === "growth" ? "Continue to Growth checkout" : "Start Growth"}
+                promoCode={promoCode}
+                className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+              />
+            ) : null}
+            {tier !== "pro" && tier !== "agency" ? (
               <CheckoutButton
                 businessId={businessId}
                 plan="pro"
                 label={selectedPlan === "pro" ? "Continue to Pro checkout" : "Start Pro"}
                 promoCode={promoCode}
-                className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+                className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
               />
             ) : null}
             {hasBillingCustomer ? (
@@ -186,10 +197,10 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       {!features.recurringRefresh ? (
         <div className="rounded-2xl border border-red-200 bg-red-50/60 px-5 py-5 text-sm text-zinc-900">
           <p>
-            <span className="font-semibold">Basic unlocks recurring automation.</span> Free includes scan history and core
-            report storage. Basic adds monthly refresh and summary cycles. Pro adds a faster cadence plus automation queues. See{" "}
+            <span className="font-semibold">Starter unlocks recurring automation.</span> Free includes scan history and core
+            report storage. Starter adds monthly refresh and content ideas. Growth adds full publishing, Reddit outreach, and sequences. See{" "}
             <Link href="/#plans" className="font-semibold underline">
-              Free vs Basic vs Pro
+              all plans
             </Link>
             .
           </p>
@@ -224,36 +235,64 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             />
           ) : null}
         </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-2">
-          {tier !== "base" ? (
+        <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          {tier !== "starter" && tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Basic</p>
-              <p className="text-xs text-zinc-600">$29.99/month, launch price $19.99/month.</p>
+              <p className="text-sm font-semibold text-zinc-900">Starter</p>
+              <p className="text-xs text-zinc-600">$79.99/month · intro $39.99/month (INTRO50)</p>
               <div className="mt-3">
                 <CheckoutButton
                   businessId={businessId}
-                  plan="base"
-                  requireProUpsell
-                  label={
-                    selectedPlan === "base" ? "Continue to Basic checkout" : "Start Basic"
-                  }
+                  plan="starter"
+                  requireGrowthUpsell
+                  label={selectedPlan === "starter" ? "Continue to Starter checkout" : "Start Starter"}
                   promoCode={promoCode}
                   className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
                 />
               </div>
             </div>
           ) : null}
-          {tier !== "pro" ? (
+          {tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
             <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
+              <p className="text-sm font-semibold text-zinc-900">Growth</p>
+              <p className="text-xs text-zinc-600">$149.99/month · intro $74.99/month (INTRO50)</p>
+              <div className="mt-3">
+                <CheckoutButton
+                  businessId={businessId}
+                  plan="growth"
+                  label={selectedPlan === "growth" ? "Continue to Growth checkout" : "Start Growth"}
+                  promoCode={promoCode}
+                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+                />
+              </div>
+            </div>
+          ) : null}
+          {tier !== "pro" && tier !== "agency" ? (
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
               <p className="text-sm font-semibold text-zinc-900">Pro</p>
-              <p className="text-xs text-zinc-600">$59.99/month, launch price $39.99/month.</p>
+              <p className="text-xs text-zinc-600">$299.99/month · intro $149.99/month (INTRO50)</p>
               <div className="mt-3">
                 <CheckoutButton
                   businessId={businessId}
                   plan="pro"
                   label={selectedPlan === "pro" ? "Continue to Pro checkout" : "Start Pro"}
                   promoCode={promoCode}
-                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+                />
+              </div>
+            </div>
+          ) : null}
+          {tier !== "agency" ? (
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <p className="text-sm font-semibold text-zinc-900">Agency</p>
+              <p className="text-xs text-zinc-600">$499.99/month · intro $249.99/month (INTRO50)</p>
+              <div className="mt-3">
+                <CheckoutButton
+                  businessId={businessId}
+                  plan="agency"
+                  label={selectedPlan === "agency" ? "Continue to Agency checkout" : "Start Agency"}
+                  promoCode={promoCode}
+                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
                 />
               </div>
             </div>
@@ -286,13 +325,15 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           <h2 className="text-lg font-semibold">Automation status</h2>
           <ul className="space-y-3 text-sm text-zinc-200">
             <FeatureRow label="Recurring visibility refreshes" on={features.recurringRefresh} />
-            <FeatureRow label="Monthly summary email scaffold" on={features.monthlySummaryEmail} />
-            <FeatureRow label="Monthly content ideas" on={features.monthlyContentIdeas} />
-            <FeatureRow label="Content queue + publishing history" on={features.contentQueue && features.publishingQueue} />
-            <FeatureRow label="Citation/listing issue queue" on={features.citationQueue} />
-            <FeatureRow label="Review/reputation task queue" on={features.reviewQueue} />
-            <FeatureRow label="Multi-location readiness" on={features.multiLocationReady} />
-            <FeatureRow label="Owner Google Business Profile API (OAuth)" on={features.gbpSync} />
+            <FeatureRow label="Monthly summary email" on={features.monthlySummaryEmail} />
+            <FeatureRow label={`Content ideas (${features.contentIdeasPerMonth}/mo)`} on={features.contentIdeasPerMonth > 0} />
+            <FeatureRow label="AI content drafts + publishing" on={features.contentDraftsPerMonth > 0} />
+            <FeatureRow label="Reddit + blog posting" on={features.redditPosting} />
+            <FeatureRow label="Multi-step outreach sequences" on={features.multiStepOutreach} />
+            <FeatureRow label="Review management" on={features.reviewManagement} />
+            <FeatureRow label="Programmatic SEO pages" on={features.programmaticSEO} />
+            <FeatureRow label="Multi-location support" on={features.multiLocationReady} />
+            <FeatureRow label="Google Business Profile sync" on={features.gbpSync} />
           </ul>
           <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs">
             <p className="font-semibold text-zinc-100">

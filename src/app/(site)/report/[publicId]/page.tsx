@@ -36,7 +36,9 @@ export default async function ReportPage({ params, searchParams }: Props) {
   if (!record) notFound();
   const initiallyUnlocked = verifyReportUnlockToken(publicId, query.unlock);
   const raw = query.plan?.toLowerCase() ?? "";
-  const selectedPlan = raw === "pro" ? "pro" : raw === "base" || raw === "entry" ? "base" : null;
+  const selectedPlan = (["starter", "growth", "pro", "agency"].includes(raw)
+    ? raw
+    : raw === "base" || raw === "entry" ? "starter" : null) as "starter" | "growth" | "pro" | "agency" | null;
   const promoCode = normalizePromoCodeIntent(query.promo);
   return (
     <ReportView

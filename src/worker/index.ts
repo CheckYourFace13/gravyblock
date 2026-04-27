@@ -31,7 +31,7 @@ async function processContentQueue() {
     .where(eq(contentQueue.status, "queued"))
     .limit(CONTENT_PER_TICK);
 
-  const paidTiers = ["base", "pro", "managed", "entry"];
+  const paidTiers = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
 
   for (const row of withQueued) {
     if (!row.businessId) continue;

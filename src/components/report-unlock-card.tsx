@@ -16,7 +16,7 @@ export function ReportUnlockCard({
 }: {
   publicId: string;
   onUnlocked: () => void;
-  selectedPlan?: "base" | "pro" | null;
+  selectedPlan?: "starter" | "growth" | "pro" | "agency" | null;
   businessId?: string;
   promoCode?: "ILoveYouFree" | "ILikeYou50" | null;
 }) {

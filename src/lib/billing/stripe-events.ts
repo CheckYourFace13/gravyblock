@@ -76,8 +76,8 @@ export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Se
   });
 
   const planTier = getPlanFromPriceId(snap.priceId);
-  if (planTier === "base" || planTier === "pro") {
-    const jobType = planTier === "pro" ? "pro_recurring_refresh" : "entry_monthly_refresh";
+  if (planTier && planTier !== "free") {
+    const jobType = planTier === "pro" || planTier === "agency" ? "pro_recurring_refresh" : "entry_monthly_refresh";
     await scheduleRecurringSnapshotJob({
       businessId,
       runAfterMs: 0,
