@@ -2,7 +2,6 @@ import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
 import { CtaLeadForm } from "@/components/cta-lead-form";
 import { getBuildVersion } from "@/lib/build-metadata";
-import { INDUSTRY_PAGES, INDUSTRY_SLUGS } from "@/lib/content/industries/registry";
 
 export function SiteFooter() {
   return (
@@ -57,18 +56,17 @@ export function SiteFooter() {
             </div>
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Industries</p>
-            <div className="mt-2 flex flex-col gap-1.5">
-              <Link href="/industries" className="font-medium text-zinc-900 hover:underline">
-                All industries
-              </Link>
-              <div className="flex flex-col gap-1 text-xs text-zinc-600">
-                {INDUSTRY_SLUGS.map((slug) => (
-                  <Link key={slug} href={`/industries/${slug}`} className="hover:text-zinc-900 hover:underline">
-                    {INDUSTRY_PAGES[slug].eyebrow}
-                  </Link>
-                ))}
-              </div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">By industry</p>
+            <div className="mt-2 flex flex-col gap-1.5 text-zinc-600">
+              <Link href="/for-plumbers" className="hover:text-zinc-900 hover:underline">Plumbers</Link>
+              <Link href="/for-dentists" className="hover:text-zinc-900 hover:underline">Dentists</Link>
+              <Link href="/for-lawyers" className="hover:text-zinc-900 hover:underline">Law firms</Link>
+              <Link href="/for-contractors" className="hover:text-zinc-900 hover:underline">Contractors</Link>
+              <Link href="/for-real-estate-agents" className="hover:text-zinc-900 hover:underline">Real estate agents</Link>
+              <Link href="/for-salons" className="hover:text-zinc-900 hover:underline">Salons and spas</Link>
+              <Link href="/for-restaurants" className="hover:text-zinc-900 hover:underline">Restaurants</Link>
+              <Link href="/for-chiropractors" className="hover:text-zinc-900 hover:underline">Chiropractors</Link>
+              <Link href="/industries" className="font-medium text-zinc-900 hover:underline">All industries</Link>
             </div>
           </div>
           <div>

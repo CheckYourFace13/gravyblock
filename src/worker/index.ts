@@ -24,6 +24,8 @@ import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
 import { runLeadDripBatch } from "@/lib/email/lead-drip";
 import { runReviewRequestBatch } from "@/lib/email/review-request";
 import { runAutoConfigBatch } from "@/lib/setup/auto-config";
+import { runMonthlyDigestBatch } from "@/lib/email/monthly-digest";
+import { runCitationAuditBatch } from "@/lib/citations/citation-audit";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -169,6 +171,50 @@ async function maybeSendWeeklyUpsell() {
   }
 }
 
+async function maybeSendMonthlyDigest() {
+  const now = new Date();
+  if (now.getUTCDate() !== 1) return; // 1st of month only
+  const nowHour = now.getUTCHours();
+  if (nowHour < 9 || nowHour > 10) return; // 9am UTC window
+  if (await hasJobRunToday("monthly_digest_batch")) return;
+  try {
+    const result = await runMonthlyDigestBatch();
+    if (result.sent > 0) {
+      await recordWorkerJob("monthly_digest_batch", result);
+      console.info("[worker] monthly digest emails sent", result);
+    }
+  } catch (error) {
+    console.error("[worker] monthly digest failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+async function hasJobRunThisMonth(jobType: string): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  const monthStart = new Date();
+  monthStart.setUTCDate(1);
+  monthStart.setUTCHours(0, 0, 0, 0);
+  const [row] = await db
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(and(eq(jobs.type, jobType), gte(jobs.createdAt, monthStart)))
+    .limit(1);
+  return Boolean(row);
+}
+
+async function maybeCitationAudit() {
+  if (await hasJobRunThisMonth("citation_audit_batch")) return;
+  try {
+    const result = await runCitationAuditBatch(5);
+    if (result.audited > 0) {
+      await recordWorkerJob("citation_audit_batch", result);
+      console.info("[worker] citation audit batch", result);
+    }
+  } catch (error) {
+    console.error("[worker] citation audit failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 async function maybeSendReviewRequests() {
   const now = new Date();
   if (now.getUTCDay() !== 3) return; // Wednesday only
@@ -219,8 +265,10 @@ async function tick() {
   }
 
   await maybeSendDailyReport();
+  await maybeSendMonthlyDigest();
   await maybeSendWeeklyUpsell();
   await maybeSendReviewRequests();
+  await maybeCitationAudit();
 
   try {
     const dripResult = await runLeadDripBatch();

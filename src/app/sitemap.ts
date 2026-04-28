@@ -19,6 +19,13 @@ const staticRoutes: MetadataRoute.Sitemap = [
   { url: `${siteUrl}/for-breweries`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
   { url: `${siteUrl}/for-restaurants`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
   { url: `${siteUrl}/for-health-wellness`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
+  { url: `${siteUrl}/for-plumbers`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
+  { url: `${siteUrl}/for-dentists`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
+  { url: `${siteUrl}/for-lawyers`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
+  { url: `${siteUrl}/for-contractors`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
+  { url: `${siteUrl}/for-salons`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
+  { url: `${siteUrl}/for-chiropractors`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
+  { url: `${siteUrl}/for-real-estate-agents`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
 ];
 
 const localSeoRoutes: MetadataRoute.Sitemap = CITIES.flatMap((city) =>

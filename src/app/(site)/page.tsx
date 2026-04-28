@@ -130,6 +130,8 @@ const plans = [
   },
 ] as const;
 
+const siteUrl = "https://gravyblock.com";
+
 export default function HomePage() {
   const faqJsonLd = {
     "@context": "https://schema.org",
@@ -137,11 +139,34 @@ export default function HomePage() {
     mainEntity: faqItems.map((item) => ({
       "@type": "Question",
       name: item.q,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: item.a,
-      },
+      acceptedAnswer: { "@type": "Answer", text: item.a },
     })),
+  };
+
+  const orgJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "GravyBlock",
+    url: siteUrl,
+    logo: `${siteUrl}/logo.png`,
+    description: "Autopilot local SEO platform for small and local businesses. Automated content, review management, visibility monitoring, and AI search presence.",
+    sameAs: [],
+  };
+
+  const softwareJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "GravyBlock",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    url: siteUrl,
+    offers: [
+      { "@type": "Offer", name: "Starter", price: "79.99", priceCurrency: "USD", priceSpecification: { "@type": "UnitPriceSpecification", billingDuration: "P1M" } },
+      { "@type": "Offer", name: "Growth", price: "149.99", priceCurrency: "USD", priceSpecification: { "@type": "UnitPriceSpecification", billingDuration: "P1M" } },
+      { "@type": "Offer", name: "Pro", price: "299.99", priceCurrency: "USD", priceSpecification: { "@type": "UnitPriceSpecification", billingDuration: "P1M" } },
+      { "@type": "Offer", name: "Agency", price: "499.99", priceCurrency: "USD", priceSpecification: { "@type": "UnitPriceSpecification", billingDuration: "P1M" } },
+    ],
+    description: "Local SEO autopilot: free scan, visibility score, content generation, GBP optimization, and recurring automation for local businesses.",
   };
 
   return (
@@ -430,6 +455,8 @@ export default function HomePage() {
       </section>
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }} />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+const siteUrl = "https://gravyblock.com";
+
 export function VerticalLanding({
   eyebrow,
   title,
@@ -15,6 +17,24 @@ export function VerticalLanding({
   ctaHref: string;
   ctaLabel: string;
 }) {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: `GravyBlock for ${eyebrow}`,
+    provider: {
+      "@type": "Organization",
+      name: "GravyBlock",
+      url: siteUrl,
+    },
+    description: body,
+    url: siteUrl,
+    serviceType: "Local SEO and Marketing Automation",
+    audience: {
+      "@type": "Audience",
+      audienceType: eyebrow,
+    },
+  };
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
       <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">{eyebrow}</p>
@@ -39,6 +59,7 @@ export function VerticalLanding({
           Back to home
         </Link>
       </div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     </div>
   );
 }
