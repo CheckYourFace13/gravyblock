@@ -169,6 +169,8 @@ async function upsertBusinessDb(
   brandId?: string | null;
   locationId?: string | null;
   vertical: Vertical;
+  focusArea?: "local" | "regional" | "national" | "online";
+  targetScope?: string;
 }) {
   const websiteNormalized = normalizeWebsiteForLookup(input.profile.website);
   const placeId = input.profile.placeId ?? null;
@@ -206,6 +208,8 @@ async function upsertBusinessDb(
     latitude: input.profile.latitude ?? null,
     longitude: input.profile.longitude ?? null,
     businessStatus: input.profile.businessStatus ?? null,
+    focusArea: input.focusArea ?? "local",
+    targetScope: input.targetScope ?? null,
   };
 
   if (existing[0]) {
@@ -348,7 +352,7 @@ export async function recordScanRun(input: {
   publicId: string;
   query: string;
   locationHint: string;
-  selectedPlaceId: string;
+  selectedPlaceId?: string;
   candidateConfidence?: number;
   profile: BusinessProfile;
   payload: ReportPayload;
@@ -367,6 +371,9 @@ export async function recordScanRun(input: {
   locationId?: string;
   businessModel?: "single_location" | "multi_location" | "service_area" | "online_only" | "hybrid" | "franchise";
   vertical: Vertical;
+  focusArea?: "local" | "regional" | "national" | "online";
+  targetScope?: string;
+  websiteUrl?: string;
   leadCapture?: {
     name: string;
     email: string;
@@ -383,7 +390,7 @@ export async function recordScanRun(input: {
       publicId: input.publicId,
       query: input.query,
       locationHint: input.locationHint,
-      selectedPlaceId: input.selectedPlaceId,
+      selectedPlaceId: input.selectedPlaceId ?? "",
       candidateConfidence: input.candidateConfidence ?? 0,
       profile: input.profile,
       payload: input.payload,
@@ -404,6 +411,8 @@ export async function recordScanRun(input: {
       brandId: input.brandId,
       locationId: input.locationId,
       vertical: input.vertical,
+      focusArea: input.focusArea,
+      targetScope: input.targetScope,
     });
     const [scan] = await tx
       .insert(scans)
@@ -412,7 +421,7 @@ export async function recordScanRun(input: {
         source: "free_scan",
         lookupQuery: input.query,
         lookupLocation: input.locationHint,
-        selectedPlaceId: input.selectedPlaceId,
+        selectedPlaceId: input.selectedPlaceId ?? null,
         placeConfidence: input.candidateConfidence ?? null,
         sourcesUsed: input.payload.sourceAttribution,
       })
@@ -430,26 +439,29 @@ export async function recordScanRun(input: {
       })
       .returning({ id: reports.id });
 
-    await tx.insert(placeProfiles).values({
-      businessId,
-      scanId: scan.id,
-      source: "google_places",
-      placeId: input.profile.placeId ?? input.selectedPlaceId,
-      displayName: input.profile.name,
-      formattedAddress: input.profile.address ?? null,
-      internationalPhoneNumber: input.profile.phone ?? null,
-      websiteUri: input.profile.website ?? null,
-      mapsUri: input.profile.googleMapsUri ?? null,
-      rating: input.profile.rating ?? null,
-      reviewCount: parseReviewCount(input.profile.reviewCount),
-      primaryType: input.profile.primaryCategory ?? null,
-      types: input.profile.types ?? [],
-      businessStatus: input.profile.businessStatus ?? null,
-      openNow: typeof input.profile.openNow === "boolean" ? String(input.profile.openNow) : null,
-      latitude: input.profile.latitude ?? null,
-      longitude: input.profile.longitude ?? null,
-      raw: input.payload.googlePresence,
-    });
+    const resolvedPlaceId = input.profile.placeId ?? input.selectedPlaceId ?? null;
+    if (resolvedPlaceId) {
+      await tx.insert(placeProfiles).values({
+        businessId,
+        scanId: scan.id,
+        source: "google_places",
+        placeId: resolvedPlaceId,
+        displayName: input.profile.name,
+        formattedAddress: input.profile.address ?? null,
+        internationalPhoneNumber: input.profile.phone ?? null,
+        websiteUri: input.profile.website ?? null,
+        mapsUri: input.profile.googleMapsUri ?? null,
+        rating: input.profile.rating ?? null,
+        reviewCount: parseReviewCount(input.profile.reviewCount),
+        primaryType: input.profile.primaryCategory ?? null,
+        types: input.profile.types ?? [],
+        businessStatus: input.profile.businessStatus ?? null,
+        openNow: typeof input.profile.openNow === "boolean" ? String(input.profile.openNow) : null,
+        latitude: input.profile.latitude ?? null,
+        longitude: input.profile.longitude ?? null,
+        raw: input.payload.googlePresence,
+      });
+    }
 
     await tx.insert(visibilitySnapshots).values({
       businessId,

@@ -8,7 +8,18 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(npm uninstall *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(npm run *)",
+      "WebSearch",
+      "WebFetch(domain:outreachfrog.com)",
+      "WebFetch(domain:joinbulletproof.com)",
+      "WebFetch(domain:serpapi.com)",
+      "WebFetch(domain:www.babylovegrowth.ai)",
+      "WebFetch(domain:moz.com)",
+      "WebFetch(domain:whitespark.ca)",
+      "Bash(git reset *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(echo \"exit:$?\")"
     ]
   }
 }

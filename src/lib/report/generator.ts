@@ -403,3 +403,213 @@ export async function generateReportFromPlace(input: {
     ),
   };
 }
+
+/**
+ * Generate a report for a website-first business (no Google Places required).
+ * Used when a user enters a URL instead of searching for a local listing.
+ */
+export async function generateReportFromWebsite(input: {
+  websiteUrl: string;
+  businessName: string;
+  focusArea: "local" | "regional" | "national" | "online";
+  targetScope?: string;
+  vertical?: Vertical;
+  searchConsolePropertyUrl?: string;
+}) {
+  const [crawlBundle, searchVisibility] = await Promise.all([
+    runSiteCrawlAudit(input.websiteUrl),
+    pullSearchConsoleMetrics({ propertyUrl: input.searchConsolePropertyUrl, days: 28 }),
+  ]);
+
+  const crawl = crawlBundle.audit;
+  const resolvedWebsite = crawlBundle.homepage?.finalUrl ?? input.websiteUrl;
+
+  const socialPresence = buildSocialPresence({
+    primaryWebsite: resolvedWebsite,
+    html: crawlBundle.homepage?.html,
+    finalUrl: crawlBundle.homepage?.finalUrl,
+    fetchNotes: crawlBundle.homepage
+      ? undefined
+      : crawl.findings.find((f) => f.key === "crawl-error")?.detail,
+  });
+
+  // Build website-focused sections (no Places data)
+  const crawlIssues: ReportIssue[] = crawl.findings.map((f) => ({
+    id: `crawl-${f.key}`,
+    title: f.title,
+    detail: f.detail,
+    severity: f.severity,
+  }));
+
+  const socialIssues: ReportIssue[] = [];
+  const distinctPlatforms = new Set(socialPresence.profiles.map((p) => p.platform)).size;
+  if (socialPresence.profiles.length === 0) {
+    socialIssues.push({
+      id: "social-none-found",
+      title: "No major social URLs detected on the homepage",
+      detail: "Social links on your homepage help search engines and visitors verify your brand presence.",
+      severity: "medium",
+    });
+  } else if (distinctPlatforms < 2) {
+    socialIssues.push({
+      id: "social-single-channel",
+      title: "Social footprint looks narrow",
+      detail: "Multiple consistent channels reinforce trust. Expand to where your audience already spends time.",
+      severity: "low",
+    });
+  }
+
+  const gscIssues: ReportIssue[] = [];
+  if (searchVisibility.verified) {
+    const avgPos = searchVisibility.aggregate?.averagePosition ?? 0;
+    if (avgPos > 8) {
+      gscIssues.push({
+        id: "gsc-position",
+        title: "Average organic position is beyond page one",
+        detail: "Prioritize content and pages where demand exists but rank depth is too low.",
+        severity: "high",
+      });
+    }
+  } else {
+    gscIssues.push({
+      id: "gsc-not-connected",
+      title: "Search Console not connected",
+      detail: "Connect Google Search Console to see exactly which queries bring visitors and where you rank.",
+      severity: "medium",
+    });
+  }
+
+  const scopeLabel = input.targetScope
+    ? input.targetScope
+    : input.focusArea === "online" ? "worldwide" : "your area";
+
+  const sections: ReportSection[] = [
+    {
+      key: "websiteConversionHealth",
+      title: "Website conversion health",
+      score: crawl.score,
+      summary: "Homepage signals for turning search traffic into leads, subscribers, or customers.",
+      issues: crawlIssues,
+      fixes: issuesToFixes(crawlIssues),
+    },
+    {
+      key: "searchVisibility",
+      title: "Search visibility",
+      score: clamp(
+        searchVisibility.verified
+          ? 72 + (searchVisibility.aggregate ? Math.max(-30, 12 - searchVisibility.aggregate.averagePosition * 2) : -6)
+          : 55,
+      ),
+      summary: searchVisibility.verified
+        ? "Verified Search Console performance."
+        : "Connect Search Console to get verified data on how you rank.",
+      issues: gscIssues,
+      fixes: issuesToFixes(gscIssues),
+    },
+    {
+      key: "socialPresence",
+      title: "Social presence",
+      score: clamp(socialPresence.score),
+      summary: "Publicly observable social URLs from your homepage HTML and structured data.",
+      issues: socialIssues,
+      fixes: issuesToFixes(socialIssues),
+    },
+  ];
+
+  const weightedScore = sections.reduce((sum, s) => sum + s.score, 0) / (sections.length || 1);
+  const score = clamp(weightedScore);
+
+  const rawFixes = sections.flatMap((s) => s.fixes)
+    .sort((a, b) =>
+      (a.impact === "high" ? 3 : a.impact === "medium" ? 2 : 1) -
+      (b.impact === "high" ? 3 : b.impact === "medium" ? 2 : 1),
+    )
+    .reverse();
+  const fixes = dedupeFixesByTitle(rawFixes).slice(0, 8);
+
+  const profile: BusinessProfile = {
+    name: input.businessName,
+    vertical: input.vertical ?? "other",
+    placeId: undefined,
+    address: undefined,
+    website: resolvedWebsite,
+    phone: undefined,
+    rating: undefined,
+    reviewCount: undefined,
+    googleMapsUri: undefined,
+    primaryCategory: undefined,
+    types: [],
+    latitude: undefined,
+    longitude: undefined,
+    businessStatus: undefined,
+    openNow: undefined,
+  };
+
+  const payload: ReportPayload = {
+    brand: "GravyBlock",
+    generatedAt: new Date().toISOString(),
+    summary: {
+      title: `${input.businessName} — ${input.focusArea} visibility scan`,
+      score,
+      verdict: verdict(score),
+    },
+    business: {
+      placeId: undefined,
+      name: input.businessName,
+      address: scopeLabel,
+      website: resolvedWebsite,
+      phone: undefined,
+      rating: undefined,
+      reviewCount: undefined,
+      googleMapsUri: undefined,
+      primaryCategory: undefined,
+      types: [],
+      latitude: undefined,
+      longitude: undefined,
+      businessStatus: undefined,
+      openNow: undefined,
+    },
+    sourceAttribution: [
+      {
+        source: "site_crawl",
+        mode: "verified",
+        used: Boolean(crawlBundle.homepage),
+        note: "Homepage fetch for conversion/technical checks and social link discovery.",
+      },
+      {
+        source: "google_search_console",
+        mode: "verified",
+        used: searchVisibility.verified,
+        note: searchVisibility.note,
+      },
+      {
+        source: "google_places",
+        mode: "verified",
+        used: false,
+        note: "Website-mode scan — no Google Places lookup performed.",
+      },
+      {
+        source: "social_public_discovery",
+        mode: "estimated",
+        used: socialPresence.profiles.length > 0,
+        note: socialPresence.methodology,
+      },
+    ],
+    googlePresence: null,
+    websiteConversionHealth: crawl,
+    searchVisibility,
+    localRankingSignals: null,
+    socialPresence,
+    sections,
+    prioritizedFixes: fixes,
+    opportunityLevel: opportunityFromScore(score),
+  };
+
+  return {
+    profile,
+    payload,
+    rankings: [],
+    crawlFindings: crawl.findings,
+    competitorSnapshots: [],
+  };
+}

@@ -99,10 +99,10 @@ export type ReportPayload = {
     openNow?: boolean;
   };
   sourceAttribution: DataSourceAttribution[];
-  googlePresence: GooglePresenceSnapshot;
+  googlePresence: GooglePresenceSnapshot | null;
   websiteConversionHealth: WebsiteAuditSummary;
   searchVisibility: SearchVisibilitySummary;
-  localRankingSignals: LocalRankingSummary;
+  localRankingSignals: LocalRankingSummary | null;
   /** Public-page social discovery; omitted on legacy stored reports. */
   socialPresence?: SocialPresenceSummary;
   sections: ReportSection[];

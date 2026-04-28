@@ -66,8 +66,8 @@ export function ReportView({
   const topFindings = useMemo(() => payload.prioritizedFixes.slice(0, 3), [payload.prioritizedFixes]);
   const freeEvidence = useMemo(() => {
     const entries: Array<{ label: string; value: string }> = [];
-    if (payload.googlePresence.category) entries.push({ label: "Google category", value: payload.googlePresence.category });
-    if (payload.googlePresence.reviewCount != null)
+    if (payload.googlePresence?.category) entries.push({ label: "Google category", value: payload.googlePresence.category });
+    if (payload.googlePresence?.reviewCount != null)
       entries.push({ label: "Review count", value: String(payload.googlePresence.reviewCount) });
     entries.push({
       label: "Website conversion score",
@@ -83,7 +83,7 @@ export function ReportView({
         value: String(payload.socialPresence.score),
       });
     }
-    const firstRank = payload.localRankingSignals.checks[0];
+    const firstRank = payload.localRankingSignals?.checks[0];
     if (firstRank) {
       entries.push({
         label: `Estimated local rank (${firstRank.query})`,
@@ -265,30 +265,40 @@ export function ReportView({
               <p className="mt-1 text-sm text-zinc-600">Core identity fields from the live Google listing.</p>
               <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
                 <Metric k="Website (from Google)" v={payload.business.website} />
-                <Metric k="Google place ID" v={payload.googlePresence.placeId} />
-                <Metric k="Category" v={payload.googlePresence.category} />
-                <Metric k="Rating" v={payload.googlePresence.rating?.toString()} />
-                <Metric k="Review count" v={payload.googlePresence.reviewCount?.toString()} />
-                <Metric k="Open now" v={typeof payload.googlePresence.openNow === "boolean" ? String(payload.googlePresence.openNow) : undefined} />
-                <Metric k="Match confidence" v={`${payload.googlePresence.confidence}%`} />
+                {payload.googlePresence ? (
+                  <>
+                    <Metric k="Google place ID" v={payload.googlePresence.placeId} />
+                    <Metric k="Category" v={payload.googlePresence.category} />
+                    <Metric k="Rating" v={payload.googlePresence.rating?.toString()} />
+                    <Metric k="Review count" v={payload.googlePresence.reviewCount?.toString()} />
+                    <Metric k="Open now" v={typeof payload.googlePresence.openNow === "boolean" ? String(payload.googlePresence.openNow) : undefined} />
+                    <Metric k="Match confidence" v={`${payload.googlePresence.confidence}%`} />
+                  </>
+                ) : (
+                  <Metric k="Mode" v="Website scan (no Google listing)" />
+                )}
               </dl>
             </article>
             <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
               <h2 className="text-lg font-semibold text-zinc-900">Google presence</h2>
               <p className="mt-1 text-sm text-zinc-600">Public Maps-oriented fields from Google Places.</p>
-              <div className="mt-4 space-y-2 text-sm text-zinc-700">
-                <p>
-                  <span className="font-semibold text-zinc-900">Address:</span> {payload.googlePresence.address ?? "n/a"}
-                </p>
-                <p>
-                  <span className="font-semibold text-zinc-900">Status:</span> {payload.googlePresence.businessStatus ?? "n/a"}
-                </p>
-                {payload.googlePresence.mapsUri ? (
-                  <a href={payload.googlePresence.mapsUri} className="font-semibold text-zinc-900 underline">
-                    Open Google Maps profile
-                  </a>
-                ) : null}
-              </div>
+              {payload.googlePresence ? (
+                <div className="mt-4 space-y-2 text-sm text-zinc-700">
+                  <p>
+                    <span className="font-semibold text-zinc-900">Address:</span> {payload.googlePresence.address ?? "n/a"}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-zinc-900">Status:</span> {payload.googlePresence.businessStatus ?? "n/a"}
+                  </p>
+                  {payload.googlePresence.mapsUri ? (
+                    <a href={payload.googlePresence.mapsUri} className="font-semibold text-zinc-900 underline">
+                      Open Google Maps profile
+                    </a>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-zinc-500">Not applicable — this business was scanned by website URL rather than a Google listing.</p>
+              )}
             </article>
           </section>
 
@@ -328,20 +338,22 @@ export function ReportView({
             </article>
           </section>
 
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-zinc-900">Local ranking signals</h2>
-            <ul className="mt-4 grid gap-3 md:grid-cols-2">
-              {payload.localRankingSignals.checks.map((check) => (
-                <li key={check.query} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-sm">
-                  <p className="font-semibold text-zinc-900">{check.query}</p>
-                  <p className="mt-1 text-zinc-600">
-                    Estimated position: {check.estimatedPosition ?? "not in sampled results"} · confidence {check.confidence}%
-                  </p>
-                  <p className="text-xs text-zinc-500">Map-pack presence: {check.inMapPack ? "yes" : "no"}</p>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {payload.localRankingSignals ? (
+            <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-zinc-900">Local ranking signals</h2>
+              <ul className="mt-4 grid gap-3 md:grid-cols-2">
+                {payload.localRankingSignals.checks.map((check) => (
+                  <li key={check.query} className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-sm">
+                    <p className="font-semibold text-zinc-900">{check.query}</p>
+                    <p className="mt-1 text-zinc-600">
+                      Estimated position: {check.estimatedPosition ?? "not in sampled results"} · confidence {check.confidence}%
+                    </p>
+                    <p className="text-xs text-zinc-500">Map-pack presence: {check.inMapPack ? "yes" : "no"}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           {payload.socialPresence ? (
             <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">

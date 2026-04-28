@@ -81,6 +81,16 @@ export const businesses = pgTable("businesses", {
   longitude: doublePrecision("longitude"),
   businessStatus: text("business_status"),
   brandNotes: text("brand_notes"),
+  /**
+   * Focus area for this business: local | regional | national | online
+   * Drives content gen scope and which features are relevant.
+   */
+  focusArea: text("focus_area").notNull().default("local"),
+  /**
+   * Human-readable scope string: city name, state, country, or blank for worldwide.
+   * e.g. "Austin, TX" | "Texas" | "United States" | ""
+   */
+  targetScope: text("target_scope"),
   planTier: text("plan_tier").notNull().default("free"),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
@@ -492,6 +502,8 @@ export const businessConfigs = pgTable("business_configs", {
     .unique(),
   /** How this config was populated. */
   source: text("source").notNull().default("owner_form"),
+  focusArea: text("focus_area").notNull().default("local"),
+  targetScope: text("target_scope"),
   targetKeywords: text("target_keywords"),
   targetCities: text("target_cities"),
   serviceDescription: text("service_description"),

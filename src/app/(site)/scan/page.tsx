@@ -36,10 +36,11 @@ export default async function ScanPage({ searchParams }: Props) {
     <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
       <div className="mx-auto max-w-3xl text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Scan</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">Confirm the business to scan</h1>
+        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">Scan your business or website</h1>
         <p className="mt-4 text-lg text-zinc-600">
-          Works for restaurants, med spas, salons, law firms, dental practices, gyms, apartment communities, home
-          services, retail, clinics, and other local businesses.
+          Works for local businesses (restaurants, dentists, plumbers, real estate agents, salons, contractors) and
+          online businesses (e-commerce, agencies, SaaS, blogs). Choose local to find your Google listing, or enter your
+          website URL directly.
         </p>
       </div>
 
@@ -47,7 +48,7 @@ export default async function ScanPage({ searchParams }: Props) {
         <div className="text-left text-sm text-zinc-700">
           <p className="font-semibold text-zinc-900">Plans</p>
           <p className="mt-1 text-xs text-zinc-600">
-            Free: score preview and email unlock. Starter: monthly monitoring. Growth: full publishing and Reddit outreach. Pro: programmatic SEO and GBP sync. Agency: up to 10 clients.
+            Free: score preview. Starter: monthly monitoring. Growth: full content publishing, social posts, and outreach. Pro: programmatic SEO, GBP sync, and video scripts. Agency: up to 10 clients. Works for local and online businesses.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

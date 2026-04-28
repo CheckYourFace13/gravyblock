@@ -43,6 +43,8 @@ function memoryBusinessToRow(businessId: string): BusinessRow | null {
     longitude: mem.longitude,
     businessStatus: mem.businessStatus,
     brandNotes: mem.brandNotes,
+    focusArea: "local",
+    targetScope: null,
     planTier: mem.planTier,
     stripeCustomerId: mem.stripeCustomerId,
     stripeSubscriptionId: mem.stripeSubscriptionId,

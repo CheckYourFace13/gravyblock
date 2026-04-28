@@ -24,6 +24,8 @@ export type CrossLinkPartner = {
   url: string | null;
 };
 
+export type FocusArea = "local" | "regional" | "national" | "online";
+
 export type GenerateLocalContentParams = {
   businessName: string;
   industry: string;
@@ -33,27 +35,57 @@ export type GenerateLocalContentParams = {
   tone: string;
   serviceDescription: string;
   crossLinkPartner?: CrossLinkPartner;
+  focusArea?: FocusArea;
+  /** Human-readable scope: city name, state, country, or "worldwide" */
+  targetScope?: string;
 };
+
+/** Returns how to reference the target audience/geography in prompts. */
+function scopePhrase(params: GenerateLocalContentParams): string {
+  if (params.targetScope) return params.targetScope;
+  if (params.focusArea === "national") return "customers across the country";
+  if (params.focusArea === "online") return "their online audience";
+  if (params.focusArea === "regional") return params.state || params.city;
+  return params.city;
+}
+
+/** Returns a location label appropriate for the focus area. */
+function locationLabel(params: GenerateLocalContentParams): string {
+  if (params.focusArea === "national") return "nationwide";
+  if (params.focusArea === "online") return "online";
+  if (params.focusArea === "regional") return params.state || params.city;
+  return params.city;
+}
 
 const STYLE_RULES = `Writing rules:
 - No em dashes. Use commas or periods instead.
 - No AI clichés: do not use "delve", "leverage", "comprehensive", "robust", "moreover", "furthermore", "tapestry", "nuanced", "landscape".
 - Write like a knowledgeable local, specific and direct.
 - Do not pad with filler phrases or generic openers like "In today's world" or "In conclusion".
-- Use the city name naturally, not repetitively.`;
+- Use the location/scope naturally, not repetitively.`;
 
 async function generateArticle(params: GenerateLocalContentParams): Promise<GeneratedContent | null> {
-  const primaryKeyword = params.keywords[0] ?? `${params.industry} in ${params.city}`;
-  const title = `Best ${params.industry} in ${params.city}: What to Look for in 2025`;
+  const scope = scopePhrase(params);
+  const loc = locationLabel(params);
+  const isLocal = !params.focusArea || params.focusArea === "local";
+  const primaryKeyword = params.keywords[0] ?? `${params.industry} ${isLocal ? `in ${params.city}` : loc}`;
+  const title = isLocal
+    ? `Best ${params.industry} in ${params.city}: What to Look for in 2025`
+    : `Best ${params.industry} ${loc === "online" ? "Online" : `in ${loc}`}: What to Look for in 2025`;
 
   const crossLinkInstruction = params.crossLinkPartner
-    ? `\nCross-link: In one of the H2 sections, naturally mention ${params.crossLinkPartner.name} (a local ${params.crossLinkPartner.industry} in ${params.city}) as a complementary resource — not a competitor. This is a genuine community mention.${params.crossLinkPartner.url ? ` Link it as: [${params.crossLinkPartner.name}](${params.crossLinkPartner.url})` : ""}`
+    ? `\nCross-link: In one of the H2 sections, naturally mention ${params.crossLinkPartner.name} (a ${params.crossLinkPartner.industry} in ${params.city}) as a complementary resource — not a competitor.${params.crossLinkPartner.url ? ` Link it as: [${params.crossLinkPartner.name}](${params.crossLinkPartner.url})` : ""}`
     : "";
 
-  const prompt = `Write a local SEO article for a business in ${params.city}, ${params.state}.
+  const audienceContext = isLocal
+    ? `a business in ${params.city}, ${params.state}`
+    : `a business serving ${scope}`;
+
+  const prompt = `Write an SEO article for ${audienceContext}.
 
 Business: ${params.businessName}
 Industry: ${params.industry}
+Target audience: ${scope}
 Target keywords: ${params.keywords.join(", ")}
 Services: ${params.serviceDescription}
 Tone: ${params.tone}
@@ -65,9 +97,9 @@ ${STYLE_RULES}
 
 Structure:
 - One H1 (the title)
-- 2-3 H2 sections with practical advice for locals
+- 2-3 H2 sections with practical advice for the target audience
 - 600-900 words total
-- End with a soft, specific mention of ${params.businessName} as an example in ${params.city}${crossLinkInstruction}
+- End with a soft, specific mention of ${params.businessName} as an example${isLocal ? ` in ${params.city}` : ""}${crossLinkInstruction}
 
 Write the full article in markdown now.`;
 
@@ -89,14 +121,17 @@ Write the full article in markdown now.`;
 }
 
 async function generateGbpPost(params: GenerateLocalContentParams): Promise<GeneratedContent | null> {
-  const primaryKeyword = params.keywords[0] ?? `${params.industry} ${params.city}`;
-  const title = `${params.businessName} — ${params.city} Update`;
+  // GBP posts only apply to businesses with a physical/local presence
+  if (params.focusArea === "online") return null;
+  const loc = locationLabel(params);
+  const primaryKeyword = params.keywords[0] ?? `${params.industry} ${loc}`;
+  const title = `${params.businessName} — ${loc} Update`;
 
   const prompt = `Write a Google Business Profile post for a local business.
 
 Business: ${params.businessName}
 Industry: ${params.industry}
-City: ${params.city}, ${params.state}
+Location: ${loc}
 Services: ${params.serviceDescription}
 Tone: ${params.tone}
 
@@ -106,7 +141,7 @@ Requirements:
 - 150-200 words
 - Short, punchy paragraphs
 - Mention one specific service or seasonal angle
-- Include a clear call-to-action at the end naming ${params.city}
+- Include a clear call-to-action at the end referencing ${loc}
 - No markdown headers, just plain paragraphs
 
 Write the post now.`;
@@ -129,14 +164,21 @@ Write the post now.`;
 }
 
 async function generateRedditPost(params: GenerateLocalContentParams): Promise<GeneratedContent | null> {
-  const primaryKeyword = params.keywords[1] ?? params.keywords[0] ?? `${params.industry} ${params.city}`;
-  const title = `Looking for a good ${params.industry} in ${params.city} — here's what helped me`;
+  const scope = scopePhrase(params);
+  const isLocal = !params.focusArea || params.focusArea === "local";
+  const subreddit = isLocal
+    ? `r/${params.city.toLowerCase().replace(/\s+/g, "")} or r/${params.industry.toLowerCase().replace(/\s+/g, "")}`
+    : `r/${params.industry.toLowerCase().replace(/\s+/g, "")}`;
+  const primaryKeyword = params.keywords[1] ?? params.keywords[0] ?? `${params.industry} ${scope}`;
+  const title = isLocal
+    ? `Looking for a good ${params.industry} in ${params.city} — here's what helped me`
+    : `Looking for a good ${params.industry} — here's what actually matters`;
 
-  const prompt = `Write a helpful Reddit-style community post for r/${params.city.toLowerCase().replace(/\s+/g, "")} or r/${params.industry.toLowerCase().replace(/\s+/g, "")}.
+  const prompt = `Write a helpful Reddit-style community post for ${subreddit}.
 
 Business to mention naturally: ${params.businessName}
 Industry: ${params.industry}
-City: ${params.city}, ${params.state}
+Audience: ${scope}
 Services: ${params.serviceDescription}
 
 ${STYLE_RULES}

@@ -72,6 +72,9 @@ export async function queueContentForBusiness(
       primaryCategory: businesses.primaryCategory,
       vertical: businesses.vertical,
       planTier: businesses.planTier,
+      focusArea: businesses.focusArea,
+      targetScope: businesses.targetScope,
+      website: businesses.website,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))
@@ -111,14 +114,24 @@ export async function queueContentForBusiness(
     ? await findCrossLinkPartner(businessId, city, resolvedIndustry)
     : null;
 
+  const focusArea = (biz.focusArea ?? "local") as "local" | "regional" | "national" | "online";
+  const targetScope = biz.targetScope ?? config?.targetScope ?? undefined;
+
+  // Online businesses default their keyword scope to their niche, not city
+  const defaultKeyword = focusArea === "online" || focusArea === "national"
+    ? resolvedIndustry
+    : `${biz.vertical ?? "local business"} ${city}`;
+
   const params = {
     businessName: biz.name,
     industry: resolvedIndustry,
     city,
     state,
-    keywords: keywords.length > 0 ? keywords : [`${biz.vertical ?? "local business"} ${city}`],
+    keywords: keywords.length > 0 ? keywords : [defaultKeyword],
     tone: config?.tone ?? "professional",
-    serviceDescription: config?.serviceDescription ?? `${biz.name} serves customers in ${city}.`,
+    serviceDescription: config?.serviceDescription ?? `${biz.name} serves customers in ${targetScope ?? city}.`,
+    focusArea,
+    targetScope,
     ...(crossLinkPartner ? { crossLinkPartner } : {}),
   };
   const contentTypes = CONTENT_TYPES_BY_PLAN[tier] ?? CONTENT_TYPES_BY_PLAN.starter;
