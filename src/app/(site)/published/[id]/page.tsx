@@ -19,15 +19,29 @@ async function getContent(id: string) {
   if (!row || row.status !== "published") return null;
 
   let businessName: string | null = null;
+  let businessWebsite: string | null = null;
+  let businessPhone: string | null = null;
+  let businessAddress: string | null = null;
+  let businessMapsUri: string | null = null;
   if (row.businessId) {
     const [biz] = await db
-      .select({ name: businesses.name })
+      .select({
+        name: businesses.name,
+        website: businesses.website,
+        phone: businesses.phone,
+        address: businesses.address,
+        googleMapsUri: businesses.googleMapsUri,
+      })
       .from(businesses)
       .where(eq(businesses.id, row.businessId))
       .limit(1);
     businessName = biz?.name ?? null;
+    businessWebsite = biz?.website ?? null;
+    businessPhone = biz?.phone ?? null;
+    businessAddress = biz?.address ?? null;
+    businessMapsUri = biz?.googleMapsUri ?? null;
   }
-  return { ...row, businessName };
+  return { ...row, businessName, businessWebsite, businessPhone, businessAddress, businessMapsUri };
 }
 
 function plainExcerpt(markdown: string, length = 160): string {
@@ -92,7 +106,15 @@ export default async function PublishedContentPage({ params }: Props) {
       url: siteUrl,
     },
     ...(content.businessName
-      ? { about: { "@type": "LocalBusiness", name: content.businessName } }
+      ? {
+          about: {
+            "@type": "LocalBusiness",
+            name: content.businessName,
+            ...(content.businessWebsite ? { url: content.businessWebsite } : {}),
+            ...(content.businessPhone ? { telephone: content.businessPhone } : {}),
+            ...(content.businessAddress ? { address: content.businessAddress } : {}),
+          },
+        }
       : {}),
   };
 
@@ -126,7 +148,48 @@ export default async function PublishedContentPage({ params }: Props) {
           dangerouslySetInnerHTML={{ __html: htmlBody }}
         />
 
-        <footer className="mt-12 border-t border-zinc-100 pt-6">
+        {(content.businessWebsite || content.businessPhone || content.businessMapsUri) ? (
+          <aside className="mt-10 rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
+            {content.businessName ? (
+              <p className="text-sm font-semibold text-zinc-900">{content.businessName}</p>
+            ) : null}
+            <div className="mt-2 flex flex-wrap gap-3 text-sm">
+              {content.businessWebsite ? (
+                <a
+                  href={content.businessWebsite}
+                  target="_blank"
+                  rel="noopener"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
+                >
+                  Visit website
+                </a>
+              ) : null}
+              {content.businessMapsUri ? (
+                <a
+                  href={content.businessMapsUri}
+                  target="_blank"
+                  rel="noopener"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400"
+                >
+                  View on Google Maps
+                </a>
+              ) : null}
+              {content.businessPhone ? (
+                <a
+                  href={`tel:${content.businessPhone}`}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 hover:border-zinc-400"
+                >
+                  {content.businessPhone}
+                </a>
+              ) : null}
+            </div>
+            {content.businessAddress ? (
+              <p className="mt-2 text-xs text-zinc-500">{content.businessAddress}</p>
+            ) : null}
+          </aside>
+        ) : null}
+
+        <footer className="mt-8 border-t border-zinc-100 pt-6">
           <p className="text-xs text-zinc-400">
             Published by{" "}
             <a href={siteUrl} className="underline hover:text-zinc-700">

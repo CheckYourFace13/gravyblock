@@ -1,8 +1,10 @@
 import { eq, and, count } from "drizzle-orm";
 import { getDb, businesses, businessConfigs, contentQueue } from "@/lib/db";
-import { generateLocalContent } from "./generate";
+import { generateLocalContent, CONTENT_TYPES_BY_PLAN, type ContentType } from "./generate";
+import { normalizePlanTierFromDb } from "@/lib/plans";
+import { findCrossLinkPartner } from "./cross-link";
 
-const QUEUE_THRESHOLD = 3;
+const QUEUE_THRESHOLD = 10;
 
 function parseKeywords(raw: string | null | undefined): string[] {
   if (!raw) return [];
@@ -35,11 +37,8 @@ function stateFromAddress(address: string | null | undefined): string {
   return "";
 }
 
-// Map generated content type to the contentQueue.kind column values used by the rest of the system
-function kindForType(type: "article" | "gbp_post" | "reddit_post"): string {
-  if (type === "article") return "article";
-  if (type === "gbp_post") return "gbp_post";
-  return "reddit_post";
+function kindForType(type: ContentType): string {
+  return type;
 }
 
 export async function queueContentForBusiness(
@@ -72,6 +71,7 @@ export async function queueContentForBusiness(
       address: businesses.address,
       primaryCategory: businesses.primaryCategory,
       vertical: businesses.vertical,
+      planTier: businesses.planTier,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))
@@ -103,19 +103,29 @@ export async function queueContentForBusiness(
   const city = (targetCities[0] ?? addressCity) || "your city";
   const state = addressState || "your state";
 
+  const resolvedIndustry = industry ?? biz.vertical ?? biz.primaryCategory ?? "local business";
+  const tier = normalizePlanTierFromDb(biz.planTier);
+
+  // For growth+ plans, try to find a cross-link partner from the same city
+  const crossLinkPartner = (tier === "growth" || tier === "pro" || tier === "agency")
+    ? await findCrossLinkPartner(businessId, city, resolvedIndustry)
+    : null;
+
   const params = {
     businessName: biz.name,
-    industry: industry ?? biz.vertical ?? biz.primaryCategory ?? "local business",
+    industry: resolvedIndustry,
     city,
     state,
     keywords: keywords.length > 0 ? keywords : [`${biz.vertical ?? "local business"} ${city}`],
     tone: config?.tone ?? "professional",
     serviceDescription: config?.serviceDescription ?? `${biz.name} serves customers in ${city}.`,
+    ...(crossLinkPartner ? { crossLinkPartner } : {}),
   };
+  const contentTypes = CONTENT_TYPES_BY_PLAN[tier] ?? CONTENT_TYPES_BY_PLAN.starter;
 
   let generated;
   try {
-    generated = await generateLocalContent(params);
+    generated = await generateLocalContent(params, contentTypes);
   } catch (error) {
     console.error("[content-gen] generateLocalContent threw", {
       businessId,

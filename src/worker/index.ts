@@ -29,6 +29,9 @@ import { runCitationAuditBatch } from "@/lib/citations/citation-audit";
 import { runReviewSyncBatch } from "@/lib/reviews/review-fetcher";
 import { runLlmProbeBatch } from "@/lib/ai-visibility/llm-probes";
 import { runBacklinkProspectBatch } from "@/lib/backlinks/prospect-finder";
+import { runRepurposeBatch } from "@/lib/content-gen/repurpose";
+import { runGbpQaOptimizerBatch } from "@/lib/gbp/qa-optimizer";
+import { runDirectoryProfileBatch } from "@/lib/directories/profile-generator";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -298,6 +301,33 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] backlink prospect failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const repurposeResult = await runRepurposeBatch(5);
+    if (repurposeResult.queued > 0) {
+      console.info("[worker] content repurpose", repurposeResult);
+    }
+  } catch (error) {
+    console.error("[worker] content repurpose failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const gbpQaResult = await runGbpQaOptimizerBatch(3);
+    if (gbpQaResult.processed > 0) {
+      console.info("[worker] gbp qa optimizer", gbpQaResult);
+    }
+  } catch (error) {
+    console.error("[worker] gbp qa optimizer failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const dirResult = await runDirectoryProfileBatch(3);
+    if (dirResult.processed > 0) {
+      console.info("[worker] directory profiles", dirResult);
+    }
+  } catch (error) {
+    console.error("[worker] directory profiles failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   try {

@@ -11,7 +11,8 @@
  */
 
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
-import { getDb, businesses, backlinkOpportunities, jobs } from "@/lib/db";
+import { randomUUID } from "node:crypto";
+import { getDb, businesses, backlinkOpportunities, jobs, operatorTasks } from "@/lib/db";
 
 const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
 
@@ -177,7 +178,9 @@ export async function findBacklinkProspectsForBusiness(businessId: string): Prom
         prospectType: sourceType.replace("_", " "),
       });
 
+      const opportunityId = randomUUID();
       await db.insert(backlinkOpportunities).values({
+        id: opportunityId,
         businessId,
         sourceName: place.name,
         sourceType,
@@ -186,6 +189,29 @@ export async function findBacklinkProspectsForBusiness(businessId: string): Prom
         qualityScore,
         status: "prospecting",
       });
+
+      // Create an actionable operator task so the owner sees this in their workspace
+      if (outreachEmail) {
+        const contactEmail = place.website
+          ? `info@${new URL(place.website.startsWith("http") ? place.website : `https://${place.website}`).hostname.replace(/^www\./, "")}`
+          : null;
+
+        await db.insert(operatorTasks).values({
+          id: randomUUID(),
+          businessId,
+          title: `Send backlink outreach to ${place.name}`,
+          detail: [
+            contactEmail ? `Send to: ${contactEmail}` : `Find contact info at: ${place.website ?? place.name}`,
+            `Subject: Local business collaboration — ${biz.name}`,
+            "",
+            outreachEmail,
+            "",
+            `Why this matters: ${place.name} is a local ${sourceType.replace("_", " ")} with strong community authority. A mention or listing here builds local SEO trust signals.`,
+          ].join("\n"),
+          queue: "outreach_ops",
+          status: "queued",
+        });
+      }
 
       found++;
       await new Promise((r) => setTimeout(r, 300));
