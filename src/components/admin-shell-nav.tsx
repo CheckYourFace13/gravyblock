@@ -11,6 +11,7 @@ const items: { href: string; label: string }[] = [
   { href: "/admin/locations", label: "Locations" },
   { href: "/admin/reports", label: "Reports" },
   { href: "/admin/autopilot", label: "Autopilot" },
+  { href: "/admin/mrr", label: "MRR" },
 ];
 
 function linkClass(href: string, pathname: string | null) {

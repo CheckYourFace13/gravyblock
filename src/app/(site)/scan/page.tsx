@@ -8,7 +8,9 @@ export const metadata: Metadata = {
     "Run a free scan for any local business: score and top findings first, full report by email after unlock. Starter, Growth, Pro, and Agency add ongoing automation from your workspace.",
 };
 
-type Props = { searchParams: Promise<{ plan?: string; promo?: string }> };
+import { trackReferralEvent } from "@/lib/referrals/referral-tracker";
+
+type Props = { searchParams: Promise<{ plan?: string; promo?: string; ref?: string }> };
 
 function normalizePromoCodeIntent(raw?: string): "ILoveYouFree" | "ILikeYou50" | null {
   if (!raw) return null;
@@ -19,6 +21,11 @@ function normalizePromoCodeIntent(raw?: string): "ILoveYouFree" | "ILikeYou50" |
 
 export default async function ScanPage({ searchParams }: Props) {
   const query = await searchParams;
+
+  // Track referral clicks (fire-and-forget, non-blocking)
+  if (query.ref) {
+    void trackReferralEvent("click", query.ref).catch(() => null);
+  }
   const raw = query.plan?.toLowerCase() ?? "";
   const selectedPlan = (["starter", "growth", "pro", "agency"].includes(raw)
     ? raw

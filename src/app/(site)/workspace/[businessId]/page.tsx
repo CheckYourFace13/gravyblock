@@ -13,6 +13,7 @@ import { LocationsSection } from "./locations-section";
 import { getLocationsForBusiness } from "./location-actions";
 import { ContentApprovalSection } from "./content-approval-section";
 import { getQueuedDrafts } from "./content-approval-actions";
+import { getReferralStats, referralUrlForBusiness } from "@/lib/referrals/referral-tracker";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +69,11 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
   const queuedDrafts = features.contentDraftsPerMonth > 0
     ? await getQueuedDrafts(businessId).catch(() => [])
     : [];
+
+  const [referralStats, referralUrl] = await Promise.all([
+    getReferralStats(businessId).catch(() => ({ clicks: 0, scans: 0, paid: 0 })),
+    Promise.resolve(referralUrlForBusiness(businessId)),
+  ]);
 
   const roadmapRows = bundle.recommendations.map((r) => ({
     lane: r.lane as RoadmapLane,
@@ -648,6 +654,36 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             {!autopilot.backlinkQueue.length ? <li className="text-zinc-500">No authority opportunities queued.</li> : null}
           </ul>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-900">Refer a business</h2>
+        <p className="mt-1 text-sm text-zinc-600">
+          Share your referral link. When another business runs a scan using your link, you both get credit.
+          Contact us to apply your referral credit toward your next billing cycle.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <code className="flex-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700 font-mono break-all">
+            {referralUrl}
+          </code>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
+          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-center">
+            <p className="text-2xl font-semibold text-zinc-900">{referralStats.clicks}</p>
+            <p className="text-xs text-zinc-500">link clicks</p>
+          </div>
+          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-center">
+            <p className="text-2xl font-semibold text-zinc-900">{referralStats.scans}</p>
+            <p className="text-xs text-zinc-500">scans run</p>
+          </div>
+          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-center">
+            <p className="text-2xl font-semibold text-zinc-900">{referralStats.paid}</p>
+            <p className="text-xs text-zinc-500">converted to paid</p>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-zinc-500">
+          Each paid referral earns you one free month. Reply to any GravyBlock email to claim credit.
+        </p>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
