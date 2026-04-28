@@ -107,6 +107,8 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
     (task) => task.queue === "review_ops" || task.queue === "reputation_ops" || task.queue === "local_trust_ops",
   );
   const outreachTasks = autopilot.operatorTasks.filter((task) => task.queue === "outreach_ops");
+  const gbpTasks = autopilot.operatorTasks.filter((task) => task.queue === "gbp_ops");
+  const directoryTasks = autopilot.operatorTasks.filter((task) => task.queue === "citation_ops");
   const latestRunSummary =
     latestAutomation && latestAutomation.payload && typeof latestAutomation.payload === "object" && "runSummary" in latestAutomation.payload
       ? ((latestAutomation.payload as { runSummary?: Record<string, unknown> }).runSummary ?? null)
@@ -632,13 +634,71 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               <li key={task.id} className="rounded-lg bg-zinc-50 px-3 py-2">
                 <p className="font-medium text-zinc-900">{task.title}</p>
                 <p className="text-xs uppercase text-zinc-500">{task.status}</p>
-                <p className="text-xs text-zinc-600">{task.detail}</p>
+                {task.detail ? (
+                  <pre className="mt-2 whitespace-pre-wrap text-xs text-zinc-600 font-sans">{task.detail}</pre>
+                ) : null}
               </li>
             ))}
             {!outreachTasks.length ? <li className="text-zinc-500">No outreach drafts generated yet.</li> : null}
           </ul>
         </div>
       </section>
+
+      {gbpTasks.length > 0 ? (
+        <section className="rounded-2xl border border-blue-100 bg-blue-50/40 p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Google Business Profile — action items</h2>
+          <p className="mt-1 text-sm text-zinc-600">
+            Copy these into your Google Business Profile at{" "}
+            <a href="https://business.google.com" className="text-red-800 underline" target="_blank" rel="noreferrer">
+              business.google.com
+            </a>
+            . Each task has the exact text ready to paste.
+          </p>
+          <ul className="mt-4 space-y-4">
+            {gbpTasks.map((task) => (
+              <li key={task.id} className="rounded-xl border border-blue-100 bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-semibold text-zinc-900">{task.title}</p>
+                  <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
+                    {task.status}
+                  </span>
+                </div>
+                {task.detail ? (
+                  <pre className="mt-3 whitespace-pre-wrap rounded-lg bg-zinc-50 p-3 text-xs text-zinc-700 font-sans leading-relaxed">
+                    {task.detail}
+                  </pre>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {directoryTasks.length > 0 ? (
+        <section className="rounded-2xl border border-green-100 bg-green-50/40 p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Free directory listings — claim your spots</h2>
+          <p className="mt-1 text-sm text-zinc-600">
+            These free directories send backlinks and trust signals to Google. Click each link and paste your business info — it takes about 5 minutes per directory.
+          </p>
+          <ul className="mt-4 space-y-4">
+            {directoryTasks.map((task) => (
+              <li key={task.id} className="rounded-xl border border-green-100 bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-semibold text-zinc-900">{task.title}</p>
+                  <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">
+                    {task.status}
+                  </span>
+                </div>
+                {task.detail ? (
+                  <pre className="mt-3 whitespace-pre-wrap rounded-lg bg-zinc-50 p-3 text-xs text-zinc-700 font-sans leading-relaxed">
+                    {task.detail}
+                  </pre>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
