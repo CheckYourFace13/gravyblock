@@ -12,6 +12,8 @@ import { schedulePlanRecurringSnapshotJob, scheduleRecurringSnapshotJob } from "
 import { getPlanFromPriceId } from "@/lib/stripe/server";
 import { getStripeServerClient } from "@/lib/stripe/server";
 import { sendSetupEmail } from "@/lib/setup/send-setup-email";
+import { applyDunningDowngrade, sendDowngradeNoticeEmail, sendPaymentFailedEmail } from "@/lib/billing/dunning";
+import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { getDb, businesses } from "@/lib/db";
 import { eq } from "drizzle-orm";
 
@@ -167,10 +169,65 @@ export async function handleInvoicePaid(invoice: Stripe.Invoice) {
 export async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const customerId = customerIdFromUnknown(invoice.customer);
   if (!customerId) return;
+
+  // Look up business to check if this is a first or repeat failure
+  const subId = invoiceSubscriptionId(invoice);
+  const business = subId
+    ? ((await getBusinessByStripeSubscriptionId(subId)) ?? (await getBusinessByStripeCustomerId(customerId)))
+    : await getBusinessByStripeCustomerId(customerId);
+
+  const billingEmail = invoice.customer_email ?? business?.billingEmail ?? null;
+
+  if (business && billingEmail) {
+    const tier = normalizePlanTierFromDb(business.planTier);
+    const features = planFeatures(tier);
+    const appBase = process.env.NEXT_PUBLIC_APP_URL ?? "https://gravyblock.com";
+    const workspaceUrl = `${appBase}/workspace/${business.id}`;
+
+    const isRepeatFailure = business.subscriptionStatus === "past_due";
+
+    if (isRepeatFailure) {
+      // Second+ failure: downgrade to free and notify
+      try {
+        await sendDowngradeNoticeEmail({
+          email: billingEmail,
+          businessName: business.name,
+          planLabel: features.label,
+          reactivateUrl: workspaceUrl,
+        });
+      } catch (err) {
+        console.error("[dunning] downgrade notice email failed", { businessId: business.id, err });
+      }
+      await applyDunningDowngrade(business.id, "repeated_payment_failure");
+      console.info("[dunning] downgraded after repeat payment failure", { businessId: business.id });
+      return; // applyDunningDowngrade handles the DB status, skip applyInvoiceState
+    } else {
+      // First failure: warn and set past_due
+      const retryTs = (invoice as unknown as { next_payment_attempt?: number | null }).next_payment_attempt;
+      const retryDate = retryTs
+        ? new Date(retryTs * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+        : "the next billing date";
+      const amountDue = ((invoice as unknown as { amount_due?: number }).amount_due ?? 0) / 100;
+
+      try {
+        await sendPaymentFailedEmail({
+          email: billingEmail,
+          businessName: business.name,
+          planLabel: features.label,
+          amount: amountDue,
+          retryDate,
+          updateBillingUrl: workspaceUrl,
+        });
+      } catch (err) {
+        console.error("[dunning] payment failed email failed", { businessId: business.id, err });
+      }
+    }
+  }
+
   await applyInvoiceState({
     stripeCustomerId: customerId,
-    stripeSubscriptionId: invoiceSubscriptionId(invoice),
+    stripeSubscriptionId: subId,
     status: "past_due",
-    billingEmail: invoice.customer_email ?? null,
+    billingEmail,
   });
 }

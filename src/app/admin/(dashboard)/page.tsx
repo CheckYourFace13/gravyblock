@@ -11,6 +11,7 @@ const panels: { href: string; title: string; description: string }[] = [
   { href: "/admin/locations", title: "Locations", description: "Physical and service-area locations tied to brands." },
   { href: "/admin/reports", title: "Reports", description: "Public report links and scores across scans." },
   { href: "/admin/autopilot", title: "Autopilot", description: "Queues, jobs, and operator-facing automation status." },
+  { href: "/admin/mrr", title: "MRR", description: "Monthly recurring revenue, plan breakdown, and active subscribers." },
 ];
 
 export default async function AdminHomePage() {

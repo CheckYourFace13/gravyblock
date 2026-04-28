@@ -7,7 +7,12 @@ import type { RoadmapLane } from "@/lib/growth/roadmap";
 import { getWorkspaceBundle } from "@/lib/report/repository";
 import { normalizePlanTierFromDb, planFeatures, type PlanTier } from "@/lib/plans";
 import { requireBusinessAccess } from "@/lib/auth/customer-guards";
+import { getBusinessActivity, type ActivityItem } from "@/lib/workspace/activity-feed";
 import { CheckoutButton, PortalButton } from "./billing-buttons";
+import { LocationsSection } from "./locations-section";
+import { getLocationsForBusiness } from "./location-actions";
+import { ContentApprovalSection } from "./content-approval-section";
+import { getQueuedDrafts } from "./content-approval-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +59,15 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
 
   const tier: PlanTier = normalizePlanTierFromDb(bundle.business.planTier);
   const features = planFeatures(tier);
+
+  const activity = await getBusinessActivity(businessId, 30).catch(() => [] as ActivityItem[]);
+  const initialLocations = features.multiLocationReady
+    ? await getLocationsForBusiness(businessId).catch(() => [])
+    : [];
+
+  const queuedDrafts = features.contentDraftsPerMonth > 0
+    ? await getQueuedDrafts(businessId).catch(() => [])
+    : [];
 
   const roadmapRows = bundle.recommendations.map((r) => ({
     lane: r.lane as RoadmapLane,
@@ -303,6 +317,15 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         </p>
       </section>
 
+      {features.multiLocationReady ? (
+        <LocationsSection
+          businessId={businessId}
+          initialLocations={initialLocations}
+          maxLocations={features.clientSeats}
+          planLabel={features.label}
+        />
+      ) : null}
+
       <section className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm lg:col-span-2">
           <h2 className="text-lg font-semibold text-zinc-900">Visibility history</h2>
@@ -376,6 +399,50 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-900">Recent autopilot activity</h2>
+        <p className="mt-1 text-sm text-zinc-600">Everything GravyBlock did for you in the last 30 days.</p>
+        <ul className="mt-4 divide-y divide-zinc-100">
+          {activity.map((item) => {
+            const iconMap: Record<ActivityItem["type"], string> = {
+              content_published: "Published",
+              snapshot_taken: "Snapshot",
+              task_created: "Task",
+              task_completed: "Done",
+              outreach_sent: "Outreach",
+              content_queued: "Queued",
+            };
+            const colorMap: Record<ActivityItem["type"], string> = {
+              content_published: "bg-green-100 text-green-800",
+              snapshot_taken: "bg-blue-100 text-blue-800",
+              task_created: "bg-zinc-100 text-zinc-700",
+              task_completed: "bg-green-100 text-green-800",
+              outreach_sent: "bg-orange-100 text-orange-800",
+              content_queued: "bg-yellow-100 text-yellow-800",
+            };
+            return (
+              <li key={item.id} className="flex items-start gap-3 py-3 text-sm">
+                <span className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${colorMap[item.type]}`}>
+                  {iconMap[item.type]}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-zinc-900">{item.label}</p>
+                  {item.detail ? <p className="text-xs text-zinc-500">{item.detail}</p> : null}
+                </div>
+                <time className="shrink-0 text-xs text-zinc-400">
+                  {item.createdAt.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                </time>
+              </li>
+            );
+          })}
+          {!activity.length ? (
+            <li className="py-4 text-sm text-zinc-500">
+              No autopilot activity yet. Once automation runs, actions will appear here.
+            </li>
+          ) : null}
+        </ul>
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-900">Changes detected on your site and public profile</h2>
         <p className="mt-1 text-sm text-zinc-600">
           Refresh cycles re-check homepage, listing details, and public social footprint where supported.
@@ -396,10 +463,14 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
 
       <AutopilotRoadmap rows={roadmapRows} />
 
+      {features.contentDraftsPerMonth > 0 ? (
+        <ContentApprovalSection businessId={businessId} initialDrafts={queuedDrafts} />
+      ) : null}
+
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-zinc-900">Content queue</h2>
-          <p className="mt-1 text-sm text-zinc-600">Generated content ideas and queue items. External publishing runs where a target is configured.</p>
+          <p className="mt-1 text-sm text-zinc-600">All content items including queued, approved, and dismissed.</p>
           <ul className="mt-4 space-y-2 text-sm">
             {autopilot.contentQueue.slice(0, 8).map((item) => (
               <li key={item.id} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">

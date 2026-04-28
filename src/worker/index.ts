@@ -22,6 +22,7 @@ import { queueContentForBusiness } from "@/lib/content-gen/queue-content";
 import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
 import { runLeadDripBatch } from "@/lib/email/lead-drip";
+import { runReviewRequestBatch } from "@/lib/email/review-request";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -167,6 +168,23 @@ async function maybeSendWeeklyUpsell() {
   }
 }
 
+async function maybeSendReviewRequests() {
+  const now = new Date();
+  if (now.getUTCDay() !== 3) return; // Wednesday only
+  const nowHour = now.getUTCHours();
+  if (nowHour < 10 || nowHour > 11) return; // 10am UTC window
+  if (await hasJobRunThisWeek("review_request_batch")) return;
+  try {
+    const result = await runReviewRequestBatch();
+    if (result.sent > 0) {
+      await recordWorkerJob("review_request_batch", result);
+      console.info("[worker] review request emails sent", result);
+    }
+  } catch (error) {
+    console.error("[worker] review request batch failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 async function tick() {
   const startedAt = new Date().toISOString();
   console.info("[worker] tick start", { startedAt, jobsPerTick: JOBS_PER_TICK });
@@ -192,6 +210,7 @@ async function tick() {
 
   await maybeSendDailyReport();
   await maybeSendWeeklyUpsell();
+  await maybeSendReviewRequests();
 
   try {
     const dripResult = await runLeadDripBatch();
