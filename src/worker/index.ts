@@ -23,6 +23,7 @@ import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
 import { runLeadDripBatch } from "@/lib/email/lead-drip";
 import { runReviewRequestBatch } from "@/lib/email/review-request";
+import { runAutoConfigBatch } from "@/lib/setup/auto-config";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -194,6 +195,15 @@ async function tick() {
     console.info("[worker] snapshot jobs", snapshotResult);
   } catch (error) {
     console.error("[worker] snapshot jobs failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const autoConfigResult = await runAutoConfigBatch(3);
+    if (autoConfigResult.configured > 0) {
+      console.info("[worker] auto-config generated", autoConfigResult);
+    }
+  } catch (error) {
+    console.error("[worker] auto-config failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   try {
