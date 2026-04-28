@@ -17,6 +17,9 @@ import { getReferralStats, referralUrlForBusiness } from "@/lib/referrals/referr
 import { getBusinessReviews } from "@/lib/reviews/review-fetcher";
 import { ReviewsSection } from "./reviews-section";
 import { CompetitorPanel } from "./competitor-panel";
+import { IntegrationsSection } from "./integrations-section";
+import { getPublishingTargets } from "./integrations-actions";
+import { getAiVisibilityStats } from "@/lib/ai-visibility/llm-probes";
 
 export const dynamic = "force-dynamic";
 
@@ -73,12 +76,16 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
     ? await getQueuedDrafts(businessId).catch(() => [])
     : [];
 
-  const [referralStats, referralUrl, reviews] = await Promise.all([
+  const [referralStats, referralUrl, reviews, publishingTargets, aiVisibility] = await Promise.all([
     getReferralStats(businessId).catch(() => ({ clicks: 0, scans: 0, paid: 0 })),
     Promise.resolve(referralUrlForBusiness(businessId)),
     features.reviewManagement
       ? getBusinessReviews(businessId, 15).catch(() => [])
       : Promise.resolve([]),
+    features.contentDraftsPerMonth > 0
+      ? getPublishingTargets(businessId).catch(() => [])
+      : Promise.resolve([]),
+    getAiVisibilityStats(businessId).catch(() => ({ total: 0, mentioned: 0, byEngine: {}, recentChecks: [] })),
   ]);
 
   const roadmapRows = bundle.recommendations.map((r) => ({
@@ -492,6 +499,56 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       ) : null}
 
       <CompetitorPanel businessId={businessId} />
+
+      {aiVisibility.total > 0 ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">AI search visibility</h2>
+          <p className="mt-1 text-sm text-zinc-600">
+            Does your business appear when people ask AI assistants like Gemini or Llama for recommendations in your area?
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+              <p className="text-2xl font-semibold text-zinc-900">{aiVisibility.mentioned}</p>
+              <p className="text-xs text-zinc-500 mt-0.5">times mentioned</p>
+            </div>
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+              <p className="text-2xl font-semibold text-zinc-900">{aiVisibility.total}</p>
+              <p className="text-xs text-zinc-500 mt-0.5">probes run</p>
+            </div>
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+              <p className="text-2xl font-semibold text-zinc-900">
+                {aiVisibility.total > 0 ? Math.round((aiVisibility.mentioned / aiVisibility.total) * 100) : 0}%
+              </p>
+              <p className="text-xs text-zinc-500 mt-0.5">mention rate</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {Object.entries(aiVisibility.byEngine).map(([engine, stats]) => (
+              <div key={engine} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{engine}</p>
+                <p className="mt-1 text-sm text-zinc-800">
+                  {stats.mentioned}/{stats.total} probes — {stats.total > 0 ? Math.round((stats.mentioned / stats.total) * 100) : 0}%
+                </p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-zinc-400">
+            Probes run monthly. Results reflect whether AI models trained on public data mention your business for relevant local queries.
+          </p>
+        </section>
+      ) : null}
+
+      {features.contentDraftsPerMonth > 0 ? (
+        <IntegrationsSection
+          businessId={businessId}
+          initialTargets={publishingTargets.map((t) => ({
+            id: t.id,
+            label: t.label,
+            adapter: t.adapter,
+            active: t.active,
+          }))}
+        />
+      ) : null}
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">

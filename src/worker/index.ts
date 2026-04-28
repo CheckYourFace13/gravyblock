@@ -27,6 +27,8 @@ import { runAutoConfigBatch } from "@/lib/setup/auto-config";
 import { runMonthlyDigestBatch } from "@/lib/email/monthly-digest";
 import { runCitationAuditBatch } from "@/lib/citations/citation-audit";
 import { runReviewSyncBatch } from "@/lib/reviews/review-fetcher";
+import { runLlmProbeBatch } from "@/lib/ai-visibility/llm-probes";
+import { runBacklinkProspectBatch } from "@/lib/backlinks/prospect-finder";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -278,6 +280,24 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] review sync failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const probeResult = await runLlmProbeBatch(2);
+    if (probeResult.ran > 0) {
+      console.info("[worker] llm probes", probeResult);
+    }
+  } catch (error) {
+    console.error("[worker] llm probes failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const backlinkResult = await runBacklinkProspectBatch(2);
+    if (backlinkResult.totalFound > 0) {
+      console.info("[worker] backlink prospects", backlinkResult);
+    }
+  } catch (error) {
+    console.error("[worker] backlink prospect failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   try {

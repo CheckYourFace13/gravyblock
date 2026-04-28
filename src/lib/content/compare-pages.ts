@@ -167,6 +167,153 @@ export const COMPARE_PAGES: Record<string, ComparePage> = {
       ],
     },
   },
+  "gravyblock-vs-bulletproof": {
+    slug: "gravyblock-vs-bulletproof",
+    metaTitle: "GravyBlock vs BulletProof: local SEO for real estate agents | GravyBlock",
+    metaDescription: "GravyBlock vs BulletProof for real estate agent local SEO. BulletProof is real-estate-only with coaching. GravyBlock automates the same visibility work for any local business.",
+    model: {
+      eyebrow: "GravyBlock vs BulletProof",
+      title: "GravyBlock vs BulletProof: automated local SEO for real estate agents",
+      intro: "BulletProof is a done-for-you local SEO service built exclusively for real estate agents, with live coaching and manual profile management. GravyBlock automates the same core visibility work — Google Posts, citation audits, review monitoring, and ranking snapshots — at a fraction of the cost and without locking you into a real-estate-only platform.",
+      meaningForBusiness: "If you are a real estate agent who wants your Google profile active and your citations clean without paying for a concierge service, GravyBlock does the same work automatically on a schedule.",
+      sections: [
+        {
+          title: "What BulletProof does well",
+          body: "BulletProof creates 50+ directory profiles, optimizes GBP, publishes 15–100 Google Posts monthly, and provides live coaching calls three times per week. For agents who want full-service hand-holding, it delivers.",
+          bullets: [
+            "50+ directory profile creation (citations built for you).",
+            "Dedicated real estate agent coaching community.",
+            "Voice search optimization (Alexa, Siri, Cortana compatibility).",
+            "Google Local Service Ads training included.",
+          ],
+        },
+        {
+          title: "Where BulletProof is a mismatch",
+          body: "BulletProof is exclusively for real estate agents and is priced as a premium service — 'one deal pays for itself' implies a cost well above what most automated platforms charge. It also requires significant time investment for the coaching component.",
+          bullets: [
+            "Real-estate-only — cannot serve other business types.",
+            "High-touch model requires time for coaching calls.",
+            "Pricing not publicly listed — typically positioned as a premium investment.",
+          ],
+        },
+        {
+          title: "What GravyBlock does differently",
+          body: "GravyBlock handles GBP content publishing, citation audits, review monitoring with AI reply drafts, visibility score tracking, and monthly digests automatically — for real estate agents and any other local business — starting at $39.99/month introductory.",
+          bullets: [
+            "Works for real estate agents and all other local businesses.",
+            "GBP posts and content generated and queued automatically.",
+            "Citation audit creates a directory checklist monthly.",
+            "Review monitoring with AI-drafted replies you copy and post.",
+            "No coaching calls required — the platform does the work.",
+          ],
+        },
+      ],
+      relatedLinks: [
+        { href: "/for-real-estate-agents", label: "GravyBlock for real estate agents" },
+        { href: "/scan", label: "Run a free scan" },
+        ...links,
+      ],
+    },
+  },
+  "gravyblock-vs-babylovegrowth": {
+    slug: "gravyblock-vs-babylovegrowth",
+    metaTitle: "GravyBlock vs BabyLoveGrowth: local SEO automation comparison | GravyBlock",
+    metaDescription: "GravyBlock vs BabyLoveGrowth.ai for automated local SEO. Both publish AI content automatically. GravyBlock adds review monitoring, citation audits, and local visibility tracking built for local businesses.",
+    model: {
+      eyebrow: "GravyBlock vs BabyLoveGrowth",
+      title: "GravyBlock vs BabyLoveGrowth: which autopilot fits your local business?",
+      intro: "BabyLoveGrowth.ai is an AI content and backlink automation platform built for any website that wants organic traffic. GravyBlock is built specifically for local businesses — it adds Google Business Profile management, review monitoring, citation audits, and local ranking snapshots that BabyLoveGrowth does not offer.",
+      meaningForBusiness: "If you run a local business that needs customers from your city — not just website traffic — you need local-specific tools on top of content: GBP posts, citations, and review signals.",
+      sections: [
+        {
+          title: "What BabyLoveGrowth does well",
+          body: "BabyLoveGrowth auto-publishes 30 SEO articles per month, builds backlinks through a 4,000+ site network, tracks AI search brand mentions (ChatGPT, Perplexity), and integrates with WordPress, Webflow, and Shopify automatically.",
+          bullets: [
+            "30 articles/month auto-published via CMS integrations.",
+            "4,000+ site backlink network — automated link exchange.",
+            "LLM visibility tracking across ChatGPT and Perplexity.",
+            "$99/month with 90-day money-back guarantee.",
+          ],
+        },
+        {
+          title: "Where BabyLoveGrowth misses for local businesses",
+          body: "BabyLoveGrowth is a content and backlink tool, not a local SEO platform. It does not manage Google Business Profile, does not run citation audits, does not monitor or respond to reviews, and does not track local map pack rankings.",
+          bullets: [
+            "No Google Business Profile management or GBP post publishing.",
+            "No citation/directory consistency checking.",
+            "No review monitoring or reply suggestions.",
+            "No local visibility score or map pack tracking.",
+            "Backlink network is generic — not geo-targeted for local search.",
+          ],
+        },
+        {
+          title: "What GravyBlock adds for local businesses",
+          body: "GravyBlock combines AI content generation with all the local-specific tools: GBP posts, citation audits, review monitoring with AI replies, competitor comparison, and LLM visibility probes across AI search engines — all running automatically on a schedule.",
+          bullets: [
+            "GBP post generation and content queue on Growth+ plans.",
+            "Monthly citation audit creates a directory fix checklist.",
+            "Review monitoring with AI-drafted reply suggestions.",
+            "LLM visibility probes: checks if AI search engines mention your business.",
+            "WordPress auto-publish when you connect your site.",
+            "Starts free with a scan — paid plans from $39.99/month introductory.",
+          ],
+        },
+      ],
+      relatedLinks: [
+        { href: "/scan", label: "Run a free scan now" },
+        { href: "/#plans", label: "See GravyBlock plans" },
+        ...links,
+      ],
+    },
+  },
+  "gravyblock-vs-outreachfrog": {
+    slug: "gravyblock-vs-outreachfrog",
+    metaTitle: "GravyBlock vs OutreachFrog: link building for local businesses | GravyBlock",
+    metaDescription: "GravyBlock vs OutreachFrog for local business link building. OutreachFrog sells one-off backlinks. GravyBlock finds and queues local link opportunities automatically.",
+    model: {
+      eyebrow: "GravyBlock vs OutreachFrog",
+      title: "GravyBlock vs OutreachFrog: link building that fits local businesses",
+      intro: "OutreachFrog is a done-for-you link building service — you pay per backlink placement, they write the content and find the publisher. GravyBlock automates local backlink prospecting, generates outreach email drafts, and combines it with the full local SEO stack: GBP, citations, reviews, and content.",
+      meaningForBusiness: "For a local business, the most valuable links are from local chambers, news sites, and industry directories in your city — not generic DA-boosting guest posts. GravyBlock finds those local link opportunities and drafts the outreach automatically.",
+      sections: [
+        {
+          title: "What OutreachFrog does well",
+          body: "OutreachFrog places high-quality backlinks on real publisher sites through blogger outreach. They handle content writing, publisher sourcing, and placement — with options from $159 for DA links to $1,199 for enterprise packages.",
+          bullets: [
+            "Done-for-you: they write the content and find publishers.",
+            "10,000+ accounts served; claims to be America's largest dedicated backlink provider.",
+            "One-time orders — no subscription commitment.",
+          ],
+        },
+        {
+          title: "Where OutreachFrog is a poor fit for local businesses",
+          body: "OutreachFrog's network is optimized for domain authority building, not local search relevance. Local map pack rankings depend more on local citations, proximity, GBP signals, and geo-relevant mentions than on generic DA backlinks.",
+          bullets: [
+            "Per-order pricing: $159–$1,199 per link adds up fast without a subscription.",
+            "Generic publisher network — not targeting your city or local niche.",
+            "No GBP management, citation audits, review tools, or local rank tracking.",
+            "No ongoing automation — each order is a one-time event.",
+          ],
+        },
+        {
+          title: "How GravyBlock handles local link building",
+          body: "GravyBlock automatically finds local backlink opportunities — chambers of commerce, business associations, local news sites, and niche directories in your city — and generates a personalized outreach email draft for each one. These are the links that actually move local rankings.",
+          bullets: [
+            "Automated prospect finder runs monthly, targeting your specific city and vertical.",
+            "AI-generated outreach emails, ready to send.",
+            "Local-first: chambers, associations, news outlets, niche blogs in your area.",
+            "Combined with GBP posts, citations, reviews, and content generation.",
+            "Included in Growth+ plans — no per-link fees.",
+          ],
+        },
+      ],
+      relatedLinks: [
+        { href: "/scan", label: "Run a free scan and see your link opportunities" },
+        { href: "/#plans", label: "GravyBlock plans" },
+        ...links,
+      ],
+    },
+  },
   "gravyblock-vs-semrush-local": {
     slug: "gravyblock-vs-semrush-local",
     metaTitle: "GravyBlock vs Semrush Local: local SEO comparison | GravyBlock",

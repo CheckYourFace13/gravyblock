@@ -16,6 +16,7 @@ import {
   visibilitySnapshots,
 } from "@/lib/db";
 import { sendAutomationSummaryEmail, sendOutreachEmail } from "@/lib/integrations/resend";
+import { publishToWordPress, type WordPressConfig } from "@/lib/integrations/wordpress";
 import { planFeatures, normalizePlanTierFromDb, type PlanTier } from "@/lib/plans";
 import { getGooglePlaceDetails } from "@/lib/integrations/google-places";
 import { runSiteCrawlAudit } from "@/lib/audit/site-crawl";
@@ -302,7 +303,21 @@ export async function executeContentPublishPath(businessId: string) {
     ].join("\n");
 
     const artifactId = randomUUID();
-    const publicUrl = `/published/${artifactId}`;
+    let publicUrl = `/published/${artifactId}`;
+    let channel = "internal_site";
+
+    // If the target is a WordPress site, push directly
+    if (target?.adapter === "wordpress" && target.config) {
+      const wpConfig = target.config as unknown as WordPressConfig;
+      const wpResult = await publishToWordPress({ config: wpConfig, title: queuedItem.title, body });
+      if (wpResult.ok) {
+        publicUrl = wpResult.postUrl;
+        channel = "wordpress";
+      } else {
+        console.warn("[executor] WordPress publish failed, falling back to internal", { error: wpResult.error });
+      }
+    }
+
     await db.insert(publishedContent).values({
       id: artifactId,
       businessId,
@@ -310,7 +325,7 @@ export async function executeContentPublishPath(businessId: string) {
       queueId: queuedItem.id,
       title: queuedItem.title,
       body,
-      channel: "internal_site",
+      channel,
       publicUrl,
       status: "published",
     });
