@@ -188,7 +188,7 @@ export function ScanForm({
             }`}
           >
             <p className="text-sm font-semibold text-zinc-900">Local business</p>
-            <p className="mt-0.5 text-xs text-zinc-500">Find your Google listing — for restaurants, contractors, dentists, real estate agents, salons, etc.</p>
+            <p className="mt-0.5 text-xs text-zinc-500">Find your Google listing — restaurants, contractors, dentists, salons, home services, and more.</p>
           </button>
           <button
             type="button"
@@ -200,9 +200,15 @@ export function ScanForm({
             }`}
           >
             <p className="text-sm font-semibold text-zinc-900">Website / online business</p>
-            <p className="mt-0.5 text-xs text-zinc-500">Enter your URL directly — for e-commerce, SaaS, blogs, agencies, or any business without a local listing.</p>
+            <p className="mt-0.5 text-xs text-zinc-500">No Google listing? Enter your URL — e-commerce, SaaS, agencies, or any online brand.</p>
           </button>
         </div>
+        <p className="mt-3 text-xs text-zinc-500">
+          No Google Business Profile, or not sure if you have one?{" "}
+          <button type="button" onClick={() => handleModeSwitch("website")} className="font-semibold text-red-800 underline hover:text-red-900">
+            Use the website tab instead — no Google account needed.
+          </button>
+        </p>
       </div>
 
       {/* Places mode */}

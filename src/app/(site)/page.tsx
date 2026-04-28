@@ -8,11 +8,11 @@ const faqItems = [
   },
   {
     q: "Who is GravyBlock for?",
-    a: "Local businesses, apartment communities, clinics, attorneys, home services, gyms, salons, med spas, auto services, service-area businesses, multi-location brands, and marketing agencies managing multiple clients.",
+    a: "Primarily built for local businesses — restaurants, contractors, clinics, attorneys, home services, gyms, salons, med spas, auto services, service-area businesses, and multi-location brands. Also works for online businesses, e-commerce stores, SaaS products, and agencies managing multiple clients.",
   },
   {
     q: "How does the free scan work?",
-    a: "The scan uses Google Places details, website crawl signals, and social link discovery to generate a score, verdict, and top findings. Full report sections unlock after name and email.",
+    a: "The scan uses Google Places details (for local businesses), website crawl signals, and social link discovery to generate a score, verdict, and top findings. If you don't have a Google listing, use the website mode — just enter your URL. No Google account required. Full report sections unlock after name and email.",
   },
   {
     q: "What does Starter include?",
@@ -180,6 +180,9 @@ export default function HomePage() {
             </h1>
             <p className="max-w-2xl text-lg text-zinc-600">
               GravyBlock writes and publishes local SEO content, sends backlink outreach emails, surfaces citation and review tasks, and monitors your AI search visibility. All of it runs on a schedule. Start with a free scan.
+            </p>
+            <p className="max-w-xl text-sm text-zinc-500">
+              Built for local businesses — restaurants, contractors, salons, clinics, and service-area businesses. Also works for online brands and agencies. No Google account required.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
