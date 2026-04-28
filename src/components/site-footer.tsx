@@ -92,13 +92,33 @@ export function SiteFooter() {
             </div>
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Proof and compare</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Free tools</p>
             <div className="mt-2 flex flex-col gap-2 text-zinc-600">
-              <Link href="/examples" className="hover:text-zinc-900 hover:underline">
-                Examples
+              <Link href="/tools" className="font-medium text-zinc-900 hover:underline">
+                All free tools
               </Link>
-              <Link href="/compare" className="hover:text-zinc-900 hover:underline">
-                Compare pages
+              <Link href="/tools/google-business-profile-checker" className="hover:text-zinc-900 hover:underline">
+                GBP Checker
+              </Link>
+              <Link href="/tools/ai-visibility-test" className="hover:text-zinc-900 hover:underline">
+                AI Visibility Test
+              </Link>
+              <Link href="/scan" className="hover:text-zinc-900 hover:underline">
+                Full SEO scan
+              </Link>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Compare</p>
+            <div className="mt-2 flex flex-col gap-2 text-zinc-600">
+              <Link href="/compare/gravyblock-vs-brightlocal" className="hover:text-zinc-900 hover:underline">
+                vs BrightLocal
+              </Link>
+              <Link href="/compare/gravyblock-vs-yext" className="hover:text-zinc-900 hover:underline">
+                vs Yext
+              </Link>
+              <Link href="/compare/gravyblock-vs-semrush-local" className="hover:text-zinc-900 hover:underline">
+                vs Semrush
               </Link>
               <Link href="/examples/sample-local-growth-report" className="hover:text-zinc-900 hover:underline">
                 Sample report

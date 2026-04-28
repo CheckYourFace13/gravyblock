@@ -86,6 +86,127 @@ export const COMPARE_PAGES: Record<string, ComparePage> = {
       relatedLinks: links,
     },
   },
+  "gravyblock-vs-brightlocal": {
+    slug: "gravyblock-vs-brightlocal",
+    metaTitle: "GravyBlock vs BrightLocal: local SEO for small businesses | GravyBlock",
+    metaDescription: "How GravyBlock compares to BrightLocal for small business local SEO. GravyBlock runs automation automatically — no monthly manual reports needed.",
+    model: {
+      eyebrow: "GravyBlock vs BrightLocal",
+      title: "GravyBlock vs BrightLocal: which fits your business?",
+      intro: "BrightLocal is built for agencies managing many clients. GravyBlock is built for small business owners who want local SEO to run on autopilot without a dedicated marketing team.",
+      meaningForBusiness: "If you are a business owner, not an agency, you want a tool that does the work, not one that produces reports you still have to act on yourself.",
+      sections: [
+        {
+          title: "What BrightLocal does well",
+          body: "BrightLocal offers deep reporting, citation building services, and white-label options suited to agencies running local SEO for multiple clients.",
+        },
+        {
+          title: "Where BrightLocal is a mismatch for owner-operators",
+          body: "BrightLocal is priced and scoped for agencies. Most business owners pay for features they will never use and get reports that require a marketing background to interpret.",
+          bullets: [
+            "Starts at $39/month for single users, scales up quickly for meaningful features.",
+            "Reports are detailed but action-requiring — the business owner still has to execute.",
+            "White-label and citation tools are built for agencies, not the business itself.",
+          ],
+        },
+        {
+          title: "What GravyBlock does differently",
+          body: "GravyBlock starts with a free scan, gives you an immediate visibility score, and on paid plans runs content, outreach, and refresh cycles automatically without you having to log in and execute tasks.",
+          bullets: [
+            "Free scan shows your score and top gaps in 30 seconds.",
+            "Content is generated and queued automatically on Growth and higher plans.",
+            "Visibility refreshes run on schedule — weekly on Growth, daily on Agency.",
+            "No marketing background required to get value.",
+          ],
+        },
+      ],
+      relatedLinks: [
+        { href: "/scan", label: "Run a free GravyBlock scan" },
+        { href: "/#plans", label: "Compare GravyBlock plans" },
+        ...links,
+      ],
+    },
+  },
+  "gravyblock-vs-yext": {
+    slug: "gravyblock-vs-yext",
+    metaTitle: "GravyBlock vs Yext: local search for small businesses | GravyBlock",
+    metaDescription: "GravyBlock vs Yext for local search visibility. Yext is enterprise listing management. GravyBlock is automation-first for owner-operated businesses.",
+    model: {
+      eyebrow: "GravyBlock vs Yext",
+      title: "GravyBlock vs Yext: local visibility for owner-operated businesses",
+      intro: "Yext is an enterprise listing management platform built for large brands. GravyBlock is an autopilot tool built for owner-operated local businesses who need ongoing visibility without an enterprise budget.",
+      meaningForBusiness: "Most small businesses do not need Yext's publisher network at enterprise pricing. They need consistent citations, good content, and recurring scans that tell them what changed.",
+      sections: [
+        {
+          title: "What Yext does well",
+          body: "Yext syncs business listings across hundreds of directories and publishers simultaneously, which benefits large multi-location brands that need consistent data at scale.",
+        },
+        {
+          title: "Where Yext is a mismatch for small businesses",
+          body: "Yext's pricing starts well above what most small businesses can justify for listing management alone. The platform is designed for brand operations teams, not owner-operators.",
+          bullets: [
+            "Enterprise pricing that starts at hundreds of dollars per month.",
+            "Primarily a listings sync platform — does not generate content or run outreach.",
+            "Requires onboarding and ongoing management by a marketing team.",
+          ],
+        },
+        {
+          title: "How GravyBlock fits small business local SEO",
+          body: "GravyBlock focuses on what actually moves local search rankings for small businesses: visibility score tracking, content generation, review signals, and outreach — all running automatically.",
+          bullets: [
+            "Free scan in 30 seconds with no account required.",
+            "Growth plan at $74.99/month introductory generates content and queues outreach automatically.",
+            "No listings-sync lock-in — work that actually improves your Google presence directly.",
+          ],
+        },
+      ],
+      relatedLinks: [
+        { href: "/scan", label: "Run a free scan now" },
+        { href: "/#plans", label: "GravyBlock plans and pricing" },
+        ...links,
+      ],
+    },
+  },
+  "gravyblock-vs-semrush-local": {
+    slug: "gravyblock-vs-semrush-local",
+    metaTitle: "GravyBlock vs Semrush Local: local SEO comparison | GravyBlock",
+    metaDescription: "GravyBlock vs Semrush for local SEO. Semrush is a broad SEO suite. GravyBlock automates local visibility work so business owners do not need to.",
+    model: {
+      eyebrow: "GravyBlock vs Semrush",
+      title: "GravyBlock vs Semrush Local: do you need an SEO suite or an autopilot?",
+      intro: "Semrush is a comprehensive SEO platform built for marketing teams and SEO professionals. GravyBlock is a local autopilot built for business owners who do not have time to learn SEO tooling.",
+      meaningForBusiness: "If you already have an SEO team, Semrush gives them data. If you are the owner and the marketing team, GravyBlock does the work instead.",
+      sections: [
+        {
+          title: "What Semrush does well",
+          body: "Semrush offers keyword research, backlink analysis, site audits, and local listing management for SEO professionals managing multiple properties.",
+        },
+        {
+          title: "Where Semrush is overkill for local owner-operators",
+          body: "Semrush is priced for teams and requires significant SEO expertise to use effectively. Most small business owners pay for a toolset they use 5% of.",
+          bullets: [
+            "Pro plan starts at $139.95/month — most local businesses use only a fraction of the features.",
+            "Requires SEO knowledge to interpret keyword and backlink data meaningfully.",
+            "Local-specific features (Listing Management) are an add-on, not core.",
+          ],
+        },
+        {
+          title: "Why GravyBlock is different for local businesses",
+          body: "GravyBlock replaces the need to learn SEO tools entirely. It scans your local visibility, generates content, sends outreach, and refreshes on a schedule — with no ongoing manual work required.",
+          bullets: [
+            "No SEO knowledge required: the scan explains your gaps in plain language.",
+            "Content is generated for your specific business, city, and keywords.",
+            "Starts free. Autopilot plans from $39.99/month introductory.",
+          ],
+        },
+      ],
+      relatedLinks: [
+        { href: "/scan", label: "Run a free GravyBlock scan" },
+        { href: "/local-seo", label: "Local SEO resources" },
+        ...links,
+      ],
+    },
+  },
 };
 
 export const COMPARE_SLUGS = Object.keys(COMPARE_PAGES);
