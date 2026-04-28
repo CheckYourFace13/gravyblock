@@ -20,15 +20,19 @@ const faqItems = [
   },
   {
     q: "What does Growth include?",
-    a: "Growth includes everything in Starter plus weekly refreshes, AI-written articles published to your site automatically, Reddit and blog content written and queued, backlink outreach emails sent to relevant sites, and citation and review tasks surfaced monthly.",
+    a: "Growth includes everything in Starter plus weekly visibility refreshes, AI-written articles published to your site automatically, Reddit and blog content written and distributed, and backlink outreach emails sent to relevant local sites.",
   },
   {
     q: "What does Pro include?",
-    a: "Pro includes everything in Growth plus programmatic local SEO pages generated for your city and industry, up to 3 business locations under one account, and significantly higher monthly output limits across all queues.",
+    a: "Pro includes everything in Growth plus twice-weekly visibility refreshes, programmatic local SEO pages for your city and industry, higher output across all content and outreach queues, and the lead pipeline engine. Comes with 1 location — add up to 2 more at $99/mo each.",
   },
   {
     q: "What does Agency include?",
-    a: "Agency is built for marketing agencies. It includes up to 10 client workspaces, unlimited monthly output, the cold outreach engine (GravyBlock finds weak local businesses and emails them on your behalf), and daily refresh cadence across all clients.",
+    a: "Agency is built for marketing agencies managing multiple clients. Includes 10 client workspaces, unlimited output, daily refresh cadence, white-label reporting, and the full lead pipeline engine — GravyBlock identifies quality leads in your area and sends outreach on your behalf.",
+  },
+  {
+    q: "What is the lead pipeline engine?",
+    a: "The lead pipeline engine scans for businesses in your area or niche that have weak online visibility — low review counts, missing listings, outdated websites. GravyBlock then drafts and sends personalized outreach emails to those prospects on your behalf. Pro gets a limited monthly run; Agency gets unlimited.",
   },
   {
     q: "What happens with Reddit and blog content?",
@@ -63,10 +67,10 @@ const plans = [
     highlight: false,
     tagline: "Monthly monitoring and content ideas.",
     bullets: [
-      "1 monthly visibility refresh + score history",
-      "AI visibility check (is your business mentioned by AI?)",
-      "4 content ideas every month",
+      "Monthly visibility refresh + score history",
+      "4 content ideas per month",
       "Citation and review task queue",
+      "AI search visibility check",
       "Monthly summary email",
     ],
     cta: "Start Starter",
@@ -79,13 +83,12 @@ const plans = [
     monthly: 149.99,
     intro: 74.99,
     highlight: true,
-    tagline: "AI writes, publishes, and outreaches for you every week.",
+    tagline: "AI writes, publishes, and outreaches weekly.",
     bullets: [
-      "Weekly visibility refreshes (4 runs/month)",
-      "AI-written articles published to your site automatically",
-      "Reddit and blog content written and queued for distribution",
-      "Backlink outreach emails sent automatically to relevant sites",
-      "12 citation tasks + 8 review tasks surfaced monthly",
+      "Weekly visibility refreshes",
+      "AI articles published to your site automatically",
+      "Reddit and blog content written and distributed",
+      "Backlink outreach emails sent to relevant sites",
       "8 backlink opportunities identified monthly",
     ],
     cta: "Start Growth",
@@ -98,13 +101,13 @@ const plans = [
     monthly: 299.99,
     intro: 149.99,
     highlight: false,
-    tagline: "Higher output, more locations, deeper SEO coverage.",
+    tagline: "Higher output, faster refresh, deeper SEO coverage.",
     bullets: [
-      "Everything in Growth, amplified",
-      "Programmatic local SEO pages generated for your city and industry",
-      "Up to 3 business locations under one account",
-      "12 published articles + 8 local pages per month",
-      "AI visibility monitoring across ChatGPT, Perplexity, and Google AI",
+      "Twice-weekly visibility refreshes",
+      "12 published articles + 8 local SEO pages per month",
+      "Programmatic local SEO pages for your city and industry",
+      "Lead pipeline engine: find and pitch quality prospects automatically",
+      "1 location included · add up to 2 more at $99/mo each",
     ],
     cta: "Start Pro",
     href: "/scan?plan=pro",
@@ -120,9 +123,9 @@ const plans = [
     bullets: [
       "10 client workspaces, all features unlocked",
       "Unlimited content drafts and publishing",
-      "Cold outreach engine: GravyBlock finds weak local businesses and emails them for you",
+      "Lead pipeline engine: GravyBlock finds quality leads and sends outreach on your behalf",
       "Daily refresh cadence across all clients",
-      "Priority support",
+      "White-label reporting · priority support",
     ],
     cta: "Start Agency",
     href: "/scan?plan=agency",
@@ -192,14 +195,26 @@ export default function HomePage() {
                 Free report
               </Link>
               <Link
+                href="/scan?plan=starter"
+                className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+              >
+                Starter — $39.99/mo
+              </Link>
+              <Link
                 href="/scan?plan=growth"
                 className="inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500"
               >
-                Start Growth: $74.99/mo introductory pricing
+                Growth — $74.99/mo
+              </Link>
+              <Link
+                href="/scan?plan=pro"
+                className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+              >
+                Pro — $149.99/mo
               </Link>
             </div>
-            <p className="text-sm text-zinc-500">
-              Use code <strong>INTRO50</strong> at checkout for 50% off your first month.
+            <p className="text-xs text-zinc-500">
+              Introductory pricing — use code <strong>INTRO50</strong> at checkout for 50% off your first month.
             </p>
           </div>
           <div className="flex-1">

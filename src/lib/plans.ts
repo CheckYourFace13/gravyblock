@@ -22,7 +22,7 @@ export type PlanFeatures = {
   label: "Free" | "Starter" | "Growth" | "Pro" | "Agency";
   monthlyPrice: number;
   introPrice: number;
-  refreshCadenceLabel: "On-demand" | "Monthly" | "Weekly" | "Daily";
+  refreshCadenceLabel: "On-demand" | "Monthly" | "Weekly" | "Twice weekly" | "Daily";
   refreshIntervalDays: number | null;
   recurringRefresh: boolean;
   workspaceHistory: boolean;
@@ -115,8 +115,8 @@ export function planFeatures(tier: PlanTier): PlanFeatures {
         label: "Pro",
         monthlyPrice: 299.99,
         introPrice: 149.99,
-        refreshCadenceLabel: "Weekly",
-        refreshIntervalDays: 7,
+        refreshCadenceLabel: "Twice weekly",
+        refreshIntervalDays: 3,
         recurringRefresh: true,
         workspaceHistory: true,
         monthlySummaryEmail: true,
@@ -136,9 +136,9 @@ export function planFeatures(tier: PlanTier): PlanFeatures {
         programmaticSEO: true,
         gbpSync: true,
         multiLocationReady: true,
-        coldOutreachEngine: false,
+        coldOutreachEngine: true,
         whiteLabel: false,
-        clientSeats: 3,
+        clientSeats: 1,
       };
     case "agency":
       return {
