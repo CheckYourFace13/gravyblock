@@ -55,3 +55,7 @@ export function getPlanFromPriceId(priceId: string | null | undefined): PlanTier
   }
   return null;
 }
+
+export function getAddonLocationPriceId(): string | null {
+  return process.env.STRIPE_PRICE_ADDON_LOCATION?.trim() || null;
+}

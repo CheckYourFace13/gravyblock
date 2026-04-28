@@ -42,6 +42,7 @@ export const locations = pgTable("locations", {
   websitePath: text("website_path"),
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),
+  stripeSubscriptionItemId: text("stripe_subscription_item_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

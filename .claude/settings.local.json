@@ -19,7 +19,9 @@
       "WebFetch(domain:whitespark.ca)",
       "Bash(git reset *)",
       "Bash(echo \"exit: $?\")",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "Bash(git checkout *)",
+      "Bash(git merge *)"
     ]
   }
 }

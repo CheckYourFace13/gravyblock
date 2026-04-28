@@ -107,7 +107,7 @@ const plans = [
       "12 published articles + 8 local SEO pages per month",
       "Programmatic local SEO pages for your city and industry",
       "Lead pipeline engine: find and pitch quality prospects automatically",
-      "1 location included · add up to 2 more at $99/mo each",
+      "1 location included · add up to 2 more at $99.99/mo each",
     ],
     cta: "Start Pro",
     href: "/scan?plan=pro",

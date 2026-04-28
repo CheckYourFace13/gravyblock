@@ -10,6 +10,8 @@ type Props = {
   planLabel: string;
 };
 
+const MAX_ADDON_LOCATIONS = 2;
+
 export function LocationsSection({ businessId, initialLocations, maxLocations, planLabel }: Props) {
   const [locs, setLocs] = useState<LocationRow[]>(initialLocations);
   const [showForm, setShowForm] = useState(false);
@@ -58,7 +60,10 @@ export function LocationsSection({ businessId, initialLocations, maxLocations, p
     });
   }
 
-  const atLimit = locs.length >= maxLocations;
+  const includedFree = locs.length === 0 || (locs.length >= 1 && !locs[0]?.isAddon);
+  const addonCount = locs.filter((l) => l.isAddon).length;
+  const atAddonLimit = addonCount >= MAX_ADDON_LOCATIONS;
+  const nextWillBeAddon = locs.length >= 1;
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -66,11 +71,10 @@ export function LocationsSection({ businessId, initialLocations, maxLocations, p
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">Locations</h2>
           <p className="mt-1 text-sm text-zinc-600">
-            {planLabel} plan: up to {maxLocations} location{maxLocations === 1 ? "" : "s"}. Each location gets its own
-            visibility tracking and automation queue.
+            1 location included with Pro. Add up to {MAX_ADDON_LOCATIONS} more at $99.99/mo each — billed automatically to your card on file.
           </p>
         </div>
-        {!atLimit && !showForm ? (
+        {!atAddonLimit && !showForm ? (
           <button
             onClick={() => setShowForm(true)}
             className="shrink-0 rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
@@ -86,7 +90,16 @@ export function LocationsSection({ businessId, initialLocations, maxLocations, p
 
       {showForm ? (
         <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
-          <p className="text-sm font-semibold text-zinc-900">New location</p>
+          <div>
+            <p className="text-sm font-semibold text-zinc-900">New location</p>
+            {nextWillBeAddon ? (
+              <p className="mt-0.5 text-xs text-zinc-500">
+                This is an add-on location — <span className="font-semibold text-zinc-700">$99.99/mo</span> will be added to your subscription immediately (prorated for the current period).
+              </p>
+            ) : (
+              <p className="mt-0.5 text-xs text-zinc-500">First location is included free with your Pro plan.</p>
+            )}
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="text-xs font-medium text-zinc-700">Business name *</label>
@@ -145,7 +158,7 @@ export function LocationsSection({ businessId, initialLocations, maxLocations, p
               disabled={isPending}
               className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
             >
-              {isPending ? "Saving..." : "Add location"}
+              {isPending ? "Adding..." : nextWillBeAddon ? "Add location — $99.99/mo" : "Add location"}
             </button>
             <button
               onClick={() => { setShowForm(false); setError(null); }}
@@ -161,7 +174,14 @@ export function LocationsSection({ businessId, initialLocations, maxLocations, p
         {locs.map((loc) => (
           <li key={loc.id} className="flex items-start justify-between gap-3 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm">
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-zinc-900">{loc.name}</p>
+              <div className="flex items-center gap-2">
+                <p className="font-semibold text-zinc-900">{loc.name}</p>
+                {loc.isAddon ? (
+                  <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold text-zinc-600">+$99.99/mo</span>
+                ) : (
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">Included</span>
+                )}
+              </div>
               {(loc.city || loc.stateRegion) ? (
                 <p className="text-xs text-zinc-500">
                   {[loc.address, loc.city, loc.stateRegion].filter(Boolean).join(", ")}
@@ -173,25 +193,27 @@ export function LocationsSection({ businessId, initialLocations, maxLocations, p
                 </a>
               ) : null}
             </div>
-            <button
-              onClick={() => handleRemove(loc.id)}
-              disabled={isPending}
-              className="shrink-0 rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium text-zinc-600 hover:border-red-300 hover:text-red-700 disabled:opacity-50"
-            >
-              Remove
-            </button>
+            {loc.isAddon ? (
+              <button
+                onClick={() => handleRemove(loc.id)}
+                disabled={isPending}
+                className="shrink-0 rounded-full border border-zinc-300 px-3 py-1 text-xs font-medium text-zinc-600 hover:border-red-300 hover:text-red-700 disabled:opacity-50"
+              >
+                Remove
+              </button>
+            ) : null}
           </li>
         ))}
         {!locs.length ? (
           <li className="rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
-            No additional locations added yet. Add locations to track their visibility separately.
+            No locations added yet. Your first location is included free.
           </li>
         ) : null}
       </ul>
 
-      {atLimit ? (
+      {atAddonLimit ? (
         <p className="mt-3 text-xs text-zinc-500">
-          You&apos;ve reached the {maxLocations}-location limit for {planLabel}. Upgrade to add more.
+          You&apos;ve added the maximum {MAX_ADDON_LOCATIONS} extra locations for Pro. Need more? Contact us about Agency.
         </p>
       ) : null}
     </div>
