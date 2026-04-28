@@ -26,6 +26,7 @@ import { runReviewRequestBatch } from "@/lib/email/review-request";
 import { runAutoConfigBatch } from "@/lib/setup/auto-config";
 import { runMonthlyDigestBatch } from "@/lib/email/monthly-digest";
 import { runCitationAuditBatch } from "@/lib/citations/citation-audit";
+import { runReviewSyncBatch } from "@/lib/reviews/review-fetcher";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -269,6 +270,15 @@ async function tick() {
   await maybeSendWeeklyUpsell();
   await maybeSendReviewRequests();
   await maybeCitationAudit();
+
+  try {
+    const reviewResult = await runReviewSyncBatch(5);
+    if (reviewResult.newReviews > 0) {
+      console.info("[worker] review sync", reviewResult);
+    }
+  } catch (error) {
+    console.error("[worker] review sync failed", { error: error instanceof Error ? error.message : String(error) });
+  }
 
   try {
     const dripResult = await runLeadDripBatch();

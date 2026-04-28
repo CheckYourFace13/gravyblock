@@ -14,6 +14,9 @@ import { getLocationsForBusiness } from "./location-actions";
 import { ContentApprovalSection } from "./content-approval-section";
 import { getQueuedDrafts } from "./content-approval-actions";
 import { getReferralStats, referralUrlForBusiness } from "@/lib/referrals/referral-tracker";
+import { getBusinessReviews } from "@/lib/reviews/review-fetcher";
+import { ReviewsSection } from "./reviews-section";
+import { CompetitorPanel } from "./competitor-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -70,9 +73,12 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
     ? await getQueuedDrafts(businessId).catch(() => [])
     : [];
 
-  const [referralStats, referralUrl] = await Promise.all([
+  const [referralStats, referralUrl, reviews] = await Promise.all([
     getReferralStats(businessId).catch(() => ({ clicks: 0, scans: 0, paid: 0 })),
     Promise.resolve(referralUrlForBusiness(businessId)),
+    features.reviewManagement
+      ? getBusinessReviews(businessId, 15).catch(() => [])
+      : Promise.resolve([]),
   ]);
 
   const roadmapRows = bundle.recommendations.map((r) => ({
@@ -472,6 +478,20 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       {features.contentDraftsPerMonth > 0 ? (
         <ContentApprovalSection businessId={businessId} initialDrafts={queuedDrafts} />
       ) : null}
+
+      {features.reviewManagement ? (
+        <ReviewsSection reviews={reviews.map((r) => ({
+          id: r.id,
+          authorName: r.authorName,
+          rating: r.rating,
+          text: r.text,
+          publishTime: r.publishTime,
+          suggestedReply: r.suggestedReply,
+          status: r.status,
+        }))} />
+      ) : null}
+
+      <CompetitorPanel businessId={businessId} />
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">

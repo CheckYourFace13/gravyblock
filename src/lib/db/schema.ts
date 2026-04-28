@@ -508,6 +508,23 @@ export const businessConfigs = pgTable("business_configs", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/** Google reviews fetched from Places API with AI-generated reply suggestions. */
+export const businessReviews = pgTable("business_reviews", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  googleReviewId: text("google_review_id").notNull(),
+  authorName: text("author_name"),
+  authorPhotoUri: text("author_photo_uri"),
+  rating: integer("rating").notNull(),
+  text: text("text"),
+  publishTime: timestamp("publish_time", { withTimezone: true }),
+  suggestedReply: text("suggested_reply"),
+  status: text("status").notNull().default("new"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 /** Single-use token links emailed to business owners for no-login setup. */
 export const setupTokens = pgTable("setup_tokens", {
   id: uuid("id").defaultRandom().primaryKey(),

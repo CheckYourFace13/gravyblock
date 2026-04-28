@@ -880,6 +880,9 @@ export async function listBusinessSummaries() {
       planTier: b.planTier,
       website: b.website,
       updatedAt: b.updatedAt,
+      billingEmail: null as string | null,
+      subscriptionStatus: null as string | null,
+      currentPeriodEnd: null as string | null,
     }));
   }
 
@@ -891,6 +894,9 @@ export async function listBusinessSummaries() {
       planTier: businesses.planTier,
       website: businesses.website,
       updatedAt: businesses.updatedAt,
+      billingEmail: businesses.billingEmail,
+      subscriptionStatus: businesses.subscriptionStatus,
+      currentPeriodEnd: businesses.currentPeriodEnd,
     })
     .from(businesses)
     .orderBy(desc(businesses.updatedAt))
@@ -903,6 +909,9 @@ export async function listBusinessSummaries() {
     planTier: b.planTier,
     website: b.website,
     updatedAt: b.updatedAt.toISOString(),
+    billingEmail: b.billingEmail,
+    subscriptionStatus: b.subscriptionStatus,
+    currentPeriodEnd: b.currentPeriodEnd?.toISOString() ?? null,
   }));
 }
 
