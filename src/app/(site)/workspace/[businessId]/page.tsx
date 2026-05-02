@@ -234,7 +234,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           </div>
           {tier === "agency" ? (
             <a
-              href={`/report/${businessId}/print`}
+              href={`/workspace/${businessId}/report-print`}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-full bg-zinc-900 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-zinc-800"

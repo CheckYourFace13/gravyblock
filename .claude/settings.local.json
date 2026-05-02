@@ -22,7 +22,12 @@
       "Bash(echo \"exit:$?\")",
       "Bash(git checkout *)",
       "Bash(git merge *)",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://gravyblock.com/api/auth/google/start?businessId=test\")",
+      "Bash(cp \"/c/Users/chris/Projects/GravyBlock/.claude/worktrees/stoic-chebyshev-feea16/src/app/\\(site\\)/report/[businessId]/print/page.tsx\" \"/tmp/print-page-backup.tsx\")",
+      "Bash(mkdir -p \"/c/Users/chris/Projects/GravyBlock/.claude/worktrees/stoic-chebyshev-feea16/src/app/\\(site\\)/workspace/[businessId]/report-print\")",
+      "Bash(cp \"/tmp/print-page-backup.tsx\" \"/c/Users/chris/Projects/GravyBlock/.claude/worktrees/stoic-chebyshev-feea16/src/app/\\(site\\)/workspace/[businessId]/report-print/page.tsx\")",
+      "Bash(rm -rf \"/c/Users/chris/Projects/GravyBlock/.claude/worktrees/stoic-chebyshev-feea16/src/app/\\(site\\)/report/[businessId]\")"
     ]
   }
 }
