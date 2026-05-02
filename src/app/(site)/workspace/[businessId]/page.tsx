@@ -30,6 +30,7 @@ import { getDb, keywordRankings } from "@/lib/db";
 import { desc as descOp, eq as eqOp } from "drizzle-orm";
 import { SocialCredentialsSection } from "./social-credentials-section";
 import { getSocialCredentials } from "./social-credentials-actions";
+import { TopicClusterSection } from "./topic-cluster-section";
 
 export const dynamic = "force-dynamic";
 
@@ -714,6 +715,9 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           </div>
         </section>
       ) : null}
+
+      {/* ─── Feature #6: Topic cluster map ───────────────────────────────────── */}
+      <TopicClusterSection businessId={businessId} />
 
       {/* ─── Roadmap ─────────────────────────────────────────────────────────── */}
       <AutopilotRoadmap rows={roadmapRows} />
