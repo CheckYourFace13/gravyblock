@@ -1,9 +1,13 @@
 /**
  * Unified multi-platform review sync.
- * Runs Google + Yelp + TripAdvisor in sequence for each business,
- * collects all new reviews, then sends a single email to the owner.
  *
- * The worker calls runMultiPlatformReviewBatch() instead of individual fetchers.
+ * Platform strategy (cheapest first):
+ *  - Google    → Google Places API (free, already configured)
+ *  - Yelp      → Yelp Fusion API   (free, YELP_API_KEY)
+ *  - TripAdvisor / Facebook / Trustpilot → DataForSEO (~$0.003/review, DATAFORSEO_LOGIN)
+ *
+ * All platforms are independently gated on their env var — safe to deploy without any of them.
+ * The worker calls runMultiPlatformReviewBatch() once per business per week.
  */
 
 import { and, eq, inArray, gte, sql } from "drizzle-orm";
@@ -77,6 +81,87 @@ type NewReview = {
   source: string;
 };
 
+// ─── Google Places API (free) ─────────────────────────────────────────────────
+
+type PlacesReview = {
+  time: number;
+  author_name: string;
+  profile_photo_url?: string;
+  rating: number;
+  text?: string;
+};
+
+async function syncGooglePlacesReviews(
+  businessId: string,
+  placeId: string,
+  bizName: string,
+): Promise<NewReview[]> {
+  const db = getDb();
+  if (!db) return [];
+
+  const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+  url.searchParams.set("place_id", placeId);
+  url.searchParams.set("fields", "reviews");
+  url.searchParams.set("key", process.env.GOOGLE_PLACES_API_KEY!);
+  url.searchParams.set("reviews_sort", "newest");
+
+  let reviews: PlacesReview[] = [];
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (res.ok) {
+      const json = (await res.json()) as { result?: { reviews?: PlacesReview[] } };
+      reviews = json.result?.reviews ?? [];
+    }
+  } catch {
+    return [];
+  }
+
+  if (reviews.length === 0) return [];
+
+  const existingIds = await db
+    .select({ googleReviewId: businessReviews.googleReviewId })
+    .from(businessReviews)
+    .where(eq(businessReviews.businessId, businessId));
+
+  const existingSet = new Set(existingIds.map((r) => r.googleReviewId));
+  const newInserted: NewReview[] = [];
+
+  for (const review of reviews) {
+    const externalId = `${placeId}:${review.time}:${review.author_name.slice(0, 20)}`;
+    if (existingSet.has(externalId)) continue;
+
+    const suggestedReply = review.text
+      ? await generateReplyDraft({ businessName: bizName, rating: review.rating, reviewText: review.text })
+      : null;
+
+    const publishTime = review.time ? new Date(review.time * 1000) : null;
+
+    await db.insert(businessReviews).values({
+      businessId,
+      googleReviewId: externalId,
+      source: "google",
+      authorName: review.author_name,
+      authorPhotoUri: review.profile_photo_url,
+      rating: review.rating,
+      text: review.text,
+      publishTime,
+      suggestedReply,
+      status: "new",
+    });
+
+    newInserted.push({
+      authorName: review.author_name,
+      rating: review.rating,
+      text: review.text ?? null,
+      suggestedReply,
+      publishTime,
+      source: "google",
+    });
+  }
+
+  return newInserted;
+}
+
 // ─── Public: sync a single business across all platforms ─────────────────────
 
 export async function syncAllReviewsForBusiness(businessId: string): Promise<{
@@ -99,23 +184,21 @@ export async function syncAllReviewsForBusiness(businessId: string): Promise<{
   if (!biz) return { fetched: 0, newReviews: 0 };
 
   const allNew: NewReview[] = [];
-  const hasDfs = !!process.env.DATAFORSEO_LOGIN;
 
-  // Google — use DataForSEO (unlimited reviews) if available, else skip
-  // (review-fetcher.ts still handles Google-only via the legacy batch if needed)
-  if (hasDfs) {
-    const g = await syncDataForSeoReviewsForBusiness(businessId, "google", generateReplyDraft);
-    allNew.push(...g.newInserted);
+  // ── Google: free via Places API ──────────────────────────────────────────────
+  if (biz.placeId && process.env.GOOGLE_PLACES_API_KEY) {
+    const googleNew = await syncGooglePlacesReviews(businessId, biz.placeId, biz.name);
+    allNew.push(...googleNew);
   }
 
-  // Yelp — always free via Yelp Fusion API, use regardless of DataForSEO
+  // ── Yelp: free via Fusion API ────────────────────────────────────────────────
   if (process.env.YELP_API_KEY) {
     const yelp = await syncYelpReviewsForBusiness(businessId, generateReplyDraft);
     allNew.push(...yelp.newInserted);
   }
 
-  // TripAdvisor, Facebook, Trustpilot — all via DataForSEO
-  if (hasDfs) {
+  // ── TripAdvisor, Facebook, Trustpilot: DataForSEO (~$0.003/review) ───────────
+  if (process.env.DATAFORSEO_LOGIN) {
     const [ta, fb, tp] = await Promise.allSettled([
       syncDataForSeoReviewsForBusiness(businessId, "tripadvisor", generateReplyDraft),
       syncDataForSeoReviewsForBusiness(businessId, "facebook", generateReplyDraft),
