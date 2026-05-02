@@ -27,7 +27,7 @@ import { runReviewRequestBatch } from "@/lib/email/review-request";
 import { runAutoConfigBatch } from "@/lib/setup/auto-config";
 import { runMonthlyDigestBatch } from "@/lib/email/monthly-digest";
 import { runCitationAuditBatch } from "@/lib/citations/citation-audit";
-import { runReviewSyncBatch } from "@/lib/reviews/review-fetcher";
+import { runMultiPlatformReviewBatch } from "@/lib/reviews/platform-sync";
 import { runLlmProbeBatch } from "@/lib/ai-visibility/llm-probes";
 import { runBacklinkProspectBatch } from "@/lib/backlinks/prospect-finder";
 import { runRepurposeBatch } from "@/lib/content-gen/repurpose";
@@ -278,9 +278,9 @@ async function tick() {
   await maybeCitationAudit();
 
   try {
-    const reviewResult = await runReviewSyncBatch(5);
+    const reviewResult = await runMultiPlatformReviewBatch(5);
     if (reviewResult.newReviews > 0) {
-      console.info("[worker] review sync", reviewResult);
+      console.info("[worker] multi-platform review sync", reviewResult);
     }
   } catch (error) {
     console.error("[worker] review sync failed", { error: error instanceof Error ? error.message : String(error) });

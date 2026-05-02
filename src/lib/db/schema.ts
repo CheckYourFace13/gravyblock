@@ -98,6 +98,10 @@ export const businesses = pgTable("businesses", {
   subscriptionStatus: text("subscription_status"),
   billingEmail: text("billing_email"),
   currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+  /** Yelp business alias/id — auto-discovered on first review sync */
+  yelpBusinessId: text("yelp_business_id"),
+  /** TripAdvisor location id — auto-discovered on first review sync */
+  tripAdvisorLocationId: text("trip_advisor_location_id"),
 });
 
 /** Each visibility run (free scan, rescan, future scheduled job). */
@@ -540,13 +544,16 @@ export const businessConfigs = pgTable("business_configs", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-/** Google reviews fetched from Places API with AI-generated reply suggestions. */
+/** Reviews fetched from Google, Yelp, TripAdvisor, etc. with AI-generated reply suggestions. */
 export const businessReviews = pgTable("business_reviews", {
   id: uuid("id").defaultRandom().primaryKey(),
   businessId: uuid("business_id")
     .references(() => businesses.id, { onDelete: "cascade" })
     .notNull(),
+  /** Platform-agnostic external ID. Format: google:{placeId}:{time}:{author}, yelp:{id}, ta:{id} */
   googleReviewId: text("google_review_id").notNull(),
+  /** Source platform: google | yelp | tripadvisor */
+  source: text("source").notNull().default("google"),
   authorName: text("author_name"),
   authorPhotoUri: text("author_photo_uri"),
   rating: integer("rating").notNull(),

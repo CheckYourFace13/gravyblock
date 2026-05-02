@@ -151,6 +151,12 @@ export async function sendCustomerMagicLinkEmail(payload: CustomerMagicLinkPaylo
   });
 }
 
+const PLATFORM_LABELS: Record<string, { label: string; color: string }> = {
+  google: { label: "Google", color: "#4285F4" },
+  yelp: { label: "Yelp", color: "#d32323" },
+  tripadvisor: { label: "TripAdvisor", color: "#00aa6c" },
+};
+
 type NewReviewsEmailPayload = {
   to: string;
   businessName: string;
@@ -161,18 +167,23 @@ type NewReviewsEmailPayload = {
     text: string | null;
     suggestedReply: string | null;
     publishTime: Date | null;
+    source?: string;
   }>;
 };
 
 export async function sendNewReviewsEmail(payload: NewReviewsEmailPayload) {
   const stars = (n: number) => "★".repeat(n) + "☆".repeat(5 - n);
+
   const reviewsHtml = payload.reviews
-    .map(
-      (r) => `
+    .map((r) => {
+      const platform = PLATFORM_LABELS[r.source ?? "google"] ?? PLATFORM_LABELS.google;
+      const platformBadge = `<span style="display:inline-block;background:${platform.color};color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:0.05em;margin-bottom:8px">${platform.label}</span>`;
+      return `
       <div style="border:1px solid #e4e4e7;border-radius:12px;padding:16px;margin:12px 0;background:#fafafa">
+        ${platformBadge}
         <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#18181b">${r.authorName}</p>
         <p style="margin:0 0 8px;font-size:16px;color:#dc2626">${stars(r.rating)} ${r.rating}/5</p>
-        ${r.text ? `<p style="margin:0 0 12px;font-size:14px;color:#3f3f46;font-style:italic">"${r.text}"</p>` : "<p style=\"margin:0 0 12px;font-size:13px;color:#a1a1aa\">No review text.</p>"}
+        ${r.text ? `<p style="margin:0 0 12px;font-size:14px;color:#3f3f46;font-style:italic">"${r.text}"</p>` : `<p style="margin:0 0 12px;font-size:13px;color:#a1a1aa">No review text.</p>`}
         ${
           r.suggestedReply
             ? `<div style="background:#fff;border:1px solid #d4d4d8;border-radius:8px;padding:12px">
@@ -181,18 +192,28 @@ export async function sendNewReviewsEmail(payload: NewReviewsEmailPayload) {
                </div>`
             : ""
         }
-      </div>`,
-    )
+      </div>`;
+    })
     .join("");
+
+  // Count per-platform for a useful subject line
+  const platformCounts = payload.reviews.reduce<Record<string, number>>((acc, r) => {
+    const s = r.source ?? "google";
+    acc[s] = (acc[s] ?? 0) + 1;
+    return acc;
+  }, {});
+  const platformSummary = Object.entries(platformCounts)
+    .map(([s, n]) => `${n} ${PLATFORM_LABELS[s]?.label ?? s}`)
+    .join(", ");
 
   return sendEmail({
     to: payload.to,
-    subject: `${payload.reviews.length} new review${payload.reviews.length > 1 ? "s" : ""} for ${payload.businessName} — suggested replies inside`,
+    subject: `${payload.reviews.length} new review${payload.reviews.length > 1 ? "s" : ""} for ${payload.businessName} — ${platformSummary}`,
     html: `
       <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px">
         <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">New Reviews</p>
         <h1 style="margin:8px 0 4px;font-size:22px;font-weight:700;color:#18181b">${payload.businessName} has ${payload.reviews.length} new review${payload.reviews.length > 1 ? "s" : ""}</h1>
-        <p style="margin:0 0 20px;font-size:14px;color:#52525b">We've drafted a reply for each one. Copy them, tweak if needed, then paste directly into Google.</p>
+        <p style="margin:0 0 20px;font-size:14px;color:#52525b">We've drafted a suggested reply for each one. Copy, tweak if needed, then paste into the platform directly.</p>
         ${reviewsHtml}
         <div style="margin-top:24px;text-align:center">
           <a href="${payload.workspaceUrl}" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 28px;border-radius:9999px;font-weight:700;font-size:14px;text-decoration:none">
