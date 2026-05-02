@@ -32,7 +32,7 @@ module.exports = {
       // every WORKER_INTERVAL_MS (default 15 min). No external cron needed.
       name: "gravyblock-worker",
       script: "npx",
-      args: "tsx src/worker/index.ts",
+      args: "tsx --env-file=/home/deploy/gravyblock/.env src/worker/index.ts",
       cwd: "/home/deploy/gravyblock",
       instances: 1,
       exec_mode: "fork",
