@@ -34,6 +34,8 @@ import { runRepurposeBatch } from "@/lib/content-gen/repurpose";
 import { runGbpQaOptimizerBatch } from "@/lib/gbp/qa-optimizer";
 import { runDirectoryProfileBatch } from "@/lib/directories/profile-generator";
 import { runRedditPostingBatch } from "@/lib/social/reddit-poster";
+import { runFacebookPostingBatch } from "@/lib/social/facebook-poster";
+import { runRankTrackingBatch } from "@/lib/seo/rank-tracker";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -357,6 +359,28 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] reddit posting failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const fbResult = await runFacebookPostingBatch();
+    if (fbResult.posted > 0) {
+      console.info("[worker] facebook/instagram posts published", fbResult);
+    }
+  } catch (error) {
+    console.error("[worker] facebook posting failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  // Feature #1: GSC rank tracking — runs once per day
+  if (!(await hasJobRunToday("rank_tracking_batch"))) {
+    try {
+      const rankResult = await runRankTrackingBatch(10);
+      if (rankResult.synced > 0) {
+        await recordWorkerJob("rank_tracking_batch", rankResult);
+        console.info("[worker] rank tracking synced", rankResult);
+      }
+    } catch (error) {
+      console.error("[worker] rank tracking failed", { error: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   console.info("[worker] tick done", { durationMs: Date.now() - new Date(startedAt).getTime() });

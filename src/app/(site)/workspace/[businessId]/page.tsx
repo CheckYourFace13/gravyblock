@@ -24,6 +24,9 @@ import { getGoogleConnection } from "@/lib/integrations/google-oauth";
 import { GoogleIntegrationsSection } from "./google-integrations-section";
 import { BusinessProfileSection } from "./business-profile-section";
 import { getBusinessProfile } from "./business-profile-actions";
+import { getGeoAuditScore } from "@/lib/audit/geo-audit";
+import { getDb, keywordRankings } from "@/lib/db";
+import { desc as descOp, eq as eqOp } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +97,23 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       : Promise.resolve([]),
     getAiVisibilityStats(businessId).catch(() => ({ total: 0, mentioned: 0, byEngine: {}, recentChecks: [] })),
   ]);
+
+  // Feature #1: keyword rankings from GSC
+  const topKeywords = await (async () => {
+    try {
+      const db = getDb();
+      if (!db) return [];
+      return await db
+        .select()
+        .from(keywordRankings)
+        .where(eqOp(keywordRankings.businessId, businessId))
+        .orderBy(descOp(keywordRankings.createdAt))
+        .limit(15);
+    } catch { return []; }
+  })();
+
+  // Feature #8: GEO audit score (uses existing probe data — zero API cost)
+  const geoAudit = await getGeoAuditScore(businessId).catch(() => null);
 
   const roadmapRows = bundle.recommendations.map((r) => ({
     lane: r.lane as RoadmapLane,
@@ -433,8 +453,74 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         }))} />
       ) : null}
 
-      {/* ─── AI search visibility ────────────────────────────────────────────── */}
-      {aiVisibility.total > 0 ? (
+      {/* ─── Feature #8: GEO audit — AI search visibility ───────────────────── */}
+      {geoAudit ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-900">GEO — AI search visibility</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                How visible is your business when people ask ChatGPT, Perplexity, and other AI assistants?
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className={`rounded-2xl px-5 py-3 text-center ${geoAudit.grade === "A" ? "bg-green-100" : geoAudit.grade === "B" ? "bg-blue-100" : geoAudit.grade === "C" ? "bg-yellow-100" : "bg-red-100"}`}>
+                <p className={`text-4xl font-bold ${geoAudit.grade === "A" ? "text-green-800" : geoAudit.grade === "B" ? "text-blue-800" : geoAudit.grade === "C" ? "text-yellow-800" : "text-red-800"}`}>
+                  {geoAudit.grade}
+                </p>
+                <p className="text-xs font-semibold text-zinc-600 mt-0.5">GEO grade</p>
+              </div>
+              <div className="rounded-2xl border border-zinc-100 bg-zinc-50 px-5 py-3 text-center">
+                <p className="text-4xl font-bold text-zinc-900">{geoAudit.overallScore}</p>
+                <p className="text-xs font-semibold text-zinc-500 mt-0.5">/ 100</p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+              <p className="text-2xl font-semibold text-zinc-900">{geoAudit.totalMentions}</p>
+              <p className="text-xs text-zinc-500 mt-0.5">times mentioned</p>
+            </div>
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+              <p className="text-2xl font-semibold text-zinc-900">{geoAudit.totalProbes}</p>
+              <p className="text-xs text-zinc-500 mt-0.5">AI probes run</p>
+            </div>
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+              <p className="text-2xl font-semibold text-zinc-900">{geoAudit.mentionRate}%</p>
+              <p className="text-xs text-zinc-500 mt-0.5">mention rate</p>
+            </div>
+          </div>
+          {geoAudit.byEngine.length > 0 ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {geoAudit.byEngine.map((e) => (
+                <div key={e.engine} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{e.engine}</p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-800">{e.mentionRate}% mention rate</p>
+                  <p className="text-xs text-zinc-500">{e.mentions}/{e.probes} probes · {e.sentiment}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <div className="mt-4 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3">
+            <p className="text-sm font-semibold text-zinc-800">Recommendation</p>
+            <p className="mt-1 text-sm text-zinc-600">{geoAudit.topRecommendation}</p>
+          </div>
+          {geoAudit.recentMentions.length > 0 ? (
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">Recent AI mentions</p>
+              <ul className="space-y-2">
+                {geoAudit.recentMentions.map((m, i) => (
+                  <li key={i} className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
+                    <span className="font-semibold text-zinc-900">{m.engine}</span> — {m.prompt}
+                    <span className="ml-2 text-zinc-400">{m.date}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          <p className="mt-3 text-xs text-zinc-400">Probes run monthly. GEO score = 60% mention rate + 40% avg confidence.</p>
+        </section>
+      ) : aiVisibility.total > 0 ? (
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-zinc-900">AI search visibility</h2>
           <p className="mt-1 text-sm text-zinc-500">
@@ -456,19 +542,122 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               <p className="text-xs text-zinc-500 mt-0.5">mention rate</p>
             </div>
           </div>
-          {Object.keys(aiVisibility.byEngine).length > 0 ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {Object.entries(aiVisibility.byEngine).map(([engine, stats]) => (
-                <div key={engine} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{engine}</p>
-                  <p className="mt-1 text-sm text-zinc-800">
-                    {stats.mentioned}/{stats.total} — {stats.total > 0 ? Math.round((stats.mentioned / stats.total) * 100) : 0}%
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : null}
           <p className="mt-3 text-xs text-zinc-400">Probes run monthly.</p>
+        </section>
+      ) : null}
+
+      {/* ─── Feature #1: Keyword rankings from Google Search Console ────────── */}
+      {topKeywords.length > 0 ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-900">Keyword rankings</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Your top Google Search Console keywords — synced automatically from your connected account.
+              </p>
+            </div>
+            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+              GSC live
+            </span>
+          </div>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 border-b border-zinc-100">
+                  <th className="pb-2 pr-4">Keyword</th>
+                  <th className="pb-2 pr-4 text-right">Position</th>
+                  <th className="pb-2 pr-4 text-right">Clicks</th>
+                  <th className="pb-2 pr-4 text-right">Impressions</th>
+                  <th className="pb-2 text-right">CTR</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {topKeywords.slice(0, 10).map((kw) => (
+                  <tr key={kw.id} className="hover:bg-zinc-50">
+                    <td className="py-2.5 pr-4 font-medium text-zinc-900">{kw.keyword}</td>
+                    <td className="py-2.5 pr-4 text-right">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        Number(kw.position) <= 3 ? "bg-green-100 text-green-800" :
+                        Number(kw.position) <= 10 ? "bg-blue-100 text-blue-800" :
+                        "bg-zinc-100 text-zinc-600"
+                      }`}>
+                        #{kw.position ? Math.round(Number(kw.position)) : "—"}
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-4 text-right text-zinc-700">{kw.clicks ?? 0}</td>
+                    <td className="py-2.5 pr-4 text-right text-zinc-500">{kw.impressions ?? 0}</td>
+                    <td className="py-2.5 text-right text-zinc-500">
+                      {kw.ctr ? `${Math.round(Number(kw.ctr) * 100)}%` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs text-zinc-400">Synced daily · last 28 days · connected via Google OAuth</p>
+        </section>
+      ) : googleConn?.searchConsoleProperty ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Keyword rankings</h2>
+          <p className="mt-2 text-sm text-zinc-500">
+            Google Search Console is connected. Rankings will appear here after the first nightly sync.
+          </p>
+        </section>
+      ) : null}
+
+      {/* ─── Feature #7: Content calendar ────────────────────────────────────── */}
+      {autopilot.contentQueue.length > 0 ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Content calendar</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Everything queued and scheduled — autopilot works through this list on your plan cadence.
+          </p>
+          <div className="mt-5 space-y-6">
+            {(() => {
+              // Group content by week
+              const grouped = new Map<string, typeof autopilot.contentQueue>();
+              for (const item of autopilot.contentQueue.slice(0, 20)) {
+                const d = new Date(item.createdAt);
+                const weekStart = new Date(d);
+                weekStart.setDate(d.getDate() - d.getDay());
+                const key = weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                if (!grouped.has(key)) grouped.set(key, []);
+                grouped.get(key)!.push(item);
+              }
+              return Array.from(grouped.entries()).map(([week, items]) => (
+                <div key={week}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">
+                    Week of {week}
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {items.map((item) => (
+                      <div key={item.id} className={`rounded-xl border px-3 py-3 text-sm ${
+                        item.status === "published" ? "border-green-100 bg-green-50" :
+                        item.status === "ready" ? "border-blue-100 bg-blue-50" :
+                        item.kind === "reddit_post" ? "border-orange-100 bg-orange-50" :
+                        item.kind === "facebook_post" || item.kind === "instagram_caption" ? "border-purple-100 bg-purple-50" :
+                        "border-zinc-100 bg-zinc-50"
+                      }`}>
+                        <p className="font-medium text-zinc-900 truncate">{item.title}</p>
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <span className="text-xs uppercase text-zinc-500">
+                            {item.kind.replace(/_/g, " ")}
+                          </span>
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            item.status === "published" ? "bg-green-100 text-green-800" :
+                            item.status === "ready" ? "bg-blue-100 text-blue-800" :
+                            "bg-zinc-100 text-zinc-600"
+                          }`}>
+                            {item.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
         </section>
       ) : null}
 

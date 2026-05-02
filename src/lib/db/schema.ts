@@ -388,6 +388,12 @@ export const publishedContent = pgTable("published_content", {
   channel: text("channel").notNull().default("internal_site"),
   publicUrl: text("public_url"),
   status: text("status").notNull().default("published"),
+  // Feature #5: article cover image from Unsplash
+  coverImageUrl: text("cover_image_url"),
+  coverImageCredit: text("cover_image_credit"),
+  // Feature #2: auto-generated SEO meta tags
+  metaTitle: text("meta_title"),
+  metaDescription: text("meta_description"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -540,6 +546,12 @@ export const businessConfigs = pgTable("business_configs", {
   youtubeUrl: text("youtube_url"),
   linkedinUrl: text("linkedin_url"),
   additionalContext: text("additional_context"),
+  // Feature #3: brand voice — describe writing style, personality, tone examples
+  brandVoice: text("brand_voice"),
+  // Feature #9: Facebook/Instagram API credentials (stored per-business)
+  facebookPageId: text("facebook_page_id"),
+  facebookAccessToken: text("facebook_access_token"),
+  instagramAccountId: text("instagram_account_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -561,6 +573,19 @@ export const businessReviews = pgTable("business_reviews", {
   publishTime: timestamp("publish_time", { withTimezone: true }),
   suggestedReply: text("suggested_reply"),
   status: text("status").notNull().default("new"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ─── Feature #1: Keyword Rankings from Google Search Console ─────────────────
+export const keywordRankings = pgTable("keyword_rankings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  keyword: text("keyword").notNull(),
+  position: text("position"),          // avg position (decimal, stored as text)
+  clicks: integer("clicks").default(0),
+  impressions: integer("impressions").default(0),
+  ctr: text("ctr"),                    // 0–1, stored as text
+  date: text("date").notNull(),        // YYYY-MM-DD
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

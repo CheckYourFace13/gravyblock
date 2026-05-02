@@ -221,11 +221,16 @@ export default function HomePage() {
             <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-lg">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-700">What runs automatically</p>
               <ul className="mt-4 space-y-3 text-sm text-zinc-700">
-                <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />AI-written articles published to your site</li>
-                <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />Reddit posts submitted to local and industry communities</li>
-                <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />Review request campaigns + AI response drafts</li>
-                <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />Citation and backlink building queue</li>
-                <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />AI search visibility monitoring (Perplexity, ChatGPT)</li>
+                <li className="flex gap-2"><span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">1</span>Keyword ranking sync from Google Search Console — daily</li>
+                <li className="flex gap-2"><span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">2</span>Auto meta title + description generated for every article</li>
+                <li className="flex gap-2"><span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">3</span>Brand voice config — every article matches your tone</li>
+                <li className="flex gap-2"><span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">4</span>Smart internal linking — articles link to each other automatically</li>
+                <li className="flex gap-2"><span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">5</span>Cover image fetched and attached to every article (Unsplash)</li>
+                <li className="flex gap-2"><span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">6</span>Topic cluster map — pillar + supporting articles organized by theme</li>
+                <li className="flex gap-2"><span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">7</span>Content calendar — visual schedule of all queued and published content</li>
+                <li className="flex gap-2"><span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">8</span>GEO audit score — how often AI assistants mention your business</li>
+                <li className="flex gap-2"><span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">9</span>Facebook + Instagram auto-posting (Scale and above)</li>
+                <li className="flex gap-2"><span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">+</span>Reddit auto-posting · backlink outreach · review management · citation audits</li>
               </ul>
             </div>
           </div>

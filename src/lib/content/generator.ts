@@ -20,6 +20,8 @@ type GenerateParams = {
   targetKeyword: string | null;
   changeSummary?: string;
   address?: string | null;
+  // Feature #3: Brand voice — injects business personality into every article
+  brandVoice?: string | null;
 };
 
 export async function generateArticleBody(params: GenerateParams): Promise<string | null> {
@@ -36,7 +38,7 @@ City: ${params.city}
 Industry: ${params.vertical ?? "local business"}
 Article title: ${params.title}
 Target keyword: ${params.targetKeyword ?? "local services"}
-Angle / outline: ${params.outline}${params.changeSummary ? `\nRecent context: ${params.changeSummary}` : ""}
+Angle / outline: ${params.outline}${params.changeSummary ? `\nRecent context: ${params.changeSummary}` : ""}${params.brandVoice ? `\nBrand voice / tone: ${params.brandVoice}` : ""}
 
 Write the full article in markdown now.`,
       },
@@ -57,12 +59,52 @@ Business name: ${params.businessName}
 City: ${params.city}${params.address ? `\nAddress: ${params.address}` : ""}
 Industry: ${params.vertical ?? "local business"}
 Page title: ${params.title}
-Angle / outline: ${params.outline}
+Angle / outline: ${params.outline}${params.brandVoice ? `\nBrand voice / tone: ${params.brandVoice}` : ""}
 
 Focus on local trust, service-area coverage, and neighborhood proof. Write the full page in markdown now.`,
       },
     ],
   });
+}
+
+// ─── Feature #2: Auto meta tags ──────────────────────────────────────────────
+
+export async function generateMetaTags(params: {
+  title: string;
+  body: string;
+  targetKeyword: string | null;
+  businessName: string;
+  city: string;
+}): Promise<{ metaTitle: string; metaDescription: string } | null> {
+  const raw = await openRouterChat({
+    model: MODELS.content,
+    maxTokens: 150,
+    temperature: 0.3,
+    messages: [
+      {
+        role: "user",
+        content: `Write an SEO meta title and meta description for this article.
+
+Article title: ${params.title}
+Business: ${params.businessName} (${params.city})
+Target keyword: ${params.targetKeyword ?? params.title}
+Article excerpt: ${params.body.slice(0, 300)}
+
+Rules:
+- Meta title: 50-60 characters, include keyword and city naturally
+- Meta description: 140-155 characters, compelling, includes a call to action
+- Return ONLY valid JSON: {"metaTitle":"...","metaDescription":"..."}`,
+      },
+    ],
+  });
+
+  if (!raw) return null;
+  try {
+    const cleaned = raw.replace(/^```(?:json)?\n?/m, "").replace(/\n?```$/m, "").trim();
+    return JSON.parse(cleaned) as { metaTitle: string; metaDescription: string };
+  } catch {
+    return null;
+  }
 }
 
 export async function generateOutreachPitch(params: {

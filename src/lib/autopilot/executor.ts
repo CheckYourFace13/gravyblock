@@ -23,7 +23,10 @@ import { planFeatures, normalizePlanTierFromDb, type PlanTier } from "@/lib/plan
 import { getGooglePlaceDetails } from "@/lib/integrations/google-places";
 import { runSiteCrawlAudit } from "@/lib/audit/site-crawl";
 import { buildSocialPresence } from "@/lib/social/discover";
-import { generateArticleBody, generateLocalPageBody, generateOutreachPitch } from "@/lib/content/generator";
+import { generateArticleBody, generateLocalPageBody, generateOutreachPitch, generateMetaTags } from "@/lib/content/generator";
+import { addInternalLinks } from "@/lib/content/internal-linker";
+import { getArticlePhoto } from "@/lib/integrations/unsplash";
+import { businessConfigs } from "@/lib/db";
 import { checkBusinessVisibilityInAI } from "@/lib/integrations/perplexity";
 
 type AutomationRunProfile = {
@@ -282,6 +285,13 @@ export async function executeContentPublishPath(businessId: string) {
       .where(eq(businesses.id, businessId))
       .limit(1);
 
+    // Feature #3: fetch brand voice from config
+    const [bizConfig] = await db
+      .select({ brandVoice: businessConfigs.brandVoice })
+      .from(businessConfigs)
+      .where(eq(businessConfigs.businessId, businessId))
+      .limit(1);
+
     const generatorParams = {
       businessName: biz?.name ?? "Local business",
       city: cityFromAddress(biz?.address),
@@ -290,11 +300,12 @@ export async function executeContentPublishPath(businessId: string) {
       outline: queuedItem.outline ?? "",
       targetKeyword: queuedItem.targetKeyword ?? null,
       address: biz?.address ?? null,
+      brandVoice: bizConfig?.brandVoice ?? null,
     };
     const aiBody = queuedItem.kind === "location_page"
       ? await generateLocalPageBody(generatorParams)
       : await generateArticleBody(generatorParams);
-    const body = aiBody ?? [
+    let body = aiBody ?? [
       `# ${queuedItem.title}`,
       "",
       "Published by GravyBlock autopilot execution path.",
@@ -303,6 +314,27 @@ export async function executeContentPublishPath(businessId: string) {
       "",
       `Target keyword: ${queuedItem.targetKeyword ?? "n/a"}`,
     ].join("\n");
+
+    // Feature #4: smart internal linking
+    body = await addInternalLinks({
+      body,
+      businessId,
+      currentTitle: queuedItem.title,
+    }).catch(() => body); // non-fatal
+
+    // Feature #2: generate meta tags
+    const metaTags = await generateMetaTags({
+      title: queuedItem.title,
+      body,
+      targetKeyword: queuedItem.targetKeyword ?? null,
+      businessName: biz?.name ?? "Local business",
+      city: cityFromAddress(biz?.address),
+    }).catch(() => null);
+
+    // Feature #5: fetch cover image from Unsplash
+    const photo = await getArticlePhoto(
+      queuedItem.targetKeyword ?? queuedItem.title,
+    ).catch(() => null);
 
     const artifactId = randomUUID();
     let publicUrl = `/published/${artifactId}`;
@@ -351,6 +383,12 @@ export async function executeContentPublishPath(businessId: string) {
       channel,
       publicUrl,
       status: "published",
+      // Feature #2: auto meta tags
+      metaTitle: metaTags?.metaTitle ?? null,
+      metaDescription: metaTags?.metaDescription ?? null,
+      // Feature #5: cover image
+      coverImageUrl: photo?.url ?? null,
+      coverImageCredit: photo?.credit ?? null,
     });
 
     await db.update(contentQueue).set({ status: "published" }).where(eq(contentQueue.id, queuedItem.id));
@@ -570,6 +608,12 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
           const publicPath = `/published/${artifactId}`;
           const publicUrl = `${base.replace(/\/$/, "")}${publicPath}`;
           publishedUrls.push(publicUrl);
+          // Feature #3: fetch brand voice for recurring jobs too
+          const [recurringBizConfig] = await db
+            .select({ brandVoice: businessConfigs.brandVoice })
+            .from(businessConfigs)
+            .where(eq(businessConfigs.businessId, businessId))
+            .limit(1);
           const generatorParams = {
             businessName: business?.name ?? "Local business",
             city: cityFromAddress(business?.address),
@@ -579,17 +623,36 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
             targetKeyword: queueRow.targetKeyword ?? null,
             changeSummary: changeResult.summary,
             address: business?.address ?? null,
+            brandVoice: recurringBizConfig?.brandVoice ?? null,
           };
           const aiBody = queueRow.kind === "location_page"
             ? await generateLocalPageBody(generatorParams)
             : await generateArticleBody(generatorParams);
-          const body = aiBody ?? buildPublishBody({
+          let body = aiBody ?? buildPublishBody({
             title: queueRow.title,
             changeSummary: changeResult.summary,
             changeSignals: changeResult.changes,
             keyword: queueRow.targetKeyword ?? null,
             kind: queueRow.kind,
           });
+          // Feature #4: smart internal linking
+          body = await addInternalLinks({
+            body,
+            businessId,
+            currentTitle: queueRow.title,
+          }).catch(() => body);
+          // Feature #2: auto meta tags
+          const recurringMetaTags = await generateMetaTags({
+            title: queueRow.title,
+            body,
+            targetKeyword: queueRow.targetKeyword ?? null,
+            businessName: business?.name ?? "Local business",
+            city: cityFromAddress(business?.address),
+          }).catch(() => null);
+          // Feature #5: cover image
+          const recurringPhoto = await getArticlePhoto(
+            queueRow.targetKeyword ?? queueRow.title,
+          ).catch(() => null);
           await db.insert(publishedContent).values({
             id: artifactId,
             businessId,
@@ -600,6 +663,10 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
             channel: "internal_site",
             publicUrl,
             status: "published",
+            metaTitle: recurringMetaTags?.metaTitle ?? null,
+            metaDescription: recurringMetaTags?.metaDescription ?? null,
+            coverImageUrl: recurringPhoto?.url ?? null,
+            coverImageCredit: recurringPhoto?.credit ?? null,
           });
           await db.update(contentQueue).set({ status: "published" }).where(eq(contentQueue.id, queueId));
           await db
