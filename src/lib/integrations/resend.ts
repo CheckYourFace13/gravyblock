@@ -151,6 +151,59 @@ export async function sendCustomerMagicLinkEmail(payload: CustomerMagicLinkPaylo
   });
 }
 
+type NewReviewsEmailPayload = {
+  to: string;
+  businessName: string;
+  workspaceUrl: string;
+  reviews: Array<{
+    authorName: string;
+    rating: number;
+    text: string | null;
+    suggestedReply: string | null;
+    publishTime: Date | null;
+  }>;
+};
+
+export async function sendNewReviewsEmail(payload: NewReviewsEmailPayload) {
+  const stars = (n: number) => "★".repeat(n) + "☆".repeat(5 - n);
+  const reviewsHtml = payload.reviews
+    .map(
+      (r) => `
+      <div style="border:1px solid #e4e4e7;border-radius:12px;padding:16px;margin:12px 0;background:#fafafa">
+        <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#18181b">${r.authorName}</p>
+        <p style="margin:0 0 8px;font-size:16px;color:#dc2626">${stars(r.rating)} ${r.rating}/5</p>
+        ${r.text ? `<p style="margin:0 0 12px;font-size:14px;color:#3f3f46;font-style:italic">"${r.text}"</p>` : "<p style=\"margin:0 0 12px;font-size:13px;color:#a1a1aa\">No review text.</p>"}
+        ${
+          r.suggestedReply
+            ? `<div style="background:#fff;border:1px solid #d4d4d8;border-radius:8px;padding:12px">
+                <p style="margin:0 0 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#71717a">Suggested reply</p>
+                <p style="margin:0;font-size:13px;color:#18181b">${r.suggestedReply}</p>
+               </div>`
+            : ""
+        }
+      </div>`,
+    )
+    .join("");
+
+  return sendEmail({
+    to: payload.to,
+    subject: `${payload.reviews.length} new review${payload.reviews.length > 1 ? "s" : ""} for ${payload.businessName} — suggested replies inside`,
+    html: `
+      <div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">New Reviews</p>
+        <h1 style="margin:8px 0 4px;font-size:22px;font-weight:700;color:#18181b">${payload.businessName} has ${payload.reviews.length} new review${payload.reviews.length > 1 ? "s" : ""}</h1>
+        <p style="margin:0 0 20px;font-size:14px;color:#52525b">We've drafted a reply for each one. Copy them, tweak if needed, then paste directly into Google.</p>
+        ${reviewsHtml}
+        <div style="margin-top:24px;text-align:center">
+          <a href="${payload.workspaceUrl}" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 28px;border-radius:9999px;font-weight:700;font-size:14px;text-decoration:none">
+            Open workspace
+          </a>
+        </div>
+        <p style="margin-top:24px;font-size:12px;color:#a1a1aa;text-align:center">GravyBlock · Unsubscribe from review alerts in your workspace settings.</p>
+      </div>`,
+  });
+}
+
 export async function sendOutreachEmail(payload: OutreachEmailPayload) {
   return sendEmail({
     to: payload.to,

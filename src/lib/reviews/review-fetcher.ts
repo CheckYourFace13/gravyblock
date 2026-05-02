@@ -6,6 +6,7 @@
 
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb, businesses, businessReviews, jobs } from "@/lib/db";
+import { sendNewReviewsEmail } from "@/lib/integrations/resend";
 
 const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
 
@@ -101,7 +102,7 @@ export async function syncReviewsForBusiness(businessId: string): Promise<{ fetc
   if (!db) return { fetched: 0, newReviews: 0 };
 
   const [biz] = await db
-    .select({ name: businesses.name, placeId: businesses.placeId })
+    .select({ name: businesses.name, placeId: businesses.placeId, billingEmail: businesses.billingEmail })
     .from(businesses)
     .where(eq(businesses.id, businessId))
     .limit(1);
@@ -118,6 +119,13 @@ export async function syncReviewsForBusiness(businessId: string): Promise<{ fetc
 
   const existingSet = new Set(existingIds.map((r) => r.googleReviewId));
   let newReviews = 0;
+  const newInserted: Array<{
+    authorName: string;
+    rating: number;
+    text: string | null;
+    suggestedReply: string | null;
+    publishTime: Date | null;
+  }> = [];
 
   for (const review of reviews) {
     const reviewId = reviewIdFromPlacesReview(biz.placeId, review);
@@ -139,7 +147,27 @@ export async function syncReviewsForBusiness(businessId: string): Promise<{ fetc
       status: "new",
     });
 
+    newInserted.push({
+      authorName: review.author_name,
+      rating: review.rating,
+      text: review.text ?? null,
+      suggestedReply: suggestedReply ?? null,
+      publishTime: review.time ? new Date(review.time * 1000) : null,
+    });
     newReviews++;
+  }
+
+  // Email the business owner about new reviews with suggested replies
+  if (newInserted.length > 0 && biz.billingEmail) {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
+    await sendNewReviewsEmail({
+      to: biz.billingEmail,
+      businessName: biz.name,
+      workspaceUrl: `${siteUrl}/workspace/${businessId}`,
+      reviews: newInserted,
+    }).catch((err) =>
+      console.error("[review-fetcher] failed to send review email", { businessId, error: String(err) }),
+    );
   }
 
   return { fetched: reviews.length, newReviews };

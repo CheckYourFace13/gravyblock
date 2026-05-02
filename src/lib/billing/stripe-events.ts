@@ -12,6 +12,7 @@ import { schedulePlanRecurringSnapshotJob, scheduleRecurringSnapshotJob } from "
 import { getPlanFromPriceId } from "@/lib/stripe/server";
 import { getStripeServerClient } from "@/lib/stripe/server";
 import { sendSetupEmail } from "@/lib/setup/send-setup-email";
+import { autoConfigBusiness } from "@/lib/setup/auto-config";
 import { applyDunningDowngrade, sendDowngradeNoticeEmail, sendPaymentFailedEmail } from "@/lib/billing/dunning";
 import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { getDb, businesses } from "@/lib/db";
@@ -88,6 +89,11 @@ export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Se
       void sendSetupEmail(businessId, biz?.name ?? "your business", billingEmail);
     }
   }
+
+  // Kick off AI business profile generation immediately (don't block checkout response)
+  void autoConfigBusiness(businessId).catch((err) =>
+    console.error("[stripe] autoConfigBusiness failed on checkout", { businessId, error: String(err) }),
+  );
 
   const planTier = getPlanFromPriceId(snap.priceId);
   if (planTier && planTier !== "free") {
