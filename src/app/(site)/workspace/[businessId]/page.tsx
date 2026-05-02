@@ -22,6 +22,8 @@ import { getPublishingTargets } from "./integrations-actions";
 import { getAiVisibilityStats } from "@/lib/ai-visibility/llm-probes";
 import { getGoogleConnection } from "@/lib/integrations/google-oauth";
 import { GoogleIntegrationsSection } from "./google-integrations-section";
+import { BusinessProfileSection } from "./business-profile-section";
+import { getBusinessProfile } from "./business-profile-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +81,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
     : [];
 
   const googleConn = await getGoogleConnection(businessId).catch(() => null);
+  const businessProfile = await getBusinessProfile(businessId).catch(() => null);
 
   const [referralStats, referralUrl, reviews, publishingTargets, aiVisibility] = await Promise.all([
     getReferralStats(businessId).catch(() => ({ clicks: 0, scans: 0, paid: 0 })),
@@ -149,10 +152,10 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
     <div className="mx-auto max-w-6xl space-y-12 px-4 py-14 sm:px-6">
       <header className="flex flex-col gap-6 border-b border-zinc-200 pb-10 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Growth workspace</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Your workspace</p>
           <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">{bundle.business.name}</h1>
           <p className="max-w-2xl text-sm text-zinc-600">
-            Command center for scan history, visibility snapshots, prioritized work, and (on Growth+) automation queues,
+            Command center for scan history, visibility snapshots, prioritized work, and (on Scale+) automation queues,
             content publishing, Reddit outreach, and jobs that run on a schedule.
           </p>
           <div className="flex flex-wrap gap-2 text-xs font-medium text-zinc-600">
@@ -196,7 +199,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               <CheckoutButton
                 businessId={businessId}
                 plan="growth"
-                label={selectedPlan === "growth" ? "Continue to Growth checkout" : "Start Growth"}
+                label={selectedPlan === "growth" ? "Continue to Scale checkout" : "Start Scale"}
                 promoCode={promoCode}
                 className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
               />
@@ -305,13 +308,13 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           ) : null}
           {tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
             <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Growth</p>
+              <p className="text-sm font-semibold text-zinc-900">Scale</p>
               <p className="text-xs text-zinc-600">$149.99/month · introductory: $74.99/month with code INTRO50</p>
               <div className="mt-3">
                 <CheckoutButton
                   businessId={businessId}
                   plan="growth"
-                  label={selectedPlan === "growth" ? "Continue to Growth checkout" : "Start Growth"}
+                  label={selectedPlan === "growth" ? "Continue to Scale checkout" : "Start Scale"}
                   promoCode={promoCode}
                   className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
                 />
@@ -353,6 +356,13 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           Downgrades and cancellations are self-serve in Stripe Billing portal after your first successful subscription.
         </p>
       </section>
+
+      {/* Business profile — must be complete before content generation runs */}
+      <BusinessProfileSection
+        businessId={businessId}
+        businessName={bundle.business.name}
+        initialConfig={businessProfile?.config ?? null}
+      />
 
       {features.multiLocationReady ? (
         <LocationsSection
@@ -716,40 +726,64 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         </section>
       ) : null}
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-zinc-900">Publishing jobs</h3>
-          <ul className="mt-3 space-y-2 text-sm">
-            {autopilot.publishingJobs.slice(0, 8).map((job) => (
-              <li key={job.id} className="rounded-lg bg-zinc-50 px-3 py-2">
-                <p className="font-medium text-zinc-900">{job.id}</p>
-                <p className="text-xs uppercase text-zinc-500">{job.status}</p>
-                {job.responseLog ? <p className="text-xs text-zinc-600">{job.responseLog}</p> : null}
-              </li>
-            ))}
-            {!autopilot.publishingJobs.length ? <li className="text-zinc-500">No publishing jobs yet.</li> : null}
-          </ul>
-        </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-zinc-900">Published artifacts</h3>
-          <p className="mt-1 text-xs text-zinc-500">Includes internal drafts and published items in this workspace.</p>
-          <ul className="mt-3 space-y-2 text-sm">
-            {autopilot.publishedContent.slice(0, 8).map((item) => (
-              <li key={item.id} className="rounded-lg bg-zinc-50 px-3 py-2">
-                <p className="font-medium text-zinc-900">{item.title}</p>
-                <p className="text-xs uppercase text-zinc-500">
-                  {item.channel} · {item.status}
-                </p>
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-900">Published content</h2>
+        <p className="mt-1 text-sm text-zinc-600">Everything GravyBlock has written and published for this business — articles, GBP posts, Reddit posts, and drafts.</p>
+        {autopilot.publishedContent.length > 0 ? (
+          <ul className="mt-4 space-y-3">
+            {autopilot.publishedContent.slice(0, 12).map((item) => (
+              <li key={item.id} className="flex items-start justify-between gap-4 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-zinc-900">{item.title}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    {item.channel.replace(/_/g, " ")} · {item.status} · {new Date(item.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
                 {item.publicUrl ? (
-                  <a className="text-xs text-red-800 underline" href={item.publicUrl} target="_blank" rel="noreferrer">
-                    {item.publicUrl}
+                  <a
+                    className="shrink-0 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-700 hover:border-zinc-300"
+                    href={item.publicUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View live
                   </a>
-                ) : null}
+                ) : (
+                  <span className="shrink-0 rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800">Draft</span>
+                )}
               </li>
             ))}
-            {!autopilot.publishedContent.length ? <li className="text-zinc-500">No published artifacts yet.</li> : null}
           </ul>
-        </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">
+            No content published yet.{" "}
+            {features.contentDraftsPerMonth > 0
+              ? "Once autopilot runs, articles and posts will appear here with links."
+              : "Upgrade to Scale or higher to unlock automated content publishing."}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-900">Content queue</h2>
+        <p className="mt-1 text-sm text-zinc-600">Articles and posts staged for publishing. Autopilot works through these on your plan cadence.</p>
+        {autopilot.contentQueue.length > 0 ? (
+          <ul className="mt-4 space-y-2">
+            {autopilot.contentQueue.slice(0, 10).map((item) => (
+              <li key={item.id} className="flex items-center justify-between gap-4 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-zinc-900">{item.title}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    {item.kind.replace(/_/g, " ")} · {item.targetKeyword ?? "no keyword"} · queued {new Date(item.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full bg-zinc-100 border border-zinc-200 px-2.5 py-1 text-xs font-semibold text-zinc-600">{item.status}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-4 text-sm text-zinc-500">Queue is empty. Autopilot will fill it on the next scheduled run.</p>
+        )}
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
