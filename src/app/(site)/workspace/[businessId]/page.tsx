@@ -774,7 +774,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 <div className="min-w-0">
                   <p className="truncate font-medium text-zinc-900">{item.title}</p>
                   <p className="mt-0.5 text-xs text-zinc-500">
-                    {item.kind.replace(/_/g, " ")} · {item.targetKeyword ?? "no keyword"} · queued {new Date(item.createdAt).toLocaleDateString()}
+                    {item.kind.replace(/_/g, " ")} · queued {new Date(item.createdAt).toLocaleDateString()}
                   </p>
                 </div>
                 <span className="shrink-0 rounded-full bg-zinc-100 border border-zinc-200 px-2.5 py-1 text-xs font-semibold text-zinc-600">{item.status}</span>
