@@ -81,6 +81,50 @@ type NewReview = {
   source: string;
 };
 
+// ─── Smart platform detection ────────────────────────────────────────────────
+// Only query paid platforms that are actually relevant for the business type.
+// Saves DataForSEO cost and avoids pointless API calls.
+
+type DfsPlatformName = "tripadvisor" | "facebook" | "trustpilot";
+
+const TRIPADVISOR_KEYWORDS = [
+  "restaurant", "bar", "cafe", "coffee", "bistro", "diner", "eatery", "food",
+  "hotel", "motel", "inn", "resort", "lodge", "hostel", "airbnb",
+  "brewery", "winery", "distillery", "pub", "tavern", "lounge", "nightclub",
+  "tourism", "attraction", "museum", "theater", "theatre", "entertainment",
+  "spa", "salon", "beauty",
+];
+
+const TRUSTPILOT_KEYWORDS = [
+  "law", "lawyer", "attorney", "legal", "firm",
+  "financial", "finance", "insurance", "accounting", "accountant", "tax",
+  "consultant", "consulting", "agency", "advisor", "adviser",
+  "mortgage", "real estate", "realty", "investment", "wealth",
+  "software", "tech", "saas", "online",
+];
+
+function getRelevantDfsPlatforms(
+  vertical: string | null | undefined,
+  primaryCategory: string | null | undefined,
+): DfsPlatformName[] {
+  const haystack = [vertical, primaryCategory]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  const platforms: DfsPlatformName[] = ["facebook"]; // always relevant
+
+  if (TRIPADVISOR_KEYWORDS.some((kw) => haystack.includes(kw))) {
+    platforms.push("tripadvisor");
+  }
+
+  if (TRUSTPILOT_KEYWORDS.some((kw) => haystack.includes(kw))) {
+    platforms.push("trustpilot");
+  }
+
+  return platforms;
+}
+
 // ─── Google Places API (free) ─────────────────────────────────────────────────
 
 type PlacesReview = {
@@ -176,6 +220,8 @@ export async function syncAllReviewsForBusiness(businessId: string): Promise<{
       name: businesses.name,
       placeId: businesses.placeId,
       billingEmail: businesses.billingEmail,
+      vertical: businesses.vertical,
+      primaryCategory: businesses.primaryCategory,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))
@@ -185,28 +231,36 @@ export async function syncAllReviewsForBusiness(businessId: string): Promise<{
 
   const allNew: NewReview[] = [];
 
-  // ── Google: free via Places API ──────────────────────────────────────────────
+  // ── Google: free via Places API (everyone) ───────────────────────────────────
   if (biz.placeId && process.env.GOOGLE_PLACES_API_KEY) {
     const googleNew = await syncGooglePlacesReviews(businessId, biz.placeId, biz.name);
     allNew.push(...googleNew);
   }
 
-  // ── Yelp: free via Fusion API ────────────────────────────────────────────────
+  // ── Yelp: free via Fusion API (everyone) ────────────────────────────────────
   if (process.env.YELP_API_KEY) {
     const yelp = await syncYelpReviewsForBusiness(businessId, generateReplyDraft);
     allNew.push(...yelp.newInserted);
   }
 
-  // ── TripAdvisor, Facebook, Trustpilot: DataForSEO (~$0.003/review) ───────────
+  // ── DataForSEO: only platforms relevant to this business type ────────────────
   if (process.env.DATAFORSEO_LOGIN) {
-    const [ta, fb, tp] = await Promise.allSettled([
-      syncDataForSeoReviewsForBusiness(businessId, "tripadvisor", generateReplyDraft),
-      syncDataForSeoReviewsForBusiness(businessId, "facebook", generateReplyDraft),
-      syncDataForSeoReviewsForBusiness(businessId, "trustpilot", generateReplyDraft),
-    ]);
-    if (ta.status === "fulfilled") allNew.push(...ta.value.newInserted);
-    if (fb.status === "fulfilled") allNew.push(...fb.value.newInserted);
-    if (tp.status === "fulfilled") allNew.push(...tp.value.newInserted);
+    const relevantPlatforms = getRelevantDfsPlatforms(biz.vertical, biz.primaryCategory);
+    console.info("[platform-sync] relevant platforms for business", {
+      businessId,
+      vertical: biz.vertical,
+      primaryCategory: biz.primaryCategory,
+      platforms: relevantPlatforms,
+    });
+
+    const results = await Promise.allSettled(
+      relevantPlatforms.map((platform) =>
+        syncDataForSeoReviewsForBusiness(businessId, platform, generateReplyDraft),
+      ),
+    );
+    for (const result of results) {
+      if (result.status === "fulfilled") allNew.push(...result.value.newInserted);
+    }
   }
 
   // Send one combined email if any new reviews across all platforms
