@@ -155,6 +155,9 @@ const PLATFORM_LABELS: Record<string, { label: string; color: string }> = {
   google: { label: "Google", color: "#4285F4" },
   yelp: { label: "Yelp", color: "#d32323" },
   tripadvisor: { label: "TripAdvisor", color: "#00aa6c" },
+  facebook: { label: "Facebook", color: "#1877F2" },
+  trustpilot: { label: "Trustpilot", color: "#00b67a" },
+  bbb: { label: "BBB", color: "#005fa8" },
 };
 
 type NewReviewsEmailPayload = {
