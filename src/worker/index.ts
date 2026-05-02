@@ -242,6 +242,28 @@ async function maybeSendReviewRequests() {
   }
 }
 
+async function ensureSelfBusinessQueued() {
+  // If GravyBlock is registered as its own customer, make sure it always has content queued
+  const selfId = process.env.GRAVYBLOCK_SELF_BUSINESS_ID;
+  if (!selfId) return;
+  const db = getDb();
+  if (!db) return;
+  try {
+    const [countRow] = await db
+      .select({ count: count() })
+      .from(contentQueue)
+      .where(and(eq(contentQueue.businessId, selfId), eq(contentQueue.status, "queued")));
+    if ((countRow?.count ?? 0) === 0) {
+      const result = await queueContentForBusiness(selfId);
+      if (result.queued > 0) {
+        console.info("[worker] self-business content queued", { queued: result.queued });
+      }
+    }
+  } catch (err) {
+    console.error("[worker] self-business queue failed", { error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
 async function tick() {
   const startedAt = new Date().toISOString();
   console.info("[worker] tick start", { startedAt, jobsPerTick: JOBS_PER_TICK });
@@ -260,6 +282,12 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] auto-config failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    await ensureSelfBusinessQueued();
+  } catch (error) {
+    console.error("[worker] self-business failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   try {

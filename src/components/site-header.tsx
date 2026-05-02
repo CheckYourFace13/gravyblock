@@ -5,8 +5,8 @@ const links = [
   { href: "/#how-it-works", label: "How it works" },
   { href: "/scan", label: "Free scan" },
   { href: "/#plans", label: "Plans" },
+  { href: "/blog", label: "Blog" },
   { href: "/#examples", label: "Industry examples" },
-  { href: "/#ai-search", label: "AI search" },
 ];
 
 export function SiteHeader() {
