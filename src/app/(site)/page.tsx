@@ -20,7 +20,7 @@ const faqItems = [
   },
   {
     q: "What does Scale include?",
-    a: "Scale includes everything in Starter plus weekly visibility refreshes, AI-written articles published to your site automatically, Reddit-style and blog content written and queued for your review, and backlink opportunities identified and queued monthly.",
+    a: "Scale includes everything in Starter plus weekly visibility refreshes, AI-written articles published to your site automatically, Reddit posts submitted to relevant local communities, and backlink outreach emails sent to 8 relevant sites per month.",
   },
   {
     q: "What does Pro include?",
@@ -36,7 +36,7 @@ const faqItems = [
   },
   {
     q: "What happens with Reddit and blog content?",
-    a: "On Scale and above, GravyBlock writes Reddit-style posts and blog content targeting your city and industry. That content is drafted and queued for your review before anything is published. Backlink opportunities are identified and added to your queue — you decide which ones to pursue.",
+    a: "On Scale and above, GravyBlock writes Reddit-style posts targeting your city and industry, then submits them automatically to the most relevant subreddit — local city boards, niche communities, and industry forums. Backlink outreach emails are sent on your behalf to relevant local sites and blogs each month.",
   },
   {
     q: "Does GravyBlock guarantee rankings?",
@@ -83,12 +83,12 @@ const plans = [
     monthly: 149.99,
     intro: 74.99,
     highlight: true,
-    tagline: "AI writes, publishes, and queues content weekly.",
+    tagline: "AI writes and publishes content weekly — on autopilot.",
     bullets: [
       "Weekly visibility refreshes",
       "AI articles published to your site automatically",
-      "Reddit-style and blog content drafted and queued for review",
-      "8 backlink opportunities identified and queued monthly",
+      "Reddit posts submitted to relevant local communities",
+      "Backlink outreach emails sent to 8 relevant sites monthly",
       "Review monitoring across Google, Yelp, and more",
     ],
     cta: "Start Scale",
@@ -222,7 +222,7 @@ export default function HomePage() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-700">What runs automatically</p>
               <ul className="mt-4 space-y-3 text-sm text-zinc-700">
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />AI-written articles published to your site</li>
-                <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />Reddit and blog content written and queued</li>
+                <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />Reddit posts submitted to local and industry communities</li>
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />Review request campaigns + AI response drafts</li>
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />Citation and backlink building queue</li>
                 <li className="flex gap-2"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />AI search visibility monitoring (Perplexity, ChatGPT)</li>

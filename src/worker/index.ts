@@ -33,6 +33,7 @@ import { runBacklinkProspectBatch } from "@/lib/backlinks/prospect-finder";
 import { runRepurposeBatch } from "@/lib/content-gen/repurpose";
 import { runGbpQaOptimizerBatch } from "@/lib/gbp/qa-optimizer";
 import { runDirectoryProfileBatch } from "@/lib/directories/profile-generator";
+import { runRedditPostingBatch } from "@/lib/social/reddit-poster";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -347,6 +348,15 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] onboarding batch failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const redditResult = await runRedditPostingBatch();
+    if (redditResult.posted > 0) {
+      console.info("[worker] reddit posts published", redditResult);
+    }
+  } catch (error) {
+    console.error("[worker] reddit posting failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   console.info("[worker] tick done", { durationMs: Date.now() - new Date(startedAt).getTime() });

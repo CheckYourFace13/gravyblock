@@ -377,7 +377,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <FeatureRow label="Monthly summary email" on={features.monthlySummaryEmail} />
             <FeatureRow label={`Content ideas (${features.contentIdeasPerMonth}/mo)`} on={features.contentIdeasPerMonth > 0} />
             <FeatureRow label="AI content drafts + publishing" on={features.contentDraftsPerMonth > 0} />
-            <FeatureRow label="Reddit + blog content drafts" on={features.redditPosting} />
+            <FeatureRow label="Reddit auto-posting + backlink outreach" on={features.redditPosting} />
             <FeatureRow label="Multi-step outreach sequences" on={features.multiStepOutreach} />
             <FeatureRow label="Review monitoring + AI replies" on={features.reviewManagement} />
             <FeatureRow label="Programmatic SEO pages" on={features.programmaticSEO} />
