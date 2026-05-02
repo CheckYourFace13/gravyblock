@@ -83,9 +83,9 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         GravyBlock monitors whether ${businessName} is being mentioned in AI-assisted search results and helps build the signals that get you recommended.
       </p>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Start Growth for $74.99 introductory")}
+      ${btn(`${siteUrl}/scan?plan=growth`, "Start Scale for $74.99 introductory")}
       <p style="color:#71717a;font-size:13px;margin:16px 0">
-        Growth includes AI visibility monitoring, weekly refreshes, published content, and Reddit outreach. Use code <strong>INTRO50</strong> for 50% off your first month.
+        Scale includes AI visibility monitoring, weekly refreshes, published content, and Reddit outreach. Use code <strong>INTRO50</strong> for 50% off your first month.
       </p>
     `),
   },
@@ -131,16 +131,16 @@ const DRIP_SEQUENCE: DripEmail[] = [
   },
   {
     day: 6,
-    subject: ({ businessName }) => `50% off this week: GravyBlock Growth for ${businessName}`,
+    subject: ({ businessName }) => `50% off this week: GravyBlock Scale for ${businessName}`,
     html: ({ name, businessName }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Limited Offer</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Start Growth for $74.99 this month</h1>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Start Scale for $74.99 this month</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         Use code <strong>INTRO50</strong> at checkout and your first month of Growth is $74.99 instead of $149.99.
       </p>
       <div style="margin:20px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
-        <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b">Growth includes:</p>
+        <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b"<>Scale includes:</p>
         <ul style="margin:8px 0 0;padding-left:20px;color:#3f3f46;font-size:13px;line-height:1.9">
           <li>Weekly visibility refreshes for ${businessName}</li>
           <li>AI-written articles published to your site every month</li>

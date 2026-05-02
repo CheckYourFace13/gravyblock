@@ -100,10 +100,10 @@ export function CheckoutButton({
         >
           <div className="max-w-lg rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl">
             <h2 id="growth-upsell-title" className="text-lg font-semibold text-zinc-900">
-              Before you choose Starter, Growth adds full execution
+              Before you choose Starter, Scale adds full execution
             </h2>
             <p className="mt-2 text-sm text-zinc-600">
-              Starter covers monthly monitoring and content ideas. Growth adds automated publishing, Reddit/blog posting,
+              Starter covers monthly monitoring and content ideas. Scale adds automated publishing, Reddit/blog posting,
               and outreach sequences.
             </p>
             <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-zinc-700">
@@ -128,12 +128,12 @@ export function CheckoutButton({
                   });
                 }}
               >
-                {pending ? "Opening checkout..." : "Upgrade to Growth"}
+                {pending ? "Opening checkout..." : "Upgrade to Scale"}
               </button>
               <button
                 type="button"
                 disabled={pending}
-                className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400 disabled:opacity-60"
+                className="rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200 disabled:opacity-60"
                 onClick={() => {
                   startTransition(async () => {
                     setError(null);

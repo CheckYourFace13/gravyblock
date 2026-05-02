@@ -390,7 +390,7 @@ export function ScanForm({
                 href={promoCode ? `/scan?plan=growth&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=growth"}
                 className="rounded-full bg-red-600 px-3 py-2 text-white hover:bg-red-500"
               >
-                Start Growth
+                Start Scale
               </Link>
             </>
           ) : selectedPlan === "starter" ? (

@@ -27,7 +27,13 @@
       "Bash(cp \"/c/Users/chris/Projects/GravyBlock/.claude/worktrees/stoic-chebyshev-feea16/src/app/\\(site\\)/report/[businessId]/print/page.tsx\" \"/tmp/print-page-backup.tsx\")",
       "Bash(mkdir -p \"/c/Users/chris/Projects/GravyBlock/.claude/worktrees/stoic-chebyshev-feea16/src/app/\\(site\\)/workspace/[businessId]/report-print\")",
       "Bash(cp \"/tmp/print-page-backup.tsx\" \"/c/Users/chris/Projects/GravyBlock/.claude/worktrees/stoic-chebyshev-feea16/src/app/\\(site\\)/workspace/[businessId]/report-print/page.tsx\")",
-      "Bash(rm -rf \"/c/Users/chris/Projects/GravyBlock/.claude/worktrees/stoic-chebyshev-feea16/src/app/\\(site\\)/report/[businessId]\")"
+      "Bash(rm -rf \"/c/Users/chris/Projects/GravyBlock/.claude/worktrees/stoic-chebyshev-feea16/src/app/\\(site\\)/report/[businessId]\")",
+      "Bash(xargs sed *)",
+      "Bash(sed -i 's/Growth includes everything in Starter/Scale includes everything in Starter/g' src/app/\\\\\\(site\\\\\\)/page.tsx)",
+      "Bash(sed -i 's/Start Growth — /Start Scale — /g' src/app/\\\\\\(site\\\\\\)/page.tsx)",
+      "Bash(sed -i 's/Before you choose Starter, Growth adds/Before you choose Starter, Scale adds/g' src/app/\\\\\\(site\\\\\\)/workspace/\\\\[businessId\\\\]/billing-buttons.tsx)",
+      "Bash(sed -i 's/Starter covers monthly monitoring and content ideas. Growth adds/Starter covers monthly monitoring and content ideas. Scale adds/g' src/app/\\\\\\(site\\\\\\)/workspace/\\\\[businessId\\\\]/billing-buttons.tsx)",
+      "Bash(sed -i 's/Upgrade to Growth\"/Upgrade to Scale\"/g' src/app/\\\\\\(site\\\\\\)/workspace/\\\\[businessId\\\\]/billing-buttons.tsx)"
     ]
   }
 }

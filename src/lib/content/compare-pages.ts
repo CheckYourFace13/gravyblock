@@ -155,7 +155,7 @@ export const COMPARE_PAGES: Record<string, ComparePage> = {
           body: "GravyBlock focuses on what actually moves local search rankings for small businesses: visibility score tracking, content generation, review signals, and outreach — all running automatically.",
           bullets: [
             "Free scan in 30 seconds with no account required.",
-            "Growth plan at $74.99/month introductory generates content and queues outreach automatically.",
+            "Scale plan at $74.99/month introductory generates content and queues outreach automatically.",
             "No listings-sync lock-in — work that actually improves your Google presence directly.",
           ],
         },

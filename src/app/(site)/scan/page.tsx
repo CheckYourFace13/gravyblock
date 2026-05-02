@@ -60,7 +60,7 @@ export default async function ScanPage({ searchParams }: Props) {
           </Link>
           <Link
             href={promoCode ? `/scan?plan=starter&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=starter"}
-            className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-900 hover:border-zinc-400"
+            className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-4 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-200"
           >
             Starter
           </Link>
@@ -72,7 +72,7 @@ export default async function ScanPage({ searchParams }: Props) {
           </Link>
           <Link
             href={promoCode ? `/scan?plan=pro&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=pro"}
-            className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-900 hover:border-zinc-400"
+            className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-4 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-200"
           >
             Pro
           </Link>

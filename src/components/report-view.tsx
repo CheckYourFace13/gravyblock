@@ -142,9 +142,9 @@ export function ReportView({
                   ? `/workspace/${businessId}?plan=${chosenPlan}${promoQuery ? `&${promoQuery}` : ""}`
                   : `/workspace/${businessId}${promoQuery ? `?${promoQuery}` : ""}`
               }
-              className="inline-flex w-full items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-900 hover:border-zinc-400"
+              className="inline-flex w-full items-center justify-center rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
             >
-              Open growth workspace
+              Open workspace
             </Link>
           ) : null}
         </div>
@@ -196,20 +196,36 @@ export function ReportView({
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {workspaceHref ? (
+                  {chosenPlan ? (
                     <Link
-                      href={workspaceHref}
+                      href={workspaceHref!}
                       className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
                     >
                       {primaryLabel}
                     </Link>
                   ) : null}
+                  {chosenPlan !== "starter" ? (
+                    <Link
+                      href={workspacePlanHref("starter")}
+                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+                    >
+                      Starter — $39.99/mo
+                    </Link>
+                  ) : null}
                   {chosenPlan !== "growth" ? (
                     <Link
                       href={workspacePlanHref("growth")}
-                      className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                      className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
                     >
-                      Growth: $74.99/mo introductory
+                      Scale — $74.99/mo
+                    </Link>
+                  ) : null}
+                  {chosenPlan !== "pro" ? (
+                    <Link
+                      href={workspacePlanHref("pro")}
+                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+                    >
+                      Pro — $149.99/mo
                     </Link>
                   ) : null}
                 </div>
@@ -217,21 +233,21 @@ export function ReportView({
               {promoCode ? <p className="mt-3 text-xs font-medium text-zinc-700">Promo code ready: {promoCode}</p> : null}
               {chosenPlan === "starter" ? (
                 <div className="mt-4 rounded-xl border border-red-200 bg-white p-4">
-                  <h3 className="text-base font-semibold text-zinc-900">Growth adds full execution for $74.99/mo introductory pricing</h3>
+                  <h3 className="text-base font-semibold text-zinc-900">Scale adds full execution for $74.99/mo introductory</h3>
                   <p className="mt-1 text-sm text-zinc-700">
-                    Growth includes weekly refreshes, AI-written content published to your site, Reddit and blog posting on
-                    third-party channels, multi-step outreach sequences, and 8 backlink opportunities queued monthly.
+                    Scale includes weekly refreshes, AI-written content published to your site, Reddit and blog posting,
+                    multi-step outreach sequences, and 8 backlink opportunities queued monthly.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Link
                       href={workspacePlanHref("growth")}
                       className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
                     >
-                      Upgrade to Growth instead
+                      Upgrade to Scale instead
                     </Link>
                     <Link
                       href={workspacePlanHref("starter")}
-                      className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                     >
                       No, continue with Starter
                     </Link>
@@ -454,7 +470,7 @@ export function ReportView({
                   {chosenPlan !== "growth" ? (
                     <Link
                       href={workspacePlanHref("growth")}
-                      className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                     >
                       Growth: $74.99/mo introductory
                     </Link>
@@ -465,18 +481,18 @@ export function ReportView({
                   <div className="mt-3 rounded-lg border border-red-200 bg-white p-3">
                     <p className="text-sm font-semibold text-zinc-900">Are you sure you want to skip Growth?</p>
                     <p className="mt-1 text-xs text-zinc-600">
-                      Growth adds the full execution layer: AI drafts, Reddit posting, multi-step outreach, and backlink queue.
+                      Scale adds the full execution layer: AI drafts, Reddit posting, multi-step outreach, and backlink queue.
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Link
                         href={workspacePlanHref("growth")}
                         className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
                       >
-                        Upgrade to Growth instead
+                        Upgrade to Scale instead
                       </Link>
                       <Link
                         href={workspacePlanHref("starter")}
-                        className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                        className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                       >
                         No, continue with Starter
                       </Link>

@@ -188,7 +188,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 className={
                   selectedPlan === "starter"
                     ? "rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                    : "rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                    : "rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                 }
               />
             ) : null}
@@ -214,7 +214,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               <PortalButton
                 businessId={businessId}
                 label="Manage billing"
-                className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                className="rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
               />
             ) : null}
           </div>
@@ -249,7 +249,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         <div className="rounded-2xl border border-red-200 bg-red-50/60 px-5 py-5 text-sm text-zinc-900">
           <p>
             <span className="font-semibold">Starter unlocks recurring automation.</span> Free includes scan history and core
-            report storage. Starter adds monthly refresh and content ideas. Growth adds full publishing, Reddit outreach, and sequences. See{" "}
+            report storage. Starter adds monthly refresh and content ideas. Scale adds full publishing, Reddit outreach, and sequences. See{" "}
             <Link href="/#plans" className="font-semibold underline">
               all plans
             </Link>
@@ -282,7 +282,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <PortalButton
               businessId={businessId}
               label="Manage billing"
-              className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+              className="rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
             />
           ) : null}
         </div>

@@ -20,7 +20,7 @@ const faqItems = [
   },
   {
     q: "What does Growth include?",
-    a: "Growth includes everything in Starter plus weekly visibility refreshes, AI-written articles published to your site automatically, Reddit and blog content written and distributed, and backlink outreach emails sent to relevant local sites.",
+    a: "Scale includes everything in Starter plus weekly visibility refreshes, AI-written articles published to your site automatically, Reddit and blog content written and distributed, and backlink outreach emails sent to relevant local sites.",
   },
   {
     q: "What does Pro include?",
@@ -79,7 +79,7 @@ const plans = [
   },
   {
     tier: "growth",
-    label: "Growth",
+    label: "Scale",
     monthly: 149.99,
     intro: 74.99,
     highlight: true,
@@ -91,7 +91,7 @@ const plans = [
       "Backlink outreach emails sent to relevant sites",
       "8 backlink opportunities identified monthly",
     ],
-    cta: "Start Growth",
+    cta: "Start Scale",
     href: "/scan?plan=growth",
     ctaStyle: "bg-red-600 hover:bg-red-500",
   },
@@ -165,7 +165,7 @@ export default function HomePage() {
     url: siteUrl,
     offers: [
       { "@type": "Offer", name: "Starter", price: "79.99", priceCurrency: "USD", priceSpecification: { "@type": "UnitPriceSpecification", billingDuration: "P1M" } },
-      { "@type": "Offer", name: "Growth", price: "149.99", priceCurrency: "USD", priceSpecification: { "@type": "UnitPriceSpecification", billingDuration: "P1M" } },
+      { "@type": "Offer", name: "Scale", price: "149.99", priceCurrency: "USD", priceSpecification: { "@type": "UnitPriceSpecification", billingDuration: "P1M" } },
       { "@type": "Offer", name: "Pro", price: "299.99", priceCurrency: "USD", priceSpecification: { "@type": "UnitPriceSpecification", billingDuration: "P1M" } },
       { "@type": "Offer", name: "Agency", price: "499.99", priceCurrency: "USD", priceSpecification: { "@type": "UnitPriceSpecification", billingDuration: "P1M" } },
     ],
@@ -196,7 +196,7 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/scan?plan=starter"
-                className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
               >
                 Starter — $39.99/mo
               </Link>
@@ -208,7 +208,7 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/scan?plan=pro"
-                className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+                className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
               >
                 Pro — $149.99/mo
               </Link>
@@ -464,9 +464,9 @@ export default function HomePage() {
             Start with free scan
           </Link>
           <Link href="/scan?plan=growth" className="rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500">
-            Start Growth — $74/mo
+            Start Scale — $74/mo
           </Link>
-          <Link href="/scan?plan=agency" className="rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-900 hover:border-zinc-400">
+          <Link href="/scan?plan=agency" className="rounded-full bg-zinc-100 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200">
             Agency — $249.99/mo
           </Link>
         </div>
