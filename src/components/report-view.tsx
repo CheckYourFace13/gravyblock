@@ -204,7 +204,8 @@ export function ReportView({
                       {primaryLabel}
                     </Link>
                   ) : null}
-                  {chosenPlan !== "starter" ? (
+                  {/* Show Starter only if no plan chosen yet */}
+                  {!chosenPlan ? (
                     <Link
                       href={workspacePlanHref("starter")}
                       className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
@@ -212,7 +213,8 @@ export function ReportView({
                       Starter — $39.99/mo
                     </Link>
                   ) : null}
-                  {chosenPlan !== "growth" ? (
+                  {/* Show Scale as upgrade nudge only if chosen plan is below Scale */}
+                  {(!chosenPlan || chosenPlan === "starter") ? (
                     <Link
                       href={workspacePlanHref("growth")}
                       className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
@@ -220,7 +222,8 @@ export function ReportView({
                       Scale — $74.99/mo
                     </Link>
                   ) : null}
-                  {chosenPlan !== "pro" ? (
+                  {/* Show Pro as upgrade nudge only if chosen plan is below Pro */}
+                  {(!chosenPlan || chosenPlan === "starter" || chosenPlan === "growth") ? (
                     <Link
                       href={workspacePlanHref("pro")}
                       className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
