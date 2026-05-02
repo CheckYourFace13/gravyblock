@@ -25,8 +25,11 @@ import { GoogleIntegrationsSection } from "./google-integrations-section";
 import { BusinessProfileSection } from "./business-profile-section";
 import { getBusinessProfile } from "./business-profile-actions";
 import { getGeoAuditScore } from "@/lib/audit/geo-audit";
+import { getSiteTechAudit } from "@/lib/audit/tech-audit";
 import { getDb, keywordRankings } from "@/lib/db";
 import { desc as descOp, eq as eqOp } from "drizzle-orm";
+import { SocialCredentialsSection } from "./social-credentials-section";
+import { getSocialCredentials } from "./social-credentials-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -114,6 +117,12 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
 
   // Feature #8: GEO audit score (uses existing probe data — zero API cost)
   const geoAudit = await getGeoAuditScore(businessId).catch(() => null);
+
+  // Feature #10: site tech audit (uses existing crawl/audit_findings data — zero API cost)
+  const techAudit = await getSiteTechAudit(businessId).catch(() => null);
+
+  // Feature #9: social credentials for FB/IG section
+  const socialCredentials = await getSocialCredentials(businessId).catch(() => null);
 
   const roadmapRows = bundle.recommendations.map((r) => ({
     lane: r.lane as RoadmapLane,
@@ -605,6 +614,51 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         </section>
       ) : null}
 
+      {/* ─── Feature #10: Site tech audit ───────────────────────────────────── */}
+      {techAudit ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-900">Site tech audit</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Technical SEO checks from your last scan — these directly affect how Google and AI assistants index your site.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className={`rounded-2xl px-5 py-3 text-center ${techAudit.grade === "A" ? "bg-green-100" : techAudit.grade === "B" ? "bg-blue-100" : techAudit.grade === "C" ? "bg-yellow-100" : "bg-red-100"}`}>
+                <p className={`text-3xl font-bold ${techAudit.grade === "A" ? "text-green-800" : techAudit.grade === "B" ? "text-blue-800" : techAudit.grade === "C" ? "text-yellow-800" : "text-red-800"}`}>
+                  {techAudit.grade}
+                </p>
+                <p className="text-xs font-semibold text-zinc-500 mt-0.5">{techAudit.score}/100</p>
+              </div>
+            </div>
+          </div>
+          <ul className="mt-5 divide-y divide-zinc-100">
+            {techAudit.items.map((item) => (
+              <li key={item.key} className="flex items-start gap-3 py-3">
+                <span className={`mt-0.5 shrink-0 text-sm ${item.status === "pass" ? "text-green-600" : item.status === "warn" ? "text-yellow-600" : "text-red-600"}`}>
+                  {item.status === "pass" ? "✓" : item.status === "warn" ? "⚠" : "✗"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-semibold ${item.status === "pass" ? "text-zinc-700" : "text-zinc-900"}`}>
+                    {item.label}
+                  </p>
+                  <p className="mt-0.5 text-xs text-zinc-500">{item.detail}</p>
+                </div>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${item.status === "pass" ? "bg-green-100 text-green-700" : item.status === "warn" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}`}>
+                  {item.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {techAudit.website ? (
+            <p className="mt-3 text-xs text-zinc-400">Auditing <span className="font-medium">{techAudit.website}</span> · run a new scan to refresh results</p>
+          ) : (
+            <p className="mt-3 text-xs text-zinc-400">Add a website to your Google listing to unlock full tech checks.</p>
+          )}
+        </section>
+      ) : null}
+
       {/* ─── Feature #7: Content calendar ────────────────────────────────────── */}
       {autopilot.contentQueue.length > 0 ? (
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -799,6 +853,14 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         errorParam={query.google_error ?? null}
         successParam={Boolean(query.google_connected)}
       />
+
+      {/* ─── Feature #9: Facebook + Instagram credentials ───────────────────── */}
+      {features.redditPosting ? (
+        <SocialCredentialsSection
+          businessId={businessId}
+          initial={socialCredentials}
+        />
+      ) : null}
 
       {/* ─── Multi-location ──────────────────────────────────────────────────── */}
       {features.multiLocationReady ? (

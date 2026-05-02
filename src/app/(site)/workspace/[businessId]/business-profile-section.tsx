@@ -15,6 +15,7 @@ const EMPTY: BusinessProfileData = {
   serviceDescription: "",
   uniqueSellingPoints: "",
   tone: "professional",
+  brandVoice: "",
   targetKeywords: "",
   targetCities: "",
   competitorNames: "",
@@ -194,6 +195,20 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
                 <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
               ))}
             </select>
+          </div>
+
+          {/* Brand voice — Feature #3 */}
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Brand voice <span className="font-normal text-zinc-400">(optional — injected into every article)</span>
+            </label>
+            <textarea
+              {...field("brandVoice")}
+              rows={2}
+              placeholder="Describe how your content should sound. e.g. 'Conversational and warm, like a trusted neighbor. Simple language, no jargon, always ends with a clear local call-to-action.'"
+              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-zinc-400">This is pasted directly into the AI writing prompt for every article and post we generate.</p>
           </div>
 
           {/* Competitors */}

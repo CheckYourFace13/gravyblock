@@ -10,6 +10,7 @@ export type BusinessProfileData = {
   serviceDescription: string;
   uniqueSellingPoints: string;
   tone: string;
+  brandVoice: string;
   targetKeywords: string;
   targetCities: string;
   competitorNames: string;
@@ -68,6 +69,7 @@ export async function getBusinessProfile(businessId: string): Promise<{
           serviceDescription: cfg.serviceDescription ?? "",
           uniqueSellingPoints: cfg.uniqueSellingPoints ?? "",
           tone: cfg.tone ?? "professional",
+          brandVoice: cfg.brandVoice ?? "",
           targetKeywords: cfg.targetKeywords ?? "",
           targetCities: cfg.targetCities ?? "",
           competitorNames: cfg.competitorNames ?? "",
@@ -104,6 +106,7 @@ export async function saveBusinessProfile(
           serviceDescription: data.serviceDescription,
           uniqueSellingPoints: data.uniqueSellingPoints,
           tone: data.tone,
+          brandVoice: data.brandVoice || null,
           targetKeywords: data.targetKeywords,
           targetCities: data.targetCities,
           competitorNames: data.competitorNames,
@@ -122,6 +125,7 @@ export async function saveBusinessProfile(
         serviceDescription: data.serviceDescription,
         uniqueSellingPoints: data.uniqueSellingPoints,
         tone: data.tone,
+        brandVoice: data.brandVoice || null,
         targetKeywords: data.targetKeywords,
         targetCities: data.targetCities,
         competitorNames: data.competitorNames,
@@ -188,6 +192,7 @@ Return ONLY a valid JSON object with these exact keys (no markdown, no explanati
   "serviceDescription": "2-3 sentence description of what this business does and who it serves",
   "uniqueSellingPoints": "3-4 bullet points of what makes this business stand out (based on category/data)",
   "tone": "professional|friendly|authoritative|casual",
+  "brandVoice": "2-3 sentences describing the writing style and personality — e.g. 'Conversational and warm, like a trusted neighbor. Uses simple language, avoids jargon, and always ends with a clear action.'",
   "targetKeywords": "comma-separated list of 5-8 search terms this business should rank for",
   "targetCities": "comma-separated city names they serve (based on address/region)",
   "competitorNames": "",
