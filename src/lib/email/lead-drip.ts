@@ -240,11 +240,13 @@ export async function runLeadDripBatch(): Promise<{ sent: number; skipped: numbe
       name: leads.name,
       email: leads.email,
       businessId: leads.businessId,
+      businessName: businesses.name,
       reportPublicId: leads.reportPublicId,
       vertical: leads.vertical,
       createdAt: leads.createdAt,
     })
     .from(leads)
+    .leftJoin(businesses, eq(leads.businessId, businesses.id))
     .where(
       and(
         gte(leads.createdAt, cutoffDate),
@@ -301,7 +303,7 @@ export async function runLeadDripBatch(): Promise<{ sent: number; skipped: numbe
 
     const ctx: DripContext = {
       name: lead.name.split(" ")[0] || lead.name,
-      businessName: lead.name,
+      businessName: lead.businessName || lead.name,
       score,
       vertical: lead.vertical,
       reportUrl,
