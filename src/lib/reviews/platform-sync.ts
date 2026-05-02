@@ -10,9 +10,9 @@
  * The worker calls runMultiPlatformReviewBatch() once per business per week.
  */
 
-import { and, eq, inArray, gte, sql } from "drizzle-orm";
-import { getDb, businesses, businessReviews, jobs } from "@/lib/db";
-import { sendNewReviewsEmail } from "@/lib/integrations/resend";
+import { and, desc, eq, inArray, gte, sql } from "drizzle-orm";
+import { getDb, businesses, businessReviews, jobs, publishedContent, contentQueue } from "@/lib/db";
+import { sendWeeklyDigestEmail } from "@/lib/integrations/resend";
 import { syncYelpReviewsForBusiness } from "./yelp-fetcher";
 import { syncDataForSeoReviewsForBusiness } from "./dataforseo-fetcher";
 
@@ -222,6 +222,8 @@ export async function syncAllReviewsForBusiness(businessId: string): Promise<{
       billingEmail: businesses.billingEmail,
       vertical: businesses.vertical,
       primaryCategory: businesses.primaryCategory,
+      rating: businesses.rating,
+      reviewCount: businesses.reviewCount,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))
@@ -263,16 +265,46 @@ export async function syncAllReviewsForBusiness(businessId: string): Promise<{
     }
   }
 
-  // Send one combined email if any new reviews across all platforms
-  if (allNew.length > 0 && biz.billingEmail) {
+  // ── Gather extra context for the digest email ────────────────────────────────
+  if (biz.billingEmail) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
-    await sendNewReviewsEmail({
+    const weekAgoDate = new Date();
+    weekAgoDate.setDate(weekAgoDate.getDate() - 7);
+
+    const [publishedRows, queuedRows] = await Promise.all([
+      db
+        .select({ title: publishedContent.title, channel: publishedContent.channel, publicUrl: publishedContent.publicUrl })
+        .from(publishedContent)
+        .where(and(eq(publishedContent.businessId, businessId), gte(publishedContent.createdAt, weekAgoDate)))
+        .orderBy(desc(publishedContent.createdAt))
+        .limit(5),
+      db
+        .select({ title: contentQueue.title, kind: contentQueue.kind, targetKeyword: contentQueue.targetKeyword })
+        .from(contentQueue)
+        .where(and(eq(contentQueue.businessId, businessId), eq(contentQueue.status, "queued")))
+        .orderBy(contentQueue.createdAt)
+        .limit(3),
+    ]);
+
+    // Group new reviews by platform, cap at 5 per platform
+    const grouped = new Map<string, typeof allNew>();
+    for (const r of allNew) {
+      if (!grouped.has(r.source)) grouped.set(r.source, []);
+      const arr = grouped.get(r.source)!;
+      if (arr.length < 5) arr.push(r);
+    }
+
+    await sendWeeklyDigestEmail({
       to: biz.billingEmail,
       businessName: biz.name,
       workspaceUrl: `${siteUrl}/workspace/${businessId}`,
-      reviews: allNew,
+      googleRating: biz.rating ?? null,
+      totalReviewCount: biz.reviewCount ?? 0,
+      reviewGroups: Array.from(grouped.entries()).map(([source, reviews]) => ({ source, reviews })),
+      publishedThisWeek: publishedRows,
+      contentQueued: queuedRows,
     }).catch((err) =>
-      console.error("[platform-sync] failed to send review email", { businessId, error: String(err) }),
+      console.error("[platform-sync] failed to send digest email", { businessId, error: String(err) }),
     );
   }
 
