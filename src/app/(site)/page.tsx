@@ -196,7 +196,7 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/scan?plan=starter"
-                className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+                className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
               >
                 Starter — $39.99/mo
               </Link>
@@ -208,7 +208,7 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/scan?plan=pro"
-                className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+                className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
               >
                 Pro — $149.99/mo
               </Link>
@@ -316,7 +316,7 @@ export default function HomePage() {
               Score, verdict, and top 3 findings before unlock. Full report by email after name + email. Saved workspace
               to upgrade later.
             </p>
-            <Link href="/scan" className="mt-3 inline-flex items-center rounded-full bg-zinc-100 px-4 py-1.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-200">
+            <Link href="/scan" className="mt-3 inline-flex items-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-1.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-200">
               Get your score free
             </Link>
           </div>
@@ -466,7 +466,7 @@ export default function HomePage() {
           <Link href="/scan?plan=growth" className="rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500">
             Start Scale — $74/mo
           </Link>
-          <Link href="/scan?plan=agency" className="rounded-full bg-zinc-100 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200">
+          <Link href="/scan?plan=agency" className="rounded-full bg-zinc-100 border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200">
             Agency — $249.99/mo
           </Link>
         </div>

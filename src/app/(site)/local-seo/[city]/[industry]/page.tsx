@@ -76,7 +76,7 @@ export default async function LocalSeoPage({ params }: Props) {
             </Link>
             <Link
               href="/#plans"
-              className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+              className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
             >
               See plans
             </Link>

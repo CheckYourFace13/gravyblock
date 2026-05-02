@@ -157,12 +157,12 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           </p>
           <div className="flex flex-wrap gap-2 text-xs font-medium text-zinc-600">
             {bundle.business.website ? (
-              <a className="rounded-full bg-zinc-100 px-3 py-1 hover:bg-zinc-200" href={bundle.business.website}>
+              <a className="rounded-full bg-zinc-100 border border-zinc-300 px-3 py-1 hover:bg-zinc-200" href={bundle.business.website}>
                 Website
               </a>
             ) : null}
             {bundle.business.googleMapsUri ? (
-              <a className="rounded-full bg-zinc-100 px-3 py-1 hover:bg-zinc-200" href={bundle.business.googleMapsUri}>
+              <a className="rounded-full bg-zinc-100 border border-zinc-300 px-3 py-1 hover:bg-zinc-200" href={bundle.business.googleMapsUri}>
                 Maps
               </a>
             ) : null}
@@ -170,7 +170,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               Plan: {features.label}{" "}
               {features.monthlyPrice > 0 ? `($${features.introPrice}/mo introductory)` : ""}
             </span>
-            <span className="rounded-full bg-zinc-100 px-3 py-1">Refresh cadence: {features.refreshCadenceLabel}</span>
+            <span className="rounded-full bg-zinc-100 border border-zinc-300 px-3 py-1">Refresh cadence: {features.refreshCadenceLabel}</span>
             {selectedPlan ? (
               <span className="rounded-full bg-red-100 px-3 py-1 text-red-950">
                 Selected plan: {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}
@@ -188,7 +188,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 className={
                   selectedPlan === "starter"
                     ? "rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                    : "rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+                    : "rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                 }
               />
             ) : null}
@@ -214,7 +214,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               <PortalButton
                 businessId={businessId}
                 label="Manage billing"
-                className="rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+                className="rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
               />
             ) : null}
           </div>
@@ -282,7 +282,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <PortalButton
               businessId={businessId}
               label="Manage billing"
-              className="rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+              className="rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
             />
           ) : null}
         </div>

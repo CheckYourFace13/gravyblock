@@ -207,7 +207,7 @@ export function ReportView({
                   {chosenPlan !== "starter" ? (
                     <Link
                       href={workspacePlanHref("starter")}
-                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                     >
                       Starter — $39.99/mo
                     </Link>
@@ -223,7 +223,7 @@ export function ReportView({
                   {chosenPlan !== "pro" ? (
                     <Link
                       href={workspacePlanHref("pro")}
-                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                     >
                       Pro — $149.99/mo
                     </Link>
@@ -247,7 +247,7 @@ export function ReportView({
                     </Link>
                     <Link
                       href={workspacePlanHref("starter")}
-                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                     >
                       No, continue with Starter
                     </Link>
@@ -470,7 +470,7 @@ export function ReportView({
                   {chosenPlan !== "growth" ? (
                     <Link
                       href={workspacePlanHref("growth")}
-                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                     >
                       Growth: $74.99/mo introductory
                     </Link>
@@ -492,7 +492,7 @@ export function ReportView({
                       </Link>
                       <Link
                         href={workspacePlanHref("starter")}
-                        className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+                        className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                       >
                         No, continue with Starter
                       </Link>
