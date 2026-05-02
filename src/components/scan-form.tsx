@@ -296,9 +296,15 @@ export function ScanForm({
               <input
                 value={websiteUrl}
                 onChange={(e) => setWebsiteUrl(e.target.value)}
-                type="url"
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v && !v.startsWith("http://") && !v.startsWith("https://")) {
+                    setWebsiteUrl("https://" + v);
+                  }
+                }}
+                type="text"
                 className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm outline-none ring-red-500/30 focus:ring-4"
-                placeholder="https://yourwebsite.com"
+                placeholder="e.g. gravyblock.com"
               />
             </label>
             <label className="block space-y-2">
