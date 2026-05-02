@@ -19,8 +19,8 @@ const faqItems = [
     a: "Starter adds monthly visibility refreshes, AI visibility checks, 4 content ideas per month, citation and review task queue, and a monthly summary email. Best for businesses just starting out with automated local growth.",
   },
   {
-    q: "What does Growth include?",
-    a: "Scale includes everything in Starter plus weekly visibility refreshes, AI-written articles published to your site automatically, Reddit and blog content written and distributed, and backlink outreach emails sent to relevant local sites.",
+    q: "What does Scale include?",
+    a: "Scale includes everything in Starter plus weekly visibility refreshes, AI-written articles published to your site automatically, Reddit-style and blog content written and queued for your review, and backlink opportunities identified and queued monthly.",
   },
   {
     q: "What does Pro include?",
@@ -36,7 +36,7 @@ const faqItems = [
   },
   {
     q: "What happens with Reddit and blog content?",
-    a: "On Growth and above, GravyBlock writes Reddit-style posts and blog content targeting your city and industry. That content is queued and can be published to those channels. Backlink outreach emails are sent automatically to relevant local sites and blogs.",
+    a: "On Scale and above, GravyBlock writes Reddit-style posts and blog content targeting your city and industry. That content is drafted and queued for your review before anything is published. Backlink opportunities are identified and added to your queue — you decide which ones to pursue.",
   },
   {
     q: "Does GravyBlock guarantee rankings?",
@@ -55,7 +55,7 @@ const faqItems = [
 export const metadata: Metadata = {
   title: "GravyBlock: Local SEO Autopilot for Small Businesses",
   description:
-    "GravyBlock automates local SEO for small businesses. Get a free visibility score, then activate autopilot to publish content, manage reviews, build backlinks, run Reddit outreach, and monitor AI search rankings.",
+    "GravyBlock automates local SEO for small businesses. Get a free visibility score, then activate autopilot to publish content, manage reviews, build citations, and monitor AI search presence.",
 };
 
 const plans = [
@@ -83,13 +83,13 @@ const plans = [
     monthly: 149.99,
     intro: 74.99,
     highlight: true,
-    tagline: "AI writes, publishes, and outreaches weekly.",
+    tagline: "AI writes, publishes, and queues content weekly.",
     bullets: [
       "Weekly visibility refreshes",
       "AI articles published to your site automatically",
-      "Reddit and blog content written and distributed",
-      "Backlink outreach emails sent to relevant sites",
-      "8 backlink opportunities identified monthly",
+      "Reddit-style and blog content drafted and queued for review",
+      "8 backlink opportunities identified and queued monthly",
+      "Review monitoring across Google, Yelp, and more",
     ],
     cta: "Start Scale",
     href: "/scan?plan=growth",
@@ -152,7 +152,7 @@ export default function HomePage() {
     name: "GravyBlock",
     url: siteUrl,
     logo: `${siteUrl}/logo.png`,
-    description: "Autopilot local SEO platform for small and local businesses. Automated content, review management, visibility monitoring, and AI search presence.",
+    description: "Local SEO autopilot for small businesses. Automated content publishing, review management, citation building, backlink opportunities, and AI search presence monitoring.",
     sameAs: [],
   };
 
@@ -182,7 +182,7 @@ export default function HomePage() {
               Your marketing on autopilot. Every day.
             </h1>
             <p className="max-w-2xl text-lg text-zinc-600">
-              GravyBlock writes and publishes local SEO content, sends backlink outreach emails, surfaces citation and review tasks, and monitors your AI search visibility. All of it runs on a schedule. Start with a free scan.
+              GravyBlock writes and publishes local SEO content, surfaces citation and review tasks, builds your backlink queue, and monitors your AI search visibility. All of it runs on a schedule. Start with a free scan.
             </p>
             <p className="max-w-xl text-sm text-zinc-500">
               Built for local businesses — restaurants, contractors, salons, clinics, and service-area businesses. Also works for online brands and agencies. No Google account required.
@@ -204,7 +204,7 @@ export default function HomePage() {
                 href="/scan?plan=growth"
                 className="inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500"
               >
-                Growth — $74.99/mo
+                Scale — $74.99/mo
               </Link>
               <Link
                 href="/scan?plan=pro"
