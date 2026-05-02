@@ -172,6 +172,25 @@ export const searchConsolePropertyConnections = pgTable("search_console_property
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/** Unified Google OAuth connection per business — covers Search Console + GBP. */
+export const googleOauthConnections = pgTable("google_oauth_connections", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull()
+    .unique(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  scopes: text("scopes").notNull(),
+  googleEmail: text("google_email"),
+  searchConsoleProperty: text("search_console_property"),
+  gbpAccountId: text("gbp_account_id"),
+  gbpLocationName: text("gbp_location_name"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 /** Public shareable report for a single scan. */
 export const reports = pgTable("reports", {
   id: uuid("id").defaultRandom().primaryKey(),

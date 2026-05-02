@@ -20,12 +20,14 @@ import { CompetitorPanel } from "./competitor-panel";
 import { IntegrationsSection } from "./integrations-section";
 import { getPublishingTargets } from "./integrations-actions";
 import { getAiVisibilityStats } from "@/lib/ai-visibility/llm-probes";
+import { getGoogleConnection } from "@/lib/integrations/google-oauth";
+import { GoogleIntegrationsSection } from "./google-integrations-section";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ businessId: string }>;
-  searchParams: Promise<{ plan?: string; promo?: string }>;
+  searchParams: Promise<{ plan?: string; promo?: string; google_connected?: string; google_error?: string }>;
 };
 
 function normalizePromoCodeIntent(raw?: string): "ILoveYouFree" | "ILikeYou50" | null {
@@ -75,6 +77,8 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
   const queuedDrafts = features.contentDraftsPerMonth > 0
     ? await getQueuedDrafts(businessId).catch(() => [])
     : [];
+
+  const googleConn = await getGoogleConnection(businessId).catch(() => null);
 
   const [referralStats, referralUrl, reviews, publishingTargets, aiVisibility] = await Promise.all([
     getReferralStats(businessId).catch(() => ({ clicks: 0, scans: 0, paid: 0 })),
@@ -215,17 +219,29 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             ) : null}
           </div>
         </div>
-        <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Latest visibility score</p>
-          <p className="mt-2 text-5xl font-semibold text-zinc-900">{latest?.overallScore ?? "—"}</p>
-          {delta !== null && delta !== undefined ? (
-            <p className={`mt-2 text-sm font-semibold ${delta >= 0 ? "text-zinc-900" : "text-red-700"}`}>
-              {delta >= 0 ? "+" : ""}
-              {delta} vs previous scan
-            </p>
-          ) : (
-            <p className="mt-2 text-sm text-zinc-500">Run another scan to unlock trendlines.</p>
-          )}
+        <div className="flex flex-col gap-3">
+          <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Latest visibility score</p>
+            <p className="mt-2 text-5xl font-semibold text-zinc-900">{latest?.overallScore ?? "—"}</p>
+            {delta !== null && delta !== undefined ? (
+              <p className={`mt-2 text-sm font-semibold ${delta >= 0 ? "text-zinc-900" : "text-red-700"}`}>
+                {delta >= 0 ? "+" : ""}
+                {delta} vs previous scan
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-zinc-500">Run another scan to unlock trendlines.</p>
+            )}
+          </div>
+          {tier === "agency" ? (
+            <a
+              href={`/report/${businessId}/print`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full bg-zinc-900 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-zinc-800"
+            >
+              Export PDF report
+            </a>
+          ) : null}
         </div>
       </header>
 
@@ -792,6 +808,16 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           </ul>
         </div>
       </section>
+
+      <GoogleIntegrationsSection
+        businessId={businessId}
+        connected={Boolean(googleConn)}
+        googleEmail={googleConn?.googleEmail ?? null}
+        searchConsoleProperty={googleConn?.searchConsoleProperty ?? null}
+        gbpLocationName={googleConn?.gbpLocationName ?? null}
+        errorParam={query.google_error ?? null}
+        successParam={Boolean(query.google_connected)}
+      />
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-900">Refer a business</h2>

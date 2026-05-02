@@ -22,6 +22,7 @@ import { queueContentForBusiness } from "@/lib/content-gen/queue-content";
 import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
 import { runLeadDripBatch } from "@/lib/email/lead-drip";
+import { runOnboardingBatch } from "@/lib/email/onboarding";
 import { runReviewRequestBatch } from "@/lib/email/review-request";
 import { runAutoConfigBatch } from "@/lib/setup/auto-config";
 import { runMonthlyDigestBatch } from "@/lib/email/monthly-digest";
@@ -337,6 +338,15 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] lead drip failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const onboardResult = await runOnboardingBatch();
+    if (onboardResult.sent > 0) {
+      console.info("[worker] onboarding emails sent", onboardResult);
+    }
+  } catch (error) {
+    console.error("[worker] onboarding batch failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   console.info("[worker] tick done", { durationMs: Date.now() - new Date(startedAt).getTime() });

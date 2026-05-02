@@ -17,6 +17,8 @@ import {
 } from "@/lib/db";
 import { sendAutomationSummaryEmail, sendOutreachEmail } from "@/lib/integrations/resend";
 import { publishToWordPress, type WordPressConfig } from "@/lib/integrations/wordpress";
+import { publishToWebflow, extractWebflowConfig } from "@/lib/publishing/adapters/webflow";
+import { publishToShopify, extractShopifyConfig } from "@/lib/publishing/adapters/shopify";
 import { planFeatures, normalizePlanTierFromDb, type PlanTier } from "@/lib/plans";
 import { getGooglePlaceDetails } from "@/lib/integrations/google-places";
 import { runSiteCrawlAudit } from "@/lib/audit/site-crawl";
@@ -306,7 +308,6 @@ export async function executeContentPublishPath(businessId: string) {
     let publicUrl = `/published/${artifactId}`;
     let channel = "internal_site";
 
-    // If the target is a WordPress site, push directly
     if (target?.adapter === "wordpress" && target.config) {
       const wpConfig = target.config as unknown as WordPressConfig;
       const wpResult = await publishToWordPress({ config: wpConfig, title: queuedItem.title, body });
@@ -315,6 +316,28 @@ export async function executeContentPublishPath(businessId: string) {
         channel = "wordpress";
       } else {
         console.warn("[executor] WordPress publish failed, falling back to internal", { error: wpResult.error });
+      }
+    } else if (target?.adapter === "webflow" && target.config) {
+      const wfConfig = extractWebflowConfig(target.config);
+      if (wfConfig) {
+        const wfResult = await publishToWebflow(wfConfig, { title: queuedItem.title, content: body });
+        if (wfResult.ok) {
+          publicUrl = `https://webflow.com/item/${wfResult.itemId}`;
+          channel = "webflow";
+        } else {
+          console.warn("[executor] Webflow publish failed, falling back to internal", { error: wfResult.error });
+        }
+      }
+    } else if (target?.adapter === "shopify" && target.config) {
+      const sfConfig = extractShopifyConfig(target.config);
+      if (sfConfig) {
+        const sfResult = await publishToShopify(sfConfig, { title: queuedItem.title, content: body });
+        if (sfResult.ok) {
+          publicUrl = sfResult.url;
+          channel = "shopify";
+        } else {
+          console.warn("[executor] Shopify publish failed, falling back to internal", { error: sfResult.error });
+        }
       }
     }
 

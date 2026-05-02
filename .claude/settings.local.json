@@ -21,7 +21,8 @@
       "Bash(echo \"exit: $?\")",
       "Bash(echo \"exit:$?\")",
       "Bash(git checkout *)",
-      "Bash(git merge *)"
+      "Bash(git merge *)",
+      "Bash(xargs grep *)"
     ]
   }
 }
