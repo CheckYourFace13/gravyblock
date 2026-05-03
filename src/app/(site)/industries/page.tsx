@@ -4,9 +4,9 @@ import { INDUSTRY_PAGES, INDUSTRY_SLUGS } from "@/lib/content/industries/registr
 import { INDIVIDUAL_INDUSTRY_SLUGS, INDIVIDUAL_INDUSTRY_PAGES } from "@/lib/content/industries/individual";
 
 export const metadata: Metadata = {
-  title: "Industries and local business types | GravyBlock",
+  title: "Local SEO by industry — restaurants, dentists, contractors, salons & more | GravyBlock",
   description:
-    "Index of home services, professional firms, health and wellness, retail, automotive, property, and hospitality. Each guide explains visibility, trust, and AI discovery, with a free scan CTA.",
+    "GravyBlock industry guides for local businesses: restaurants, dentists, contractors, salons, lawyers, plumbers, real estate agents, and more. Free scan for any business type.",
 };
 
 const cards = INDUSTRY_SLUGS.map((slug) => {
@@ -22,12 +22,10 @@ const cards = INDUSTRY_SLUGS.map((slug) => {
 export default function IndustriesIndexPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-800">Industries</p>
-      <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">Local businesses GravyBlock is built for</h1>
+      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-800">By industry</p>
+      <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">Local SEO for your industry — specific playbooks, free scan</h1>
       <p className="mt-4 text-lg text-zinc-600">
-        Pick your sector for practical context on Google Business Profile clarity, website trust, reviews, and how
-        AI-assisted search summarizes you. Every page ends with the same next step: run the free scan for your real
-        location.
+        Every industry has different ranking signals. Pick yours to see the specific GBP fields, review platforms, content types, and search terms that matter most for your business — plus what GravyBlock automates.
       </p>
 
       <ul className="mt-10 space-y-4">

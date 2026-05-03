@@ -2,24 +2,27 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "GravyBlock for bars & nightlife",
+  title: "Local SEO for bars & nightlife venues — rank on Google Maps | GravyBlock",
   description:
-    "Maps-first scans, prioritized roadmaps, and a workspace for bars and nightlife — automated visibility and conversion checks.",
+    "GravyBlock automates local SEO for bars: optimizes your Google Business Profile, tracks 'bars near me' rankings, publishes content, and monitors AI search mentions. Free scan.",
 };
 
 export default function ForBarsPage() {
   return (
     <VerticalLanding
       eyebrow="Bars & nightlife"
-      title="Make the first digital round as strong as the in-house pour."
-      body="Late-night traffic is competitive. GravyBlock keeps your digital story as tight as your floor shift — scans, prioritized fixes, and a workspace that tracks how you show up in Maps, search, and AI answers over time."
+      title="People searching for a bar tonight pick the first option that looks alive on Google."
+      body="Bar searches spike on Thursday through Saturday night — high competition, no time to lose. GravyBlock keeps your Google listing active with photos and posts, your reviews climbing, and your name showing up when someone asks an AI assistant where to go for drinks tonight."
       bullets={[
-        "Clarify what makes you different in one sentence above the fold.",
-        "Make call, directions, and cover charge answers effortless on mobile.",
-        "Align your public Google listing with what your website promises tonight.",
+        "Keep your Google Business Profile updated with hours, events, happy hour details, and photos.",
+        "Track your Google Map ranking for 'bars near me' and specific drink/vibe searches.",
+        "Publish local content: best happy hours, weekend events, drink specials — drives discovery.",
+        "Monitor reviews on Google and Yelp and flag anything that needs a response.",
+        "Check AI search mentions — ChatGPT and Perplexity increasingly answer nightlife questions.",
+        "Post to local subreddits and community boards to drive foot traffic and backlinks.",
       ]}
       ctaHref="/scan"
-      ctaLabel="Run a bar scan"
+      ctaLabel="Run a free bar scan"
     />
   );
 }

@@ -3,9 +3,9 @@ import Link from "next/link";
 import { ScanForm } from "@/components/scan-form";
 
 export const metadata: Metadata = {
-  title: "Free visibility scan | GravyBlock",
+  title: "Free local SEO scan — see your visibility score in 60 seconds | GravyBlock",
   description:
-    "Run a free scan for any local business: score and top findings first, full report by email after unlock. Starter, Growth, Pro, and Agency add ongoing automation from your workspace.",
+    "Free Google visibility scan for local businesses. See your score, top ranking problems, and a prioritized fix list in under 60 seconds. No credit card required.",
 };
 
 import { trackReferralEvent } from "@/lib/referrals/referral-tracker";
@@ -35,46 +35,38 @@ export default async function ScanPage({ searchParams }: Props) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
       <div className="mx-auto max-w-3xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Scan</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">Scan your business or website</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Free scan</p>
+        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">
+          See your Google visibility score in 60 seconds.
+        </h1>
         <p className="mt-4 text-lg text-zinc-600">
-          Works for local businesses (restaurants, dentists, plumbers, real estate agents, salons, contractors) and
-          online businesses (e-commerce, agencies, SaaS, blogs). Choose local to find your Google listing, or enter your
-          website URL directly.
+          Find your business on Google, get a score across 6 ranking factors, and see exactly what's holding you back — for free, no credit card required. Works for restaurants, dentists, contractors, salons, lawyers, and any local business.
+        </p>
+        <p className="mt-2 text-sm text-zinc-500">
+          Already know you want more? Use code <strong className="text-zinc-700">INTRO50</strong> at checkout for 50% off month one.
         </p>
       </div>
 
-      <div className="mx-auto mt-6 flex max-w-3xl flex-col gap-3 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-left text-sm text-zinc-700">
-          <p className="font-semibold text-zinc-900">Plans</p>
-          <p className="mt-1 text-xs text-zinc-600">
-            Free: score preview. Starter: monthly monitoring. Growth: full content publishing, social posts, and outreach. Pro: programmatic SEO, GBP sync, and video scripts. Agency: up to 10 clients. Works for local and online businesses.
-          </p>
-        </div>
+      <div className="mx-auto mt-6 flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4">
+        <p className="text-sm font-semibold text-zinc-900">Want ongoing automation? Pick a plan after your scan:</p>
         <div className="flex flex-wrap gap-2">
-          <Link
-            href="/scan"
-            className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
-          >
-            Free report
-          </Link>
           <Link
             href={promoCode ? `/scan?plan=starter&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=starter"}
             className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-200"
           >
-            Starter
+            Starter — $39.99/mo
           </Link>
           <Link
             href={promoCode ? `/scan?plan=growth&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=growth"}
             className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-500"
           >
-            Growth
+            Scale — $74.99/mo ★
           </Link>
           <Link
             href={promoCode ? `/scan?plan=pro&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=pro"}
             className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-200"
           >
-            Pro
+            Pro — $149.99/mo
           </Link>
         </div>
       </div>

@@ -53,9 +53,9 @@ const faqItems = [
 ] as const;
 
 export const metadata: Metadata = {
-  title: "GravyBlock: Local SEO Autopilot for Small Businesses",
+  title: "GravyBlock — Local SEO That Runs Itself | Automated Content, Reviews & Rankings",
   description:
-    "GravyBlock automates local SEO for small businesses. Get a free visibility score, then activate autopilot to publish content, manage reviews, build citations, and monitor AI search presence.",
+    "GravyBlock replaces your local SEO agency for a fraction of the cost. AI writes and publishes content weekly, posts to Reddit, sends backlink outreach, and tracks your Google rankings — automatically. Free scan, no credit card.",
 };
 
 const plans = [
@@ -65,15 +65,15 @@ const plans = [
     monthly: 79.99,
     intro: 39.99,
     highlight: false,
-    tagline: "Monthly monitoring and content ideas.",
+    tagline: "Know exactly where you stand — every month.",
     bullets: [
-      "Monthly visibility refresh + score history",
-      "4 content ideas per month",
-      "Citation and review task queue",
-      "AI search visibility check",
-      "Monthly summary email",
+      "Monthly visibility score refresh with trend history",
+      "4 AI-generated content ideas per month",
+      "Citation and review task queue — step-by-step fixes",
+      "AI search visibility check (ChatGPT, Perplexity)",
+      "Monthly summary email with progress",
     ],
-    cta: "Start Starter",
+    cta: "Get started for $39.99/mo",
     href: "/scan?plan=starter",
     ctaStyle: "bg-zinc-900 hover:bg-zinc-800",
   },
@@ -83,15 +83,15 @@ const plans = [
     monthly: 149.99,
     intro: 74.99,
     highlight: true,
-    tagline: "AI writes and publishes content weekly — on autopilot.",
+    tagline: "Your SEO agency — for $74.99 a month.",
     bullets: [
-      "Weekly visibility refreshes",
-      "AI articles published to your site automatically",
-      "Reddit posts submitted to relevant local communities",
-      "Backlink outreach emails sent to 8 relevant sites monthly",
+      "Weekly AI articles published to your site automatically",
+      "Reddit posts submitted to local communities in your city",
+      "8 backlink outreach emails sent monthly — hands-free",
+      "Facebook + Instagram auto-posting",
       "Review monitoring across Google, Yelp, and more",
     ],
-    cta: "Start Scale",
+    cta: "Start Scale — $74.99/mo",
     href: "/scan?plan=growth",
     ctaStyle: "bg-red-600 hover:bg-red-500",
   },
@@ -101,15 +101,15 @@ const plans = [
     monthly: 299.99,
     intro: 149.99,
     highlight: false,
-    tagline: "Higher output, faster refresh, deeper SEO coverage.",
+    tagline: "More content, more cities, more leads.",
     bullets: [
       "Twice-weekly visibility refreshes",
       "12 published articles + 8 local SEO pages per month",
-      "Programmatic local SEO pages for your city and industry",
-      "Lead pipeline engine: find and pitch quality prospects automatically",
-      "1 location included · add up to 2 more at $99.99/mo each",
+      "Programmatic pages for every city and service area you cover",
+      "Lead pipeline: GravyBlock finds weak competitors and pitches them for you",
+      "Up to 3 locations — add more at $99.99/mo each",
     ],
-    cta: "Start Pro",
+    cta: "Start Pro — $149.99/mo",
     href: "/scan?plan=pro",
     ctaStyle: "bg-zinc-900 hover:bg-zinc-800",
   },
@@ -119,15 +119,15 @@ const plans = [
     monthly: 499.99,
     intro: 249.99,
     highlight: false,
-    tagline: "Run up to 10 clients on full autopilot.",
+    tagline: "Run 10 clients. Bill them like you hired a team.",
     bullets: [
-      "10 client workspaces, all features unlocked",
-      "Unlimited content drafts and publishing",
-      "Lead pipeline engine: GravyBlock finds quality leads and sends outreach on your behalf",
-      "Daily refresh cadence across all clients",
-      "White-label reporting · priority support",
+      "10 fully-automated client workspaces",
+      "Unlimited content — articles, social posts, local pages",
+      "Lead pipeline: find weak local businesses and pitch your services automatically",
+      "Daily refresh cadence across all client accounts",
+      "White-label reporting + priority support",
     ],
-    cta: "Start Agency",
+    cta: "Start Agency — $249.99/mo",
     href: "/scan?plan=agency",
     ctaStyle: "bg-zinc-900 hover:bg-zinc-800",
   },
@@ -177,44 +177,32 @@ export default function HomePage() {
       <section className="border-b border-zinc-200 bg-gradient-to-b from-red-50 via-white to-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-16 sm:px-6 lg:flex-row lg:items-center lg:py-20">
           <div className="flex-1 space-y-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-800">Local growth autopilot</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-800">Local SEO on autopilot</p>
             <h1 className="text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
-              Your marketing on autopilot. Every day.
+              Stop losing customers to businesses that rank above you.
             </h1>
             <p className="max-w-2xl text-lg text-zinc-600">
-              GravyBlock writes and publishes local SEO content, surfaces citation and review tasks, builds your backlink queue, and monitors your AI search visibility. All of it runs on a schedule. Start with a free scan.
+              GravyBlock writes and publishes local SEO articles, posts to Reddit, sends backlink outreach emails, tracks your Google rankings, and monitors whether AI assistants mention your business — all without you lifting a finger.
             </p>
             <p className="max-w-xl text-sm text-zinc-500">
-              Built for local businesses — restaurants, contractors, salons, clinics, and service-area businesses. Also works for online brands and agencies. No Google account required.
+              Costs less than one hour of agency time per month. Built for local businesses — restaurants, contractors, salons, clinics, lawyers, and service-area businesses.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/scan"
                 className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800"
               >
-                Free report
-              </Link>
-              <Link
-                href="/scan?plan=starter"
-                className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
-              >
-                Starter — $39.99/mo
+                Get my free visibility score
               </Link>
               <Link
                 href="/scan?plan=growth"
                 className="inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500"
               >
-                Scale — $74.99/mo
-              </Link>
-              <Link
-                href="/scan?plan=pro"
-                className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
-              >
-                Pro — $149.99/mo
+                Start Scale — $74.99/mo
               </Link>
             </div>
             <p className="text-xs text-zinc-500">
-              Introductory pricing — use code <strong>INTRO50</strong> at checkout for 50% off your first month.
+              No credit card for the free scan. Use code <strong>INTRO50</strong> at checkout for 50% off month one.
             </p>
           </div>
           <div className="flex-1">
@@ -239,27 +227,46 @@ export default function HomePage() {
 
       <section className="border-b border-zinc-800 bg-zinc-900 text-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-9 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
-          <div className="max-w-xl space-y-3 lg:flex-1">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-red-400">Proof, not jargon</p>
+          <div className="max-w-xl space-y-4 lg:flex-1">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-red-400">Free scan — results in 60 seconds</p>
             <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-              One score. Instant clarity.
+              Find out exactly why you're losing customers to competitors.
             </h2>
-            <p className="text-sm leading-snug text-zinc-300 sm:text-[0.9375rem]">
-              Visibility, trust, listings, reviews, AI search coverage, and conversion readiness rolled into one
-              score, with a prioritized action plan attached.
+            <p className="text-sm leading-relaxed text-zinc-300 sm:text-[0.9375rem]">
+              Your score shows where customers are falling off: missing Google citations, stale reviews, slow website, broken GBP data, and zero AI search coverage. Each issue is ranked by how much it's hurting you — with specific fixes attached.
             </p>
+            <ul className="space-y-1.5 text-sm text-zinc-400">
+              <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500 shrink-0" />Google Business Profile completeness &amp; trust score</li>
+              <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500 shrink-0" />Review count, recency, and response quality</li>
+              <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500 shrink-0" />Website speed, schema, and mobile-readiness</li>
+              <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500 shrink-0" />AI search mentions (ChatGPT, Perplexity, Gemini)</li>
+              <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-red-500 shrink-0" />Citation consistency across 40+ directories</li>
+            </ul>
           </div>
           <div className="w-full shrink-0 rounded-2xl border border-white/10 bg-zinc-800/60 p-5 shadow-lg sm:p-6 lg:max-w-sm">
-            <p className="text-center text-6xl font-semibold tabular-nums tracking-tight text-white sm:text-7xl">72</p>
-            <p className="mt-2 text-center text-xs leading-snug text-zinc-400 sm:text-sm">
-              Sample score only. Run your free scan for your real result.
-            </p>
+            <p className="text-center text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-zinc-400">Sample visibility score</p>
+            <p className="mt-2 text-center text-7xl font-semibold tabular-nums tracking-tight text-white">72</p>
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-zinc-400">
+                <span>Google Business Profile</span><span className="text-emerald-400">88 / 100</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-zinc-400">
+                <span>Reviews &amp; trust</span><span className="text-yellow-400">64 / 100</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-zinc-400">
+                <span>Website &amp; schema</span><span className="text-yellow-400">71 / 100</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-zinc-400">
+                <span>AI search visibility</span><span className="text-red-400">41 / 100</span>
+              </div>
+            </div>
             <Link
               href="/scan"
-              className="mt-4 flex w-full items-center justify-center rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500"
+              className="mt-5 flex w-full items-center justify-center rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500"
             >
-              Get my score
+              Get my real score — free
             </Link>
+            <p className="mt-2 text-center text-[10px] text-zinc-500">No credit card. Takes 60 seconds.</p>
           </div>
         </div>
       </section>
@@ -332,77 +339,98 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id="who-its-for" className="mx-auto max-w-6xl space-y-6 px-4 py-16 sm:px-6">
-        <h2 className="text-3xl font-semibold text-zinc-900">Who GravyBlock is for</h2>
-        <p className="max-w-3xl text-zinc-600">
-          GravyBlock is for local teams that depend on local discovery and local trust to win revenue.{" "}
-          <Link href="/industries" className="font-semibold text-red-800 hover:underline">
-            Explore industries
-          </Link>{" "}
-          for sector-specific notes on listings, websites, reviews, and AI discovery.
-        </p>
+      <section id="who-its-for" className="mx-auto max-w-6xl space-y-8 px-4 py-16 sm:px-6">
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-800">Built for you</p>
+          <h2 className="text-3xl font-semibold text-zinc-900">If customers find you through Google, you need GravyBlock.</h2>
+          <p className="max-w-3xl text-zinc-600">
+            Any business where local search, reviews, and word-of-mouth drive new customers.{" "}
+            <Link href="/industries" className="font-semibold text-red-800 hover:underline">
+              See industry-specific playbooks →
+            </Link>
+          </p>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            "Apartment communities",
-            "Dentists, doctors, and clinics",
-            "Attorneys and legal offices",
-            "Home services",
-            "Gyms and fitness studios",
-            "Salons and med spas",
-            "Auto services",
-            "Multi-location brands",
-            "Service-area businesses",
-            "Online brands building local trust",
-            "Restaurants and bars",
-            "Marketing agencies (Agency plan)",
+            { label: "Restaurants & bars", note: "Win the map moment at meal time" },
+            { label: "Dentists & clinics", note: "Rank when patients search for care" },
+            { label: "Attorneys & law firms", note: "Build credibility before they call" },
+            { label: "Home services & trades", note: "Show up first for emergency searches" },
+            { label: "Salons & med spas", note: "Fill the calendar with new clients" },
+            { label: "Contractors & remodelers", note: "Be in the first three results, every time" },
+            { label: "Gyms & fitness studios", note: "Capture new-member searches year-round" },
+            { label: "Real estate agents", note: "Rank for neighborhood searches near you" },
+            { label: "Chiropractors & PTs", note: "Get found by patients searching for relief" },
+            { label: "Multi-location brands", note: "Scale visibility across every location" },
+            { label: "Service-area businesses", note: "Rank in every city you actually serve" },
+            { label: "Marketing agencies", note: "Manage 10 clients from one dashboard" },
           ].map((item) => (
-            <div key={item} className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
-              {item}
+            <div key={item.label} className="rounded-xl border border-zinc-200 bg-white p-4">
+              <p className="text-sm font-semibold text-zinc-900">{item.label}</p>
+              <p className="mt-0.5 text-xs text-zinc-500">{item.note}</p>
             </div>
           ))}
         </div>
       </section>
 
       <section id="how-it-works" className="border-y border-zinc-200 bg-zinc-50">
-        <div className="mx-auto max-w-6xl space-y-6 px-4 py-16 sm:px-6">
-          <h2 className="text-3xl font-semibold text-zinc-900">How GravyBlock works</h2>
+        <div className="mx-auto max-w-6xl space-y-8 px-4 py-16 sm:px-6">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-800">How it works</p>
+            <h2 className="text-3xl font-semibold text-zinc-900">Up and running in under five minutes.</h2>
+          </div>
           <ol className="grid gap-4 md:grid-cols-4">
             {[
-              "Pick your business from Google Places",
-              "Get score, verdict, and top findings",
-              "Unlock full report and open workspace",
-              "Activate a plan — autopilot runs from there",
-            ].map((step, idx) => (
-              <li key={step} className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-700">
-                <p className="text-xs font-semibold text-red-700">0{idx + 1}</p>
-                <p className="mt-2 font-semibold text-zinc-900">{step}</p>
+              { step: "01", title: "Search for your business", desc: "Type your business name. We pull it from Google Places automatically — address, phone, hours, categories, all of it." },
+              { step: "02", title: "Get your score instantly", desc: "See your visibility score, a plain-English verdict, and your top three issues — no email required to get started." },
+              { step: "03", title: "Unlock the full report", desc: "Enter your email to see every finding across 6 categories: listings, reviews, website, citations, AI visibility, and conversion." },
+              { step: "04", title: "Activate autopilot", desc: "Choose Scale, Pro, or Agency. GravyBlock starts publishing content, posting to Reddit, and sending outreach — every week, hands-free." },
+            ].map((item) => (
+              <li key={item.step} className="rounded-2xl border border-zinc-200 bg-white p-5">
+                <p className="text-xs font-bold text-red-700">{item.step}</p>
+                <p className="mt-2 font-semibold text-zinc-900">{item.title}</p>
+                <p className="mt-1 text-sm text-zinc-500 leading-relaxed">{item.desc}</p>
               </li>
             ))}
           </ol>
+          <div className="text-center">
+            <Link href="/scan" className="inline-flex rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800">
+              Start with your free scan
+            </Link>
+          </div>
         </div>
       </section>
 
-      <section id="why-local-trust" className="mx-auto max-w-6xl space-y-6 px-4 py-16 sm:px-6">
-        <h2 className="text-3xl font-semibold text-zinc-900">Why local trust and AI search coverage matter</h2>
-        <p className="max-w-3xl text-zinc-600">
-          Discovery does not end at ranking. People compare details, read trust cues, and ask assistants for options.
-          Strong local trust signals improve conversion after discovery and improve how your business is summarized in
-          AI-assisted search interfaces.
-        </p>
-        <div className="grid gap-4 md:grid-cols-2">
-          <article className="rounded-2xl border border-zinc-200 bg-white p-5">
-            <h3 className="text-lg font-semibold text-zinc-900">What improves conversion after discovery?</h3>
-            <p className="mt-2 text-sm text-zinc-600">
-              Clear services, clear service areas, proof signals, contact clarity, and fast paths to action.
-            </p>
-          </article>
-          <article className="rounded-2xl border border-zinc-200 bg-white p-5">
-            <h3 className="text-lg font-semibold text-zinc-900">How does AI search change local discovery?</h3>
-            <p className="mt-2 text-sm text-zinc-600">
-              Assistants compress options quickly. Inconsistent business facts and weak page clarity lower confidence in
-              your business profile — GravyBlock tracks this and works to improve it.
-            </p>
-          </article>
+      <section id="why-local-trust" className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+        <div className="rounded-3xl border border-zinc-200 bg-white p-8 sm:p-10">
+          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+            <div className="space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-800">The real problem</p>
+              <h2 className="text-3xl font-semibold text-zinc-900">Your competitor isn't better — they just rank higher.</h2>
+              <p className="text-zinc-600">
+                Most local business owners assume customers choose on quality. They don't. They choose whoever shows up first on Google Maps, has the most reviews, and looks credible when you click through.
+              </p>
+              <p className="text-zinc-600">
+                GravyBlock fixes the signals that determine rank: profile completeness, review volume, content freshness, citation consistency, backlinks, and AI search mentions. It does all of this automatically — every single week.
+              </p>
+              <Link href="/scan" className="inline-flex rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500">
+                See where you stand right now
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {[
+                { pct: "76%", fact: "of people who search for something nearby visit a business within one day" },
+                { pct: "90%+", fact: "of customers read reviews before choosing a local business" },
+                { pct: "46%", fact: "of all Google searches have local intent — city, neighborhood, or near me" },
+                { pct: "3×", fact: "more likely to get a call from a complete, active Google Business Profile vs. a stale one" },
+              ].map((s) => (
+                <div key={s.pct} className="flex items-start gap-4 rounded-2xl border border-zinc-100 bg-zinc-50 px-5 py-4">
+                  <p className="shrink-0 text-2xl font-bold text-red-700">{s.pct}</p>
+                  <p className="text-sm text-zinc-600 leading-relaxed">{s.fact}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -458,22 +486,23 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-16 text-center sm:px-6">
-        <h2 className="text-3xl font-semibold text-zinc-900">Start free. Upgrade when ready.</h2>
-        <p className="mx-auto mt-3 max-w-2xl text-zinc-600">
-          Run the free scan first. Then activate the plan that fits your business from workspace billing.
-          Use <strong>INTRO50</strong> for 50% off month one.
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link href="/scan" className="rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-800">
-            Start with free scan
-          </Link>
-          <Link href="/scan?plan=growth" className="rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500">
-            Start Scale — $74/mo
-          </Link>
-          <Link href="/scan?plan=agency" className="rounded-full bg-zinc-100 border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200">
-            Agency — $249.99/mo
-          </Link>
+      <section className="border-t border-zinc-200 bg-gradient-to-b from-red-50 to-white">
+        <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-800">Ready to rank?</p>
+          <h2 className="mt-3 text-3xl font-semibold text-zinc-900 sm:text-4xl">Stop letting competitors take customers that should be yours.</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-zinc-600">
+            Run the free scan in 60 seconds. No credit card, no commitment. If you like what you see, activate Scale for $74.99/mo and let GravyBlock handle the rest.
+          </p>
+          <p className="mt-2 text-sm text-zinc-500">Use code <strong className="text-zinc-700">INTRO50</strong> at checkout — 50% off your first month.</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/scan" className="rounded-full bg-zinc-900 px-7 py-3 text-sm font-semibold text-white hover:bg-zinc-800">
+              Get my free visibility score
+            </Link>
+            <Link href="/scan?plan=growth" className="rounded-full bg-red-600 px-7 py-3 text-sm font-semibold text-white hover:bg-red-500">
+              Start Scale — $74.99/mo
+            </Link>
+          </div>
+          <p className="mt-6 text-xs text-zinc-400">No setup fee · Cancel anytime · Free scan always available</p>
         </div>
       </section>
 

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Local growth guides — GravyBlock",
+  title: "Local SEO guides — how to rank higher on Google Maps & AI search | GravyBlock",
   description:
-    "Evergreen explainers on multi-location SEO, service-area visibility, AI search, social proof, and website trust — structured for search and linked to GravyBlock’s automated scan model.",
+    "Free local SEO guides for small business owners: how to rank on Google Maps, get more reviews, show up in AI search, build backlinks, and convert local visitors into customers.",
 };
 
 const guides = [
@@ -88,16 +88,15 @@ const guides = [
 export default function GuidesIndexPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-800">Guides</p>
-      <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">Local growth library</h1>
+      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-800">Free guides</p>
+      <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">Local SEO guides for small business owners</h1>
       <p className="mt-4 text-lg text-zinc-600">
-        These pages are written to be useful on their own and to complement an automated scan: they describe what
-        “good” looks like without promising specific rankings.
+        Practical, no-fluff guides on how to rank higher on Google Maps, show up in AI search, build reviews, earn backlinks, and turn local search traffic into paying customers.
       </p>
       <p className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-700">
-        Looking for sector-specific context (trades, clinics, retail, auto, property, hospitality)?{" "}
+        Looking for industry-specific playbooks (restaurants, dentists, contractors, salons, lawyers)?{" "}
         <Link href="/industries" className="font-semibold text-red-800 hover:underline">
-          Browse industries
+          Browse industries →
         </Link>
         .
       </p>
