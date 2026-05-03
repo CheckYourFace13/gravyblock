@@ -108,19 +108,16 @@ export function SiteFooter() {
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Compare</p>
-            <div className="mt-2 flex flex-col gap-2 text-zinc-600">
-              <Link href="/compare/gravyblock-vs-brightlocal" className="hover:text-zinc-900 hover:underline">
-                vs BrightLocal
-              </Link>
-              <Link href="/compare/gravyblock-vs-yext" className="hover:text-zinc-900 hover:underline">
-                vs Yext
-              </Link>
-              <Link href="/compare/gravyblock-vs-semrush-local" className="hover:text-zinc-900 hover:underline">
-                vs Semrush
-              </Link>
-              <Link href="/examples/sample-local-growth-report" className="hover:text-zinc-900 hover:underline">
-                Sample report
-              </Link>
+            <div className="mt-2 flex flex-col gap-1.5 text-zinc-600">
+              <Link href="/compare/gravyblock-vs-brightlocal" className="hover:text-zinc-900 hover:underline">vs BrightLocal</Link>
+              <Link href="/compare/gravyblock-vs-yext" className="hover:text-zinc-900 hover:underline">vs Yext</Link>
+              <Link href="/compare/gravyblock-vs-semrush-local" className="hover:text-zinc-900 hover:underline">vs Semrush</Link>
+              <Link href="/compare/gravyblock-vs-searchatlas" className="hover:text-zinc-900 hover:underline">vs Search Atlas</Link>
+              <Link href="/compare/gravyblock-vs-reputation" className="hover:text-zinc-900 hover:underline">vs Reputation.com</Link>
+              <Link href="/compare/gravyblock-vs-soro" className="hover:text-zinc-900 hover:underline">vs Soro</Link>
+              <Link href="/compare/gravyblock-vs-rankscore" className="hover:text-zinc-900 hover:underline">vs RankScore</Link>
+              <Link href="/compare/gravyblock-vs-adaptify" className="hover:text-zinc-900 hover:underline">vs Adaptify</Link>
+              <Link href="/compare" className="font-medium text-zinc-900 hover:underline">All comparisons</Link>
             </div>
           </div>
           <div className="flex flex-col justify-end">

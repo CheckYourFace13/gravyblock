@@ -3,17 +3,23 @@ import Link from "next/link";
 import { COMPARE_PAGES, COMPARE_SLUGS } from "@/lib/content/compare-pages";
 
 export const metadata: Metadata = {
-  title: "GravyBlock vs BrightLocal, Yext, Semrush Local & More — Local SEO Comparison 2026",
+  title: "GravyBlock vs BrightLocal, Yext, Semrush, Search Atlas, Soro & More — 2026",
   description:
-    "How does GravyBlock compare to BrightLocal, Yext, Semrush Local, Moz Local, BabyLoveGrowth, OutreachFrog, and BulletProof? Side-by-side breakdown of features, pricing, and what each tool actually does for local businesses.",
+    "Compare GravyBlock to BrightLocal, Yext, Semrush, Search Atlas, Reputation.com, Soro, RankScore, Adaptify, SimilarWeb, BabyLoveGrowth, OutreachFrog, and BulletProof. See which local SEO tool actually runs the work for you.",
 };
 
 const featuredComps = [
-  { slug: "gravyblock-vs-brightlocal", name: "BrightLocal", price: "From $39/mo", note: "Reports only — you still do the work" },
+  { slug: "gravyblock-vs-brightlocal", name: "BrightLocal", price: "From $39/mo", note: "Reports only — you still do all the work" },
   { slug: "gravyblock-vs-yext", name: "Yext", price: "From $199+/yr", note: "Enterprise listing sync, not a growth tool" },
   { slug: "gravyblock-vs-semrush-local", name: "Semrush Local", price: "From $140+/mo", note: "Built for SEO pros, not business owners" },
-  { slug: "gravyblock-vs-babylovegrowth", name: "BabyLoveGrowth.ai", price: "$99/mo", note: "Content only — missing all local SEO signals" },
-  { slug: "gravyblock-vs-outreachfrog", name: "OutreachFrog", price: "$159–$1,199/link", note: "One-off links — no ongoing automation" },
+  { slug: "gravyblock-vs-searchatlas", name: "Search Atlas", price: "$99–$399/mo", note: "60+ tools — powerful but complex agency suite" },
+  { slug: "gravyblock-vs-reputation", name: "Reputation.com", price: "Enterprise / demo only", note: "Multi-location enterprise tool — no self-serve" },
+  { slug: "gravyblock-vs-soro", name: "Soro", price: "~$49–$149/mo", note: "Content autopilot only — no local SEO signals" },
+  { slug: "gravyblock-vs-rankscore", name: "RankScore", price: "Lifetime deal pricing", note: "Blog content only — no reviews, GBP, or citations" },
+  { slug: "gravyblock-vs-adaptify", name: "Adaptify", price: "Agency pricing / demo", note: "White-label agency tool — not for business owners" },
+  { slug: "gravyblock-vs-similarweb", name: "SimilarWeb", price: "$300–$1,000+/mo", note: "Analytics only — tells you what's wrong, does nothing" },
+  { slug: "gravyblock-vs-babylovegrowth", name: "BabyLoveGrowth.ai", price: "$99/mo", note: "Content + backlinks — missing all local SEO signals" },
+  { slug: "gravyblock-vs-outreachfrog", name: "OutreachFrog", price: "$159–$1,199/link", note: "One-off link purchases — no ongoing automation" },
   { slug: "gravyblock-vs-bulletproof", name: "BulletProof", price: "Premium / unlisted", note: "Real-estate-only, high-touch coaching model" },
 ];
 
