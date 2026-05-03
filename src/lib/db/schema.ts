@@ -573,6 +573,7 @@ export const businessReviews = pgTable("business_reviews", {
   publishTime: timestamp("publish_time", { withTimezone: true }),
   suggestedReply: text("suggested_reply"),
   status: text("status").notNull().default("new"),
+  repliedAt: timestamp("replied_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -587,6 +588,27 @@ export const keywordRankings = pgTable("keyword_rankings", {
   ctr: text("ctr"),                    // 0–1, stored as text
   date: text("date").notNull(),        // YYYY-MM-DD
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** Review gating: shareable links that route happy customers to Google. */
+export const reviewRequestLinks = pgTable("review_request_links", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  token: uuid("token").defaultRandom().notNull().unique(),
+  positiveRedirectUrl: text("positive_redirect_url"),
+  threshold: integer("threshold").notNull().default(4),
+  active: text("active").notNull().default("true"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** Responses submitted via review gating links. */
+export const reviewRequestResponses = pgTable("review_request_responses", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  linkId: uuid("link_id").references(() => reviewRequestLinks.id, { onDelete: "cascade" }).notNull(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  rating: integer("rating").notNull(),
+  feedback: text("feedback"),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 /** Single-use token links emailed to business owners for no-login setup. */

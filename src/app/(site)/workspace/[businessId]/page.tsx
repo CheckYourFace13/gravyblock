@@ -31,6 +31,8 @@ import { desc as descOp, eq as eqOp } from "drizzle-orm";
 import { SocialCredentialsSection } from "./social-credentials-section";
 import { getSocialCredentials } from "./social-credentials-actions";
 import { TopicClusterSection } from "./topic-cluster-section";
+import { ReviewGatingSection } from "./review-gating-section";
+import { getReviewGatingData } from "./review-gating-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -124,6 +126,11 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
 
   // Feature #9: social credentials for FB/IG section
   const socialCredentials = await getSocialCredentials(businessId).catch(() => null);
+
+  // Review gating data (shareable link + private feedback)
+  const reviewGatingData = features.reviewManagement
+    ? await getReviewGatingData(businessId).catch(() => null)
+    : null;
 
   const roadmapRows = bundle.recommendations.map((r) => ({
     lane: r.lane as RoadmapLane,
@@ -461,6 +468,11 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           suggestedReply: r.suggestedReply,
           status: r.status,
         }))} />
+      ) : null}
+
+      {/* ─── Review gating ───────────────────────────────────────────────────── */}
+      {reviewGatingData ? (
+        <ReviewGatingSection businessId={businessId} initialData={reviewGatingData} />
       ) : null}
 
       {/* ─── Feature #8: GEO audit — AI search visibility ───────────────────── */}
