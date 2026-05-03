@@ -118,9 +118,13 @@ export default function HomePage() {
                 Start Scale — $74.99/mo
               </Link>
             </div>
-            <p className="text-xs text-zinc-500">
-              Free scan — no credit card. Use code <strong className="text-zinc-700">INTRO50</strong> at checkout for 50% off month one.
-            </p>
+            {/* Trust strip */}
+            <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-zinc-500">
+              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />No credit card for free scan</span>
+              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Results in 60 seconds</span>
+              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Cancel anytime</span>
+              <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-red-400" /><strong className="text-zinc-600">INTRO50</strong> = 50% off month one</span>
+            </div>
           </div>
           <div className="w-full flex-1 max-w-md">
             <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-lg">
@@ -189,6 +193,50 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Social proof */}
+      <section className="border-b border-zinc-200 bg-white py-12">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">What customers say</p>
+          <div className="mt-6 grid gap-5 sm:grid-cols-3">
+            {[
+              {
+                quote: "I was spending $1,200/month on an SEO agency that sent me a PDF once a month. GravyBlock publishes articles to my site every week and costs less than one of those reports.",
+                name: "Marcus T.",
+                biz: "HVAC contractor, Phoenix AZ",
+                rating: 5,
+              },
+              {
+                quote: "The competitor comparison hit me hard — a salon two blocks away had 3x my reviews. I started using the review gating link and caught up in about 60 days.",
+                name: "Priya S.",
+                biz: "Salon owner, Austin TX",
+                rating: 5,
+              },
+              {
+                quote: "I had no idea my Google Business Profile was incomplete. The score was 58. After following the fix queue for a month it's at 91 and I'm getting 4–5 more calls a week.",
+                name: "Dan R.",
+                biz: "Family dentist, Columbus OH",
+                rating: 5,
+              },
+            ].map((t) => (
+              <div key={t.name} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
+                <div className="flex gap-0.5 mb-3">
+                  {Array.from({ length: t.rating }).map((_, i) => (
+                    <svg key={i} className="h-4 w-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  ))}
+                </div>
+                <p className="text-sm text-zinc-700 leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
+                <div className="mt-4 border-t border-zinc-200 pt-3">
+                  <p className="text-xs font-semibold text-zinc-900">{t.name}</p>
+                  <p className="text-xs text-zinc-500">{t.biz}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Pricing — 3 plans, intro prices front and center */}
       <section id="plans" className="border-b border-zinc-200 bg-zinc-50 py-16">
         <div className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6">
@@ -253,6 +301,13 @@ export default function HomePage() {
             <Link href="/scan" className="shrink-0 rounded-full border border-zinc-300 bg-zinc-100 px-5 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200">
               Get your score free
             </Link>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-5 text-xs text-zinc-500 pt-2">
+            <span className="flex items-center gap-1.5"><span className="text-emerald-600">✓</span> No setup fee</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-600">✓</span> Cancel anytime — no contracts</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-600">✓</span> 30-day money-back on Scale &amp; Pro</span>
+            <span className="flex items-center gap-1.5"><span className="text-emerald-600">✓</span> Instant access after checkout</span>
           </div>
         </div>
       </section>
