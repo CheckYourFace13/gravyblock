@@ -228,31 +228,48 @@ async function maybeCitationAudit() {
 }
 
 /**
- * Cold outreach: Mon–Fri at 9am UTC, 3 emails/day from the strategic calendar.
- * ~60 personalised cold emails per month, zero manual effort.
+ * Cold outreach: Mon–Fri, 3 batches/day (9am, 12pm, 3pm UTC).
+ * Each batch hits a different city+industry combo, 8 emails each.
+ * Total: up to 24 emails/day → ~480/month.
+ *
+ * Batch slots offset the calendar index so each window hits a different target.
  */
-async function maybeSendColdOutreach() {
+async function runColdOutreachWindow(windowKey: string, calendarOffset: number, hour: number) {
   const now = new Date();
   const day = now.getUTCDay();
   if (day === 0 || day === 6) return; // skip weekends
-  const hour = now.getUTCHours();
-  if (hour < 9 || hour > 10) return; // 9am UTC window only
-  if (await hasJobRunToday("cold_outreach_batch")) return;
+  if (now.getUTCHours() < hour || now.getUTCHours() > hour + 1) return;
+  if (await hasJobRunToday(`cold_outreach_${windowKey}`)) return;
 
-  const target = getTodaysOutreachTarget();
+  const calendar = (await import("@/lib/outreach/outreach-calendar")).OUTREACH_CALENDAR;
+  const dayOfMonth = now.getUTCDate();
+  const slot = ((dayOfMonth - 1 + calendarOffset) % 30);
+  const target = calendar[slot]!;
+
   try {
     const result = await runOutreachBatch({
       city: target.city,
       state: target.state,
       industry: target.industry,
       industryLabel: target.industryLabel,
-      maxEmails: 3,
+      maxEmails: 8,
     });
-    await recordWorkerJob("cold_outreach_batch", { ...result, ...target });
-    console.info("[worker] cold outreach sent", { ...result, target: `${target.industry} in ${target.city} ${target.state}` });
+    await recordWorkerJob(`cold_outreach_${windowKey}`, { ...result, ...target, window: windowKey });
+    // Also record under the generic key for dashboard stats
+    await recordWorkerJob("cold_outreach_batch", { ...result, ...target, window: windowKey });
+    console.info(`[worker] cold outreach [${windowKey}]`, { sent: result.sent, target: `${target.industry} in ${target.city} ${target.state}` });
   } catch (error) {
-    console.error("[worker] cold outreach failed", { error: error instanceof Error ? error.message : String(error), target });
+    console.error(`[worker] cold outreach [${windowKey}] failed`, { error: error instanceof Error ? error.message : String(error), target });
   }
+}
+
+async function maybeSendColdOutreach() {
+  // Window A: 9am UTC  — today's calendar slot
+  await runColdOutreachWindow("morning",   0,  9);
+  // Window B: 12pm UTC — +10 slots ahead in calendar (different city+industry)
+  await runColdOutreachWindow("midday",   10, 12);
+  // Window C: 3pm UTC  — +20 slots ahead in calendar (different city+industry)
+  await runColdOutreachWindow("afternoon",20, 15);
 }
 
 async function maybeSendReviewRequests() {
