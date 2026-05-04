@@ -36,6 +36,8 @@ import { runDirectoryProfileBatch } from "@/lib/directories/profile-generator";
 import { runRedditPostingBatch } from "@/lib/social/reddit-poster";
 import { runFacebookPostingBatch } from "@/lib/social/facebook-poster";
 import { runRankTrackingBatch } from "@/lib/seo/rank-tracker";
+import { runOutreachBatch } from "@/lib/outreach/run-outreach-batch";
+import { getTodaysOutreachTarget } from "@/lib/outreach/outreach-calendar";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -225,6 +227,34 @@ async function maybeCitationAudit() {
   }
 }
 
+/**
+ * Cold outreach: Mon–Fri at 9am UTC, 3 emails/day from the strategic calendar.
+ * ~60 personalised cold emails per month, zero manual effort.
+ */
+async function maybeSendColdOutreach() {
+  const now = new Date();
+  const day = now.getUTCDay();
+  if (day === 0 || day === 6) return; // skip weekends
+  const hour = now.getUTCHours();
+  if (hour < 9 || hour > 10) return; // 9am UTC window only
+  if (await hasJobRunToday("cold_outreach_batch")) return;
+
+  const target = getTodaysOutreachTarget();
+  try {
+    const result = await runOutreachBatch({
+      city: target.city,
+      state: target.state,
+      industry: target.industry,
+      industryLabel: target.industryLabel,
+      maxEmails: 3,
+    });
+    await recordWorkerJob("cold_outreach_batch", { ...result, ...target });
+    console.info("[worker] cold outreach sent", { ...result, target: `${target.industry} in ${target.city} ${target.state}` });
+  } catch (error) {
+    console.error("[worker] cold outreach failed", { error: error instanceof Error ? error.message : String(error), target });
+  }
+}
+
 async function maybeSendReviewRequests() {
   const now = new Date();
   if (now.getUTCDay() !== 3) return; // Wednesday only
@@ -306,6 +336,7 @@ async function tick() {
   await maybeSendMonthlyDigest();
   await maybeSendWeeklyUpsell();
   await maybeSendReviewRequests();
+  await maybeSendColdOutreach();
   await maybeCitationAudit();
 
   try {
