@@ -228,23 +228,37 @@ async function maybeCitationAudit() {
 }
 
 /**
- * Cold outreach: Mon–Fri, 3 batches/day (9am, 12pm, 3pm UTC).
- * Each batch hits a different city+industry combo, 8 emails each.
- * Total: up to 24 emails/day → ~480/month.
- *
- * Batch slots offset the calendar index so each window hits a different target.
+ * Cold outreach — weekdays: 3 windows × up to 10 emails = up to 30/day
+ *                 weekends: restaurants only, 2 windows × up to 10 = up to 20/day
+ * Settings (paused, emailsPerBatch, etc.) are read from the DB via admin UI.
  */
-async function runColdOutreachWindow(windowKey: string, calendarOffset: number, hour: number) {
+
+const WEEKEND_RESTAURANT_TARGETS = [
+  { windowKey: "sat_morning",   day: 6, hour: 9,  city: "Houston",   state: "TX", industry: "restaurant", industryLabel: "restaurant" },
+  { windowKey: "sat_afternoon", day: 6, hour: 13, city: "Chicago",   state: "IL", industry: "restaurant", industryLabel: "restaurant" },
+  { windowKey: "sun_morning",   day: 0, hour: 9,  city: "Miami",     state: "FL", industry: "restaurant", industryLabel: "restaurant" },
+  { windowKey: "sun_afternoon", day: 0, hour: 13, city: "Nashville", state: "TN", industry: "restaurant", industryLabel: "restaurant" },
+];
+
+async function runColdOutreachWindow(
+  windowKey: string,
+  calendarOffset: number,
+  hour: number,
+  overrideTarget?: { city: string; state: string; industry: string; industryLabel: string },
+  emailsPerBatch = 8,
+) {
   const now = new Date();
-  const day = now.getUTCDay();
-  if (day === 0 || day === 6) return; // skip weekends
   if (now.getUTCHours() < hour || now.getUTCHours() > hour + 1) return;
   if (await hasJobRunToday(`cold_outreach_${windowKey}`)) return;
 
-  const calendar = (await import("@/lib/outreach/outreach-calendar")).OUTREACH_CALENDAR;
-  const dayOfMonth = now.getUTCDate();
-  const slot = ((dayOfMonth - 1 + calendarOffset) % 30);
-  const target = calendar[slot]!;
+  let target: { city: string; state: string; industry: string; industryLabel: string };
+  if (overrideTarget) {
+    target = overrideTarget;
+  } else {
+    const { OUTREACH_CALENDAR } = await import("@/lib/outreach/outreach-calendar");
+    const slot = ((now.getUTCDate() - 1 + calendarOffset) % 30);
+    target = OUTREACH_CALENDAR[slot]!;
+  }
 
   try {
     const result = await runOutreachBatch({
@@ -252,24 +266,45 @@ async function runColdOutreachWindow(windowKey: string, calendarOffset: number, 
       state: target.state,
       industry: target.industry,
       industryLabel: target.industryLabel,
-      maxEmails: 8,
+      maxEmails: emailsPerBatch,
     });
     await recordWorkerJob(`cold_outreach_${windowKey}`, { ...result, ...target, window: windowKey });
-    // Also record under the generic key for dashboard stats
     await recordWorkerJob("cold_outreach_batch", { ...result, ...target, window: windowKey });
-    console.info(`[worker] cold outreach [${windowKey}]`, { sent: result.sent, target: `${target.industry} in ${target.city} ${target.state}` });
+    console.info(`[worker] cold outreach [${windowKey}]`, { sent: result.sent, target: `${target.industry} in ${target.city}` });
   } catch (error) {
-    console.error(`[worker] cold outreach [${windowKey}] failed`, { error: error instanceof Error ? error.message : String(error), target });
+    console.error(`[worker] cold outreach [${windowKey}] failed`, {
+      error: error instanceof Error ? error.message : String(error), target,
+    });
   }
 }
 
 async function maybeSendColdOutreach() {
-  // Window A: 9am UTC  — today's calendar slot
-  await runColdOutreachWindow("morning",   0,  9);
-  // Window B: 12pm UTC — +10 slots ahead in calendar (different city+industry)
-  await runColdOutreachWindow("midday",   10, 12);
-  // Window C: 3pm UTC  — +20 slots ahead in calendar (different city+industry)
-  await runColdOutreachWindow("afternoon",20, 15);
+  // Read settings from DB (admin-controlled)
+  const { getOutreachSettings } = await import("@/app/admin/(dashboard)/outreach/actions");
+  const settings = await getOutreachSettings().catch(() => ({
+    emailsPerBatch: 8, paused: false, weekdayEnabled: true, weekendRestaurantsEnabled: true,
+  }));
+
+  if (settings.paused) return;
+
+  const now = new Date();
+  const day = now.getUTCDay(); // 0=Sun, 6=Sat
+
+  // ── WEEKDAYS: 3 windows hitting different city+industry combos ──
+  if (settings.weekdayEnabled && day >= 1 && day <= 5) {
+    await runColdOutreachWindow("morning",   0,  9,  undefined, settings.emailsPerBatch);
+    await runColdOutreachWindow("midday",   10, 12,  undefined, settings.emailsPerBatch);
+    await runColdOutreachWindow("afternoon",20, 15,  undefined, settings.emailsPerBatch);
+  }
+
+  // ── WEEKENDS: restaurants only ──
+  if (settings.weekendRestaurantsEnabled && (day === 0 || day === 6)) {
+    for (const wt of WEEKEND_RESTAURANT_TARGETS) {
+      if (wt.day === day) {
+        await runColdOutreachWindow(wt.windowKey, 0, wt.hour, wt, settings.emailsPerBatch);
+      }
+    }
+  }
 }
 
 async function maybeSendReviewRequests() {

@@ -10,6 +10,7 @@ const items: { href: string; label: string }[] = [
   { href: "/admin/brands", label: "Brands" },
   { href: "/admin/locations", label: "Locations" },
   { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/outreach", label: "🎯 Outreach" },
   { href: "/admin/autopilot", label: "Autopilot" },
   { href: "/admin/mrr", label: "MRR" },
 ];
