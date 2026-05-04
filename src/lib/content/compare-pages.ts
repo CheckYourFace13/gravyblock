@@ -354,7 +354,6 @@ export const COMPARE_PAGES: Record<string, ComparePage> = {
       ],
     },
   },
-};
 
   "gravyblock-vs-reputation": {
     slug: "gravyblock-vs-reputation",
