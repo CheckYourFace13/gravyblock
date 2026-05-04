@@ -17,6 +17,9 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   applicationName: "GravyBlock",
+  verification: {
+    google: "google48fc70994b73c92d",
+  },
   title: {
     default: "GravyBlock: Local SEO Autopilot for Small Businesses",
     template: "%s | GravyBlock",
