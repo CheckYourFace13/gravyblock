@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   applicationName: "GravyBlock",
   verification: {
-    google: "google48fc70994b73c92d",
+    google: "Lv6BrfThu3YFT5SXXvzS5JaZ-w2-j_wt5h5tFm_JPWI",
   },
   title: {
     default: "GravyBlock: Local SEO Autopilot for Small Businesses",
