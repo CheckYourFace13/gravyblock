@@ -3,7 +3,7 @@
 import { useActionState, useOptimistic } from "react";
 import { saveOutreachSettings, type OutreachSettings } from "./actions";
 
-const initial = { ok: false };
+const initial: { ok: boolean; error?: string } = { ok: false };
 
 export function OutreachSettingsForm({ current }: { current: OutreachSettings }) {
   const [state, formAction, pending] = useActionState(saveOutreachSettings, initial);
