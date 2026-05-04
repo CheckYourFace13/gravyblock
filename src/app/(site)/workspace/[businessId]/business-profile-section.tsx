@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { saveBusinessProfile, generateBusinessProfile, type BusinessProfileData } from "./business-profile-actions";
+import { saveBusinessProfile, generateBusinessProfile, type BusinessProfileData, type DiscoveredSocial } from "./business-profile-actions";
 
 const TONE_OPTIONS = ["professional", "friendly", "authoritative", "casual"];
 const FOCUS_OPTIONS = [
@@ -10,6 +10,7 @@ const FOCUS_OPTIONS = [
   { value: "national", label: "National" },
   { value: "online", label: "Online only" },
 ];
+const RADIUS_OPTIONS = [5, 10, 15, 25, 35, 50, 75, 100];
 
 const EMPTY: BusinessProfileData = {
   serviceDescription: "",
@@ -26,15 +27,50 @@ const EMPTY: BusinessProfileData = {
   facebookUrl: "",
 };
 
+/** Parse "Austin, TX (within 25 miles)" → { city: "Austin, TX", radius: 25 } */
+function parseServiceArea(raw: string): { city: string; radius: number } {
+  const m = raw.match(/^(.+?)\s*\(within\s+(\d+)\s+miles?\)/i);
+  if (m) return { city: m[1].trim(), radius: parseInt(m[2], 10) };
+  return { city: raw.trim(), radius: 25 };
+}
+
+/** Encode city + radius back into the stored format */
+function encodeServiceArea(city: string, radius: number): string {
+  if (!city.trim()) return "";
+  return `${city.trim()} (within ${radius} miles)`;
+}
+
+const PLATFORM_LABELS: Record<string, string> = {
+  facebook: "Facebook",
+  instagram: "Instagram",
+  twitter: "Twitter / X",
+  tiktok: "TikTok",
+  youtube: "YouTube",
+  linkedin: "LinkedIn",
+};
+
+type SourceInfo = {
+  websiteScraped: boolean;
+  socialFound: string[];
+  websiteUrl: string | null;
+};
+
 type Props = {
   businessId: string;
   businessName: string;
   initialConfig: BusinessProfileData | null;
+  discoveredSocials: DiscoveredSocial[];
 };
 
-export function BusinessProfileSection({ businessId, businessName, initialConfig }: Props) {
+export function BusinessProfileSection({ businessId, businessName, initialConfig, discoveredSocials }: Props) {
+  const parsed = parseServiceArea(initialConfig?.targetCities ?? "");
   const [form, setForm] = useState<BusinessProfileData>(initialConfig ?? EMPTY);
+  const [serviceCity, setServiceCity] = useState(
+    initialConfig?.targetScope || parsed.city || ""
+  );
+  const [serviceRadius, setServiceRadius] = useState(parsed.radius);
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [sources, setSources] = useState<SourceInfo | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function field(key: keyof BusinessProfileData) {
@@ -47,11 +83,18 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
 
   function handleGenerate() {
     setStatus(null);
+    setSources(null);
     startTransition(async () => {
       const result = await generateBusinessProfile(businessId);
       if (result.ok && result.profile) {
-        setForm(result.profile);
-        setStatus({ ok: true, message: "Profile generated from your business data — review and save." });
+        const p = result.profile;
+        setForm(p);
+        // Parse service area from the generated targetCities
+        const sa = parseServiceArea(p.targetCities);
+        setServiceCity(p.targetScope || sa.city);
+        setServiceRadius(sa.radius || 25);
+        setSources(result.sources ?? null);
+        setStatus({ ok: true, message: "Profile generated from your website and business data — review each field and save." });
       } else {
         setStatus({ ok: false, message: result.error ?? "Generation failed." });
       }
@@ -61,9 +104,16 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setStatus(null);
+    const encoded = encodeServiceArea(serviceCity, serviceRadius);
+    const toSave: BusinessProfileData = {
+      ...form,
+      targetScope: serviceCity,
+      targetCities: encoded,
+    };
     startTransition(async () => {
-      const result = await saveBusinessProfile(businessId, form);
+      const result = await saveBusinessProfile(businessId, toSave);
       if (result.ok) {
+        setForm(toSave);
         setStatus({ ok: true, message: "Profile saved. All AI content will now use these details." });
       } else {
         setStatus({ ok: false, message: result.error ?? "Save failed." });
@@ -71,13 +121,16 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
     });
   }
 
+  const hasSocials = discoveredSocials.length > 0;
+
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">Business profile</h2>
           <p className="mt-1 max-w-xl text-sm text-zinc-600">
-            Every article, post, and campaign we generate is grounded in this profile. Review it, correct anything wrong, and save — then all AI output will be accurate to your actual business.
+            Every article, post, and campaign we generate is grounded in this profile.{" "}
+            <strong className="text-zinc-800">Click "Pull from website" first</strong> — we'll scrape your site and pre-fill everything automatically. Then review, correct anything wrong, and save.
           </p>
         </div>
         <button
@@ -86,31 +139,80 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
           disabled={isPending}
           className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
         >
-          {isPending ? "Generating…" : initialConfig ? "Regenerate from AI" : "Generate from my data"}
+          {isPending ? "Pulling from website…" : initialConfig ? "Re-pull from website" : "Pull from website ✦"}
         </button>
       </div>
 
-      {status ? (
+      {/* No profile warning */}
+      {!status && !initialConfig && (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <strong>Profile not set up yet.</strong> Click <strong>"Pull from website"</strong> and we'll read your website, Google listing, and any social profiles we found — then pre-fill everything below. Content will be generic until this is saved.
+        </div>
+      )}
+
+      {/* Status message */}
+      {status && (
         <div className={`mt-4 rounded-lg px-3 py-2 text-sm font-medium ${status.ok ? "bg-green-50 text-green-800 border border-green-100" : "bg-red-50 text-red-800 border border-red-100"}`}>
           {status.message}
         </div>
-      ) : !initialConfig ? (
-        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          <strong>No profile yet.</strong> Click "Generate from my data" to build one from your scan results, or fill it in manually below. Content will be generic until this is saved.
+      )}
+
+      {/* Source indicators — shown after generate */}
+      {sources && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${sources.websiteScraped ? "bg-green-50 text-green-800 border border-green-200" : "bg-zinc-100 text-zinc-500"}`}>
+            {sources.websiteScraped ? "✓" : "✗"} Website scraped
+            {sources.websiteUrl ? ` (${sources.websiteUrl.replace(/^https?:\/\//, "").split("/")[0]})` : ""}
+          </span>
+          {sources.socialFound.map((platform) => (
+            <span key={platform} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-800 border border-blue-200">
+              ✓ {PLATFORM_LABELS[platform] ?? platform} found on site
+            </span>
+          ))}
+          {sources.socialFound.length === 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-500">
+              No social links found on website — add them manually below
+            </span>
+          )}
         </div>
-      ) : null}
+      )}
+
+      {/* Discovered socials banner — always shown if found at scan time */}
+      {hasSocials && !sources && (
+        <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+          <p className="text-xs font-semibold text-blue-800 mb-1">Found on your website at scan time:</p>
+          <div className="flex flex-wrap gap-2">
+            {discoveredSocials.map((s) => (
+              <a
+                key={s.platform}
+                href={s.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-full bg-white border border-blue-200 px-2.5 py-0.5 text-xs text-blue-700 hover:bg-blue-100"
+              >
+                {PLATFORM_LABELS[s.platform] ?? s.platform}
+                {s.handle ? ` @${s.handle}` : ""}
+                <span className="text-blue-400">↗</span>
+              </a>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-blue-600">These will be pre-filled when you click "Pull from website".</p>
+        </div>
+      )}
 
       <form onSubmit={handleSave} className="mt-5 space-y-5">
         <div className="grid gap-5 md:grid-cols-2">
+
           {/* Service description */}
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              What does {businessName} do? (service description)
+              What does {businessName} do?
+              <span className="ml-2 font-normal normal-case text-zinc-400">Pulled from your website</span>
             </label>
             <textarea
               {...field("serviceDescription")}
               rows={3}
-              placeholder="Describe your services, who you serve, and what makes you reliable. This is the foundation of every piece of content."
+              placeholder="We'll pull this from your website. Describe your services, who you serve, and what makes you reliable."
               className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
             />
           </div>
@@ -118,7 +220,8 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
           {/* Unique selling points */}
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              What sets you apart? (unique selling points)
+              What sets you apart?
+              <span className="ml-2 font-normal normal-case text-zinc-400">Pulled from your website</span>
             </label>
             <textarea
               {...field("uniqueSellingPoints")}
@@ -128,33 +231,45 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
             />
           </div>
 
-          {/* Target keywords */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Target keywords <span className="font-normal text-zinc-400">(comma-separated)</span>
+          {/* Service area — city + radius */}
+          <div className="md:col-span-2 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-3">
+              Service area
             </label>
-            <input
-              type="text"
-              {...field("targetKeywords")}
-              placeholder="plumber Austin TX, emergency plumbing, water heater repair..."
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
-            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs text-zinc-500 mb-1">Primary city you serve</label>
+                <input
+                  type="text"
+                  value={serviceCity}
+                  onChange={(e) => setServiceCity(e.target.value)}
+                  placeholder="Austin, TX"
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
+                />
+                <p className="mt-1 text-xs text-zinc-400">Your main market — used in all local content targeting</p>
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-500 mb-1">How far do you serve? (miles from that city)</label>
+                <select
+                  value={serviceRadius}
+                  onChange={(e) => setServiceRadius(parseInt(e.target.value, 10))}
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
+                >
+                  {RADIUS_OPTIONS.map((r) => (
+                    <option key={r} value={r}>Within {r} miles</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-zinc-400">We'll generate content and pages for all cities in this radius</p>
+              </div>
+            </div>
+            {serviceCity && (
+              <p className="mt-2 text-xs text-emerald-700 font-medium">
+                ✓ Targeting: {serviceCity} and surrounding areas within {serviceRadius} miles
+              </p>
+            )}
           </div>
 
-          {/* Target cities */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Cities / areas you serve <span className="font-normal text-zinc-400">(comma-separated)</span>
-            </label>
-            <input
-              type="text"
-              {...field("targetCities")}
-              placeholder="Austin, Round Rock, Cedar Park..."
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
-            />
-          </div>
-
-          {/* Focus area */}
+          {/* Geographic focus */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Geographic focus
@@ -169,15 +284,15 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
             </select>
           </div>
 
-          {/* Target scope */}
+          {/* Target keywords */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Primary market <span className="font-normal text-zinc-400">(city, state, or region)</span>
+              Target keywords <span className="font-normal text-zinc-400">(comma-separated)</span>
             </label>
             <input
               type="text"
-              {...field("targetScope")}
-              placeholder="Austin, TX"
+              {...field("targetKeywords")}
+              placeholder="plumber Austin TX, emergency plumbing, water heater repair..."
               className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
             />
           </div>
@@ -197,18 +312,49 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
             </select>
           </div>
 
-          {/* Brand voice — Feature #3 */}
+          {/* Brand voice */}
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Brand voice <span className="font-normal text-zinc-400">(optional — injected into every article)</span>
+              Brand voice <span className="font-normal text-zinc-400">(injected into every article — pulled from your site's writing style)</span>
             </label>
             <textarea
               {...field("brandVoice")}
               rows={2}
-              placeholder="Describe how your content should sound. e.g. 'Conversational and warm, like a trusted neighbor. Simple language, no jargon, always ends with a clear local call-to-action.'"
+              placeholder="e.g. 'Conversational and warm, like a trusted neighbor. Simple language, no jargon, always ends with a clear local call-to-action.'"
               className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
             />
-            <p className="mt-1 text-xs text-zinc-400">This is pasted directly into the AI writing prompt for every article and post we generate.</p>
+          </div>
+
+          {/* Social — Instagram */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Instagram handle
+              {discoveredSocials.find(s => s.platform === "instagram") && (
+                <span className="ml-2 font-normal normal-case text-blue-600">found on your website ✓</span>
+              )}
+            </label>
+            <input
+              type="text"
+              {...field("instagramHandle")}
+              placeholder="@yourbusiness"
+              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
+            />
+          </div>
+
+          {/* Social — Facebook */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Facebook page URL
+              {discoveredSocials.find(s => s.platform === "facebook") && (
+                <span className="ml-2 font-normal normal-case text-blue-600">found on your website ✓</span>
+              )}
+            </label>
+            <input
+              type="url"
+              {...field("facebookUrl")}
+              placeholder="https://facebook.com/yourbusiness"
+              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
+            />
           </div>
 
           {/* Competitors */}
@@ -220,32 +366,6 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
               type="text"
               {...field("competitorNames")}
               placeholder="ABC Plumbing, XYZ Services..."
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
-            />
-          </div>
-
-          {/* Instagram */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Instagram handle <span className="font-normal text-zinc-400">(optional)</span>
-            </label>
-            <input
-              type="text"
-              {...field("instagramHandle")}
-              placeholder="@yourbusiness"
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
-            />
-          </div>
-
-          {/* Facebook */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Facebook page URL <span className="font-normal text-zinc-400">(optional)</span>
-            </label>
-            <input
-              type="url"
-              {...field("facebookUrl")}
-              placeholder="https://facebook.com/yourbusiness"
               className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
             />
           </div>

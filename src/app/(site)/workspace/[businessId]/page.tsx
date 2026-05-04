@@ -321,6 +321,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             businessId={businessId}
             businessName={bundle.business.name}
             initialConfig={businessProfile?.config ?? null}
+            discoveredSocials={businessProfile?.discoveredSocials ?? []}
           />
 
           {/* Content drafts to approve */}

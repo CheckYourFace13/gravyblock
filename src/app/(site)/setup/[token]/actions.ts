@@ -14,9 +14,14 @@ export async function submitSetupAction(
   const token = String(formData.get("token") ?? "");
   if (!token) return { status: "error", message: "Invalid setup link." };
 
+  // Encode service area as "City, ST (within N miles)" from city+radius inputs
+  const serviceCity = String(formData.get("serviceCity") ?? "").trim();
+  const serviceRadius = parseInt(String(formData.get("serviceRadius") ?? "25"), 10);
+  const targetCities = serviceCity ? `${serviceCity} (within ${serviceRadius} miles)` : "";
+
   const ok = await saveSetupConfig(token, {
     targetKeywords: String(formData.get("targetKeywords") ?? ""),
-    targetCities: String(formData.get("targetCities") ?? ""),
+    targetCities,
     serviceDescription: String(formData.get("serviceDescription") ?? ""),
     uniqueSellingPoints: String(formData.get("uniqueSellingPoints") ?? ""),
     tone: String(formData.get("tone") ?? "professional"),
