@@ -20,8 +20,8 @@ export function SiteHeader() {
           Start free →
         </Link>
       </div>
-      <header className="border-b border-zinc-200/80 bg-white/80 backdrop-blur sticky top-0 z-40">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-2 sm:px-6">
+      <header className="border-b border-zinc-200/80 bg-white/90 backdrop-blur sticky top-0 z-40">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-1.5 sm:px-6">
           <BrandMark compact />
           <nav className="hidden flex-wrap items-center justify-end gap-5 text-sm font-medium text-zinc-600 lg:flex">
             {links.map((l) => (

@@ -13,9 +13,9 @@ export function BrandMark({
       <Image
         src="/brand/logo.png"
         alt="GravyBlock"
-        width={compact ? 170 : 230}
-        height={compact ? 54 : 74}
-        className="h-auto w-auto shrink-0"
+        width={compact ? 90 : 160}
+        height={compact ? 28 : 50}
+        className={compact ? "h-7 w-auto shrink-0" : "h-12 w-auto shrink-0"}
         priority
       />
     </Link>
