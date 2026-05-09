@@ -65,7 +65,7 @@ const schemaOrg = {
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       description:
-        "GravyBlock automates local SEO for small businesses. Publish AI-written content, build backlinks, manage reviews, monitor AI search visibility, and run Reddit outreach — all on autopilot.",
+        "GravyBlock automates local SEO for small businesses. Publish AI-written content, build backlinks, manage reviews, monitor AI search visibility, and run Reddit outreach. All on autopilot.",
       offers: {
         "@type": "AggregateOffer",
         priceCurrency: "USD",
@@ -99,7 +99,11 @@ const schemaOrg = {
       name: "GravyBlock",
       url: "https://gravyblock.com",
       logo: "https://gravyblock.com/brand/favicon.png",
-      sameAs: [],
+      sameAs: [
+        "https://twitter.com/gravyblock",
+        "https://www.linkedin.com/company/gravyblock",
+        "https://www.reddit.com/user/GravyBlock",
+      ],
       contactPoint: {
         "@type": "ContactPoint",
         contactType: "customer support",

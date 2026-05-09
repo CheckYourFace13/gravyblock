@@ -25,8 +25,38 @@ export default async function QuestionGuidePage({ params }: Props) {
   const page = QUESTION_GUIDES[slug];
   if (!page) notFound();
 
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: page.model.title,
+    description: page.metaDescription,
+    url: `https://gravyblock.com/guides/${slug}`,
+    publisher: {
+      "@type": "Organization",
+      name: "GravyBlock",
+      url: "https://gravyblock.com",
+      logo: "https://gravyblock.com/brand/favicon.png",
+    },
+    author: {
+      "@type": "Organization",
+      name: "GravyBlock",
+    },
+    breadcrumb: {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: "https://gravyblock.com" },
+        { "@type": "ListItem", position: 2, name: "Guides", item: "https://gravyblock.com/guides" },
+        { "@type": "ListItem", position: 3, name: page.model.title },
+      ],
+    },
+  };
+
   return (
     <div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
       <nav className="border-b border-zinc-200 bg-zinc-50/80">
         <div className="mx-auto max-w-3xl px-4 py-3 text-sm text-zinc-600 sm:px-6">
           <Link href="/guides" className="font-medium text-red-800 hover:underline">

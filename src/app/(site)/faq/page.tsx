@@ -13,15 +13,15 @@ const faqs = [
     items: [
       {
         q: "What is GravyBlock?",
-        a: "GravyBlock is an automated local SEO platform for small and local businesses. It publishes AI-written content to your website, posts to Reddit, sends backlink outreach emails, monitors your reviews, tracks your Google rankings, and audits your Google Business Profile — all on autopilot, every week.",
+        a: "GravyBlock is an automated local SEO platform for small and local businesses. It publishes AI-written content to your website, posts to Reddit, sends backlink outreach emails, monitors your reviews, tracks your Google rankings, and audits your Google Business Profile. All on autopilot, every week.",
       },
       {
         q: "How does the free scan work?",
-        a: "Enter your business name and location and we'll generate a visibility score in about 60 seconds. You'll see how your Google Business Profile, reviews, citations, and AI search presence stack up against competitors — no credit card required.",
+        a: "Enter your business name and location and we'll generate a visibility score in about 60 seconds. You'll see how your Google Business Profile, reviews, citations, and AI search presence stack up against competitors. No credit card required.",
       },
       {
         q: "Do I need to install anything?",
-        a: "No. GravyBlock is fully web-based. For content publishing we connect to your website via an API key or direct CMS integration — we walk you through it during onboarding in a few clicks.",
+        a: "No. GravyBlock is fully web-based. For content publishing we connect to your website via an API key or direct CMS integration. We walk you through it during onboarding in a few clicks.",
       },
       {
         q: "How long before I see results?",
@@ -34,11 +34,11 @@ const faqs = [
     items: [
       {
         q: "What's the difference between Starter, Scale, and Pro?",
-        a: "Starter monitors your visibility and gives you a prioritized fix list each month. Scale adds fully automated execution — weekly AI articles published, Reddit posts, backlink outreach, and social auto-posting. Pro doubles the volume and adds programmatic city pages and a competitor lead pipeline.",
+        a: "Starter monitors your visibility and gives you a prioritized fix list each month. Scale adds full automation: weekly AI articles published, Reddit posts, backlink outreach, and social auto-posting. Pro doubles the volume and adds programmatic city pages and a competitor lead pipeline.",
       },
       {
         q: "What is the INTRO50 discount?",
-        a: "INTRO50 is our launch promo code that gives you 50% off your first month. Starter drops to $39.99, Scale to $74.99, and Pro to $149.99. Apply the code at checkout — it's valid on all paid plans.",
+        a: "INTRO50 is our launch promo code that gives you 50% off your first month. Starter drops to $39.99, Scale to $74.99, and Pro to $149.99. Apply the code at checkout. It's valid on all paid plans.",
       },
       {
         q: "Is there a free plan?",
@@ -50,7 +50,7 @@ const faqs = [
       },
       {
         q: "Does the Pro plan support multiple locations?",
-        a: "Yes. Pro includes up to 3 locations under one subscription. Additional locations can be added for a per-location fee. Enterprise and white-label pricing is available — contact us.",
+        a: "Yes. Pro includes up to 3 locations under one subscription. Additional locations can be added for a per-location fee. Enterprise and white-label pricing is available, contact us.",
       },
     ],
   },
@@ -63,11 +63,11 @@ const faqs = [
       },
       {
         q: "What is your refund policy?",
-        a: "All paid plans include a 30-day money-back guarantee. If you're not happy in the first 30 days, email support@gravyblock.com and we'll refund you in full — no questions.",
+        a: "All paid plans include a 30-day money-back guarantee. If you're not happy in the first 30 days, email support@gravyblock.com and we'll refund you in full. No questions.",
       },
       {
         q: "What payment methods do you accept?",
-        a: "We accept all major credit and debit cards (Visa, Mastercard, Amex, Discover) via Stripe. We do not store card details — Stripe handles all payment processing.",
+        a: "We accept all major credit and debit cards (Visa, Mastercard, Amex, Discover) via Stripe. We do not store card details. Stripe handles all payment processing.",
       },
       {
         q: "Will I be charged if I cancel?",
@@ -80,7 +80,7 @@ const faqs = [
     items: [
       {
         q: "Who writes the content GravyBlock publishes?",
-        a: "Our AI writes every article using your business info, target keywords, and brand voice settings. You can review drafts before they go live or let them publish automatically — your choice.",
+        a: "Our AI writes every article using your business info, target keywords, and brand voice settings. You can review drafts before they go live or let them publish automatically. Your call.",
       },
       {
         q: "Will the content hurt my site if Google detects it's AI?",
@@ -92,11 +92,11 @@ const faqs = [
       },
       {
         q: "How does Reddit posting work?",
-        a: "GravyBlock submits helpful, non-promotional posts to your city's subreddit (e.g. r/Austin) and relevant industry subreddits. Posts follow Reddit's community rules — no spam. The goal is brand awareness and referral traffic, not self-promotion.",
+        a: "GravyBlock submits helpful, non-promotional posts to your city's subreddit (e.g. r/Austin) and relevant industry subreddits. Posts follow Reddit's community rules. No spam. The goal is brand awareness and referral traffic, not self-promotion.",
       },
       {
         q: "What is the AI search check?",
-        a: "We prompt ChatGPT, Perplexity, and Gemini with queries like 'best [service] in [city]' and check whether your business is mentioned. This tracks your visibility in AI-generated answers — a growing share of how people find local businesses.",
+        a: "We prompt ChatGPT, Perplexity, and Gemini with queries like 'best [service] in [city]' and check whether your business is mentioned. This tracks your visibility in AI-generated answers, a growing share of how people find local businesses.",
       },
     ],
   },
@@ -109,15 +109,34 @@ const faqs = [
       },
       {
         q: "Does GravyBlock fake reviews?",
-        a: "No — never. Fake reviews violate Google's terms of service and can get your Business Profile suspended. GravyBlock helps you collect more genuine reviews from real customers through a gating link that routes happy customers to Google and unhappy ones to a private feedback form.",
+        a: "No. Never. Fake reviews violate Google's terms of service and can get your Business Profile suspended. GravyBlock helps you collect more genuine reviews from real customers through a gating link that routes happy customers to Google and unhappy ones to a private feedback form.",
       },
     ],
   },
 ];
 
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.flatMap((section) =>
+    section.items.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.a,
+      },
+    }))
+  ),
+};
+
 export default function FaqPage() {
   return (
     <div className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
       <section className="border-b border-zinc-100 bg-zinc-50 px-4 py-12 sm:px-6 text-center">
         <div className="mx-auto max-w-2xl">
           <p className="text-xs font-bold uppercase tracking-widest text-red-700 mb-2">Help center</p>
