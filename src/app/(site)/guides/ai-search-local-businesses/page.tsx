@@ -12,7 +12,7 @@ export default function AiSearchLocalBusinessesGuidePage() {
   return (
     <GuideShell
       title="AI search and assistants: make the facts boring (in a good way)"
-      intro="Assistants summarize what they can verify. If hours, services, and policies disagree across the open web, the model hedges — and hedging loses the click."
+      intro="Assistants summarize what they can verify. If hours, services, and policies disagree across the open web, the model hedges. And hedging loses the click."
       related={[
         { href: "/guides/website-trust-signals", label: "Website trust signals" },
         { href: "/guides/multi-location-local-seo", label: "Multi-location local SEO" },
@@ -22,7 +22,7 @@ export default function AiSearchLocalBusinessesGuidePage() {
       <h2>Structured beats clever</h2>
       <p>
         Use consistent business names, categories, and service nouns everywhere. Avoid rotating taglines in place of
-        factual service lines — models latch onto stable tokens.
+        factual service lines. Models latch onto stable tokens.
       </p>
       <h2>Answer the obvious questions upfront</h2>
       <p>
@@ -32,7 +32,7 @@ export default function AiSearchLocalBusinessesGuidePage() {
       <h2>Monitoring without magic</h2>
       <p>
         GravyBlock Pro runs scheduled automation that records synthetic AI visibility checks alongside visibility
-        snapshots — useful for trend watching, not a promise of rank position in any specific engine.
+        snapshots, useful for trend watching, not a promise of rank position in any specific engine.
       </p>
       <p>
         Start with a free scan to see how your listing and site line up today:{" "}

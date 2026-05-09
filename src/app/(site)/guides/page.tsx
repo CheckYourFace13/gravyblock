@@ -21,7 +21,7 @@ const guides = [
   {
     href: "/guides/ai-search-local-businesses",
     title: "AI search visibility for local businesses",
-    description: "Facts, entities, and summaries — what assistants need to describe you accurately.",
+    description: "Facts, entities, and summaries: what assistants need to describe you accurately.",
   },
   {
     href: "/guides/social-proof-and-local-conversion",

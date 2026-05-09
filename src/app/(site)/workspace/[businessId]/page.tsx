@@ -41,12 +41,8 @@ type Props = {
   searchParams: Promise<{ plan?: string; promo?: string; google_connected?: string; google_error?: string }>;
 };
 
-function normalizePromoCodeIntent(raw?: string): "ILoveYouFree" | "ILikeYou50" | null {
-  if (!raw) return null;
-  const value = raw.trim();
-  if (value === "ILoveYouFree" || value === "ILikeYou50") return value;
-  return null;
-}
+import { normalizePromoCode } from "@/lib/stripe/promo-codes";
+const normalizePromoCodeIntent = normalizePromoCode;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   await params;
@@ -203,7 +199,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Your workspace</p>
           <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">{bundle.business.name}</h1>
           <p className="max-w-2xl text-sm text-zinc-600">
-            Snapshot, tasks, content, reviews, and history — all in one place.
+            Snapshot, tasks, content, reviews, and history, all in one place.
           </p>
           <div className="flex flex-wrap gap-2 text-xs font-medium text-zinc-600">
             {bundle.business.website ? (
@@ -332,7 +328,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           {/* GBP tasks */}
           {pendingGbpTasks.length > 0 ? (
             <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-5 shadow-sm">
-              <h3 className="text-base font-semibold text-zinc-900">Google Business Profile — paste these in</h3>
+              <h3 className="text-base font-semibold text-zinc-900">Google Business Profile: paste these in</h3>
               <p className="mt-1 text-sm text-zinc-600">
                 Go to{" "}
                 <a href="https://business.google.com" className="text-red-800 underline" target="_blank" rel="noreferrer">
@@ -363,7 +359,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           {/* Free directory listings */}
           {pendingDirectoryTasks.length > 0 ? (
             <div className="rounded-2xl border border-green-100 bg-green-50/40 p-5 shadow-sm">
-              <h3 className="text-base font-semibold text-zinc-900">Free directory listings — claim your spots</h3>
+              <h3 className="text-base font-semibold text-zinc-900">Free directory listings: claim your spots</h3>
               <p className="mt-1 text-sm text-zinc-600">
                 Each directory below sends trust signals and backlinks to Google. About 5 minutes each.
               </p>
@@ -481,7 +477,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-zinc-900">GEO — AI search visibility</h2>
+              <h2 className="text-lg font-semibold text-zinc-900">GEO: AI search visibility</h2>
               <p className="mt-1 text-sm text-zinc-500">
                 How visible is your business when people ask ChatGPT, Perplexity, and other AI assistants?
               </p>
@@ -534,7 +530,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               <ul className="space-y-2">
                 {geoAudit.recentMentions.map((m, i) => (
                   <li key={i} className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
-                    <span className="font-semibold text-zinc-900">{m.engine}</span> — {m.prompt}
+                    <span className="font-semibold text-zinc-900">{m.engine}</span>: {m.prompt}
                     <span className="ml-2 text-zinc-400">{m.date}</span>
                   </li>
                 ))}
@@ -576,7 +572,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <div>
               <h2 className="text-lg font-semibold text-zinc-900">Keyword rankings</h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Your top Google Search Console keywords — synced automatically from your connected account.
+                Your top Google Search Console keywords, synced automatically from your connected account.
               </p>
             </div>
             <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
@@ -635,7 +631,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <div>
               <h2 className="text-lg font-semibold text-zinc-900">Site tech audit</h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Technical SEO checks from your last scan — these directly affect how Google and AI assistants index your site.
+                Technical SEO checks from your last scan. These directly affect how Google and AI assistants index your site.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -678,7 +674,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-zinc-900">Content calendar</h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Everything queued and scheduled — autopilot works through this list on your plan cadence.
+            Everything queued and scheduled. Autopilot works through this list on your plan cadence.
           </p>
           <div className="mt-5 space-y-6">
             {(() => {
@@ -779,7 +775,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <h3 className="text-base font-semibold text-zinc-900">Backlink opportunities</h3>
-          <p className="mt-1 text-xs text-zinc-500">Identified and queued — these are opportunities, not links already placed.</p>
+          <p className="mt-1 text-xs text-zinc-500">Identified and queued. These are opportunities, not links already placed.</p>
           <ul className="mt-3 space-y-2 text-sm">
             {autopilot.backlinkQueue.slice(0, 8).map((item) => (
               <li key={item.id} className="rounded-lg bg-zinc-50 px-3 py-2">
@@ -894,12 +890,12 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       {/* ────────────────────────────────────────────────────────────────────── */}
       <div className="border-t border-zinc-200 pt-8">
         <h2 className="text-xl font-semibold text-zinc-900">History</h2>
-        <p className="mt-1 text-sm text-zinc-500">Everything completed — dates included.</p>
+        <p className="mt-1 text-sm text-zinc-500">Everything completed, with dates.</p>
       </div>
 
       {/* Activity feed */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h3 className="text-base font-semibold text-zinc-900">Autopilot activity — last 30 days</h3>
+        <h3 className="text-base font-semibold text-zinc-900">Autopilot activity: last 30 days</h3>
         <ul className="mt-4 divide-y divide-zinc-100">
           {activity.map((item) => {
             const iconMap: Record<ActivityItem["type"], string> = {
@@ -1044,7 +1040,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 <p className="mt-1 text-zinc-600">{c.body}</p>
               </li>
             ))}
-            {!bundle.content.length ? <li className="text-sm text-zinc-500">No ideas yet — run a scan.</li> : null}
+            {!bundle.content.length ? <li className="text-sm text-zinc-500">No ideas yet. Run a scan to generate some.</li> : null}
           </ul>
         </div>
       </section>
@@ -1178,7 +1174,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-zinc-900">Refer a business</h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Share your link. When another business runs a scan and signs up, you both get credit —
+          Share your link. When another business runs a scan and signs up, you both get credit:
           one free month per paid referral. Reply to any GravyBlock email to claim it.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">

@@ -1,4 +1,5 @@
 "use client";
+import type { PromoCode } from "@/lib/stripe/promo-codes";
 
 import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
@@ -95,7 +96,7 @@ export function ScanForm({
   promoCode,
 }: {
   selectedPlan?: "starter" | "growth" | "pro" | "agency" | null;
-  promoCode?: "ILoveYouFree" | "ILikeYou50" | null;
+  promoCode?: PromoCode | null;
 }) {
   const [state, formAction, pending] = useActionState(generateReportAction, initialState);
 

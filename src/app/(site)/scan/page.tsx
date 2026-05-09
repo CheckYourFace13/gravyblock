@@ -9,15 +9,9 @@ export const metadata: Metadata = {
 };
 
 import { trackReferralEvent } from "@/lib/referrals/referral-tracker";
+import { normalizePromoCode } from "@/lib/stripe/promo-codes";
 
 type Props = { searchParams: Promise<{ plan?: string; promo?: string; ref?: string }> };
-
-function normalizePromoCodeIntent(raw?: string): "ILoveYouFree" | "ILikeYou50" | null {
-  if (!raw) return null;
-  const value = raw.trim();
-  if (value === "ILoveYouFree" || value === "ILikeYou50") return value;
-  return null;
-}
 
 export default async function ScanPage({ searchParams }: Props) {
   const query = await searchParams;
@@ -30,7 +24,7 @@ export default async function ScanPage({ searchParams }: Props) {
   const selectedPlan = (["starter", "growth", "pro", "agency"].includes(raw)
     ? raw
     : raw === "base" || raw === "entry" ? "starter" : null) as "starter" | "growth" | "pro" | "agency" | null;
-  const promoCode = normalizePromoCodeIntent(query.promo);
+  const promoCode = normalizePromoCode(query.promo);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
@@ -40,7 +34,7 @@ export default async function ScanPage({ searchParams }: Props) {
           See your Google visibility score in 60 seconds.
         </h1>
         <p className="mt-4 text-lg text-zinc-600">
-          Find your business on Google, get a score across 6 ranking factors, and see exactly what's holding you back — for free, no credit card required. Works for restaurants, dentists, contractors, salons, lawyers, and any local business.
+          Find your business on Google, get a score across 6 ranking factors, and see exactly what's holding you back. Free, no credit card required. Works for restaurants, dentists, contractors, salons, lawyers, and any local business.
         </p>
         <p className="mt-2 text-sm text-zinc-500">
           Already know you want more? Use code <strong className="text-zinc-700">INTRO50</strong> at checkout for 50% off month one.

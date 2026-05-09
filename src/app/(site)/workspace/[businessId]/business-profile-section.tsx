@@ -94,7 +94,7 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
         setServiceCity(p.targetScope || sa.city);
         setServiceRadius(sa.radius || 25);
         setSources(result.sources ?? null);
-        setStatus({ ok: true, message: "Profile generated from your website and business data — review each field and save." });
+        setStatus({ ok: true, message: "Profile generated from your website and business data. Review each field and save." });
       } else {
         setStatus({ ok: false, message: result.error ?? "Generation failed." });
       }
@@ -130,7 +130,7 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
           <h2 className="text-lg font-semibold text-zinc-900">Business profile</h2>
           <p className="mt-1 max-w-xl text-sm text-zinc-600">
             Every article, post, and campaign we generate is grounded in this profile.{" "}
-            <strong className="text-zinc-800">Click "Pull from website" first</strong> — we'll scrape your site and pre-fill everything automatically. Then review, correct anything wrong, and save.
+            <strong className="text-zinc-800">Click "Pull from website" first.</strong> We'll scrape your site and pre-fill everything automatically. Then review, correct anything wrong, and save.
           </p>
         </div>
         <button
@@ -146,7 +146,7 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
       {/* No profile warning */}
       {!status && !initialConfig && (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          <strong>Profile not set up yet.</strong> Click <strong>"Pull from website"</strong> and we'll read your website, Google listing, and any social profiles we found — then pre-fill everything below. Content will be generic until this is saved.
+          <strong>Profile not set up yet.</strong> Click <strong>"Pull from website"</strong> and we'll read your website, Google listing, and any social profiles we found, then pre-fill everything below. Content will be generic until this is saved.
         </div>
       )}
 
@@ -171,7 +171,7 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
           ))}
           {sources.socialFound.length === 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-500">
-              No social links found on website — add them manually below
+              No social links found on website. Add them manually below.
             </span>
           )}
         </div>
@@ -246,7 +246,7 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
                   placeholder="Austin, TX"
                   className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
                 />
-                <p className="mt-1 text-xs text-zinc-400">Your main market — used in all local content targeting</p>
+                <p className="mt-1 text-xs text-zinc-400">Your main market, used in all local content targeting</p>
               </div>
               <div>
                 <label className="block text-xs text-zinc-500 mb-1">How far do you serve? (miles from that city)</label>
@@ -315,7 +315,7 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
           {/* Brand voice */}
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Brand voice <span className="font-normal text-zinc-400">(injected into every article — pulled from your site's writing style)</span>
+              Brand voice <span className="font-normal text-zinc-400">(injected into every article, pulled from your site&apos;s writing style)</span>
             </label>
             <textarea
               {...field("brandVoice")}

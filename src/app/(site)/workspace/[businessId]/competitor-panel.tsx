@@ -149,7 +149,7 @@ export async function CompetitorPanel({ businessId }: { businessId: string }) {
         if (!leader) {
           return ourReviews > 0 ? (
             <div className="mt-3 rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-800">
-              <span className="font-semibold">You lead on reviews</span> among nearby competitors — keep collecting to stay ahead.
+              <span className="font-semibold">You lead on reviews</span> among nearby competitors. Keep collecting to stay ahead.
             </div>
           ) : null;
         }
@@ -157,7 +157,7 @@ export async function CompetitorPanel({ businessId }: { businessId: string }) {
         return (
           <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             <span className="font-semibold">Review gap:</span> {leader.competitorName} has {maxCompetitorReviews.toLocaleString()} reviews vs. your {ourReviews.toLocaleString()}.{" "}
-            <span className="font-semibold">Get {gap.toLocaleString()} more review{gap !== 1 ? "s" : ""}</span> to take the lead — share your review gating link after each visit.
+            <span className="font-semibold">Get {gap.toLocaleString()} more review{gap !== 1 ? "s" : ""}</span> to take the lead. Share your review gating link after each visit.
           </div>
         );
       })()}

@@ -40,7 +40,7 @@ export function SetupForm({ token, businessName }: { token: string; businessName
 
         <div className="space-y-1.5">
           <span className="text-sm font-semibold text-zinc-900">Where do you serve customers?</span>
-          <p className="text-xs text-zinc-500">Enter your main city and how far out you travel — we'll target all areas in that radius.</p>
+          <p className="text-xs text-zinc-500">Enter your main city and how far out you travel. We'll target all areas in that radius.</p>
           <div className="flex gap-2">
             <input
               name="serviceCity"

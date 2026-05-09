@@ -31,7 +31,7 @@ export default function SocialProofAndLocalConversionGuidePage() {
       </p>
       <h2>One primary CTA per page</h2>
       <p>
-        Pick whether you want calls, bookings, or directions — then design the mobile fold around that choice. Extra
+        Pick whether you want calls, bookings, or directions. Then design the mobile fold around that choice. Extra
         buttons dilute action without adding clarity.
       </p>
       <h2>How GravyBlock helps</h2>

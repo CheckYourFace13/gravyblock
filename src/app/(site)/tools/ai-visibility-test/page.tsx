@@ -30,7 +30,7 @@ const factors = [
   { label: "Review presence and volume", detail: "High review counts on Google and Yelp signal that a business is legitimate and worth recommending." },
   { label: "Local content and mentions", detail: "Blog posts, local news mentions, and directory listings all feed the sources AI systems draw from." },
   { label: "Structured data markup", detail: "LocalBusiness schema on your website makes it machine-readable and easier for AI to understand and cite your business correctly." },
-  { label: "Wikipedia or Wikidata presence", detail: "Not required, but extremely helpful for larger brands — AI systems heavily weight knowledge base sources." },
+  { label: "Wikipedia or Wikidata presence", detail: "Not required, but extremely helpful for larger brands. AI systems heavily weight knowledge base sources." },
   { label: "GBP completeness", detail: "A complete, regularly updated Google Business Profile is one of the strongest signals for local AI recommendations." },
 ];
 
@@ -59,7 +59,7 @@ export default function AiVisibilityTestPage() {
           href="/scan"
           className="inline-block rounded-full bg-red-600 px-8 py-4 text-base font-semibold text-white shadow-sm hover:bg-red-500"
         >
-          Test my AI visibility — free
+          Test my AI visibility, free
         </Link>
         <p className="mt-3 text-sm text-zinc-500">Takes 30 seconds. No account required.</p>
       </div>
@@ -81,7 +81,7 @@ export default function AiVisibilityTestPage() {
         <div className="mt-4 space-y-4 text-sm text-zinc-600">
           <p>
             Traditional SEO optimizes for ten blue links. AI search generates a single answer that may or may not include your business.
-            If the AI does not mention you, that query produces zero traffic — regardless of your Google ranking.
+            If the AI does not mention you, that query produces zero traffic, regardless of your Google ranking.
           </p>
           <p>
             AI systems pull from multiple sources simultaneously: Google, Yelp, local news, review sites, and your own website.
@@ -110,7 +110,7 @@ export default function AiVisibilityTestPage() {
         <h2 className="text-2xl font-semibold text-zinc-900">What GravyBlock does to improve AI visibility</h2>
         <ul className="mt-4 space-y-3">
           {[
-            "Generates local SEO articles that cite your business in context — these become sources AI systems reference.",
+            "Generates local SEO articles that cite your business in context. These become sources AI systems reference.",
             "Tracks your GBP completeness and flags gaps that hurt AI discoverability.",
             "Monitors AI search results monthly and reports whether mention frequency is improving.",
             "Builds outreach to local directories and blogs that increase your citation footprint.",

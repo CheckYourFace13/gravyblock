@@ -23,9 +23,9 @@ export default function IndustriesIndexPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
       <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-800">By industry</p>
-      <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">Local SEO for your industry — specific playbooks, free scan</h1>
+      <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">Local SEO for your industry: specific playbooks, free scan</h1>
       <p className="mt-4 text-lg text-zinc-600">
-        Every industry has different ranking signals. Pick yours to see the specific GBP fields, review platforms, content types, and search terms that matter most for your business — plus what GravyBlock automates.
+        Every industry has different ranking signals. Pick yours to see the specific GBP fields, review platforms, content types, and search terms that matter most for your business, plus what GravyBlock automates.
       </p>
 
       <ul className="mt-10 space-y-4">

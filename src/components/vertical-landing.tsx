@@ -5,7 +5,7 @@ const siteUrl = "https://gravyblock.com";
 const automationFeatures = [
   "Weekly AI-written articles published to your website",
   "Reddit posts to local city and niche communities",
-  "8 backlink outreach emails per month — sent automatically",
+  "8 backlink outreach emails per month, sent automatically",
   "Facebook + Instagram auto-posting",
   "Google ranking tracking + weekly visibility refreshes",
   "AI search monitoring (ChatGPT, Perplexity, Gemini)",
@@ -69,7 +69,7 @@ export function VerticalLanding({
           See plans &amp; pricing
         </Link>
       </div>
-      <p className="mt-3 text-xs text-zinc-500">Free scan — no credit card. Use code <strong>INTRO50</strong> for 50% off month one.</p>
+      <p className="mt-3 text-xs text-zinc-500">Free scan, no credit card. Use code <strong>INTRO50</strong> for 50% off month one.</p>
 
       <div className="mt-12 rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-800">What GravyBlock automates on Scale ($74.99/mo)</p>

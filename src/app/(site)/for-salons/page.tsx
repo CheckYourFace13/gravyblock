@@ -16,7 +16,7 @@ export default function ForSalonsPage() {
         "Optimize your Google Business Profile: categories, photos, booking links, and service descriptions.",
         "Publish weekly local content: seasonal hair trends, nail looks, before-and-afters, and style guides.",
         "Track your Google Map ranking for 'hair salon near me' and specific service searches.",
-        "Monitor review count and recency on Google and Yelp — the top trust signals for new salon clients.",
+        "Monitor review count and recency on Google and Yelp, the top trust signals for new salon clients.",
         "Post seasonal content to local community boards and subreddits to drive bookings.",
         "Check AI search mentions for beauty recommendations in your city.",
       ]}

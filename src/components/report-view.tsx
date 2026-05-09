@@ -1,4 +1,5 @@
 "use client";
+import type { PromoCode } from "@/lib/stripe/promo-codes";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -58,7 +59,7 @@ export function ReportView({
   businessId?: string;
   initiallyUnlocked: boolean;
   selectedPlan?: "starter" | "growth" | "pro" | "agency" | null;
-  promoCode?: "ILoveYouFree" | "ILikeYou50" | null;
+  promoCode?: PromoCode | null;
 }) {
   const [unlocked, setUnlocked] = useState(initiallyUnlocked);
   const badge = opportunityBadge(payload.opportunityLevel);

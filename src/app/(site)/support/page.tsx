@@ -26,7 +26,7 @@ export default function SupportPage() {
           <p className="text-xs font-bold uppercase tracking-widest text-red-700 mb-2">We're here to help</p>
           <h1 className="text-3xl font-bold text-zinc-900 sm:text-4xl">Support</h1>
           <p className="mt-3 text-zinc-500 text-sm">
-            We reply to every message by email — usually within one business day.
+            We reply to every message by email, usually within one business day.
           </p>
         </div>
       </section>
@@ -76,19 +76,19 @@ export default function SupportPage() {
                   <Link href="/faq" className="font-medium text-red-600 hover:underline">
                     Browse the FAQ →
                   </Link>{" "}
-                  — answers to the most common questions
+                  for answers to the most common questions
                 </li>
                 <li>
                   <Link href="/login" className="font-medium text-red-600 hover:underline">
                     Log in to your dashboard →
                   </Link>{" "}
-                  — manage billing and settings
+                  to manage billing and settings
                 </li>
                 <li>
                   <Link href="/scan" className="font-medium text-red-600 hover:underline">
                     Run a new free scan →
                   </Link>{" "}
-                  — re-check your visibility score
+                  to re-check your visibility score
                 </li>
               </ul>
             </div>
@@ -96,7 +96,7 @@ export default function SupportPage() {
             <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
               <p className="text-sm font-semibold text-emerald-800">30-day money-back guarantee</p>
               <p className="mt-1 text-xs text-emerald-700 leading-relaxed">
-                Not happy in your first 30 days? Email us and we'll refund you in full — no forms, no hassle.
+                Not happy in your first 30 days? Email us and we'll refund you in full. No forms, no hassle.
               </p>
             </div>
           </div>

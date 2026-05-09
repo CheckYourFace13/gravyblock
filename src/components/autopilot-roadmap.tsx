@@ -19,8 +19,8 @@ export function AutopilotRoadmap({ rows }: { rows: RoadmapRow[] }) {
       <div>
         <h2 className="text-xl font-semibold text-zinc-900">Autopilot roadmap</h2>
         <p className="text-sm text-zinc-600">
-          Prioritized like an operator runbook: close urgent gaps, queue leverage work, then keep monitoring so listings
-          and site quality do not regress in silence.
+          Prioritized like an operator runbook: close urgent gaps, queue the high-value work, then keep monitoring so listings
+          and site quality don't regress quietly.
         </p>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
@@ -34,7 +34,7 @@ export function AutopilotRoadmap({ rows }: { rows: RoadmapRow[] }) {
                 {items.slice(0, 6).map((item, idx) => (
                   <li key={`${lane.lane}-${item.title}-${idx}`} className="rounded-xl border border-zinc-100 bg-zinc-50/80 px-3 py-2 text-sm text-zinc-700">
                     <span className="font-semibold text-zinc-900">{item.title}</span>
-                    <span className="text-zinc-600"> — {item.detail}</span>
+                    <span className="text-zinc-600">: {item.detail}</span>
                     <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
                       {item.category} · impact {item.impact}
                     </p>
@@ -42,8 +42,7 @@ export function AutopilotRoadmap({ rows }: { rows: RoadmapRow[] }) {
                 ))}
                 {!items.length ? (
                   <li className="text-sm text-zinc-500">
-                    No items in this lane for this scan — usually a sign scores are strong here, or the next actions live
-                    in another lane above.
+                    No items in this lane for this scan. Usually a sign scores are strong here, or the next actions are in another lane above.
                   </li>
                 ) : null}
               </ul>

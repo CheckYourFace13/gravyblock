@@ -75,7 +75,7 @@ export default async function BlogPage() {
       {posts.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-6 py-16 text-center">
           <p className="font-semibold text-zinc-700">First articles coming soon.</p>
-          <p className="mt-1 text-sm text-zinc-500">GravyBlock autopilot is generating content — check back shortly.</p>
+          <p className="mt-1 text-sm text-zinc-500">GravyBlock autopilot is generating content. Check back shortly.</p>
           <Link href="/scan" className="mt-4 inline-block rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-500">
             Run a free scan while you wait
           </Link>
@@ -121,7 +121,7 @@ export default async function BlogPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-800">Try it free</p>
         <h2 className="mt-2 text-2xl font-semibold text-zinc-900">See how your business ranks</h2>
         <p className="mt-2 text-sm text-zinc-600 max-w-md mx-auto">
-          Free visibility scan — takes 60 seconds. Get your score, top issues, and a prioritized action plan.
+          Free visibility scan. Takes 60 seconds. Get your score, top issues, and a prioritized fix list.
         </p>
         <Link
           href="/scan"

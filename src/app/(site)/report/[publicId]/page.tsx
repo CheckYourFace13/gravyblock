@@ -11,12 +11,8 @@ type Props = {
   searchParams: Promise<{ unlock?: string; plan?: string; promo?: string }>;
 };
 
-function normalizePromoCodeIntent(raw?: string): "ILoveYouFree" | "ILikeYou50" | null {
-  if (!raw) return null;
-  const value = raw.trim();
-  if (value === "ILoveYouFree" || value === "ILikeYou50") return value;
-  return null;
-}
+import { normalizePromoCode } from "@/lib/stripe/promo-codes";
+const normalizePromoCodeIntent = normalizePromoCode;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { publicId } = await params;

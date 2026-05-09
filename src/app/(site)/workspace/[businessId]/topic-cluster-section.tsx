@@ -38,7 +38,7 @@ export function TopicClusterSection({ businessId }: Props) {
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">Topic cluster map</h2>
           <p className="mt-1 max-w-xl text-sm text-zinc-500">
-            Your content strategy organized by pillar topic — see what&apos;s published, what&apos;s queued, and what gaps autopilot should fill next.
+            Your content strategy organized by pillar topic. See what&apos;s published, what&apos;s queued, and what gaps autopilot should fill next.
           </p>
         </div>
         <button
@@ -57,7 +57,7 @@ export function TopicClusterSection({ businessId }: Props) {
 
       {!clusters && !isPending ? (
         <div className="mt-5 rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-5 py-8 text-center text-sm text-zinc-500">
-          Click &ldquo;Generate cluster map&rdquo; to see your content strategy — pillar topics, supporting articles, and content gaps autopilot will fill.
+          Click &ldquo;Generate cluster map&rdquo; to see your content strategy: pillar topics, supporting articles, and content gaps autopilot will fill.
         </div>
       ) : isPending ? (
         <div className="mt-5 rounded-xl border border-zinc-100 bg-zinc-50 px-5 py-8 text-center text-sm text-zinc-500 animate-pulse">
@@ -68,7 +68,7 @@ export function TopicClusterSection({ businessId }: Props) {
           <div className="mt-4 flex flex-wrap gap-4 text-sm">
             <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">{publishedCount} published</span>
             <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">{clusters.flatMap((c) => c.articles).filter((a) => a.status === "queued").length} queued</span>
-            <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">{gapCount} gaps — autopilot will fill these</span>
+            <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">{gapCount} gaps (autopilot will fill these)</span>
           </div>
 
           <div className="mt-5 space-y-5">

@@ -65,7 +65,7 @@ export default async function LocalSeoPage({ params }: Props) {
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-zinc-600">
             GravyBlock automates content, outreach, reviews, and AI visibility for {industry.plural.toLowerCase()} in{" "}
-            {city.name}, {city.state} — so you show up when customers search and when AI assistants answer.
+            {city.name}, {city.state}, so you show up when customers search and when AI assistants answer.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -92,7 +92,7 @@ export default async function LocalSeoPage({ params }: Props) {
           {[
             {
               title: "Customers search locally first",
-              body: `When someone needs a ${industry.name.toLowerCase()} in ${city.name}, they search Google — and the top 3 results capture most of the calls. Visibility in local search and map pack results is not optional.`,
+              body: `When someone needs a ${industry.name.toLowerCase()} in ${city.name}, they search Google. The top 3 results capture most of the calls. Visibility in local search and map pack results is not optional.`,
             },
             {
               title: "AI assistants are the new word-of-mouth",
@@ -125,7 +125,7 @@ export default async function LocalSeoPage({ params }: Props) {
               `Scans your Google Business Profile listing for gaps and mismatches specific to ${industry.name.toLowerCase()} categories`,
               `Generates and publishes local SEO articles targeting "${industry.name.toLowerCase()} in ${city.name}" and nearby neighborhoods`,
               `Posts on Reddit, community forums, and niche blogs where ${city.name} locals ask for ${industry.category} recommendations`,
-              `Monitors your AI search visibility — whether Perplexity or ChatGPT mentions your business when asked about ${industry.plural.toLowerCase()} in ${city.name}`,
+              `Monitors your AI search visibility: whether Perplexity or ChatGPT mentions your business when asked about ${industry.plural.toLowerCase()} in ${city.name}`,
               `Runs review request campaigns and drafts AI responses to new reviews to improve reply rate`,
               `Builds a backlink queue from local ${city.name} directories, community sites, and industry publications`,
             ].map((step, idx) => (

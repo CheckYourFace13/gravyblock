@@ -9,17 +9,17 @@ export const metadata: Metadata = {
 };
 
 const featuredComps = [
-  { slug: "gravyblock-vs-brightlocal", name: "BrightLocal", price: "From $39/mo", note: "Reports only — you still do all the work" },
+  { slug: "gravyblock-vs-brightlocal", name: "BrightLocal", price: "From $39/mo", note: "Reports only. You still do all the work." },
   { slug: "gravyblock-vs-yext", name: "Yext", price: "From $199+/yr", note: "Enterprise listing sync, not a growth tool" },
   { slug: "gravyblock-vs-semrush-local", name: "Semrush Local", price: "From $140+/mo", note: "Built for SEO pros, not business owners" },
-  { slug: "gravyblock-vs-searchatlas", name: "Search Atlas", price: "$99–$399/mo", note: "60+ tools — powerful but complex agency suite" },
-  { slug: "gravyblock-vs-reputation", name: "Reputation.com", price: "Enterprise / demo only", note: "Multi-location enterprise tool — no self-serve" },
-  { slug: "gravyblock-vs-soro", name: "Soro", price: "~$49–$149/mo", note: "Content autopilot only — no local SEO signals" },
-  { slug: "gravyblock-vs-rankscore", name: "RankScore", price: "Lifetime deal pricing", note: "Blog content only — no reviews, GBP, or citations" },
-  { slug: "gravyblock-vs-adaptify", name: "Adaptify", price: "Agency pricing / demo", note: "White-label agency tool — not for business owners" },
-  { slug: "gravyblock-vs-similarweb", name: "SimilarWeb", price: "$300–$1,000+/mo", note: "Analytics only — tells you what's wrong, does nothing" },
-  { slug: "gravyblock-vs-babylovegrowth", name: "BabyLoveGrowth.ai", price: "$99/mo", note: "Content + backlinks — missing all local SEO signals" },
-  { slug: "gravyblock-vs-outreachfrog", name: "OutreachFrog", price: "$159–$1,199/link", note: "One-off link purchases — no ongoing automation" },
+  { slug: "gravyblock-vs-searchatlas", name: "Search Atlas", price: "$99–$399/mo", note: "60+ tools, powerful but built for agency teams" },
+  { slug: "gravyblock-vs-reputation", name: "Reputation.com", price: "Enterprise / demo only", note: "Multi-location enterprise tool, no self-serve" },
+  { slug: "gravyblock-vs-soro", name: "Soro", price: "~$49–$149/mo", note: "Content autopilot only, no local SEO signals" },
+  { slug: "gravyblock-vs-rankscore", name: "RankScore", price: "Lifetime deal pricing", note: "Blog content only, no reviews, GBP, or citations" },
+  { slug: "gravyblock-vs-adaptify", name: "Adaptify", price: "Agency pricing / demo", note: "White-label agency tool, not for business owners" },
+  { slug: "gravyblock-vs-similarweb", name: "SimilarWeb", price: "$300–$1,000+/mo", note: "Analytics only. It tells you what's wrong but does nothing about it." },
+  { slug: "gravyblock-vs-babylovegrowth", name: "BabyLoveGrowth.ai", price: "$99/mo", note: "Content and backlinks, but missing all local SEO signals" },
+  { slug: "gravyblock-vs-outreachfrog", name: "OutreachFrog", price: "$159–$1,199/link", note: "One-off link purchases, no ongoing automation" },
   { slug: "gravyblock-vs-bulletproof", name: "BulletProof", price: "Premium / unlisted", note: "Real-estate-only, high-touch coaching model" },
 ];
 
@@ -33,7 +33,7 @@ export default function CompareIndexPage() {
           GravyBlock vs. BrightLocal, Yext, Semrush, and more
         </h1>
         <p className="max-w-2xl text-lg text-zinc-600">
-          Every other local SEO tool shows you what's wrong. GravyBlock fixes it — automatically. Here's how we compare to the tools you're probably already evaluating.
+          Every other local SEO tool shows you what's wrong. GravyBlock fixes it, automatically. Here's how we stack up against the tools you're probably already evaluating.
         </p>
       </div>
 
@@ -49,8 +49,8 @@ export default function CompareIndexPage() {
             "Review inbox with AI-drafted reply suggestions",
             "AI search visibility (ChatGPT, Perplexity, Gemini)",
             "Competitor ranking comparison built in",
-            "Free visibility scan — results in 60 seconds",
-            "Starts at $39.99/mo intro — no agency needed",
+            "Free visibility scan. Results in 60 seconds.",
+            "Starts at $39.99/mo intro. No agency needed.",
           ].map((f) => (
             <div key={f} className="flex items-start gap-2">
               <span className="mt-0.5 shrink-0 font-bold text-red-600">✓</span>
