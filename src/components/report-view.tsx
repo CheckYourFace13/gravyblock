@@ -316,7 +316,7 @@ export function ReportView({
                   ) : null}
                 </div>
               ) : (
-                <p className="mt-4 text-sm text-zinc-500">Not applicable — this business was scanned by website URL rather than a Google listing.</p>
+                <p className="mt-4 text-sm text-zinc-500">Not applicable. This business was scanned by website URL rather than a Google listing.</p>
               )}
             </article>
           </section>
@@ -332,7 +332,7 @@ export function ReportView({
                 {payload.websiteConversionHealth.findings.slice(0, 6).map((f) => (
                   <li key={f.key} className="rounded-lg bg-zinc-50 px-3 py-2">
                     <span className="font-semibold text-zinc-900">{f.title}</span>
-                    <span className="text-zinc-600"> — {f.detail}</span>
+                    <span className="text-zinc-600">: {f.detail}</span>
                   </li>
                 ))}
               </ul>
@@ -342,7 +342,7 @@ export function ReportView({
               <p className="mt-1 text-sm text-zinc-600">
                 {payload.searchVisibility.verified
                   ? "Verified Search Console metrics (owner token)."
-                  : "Estimated from sampled local queries — owner Search Console was not linked on this public scan."}
+                  : "Estimated from sampled local queries. Owner Search Console was not linked on this public scan."}
               </p>
               {payload.searchVisibility.aggregate ? (
                 <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">

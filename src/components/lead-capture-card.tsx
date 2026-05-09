@@ -31,7 +31,7 @@ export function LeadCaptureCard({
       <h2 className="mt-2 text-xl font-semibold">Get an execution plan for this business</h2>
       <p className="mt-2 text-sm text-zinc-200">
         Tell us who should own rollout. We will follow up with practical next steps for listings, site fixes, content,
-        authority, and recurring visibility — tuned to how you operate (single location, multi-location, or
+        authority, and recurring visibility, tuned to how you operate (single location, multi-location, or
         service-area).
       </p>
 
