@@ -26,6 +26,7 @@ import { runOnboardingBatch } from "@/lib/email/onboarding";
 import { runReviewRequestBatch } from "@/lib/email/review-request";
 import { runAutoConfigBatch } from "@/lib/setup/auto-config";
 import { runMonthlyDigestBatch } from "@/lib/email/monthly-digest";
+import { runAbandonedCheckoutBatch } from "@/lib/email/abandoned-checkout";
 import { runCitationAuditBatch } from "@/lib/citations/citation-audit";
 import { runMultiPlatformReviewBatch } from "@/lib/reviews/platform-sync";
 import { runLlmProbeBatch } from "@/lib/ai-visibility/llm-probes";
@@ -452,6 +453,15 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] lead drip failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const abandonedResult = await runAbandonedCheckoutBatch();
+    if (abandonedResult.sent > 0) {
+      console.info("[worker] abandoned checkout emails sent", abandonedResult);
+    }
+  } catch (error) {
+    console.error("[worker] abandoned checkout failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   try {
