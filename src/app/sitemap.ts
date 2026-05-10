@@ -4,7 +4,7 @@ import { getDb, publishedContent } from "@/lib/db";
 import { CITIES, INDUSTRIES } from "@/lib/local-seo/markets";
 import { GLOSSARY_TERMS } from "@/lib/content/glossary";
 import { COMPARE_SLUGS } from "@/lib/content/compare-pages";
-import { QUESTION_GUIDES } from "@/lib/content/question-guides";
+import { QUESTION_GUIDE_SLUGS } from "@/lib/content/question-guides";
 import { INDIVIDUAL_INDUSTRY_PAGES, INDIVIDUAL_INDUSTRY_SLUGS } from "@/lib/content/industries/individual";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -34,8 +34,8 @@ const staticRoutes: MetadataRoute.Sitemap = [
     priority: 0.7,
   })),
   { url: `${siteUrl}/guides`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
-  ...QUESTION_GUIDES.map((g) => ({
-    url: `${siteUrl}/guides/${g.slug}`,
+  ...QUESTION_GUIDE_SLUGS.map((slug) => ({
+    url: `${siteUrl}/guides/${slug}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,
     priority: 0.7,
