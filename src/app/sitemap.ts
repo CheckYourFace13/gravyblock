@@ -5,7 +5,7 @@ import { CITIES, INDUSTRIES } from "@/lib/local-seo/markets";
 import { GLOSSARY_TERMS } from "@/lib/content/glossary";
 import { COMPARE_SLUGS } from "@/lib/content/compare-pages";
 import { QUESTION_GUIDES } from "@/lib/content/question-guides";
-import { INDUSTRY_PAGES } from "@/lib/content/industries/individual";
+import { INDIVIDUAL_INDUSTRY_PAGES, INDIVIDUAL_INDUSTRY_SLUGS } from "@/lib/content/industries/individual";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
@@ -41,8 +41,8 @@ const staticRoutes: MetadataRoute.Sitemap = [
     priority: 0.7,
   })),
   { url: `${siteUrl}/industries`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
-  ...INDUSTRY_PAGES.map((p) => ({
-    url: `${siteUrl}/industries/${p.slug}`,
+  ...INDIVIDUAL_INDUSTRY_SLUGS.map((slug) => ({
+    url: `${siteUrl}/industries/${slug}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,
     priority: 0.7,
