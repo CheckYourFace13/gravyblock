@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
 
 const links = [
-  { href: "/#plans", label: "Pricing" },
+  { href: "/pricing", label: "Pricing" },
   { href: "/compare", label: "Compare" },
   { href: "/industries", label: "Industries" },
   { href: "/guides", label: "Guides" },

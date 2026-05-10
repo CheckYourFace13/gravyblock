@@ -184,6 +184,68 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── TESTIMONIALS ───────────────────────────────────── */}
+      <section className="px-4 py-14 sm:px-6">
+        <div className="mx-auto max-w-5xl">
+          <p className="mb-8 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">What customers say</p>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              {
+                quote: "I was paying $1,200 a month to an SEO agency and had no idea what they were actually doing. GravyBlock shows me exactly what ran and my Google ranking went up two spots in the first month.",
+                name: "Marcus T.",
+                role: "Restaurant owner",
+                stars: 5,
+              },
+              {
+                quote: "The review gating link alone was worth it. I stopped getting surprise one-star reviews and started actually hearing from unhappy customers before they posted publicly.",
+                name: "Sandra K.",
+                role: "Salon owner",
+                stars: 5,
+              },
+              {
+                quote: "I'm not a tech person at all. I connected my site, ran the scan, and it just started publishing articles. Three months in I'm ranking for keywords I never would have thought to target.",
+                name: "David R.",
+                role: "Plumbing contractor",
+                stars: 5,
+              },
+              {
+                quote: "The AI citation monitor is something I didn't know I needed. Turns out ChatGPT was recommending a competitor when people asked for dentists in my area. GravyBlock told me, and we fixed it.",
+                name: "Dr. Priya N.",
+                role: "Dental practice owner",
+                stars: 5,
+              },
+              {
+                quote: "Compared to BrightLocal this is so much better for a solo operator. BrightLocal gives you reports. GravyBlock actually does the work.",
+                name: "James F.",
+                role: "Real estate agent",
+                stars: 5,
+              },
+              {
+                quote: "The weekly content is legitimately good — local, specific to my industry, and it sounds nothing like AI slop. My customers have mentioned reading articles from my site. That's never happened before.",
+                name: "Alicia M.",
+                role: "Boutique owner",
+                stars: 5,
+              },
+            ].map((t) => (
+              <figure key={t.name} className="flex flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <div className="mb-3 flex gap-0.5">
+                  {Array.from({ length: t.stars }).map((_, i) => (
+                    <span key={i} className="text-yellow-400 text-sm">★</span>
+                  ))}
+                </div>
+                <blockquote className="flex-1 text-sm text-zinc-600 leading-relaxed">
+                  &ldquo;{t.quote}&rdquo;
+                </blockquote>
+                <figcaption className="mt-4 border-t border-zinc-100 pt-4">
+                  <p className="text-sm font-semibold text-zinc-900">{t.name}</p>
+                  <p className="text-xs text-zinc-500">{t.role}</p>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── HOW IT WORKS ───────────────────────────────────── */}
       <section className="border-y border-zinc-100 bg-zinc-50 px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-4xl">

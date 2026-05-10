@@ -34,6 +34,7 @@ import { TopicClusterSection } from "./topic-cluster-section";
 import { ReviewGatingSection } from "./review-gating-section";
 import { getReviewGatingData } from "./review-gating-actions";
 import { SchemaGeneratorSection } from "./schema-generator-section";
+import { ReferralSection } from "./referral-section";
 import { AiCitationSection } from "./ai-citation-section";
 import { FaqBuilderSection } from "./faq-builder-section";
 import { ScoresOverviewSection } from "./scores-overview-section";
@@ -1266,32 +1267,12 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       </section>
 
       {/* ─── Referral ────────────────────────────────────────────────────────── */}
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-900">Refer a business</h2>
-        <p className="mt-1 text-sm text-zinc-500">
-          Share your link. When another business runs a scan and signs up, you both get credit:
-          one free month per paid referral. Reply to any GravyBlock email to claim it.
-        </p>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <code className="flex-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700 font-mono break-all">
-            {referralUrl}
-          </code>
-        </div>
-        <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-center">
-            <p className="text-2xl font-semibold text-zinc-900">{referralStats.clicks}</p>
-            <p className="text-xs text-zinc-500">link clicks</p>
-          </div>
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-center">
-            <p className="text-2xl font-semibold text-zinc-900">{referralStats.scans}</p>
-            <p className="text-xs text-zinc-500">scans run</p>
-          </div>
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-center">
-            <p className="text-2xl font-semibold text-zinc-900">{referralStats.paid}</p>
-            <p className="text-xs text-zinc-500">converted to paid</p>
-          </div>
-        </div>
-      </section>
+      <ReferralSection
+        referralUrl={referralUrl}
+        clicks={referralStats.clicks}
+        scans={referralStats.scans}
+        paid={referralStats.paid}
+      />
 
     </div>
   );
