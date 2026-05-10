@@ -668,6 +668,69 @@ export const COMPARE_PAGES: Record<string, ComparePage> = {
       ],
     },
   },
+
+  "gravyblock-vs-reputation": {
+    slug: "gravyblock-vs-reputation",
+    metaTitle: "GravyBlock vs Reputation.com: local SEO and reputation for small businesses | GravyBlock",
+    metaDescription: "Reputation.com is an enterprise platform starting at $500+/month with annual contracts. GravyBlock delivers automated content, reviews, citations, and AI visibility monitoring from $39.99/month with no contract.",
+    model: {
+      eyebrow: "GravyBlock vs Reputation.com",
+      title: "GravyBlock vs Reputation.com: enterprise reputation management vs. local SEO autopilot",
+      intro: "Reputation.com (now branded as 'Reputation') is an enterprise reputation management platform built for automotive dealerships, hospital systems, and multi-location retail chains with dedicated marketing teams. GravyBlock is built for owner-operated local businesses that want reputation management, local SEO, and AI search visibility — all automated — without an enterprise contract or a marketing department.",
+      meaningForBusiness: "If you own a restaurant, dental practice, law firm, or any local business without a full marketing team, Reputation.com's pricing and complexity will work against you. GravyBlock gives you the same core reputation and visibility outcomes for a fraction of the cost, running automatically.",
+      sections: [
+        {
+          title: "What Reputation.com does well",
+          body: "Reputation.com excels at enterprise-scale reputation intelligence. Their platform aggregates reviews from 150+ sources, delivers NPS and customer satisfaction surveys, syncs listings across hundreds of directories, and provides business intelligence dashboards used by brands managing thousands of locations.",
+          bullets: [
+            "Review aggregation from 150+ platforms including niche industry sources.",
+            "NPS and customer satisfaction surveys with deep analytics.",
+            "Competitive reputation benchmarking across enterprise categories.",
+            "Listings sync across hundreds of directories from one dashboard.",
+            "Integrations with Salesforce, Hubspot, and enterprise CRMs.",
+            "Dedicated customer success managers and onboarding teams.",
+          ],
+        },
+        {
+          title: "Where Reputation.com is the wrong fit for small businesses",
+          body: "Reputation.com is priced and structured for enterprise brands. Its pricing is not publicly listed because it is sold through a sales team — typically starting around $500 per month and scaling into thousands for multi-location brands. Annual contracts are standard. The platform assumes you have a marketing team to interpret dashboards and act on insights.",
+          bullets: [
+            "No public pricing. Enterprise sales process required to get a quote.",
+            "Annual contract commitments standard at most tiers.",
+            "Built for automotive, healthcare, and chain retail — not independent small businesses.",
+            "Reputation monitoring without content creation or outreach automation.",
+            "Does not write or publish articles to your website.",
+            "Does not do backlink outreach or Reddit and community posting.",
+            "No AI search visibility monitoring (ChatGPT, Perplexity, Google AI Overviews).",
+            "No AEO or GEO scoring. No structured data generation.",
+            "No free scan. No self-serve onboarding.",
+          ],
+        },
+        {
+          title: "What GravyBlock does differently",
+          body: "GravyBlock combines reputation management with proactive local SEO and AI-era visibility features that Reputation.com does not offer at any price tier. It starts with a free 60-second scan, requires no sales call, and runs on a month-to-month basis from $39.99/month.",
+          bullets: [
+            "Free scan in 60 seconds — no account, no sales call, no commitment.",
+            "Review monitoring with AI-drafted replies across Google, Yelp, and TripAdvisor.",
+            "Weekly AI articles written and published to your website automatically.",
+            "Reddit and social community posting to build local brand presence.",
+            "Citation audit checks NAP consistency across 40+ directories monthly.",
+            "Backlink outreach emails sent to local sites and directories monthly.",
+            "AI Citation Monitor: tracks whether ChatGPT, Perplexity, and Google AI mention your business.",
+            "AEO Score, GEO Score, and Entity Score alongside your SEO visibility score.",
+            "Schema markup generator creates LocalBusiness, FAQ, and Service JSON-LD for your site.",
+            "No annual contract. No sales call. Cancel any time.",
+          ],
+        },
+      ],
+      relatedLinks: [
+        { href: "/scan", label: "Run your free scan now" },
+        { href: "/#plans", label: "GravyBlock plans and pricing" },
+        { href: "/guides/how-to-show-up-in-ai-search-for-local-businesses", label: "How to show up in AI search" },
+        ...links,
+      ],
+    },
+  },
 };
 
 export const COMPARE_SLUGS = Object.keys(COMPARE_PAGES);
