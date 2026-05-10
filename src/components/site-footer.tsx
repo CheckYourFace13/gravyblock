@@ -29,8 +29,11 @@ export function SiteFooter() {
               <Link href="/scan" className="font-medium text-zinc-900 hover:underline">
                 Free scan
               </Link>
-              <Link href="/#plans" className="hover:underline">
-                Plans
+              <Link href="/pricing" className="hover:underline">
+                Pricing
+              </Link>
+              <Link href="/glossary" className="hover:underline">
+                SEO glossary
               </Link>
               <Link href="/faq" className="hover:underline">
                 FAQ
