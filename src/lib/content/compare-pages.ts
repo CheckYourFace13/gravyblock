@@ -355,57 +355,6 @@ export const COMPARE_PAGES: Record<string, ComparePage> = {
     },
   },
 
-  "gravyblock-vs-reputation": {
-    slug: "gravyblock-vs-reputation",
-    metaTitle: "GravyBlock vs Reputation.com: local SEO for small businesses | GravyBlock",
-    metaDescription: "Reputation.com is an enterprise reputation platform for multi-location brands. GravyBlock automates the same review monitoring, content, and local visibility work — for a fraction of the cost, with no sales call required.",
-    model: {
-      eyebrow: "GravyBlock vs Reputation.com",
-      title: "GravyBlock vs Reputation.com: enterprise reputation tools vs. small business autopilot",
-      intro: "Reputation.com is built for large multi-location brands: hospital systems, auto dealer groups, restaurant chains. It centralizes review monitoring, surveys, and listings management across hundreds of locations. GravyBlock is built for the business owner who wants the same outcomes: better reviews, higher rankings, more customers. No enterprise pricing, no sales team required.",
-      meaningForBusiness: "If you run a single location or a small chain, Reputation.com is overkill at enterprise cost. GravyBlock delivers the review monitoring, visibility tracking, and content automation you actually need. Starts with a free scan.",
-      sections: [
-        {
-          title: "What Reputation.com does well",
-          body: "For large brands, Reputation.com delivers impressive breadth: AI-powered review analysis across thousands of locations, review generation campaigns, centralized survey tools, competitive benchmarking, and a social publishing suite.",
-          bullets: [
-            "Review monitoring and response across hundreds of locations simultaneously.",
-            "Reputation IQ: AI-powered Q&A over review data for operational insights.",
-            "Competitive benchmarking vs. local competitors by location.",
-            "Listings management pushed to directories and AI search engines.",
-          ],
-        },
-        {
-          title: "Where Reputation.com is a mismatch for small businesses",
-          body: "Reputation.com requires a demo call before you can even see pricing. Their platform is scoped for enterprise operations teams, not business owners running a single location.",
-          bullets: [
-            "No public pricing. Enterprise deal only. Expect $300–$1,000+/mo.",
-            "No content creation or blog publishing.",
-            "No backlink outreach or link building.",
-            "No Reddit or community posting.",
-            "Requires onboarding support. Not a self-serve tool.",
-          ],
-        },
-        {
-          title: "What GravyBlock does for local businesses at a fraction of the cost",
-          body: "GravyBlock automates the local growth work that actually moves rankings: weekly content publishing, review monitoring with AI reply drafts, competitor comparison, citation audits, backlink outreach, and AI search visibility tracking. One dashboard, no sales call required.",
-          bullets: [
-            "Free scan in 60 seconds. No demo call, no credit card.",
-            "Review inbox with AI-drafted reply suggestions, filterable by status.",
-            "Review gating link routes happy customers to Google, captures unhappy ones privately.",
-            "Weekly AI articles published to your site on Scale and above.",
-            "Starts at $39.99/mo introductory — use code INTRO50.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Run a free GravyBlock scan" },
-        { href: "/#plans", label: "See GravyBlock plans" },
-        ...links,
-      ],
-    },
-  },
-
   "gravyblock-vs-rankscore": {
     slug: "gravyblock-vs-rankscore",
     metaTitle: "GravyBlock vs RankScore: local SEO content automation compared | GravyBlock",
