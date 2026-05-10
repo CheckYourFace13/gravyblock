@@ -26,7 +26,32 @@ export default async function ScanPage({ searchParams }: Props) {
     : raw === "base" || raw === "entry" ? "starter" : null) as "starter" | "growth" | "pro" | "agency" | null;
   const promoCode = normalizePromoCode(query.promo);
 
+  const softwareAppSchema = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "GravyBlock Free Local SEO Scan",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    description: "Free Google visibility scan for local businesses. See your score across 6 ranking factors — profile quality, reviews, citations, trust signals, conversion readiness, and AI search presence — in under 60 seconds.",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+    },
+    url: "https://gravyblock.com/scan",
+    publisher: {
+      "@type": "Organization",
+      name: "GravyBlock",
+      url: "https://gravyblock.com",
+    },
+  };
+
   return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppSchema) }}
+      />
     <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
       <div className="mx-auto max-w-3xl text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Free scan</p>
@@ -83,5 +108,6 @@ export default async function ScanPage({ searchParams }: Props) {
         <ScanForm selectedPlan={selectedPlan} promoCode={promoCode} />
       </div>
     </div>
+    </>
   );
 }

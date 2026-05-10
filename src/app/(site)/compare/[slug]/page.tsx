@@ -31,6 +31,8 @@ export default async function ComparePage({ params }: Props) {
     headline: page.model.title,
     description: page.metaDescription,
     url: `https://gravyblock.com/compare/${slug}`,
+    datePublished: "2026-01-01",
+    dateModified: "2026-05-09",
     publisher: {
       "@type": "Organization",
       name: "GravyBlock",

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Outfit } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const display = Outfit({
@@ -136,7 +137,21 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrg) }}
         />
       </head>
-      <body className="min-h-dvh bg-zinc-50 text-zinc-900">{children}</body>
+      <body className="min-h-dvh bg-zinc-50 text-zinc-900">
+        {children}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-6THEWE2M89"
+          strategy="afterInteractive"
+        />
+        <Script id="ga4-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-6THEWE2M89');
+          `}
+        </Script>
+      </body>
     </html>
   );
 }

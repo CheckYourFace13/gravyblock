@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { desc, eq } from "drizzle-orm";
 import { getDb, publishedContent } from "@/lib/db";
 import { CITIES, INDUSTRIES } from "@/lib/local-seo/markets";
+import { GLOSSARY_TERMS } from "@/lib/content/glossary";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
@@ -27,6 +28,13 @@ const staticRoutes: MetadataRoute.Sitemap = [
   { url: `${siteUrl}/compare/gravyblock-vs-similarweb`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
   { url: `${siteUrl}/compare/gravyblock-vs-searchatlas`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
   { url: `${siteUrl}/compare/gravyblock-vs-soro`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
+  { url: `${siteUrl}/glossary`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.8 },
+  ...GLOSSARY_TERMS.map((t) => ({
+    url: `${siteUrl}/glossary/${t.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  })),
   { url: `${siteUrl}/guides`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
   { url: `${siteUrl}/guides/how-to-rank-higher-in-google-maps`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
   { url: `${siteUrl}/guides/how-to-improve-local-trust-on-your-website`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },

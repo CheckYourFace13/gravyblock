@@ -33,6 +33,7 @@ import { getSocialCredentials } from "./social-credentials-actions";
 import { TopicClusterSection } from "./topic-cluster-section";
 import { ReviewGatingSection } from "./review-gating-section";
 import { getReviewGatingData } from "./review-gating-actions";
+import { SchemaGeneratorSection } from "./schema-generator-section";
 
 export const dynamic = "force-dynamic";
 
@@ -884,6 +885,37 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           planLabel={features.label}
         />
       ) : null}
+
+      {/* ─── Schema Markup Generator ─────────────────────────────────────────── */}
+      {(() => {
+        // Some fields exist on MemBusiness but not the DB-path business object.
+        // We read them safely with optional chaining and fall back to placeProfiles.
+        const biz = bundle.business as typeof bundle.business & {
+          primaryCategory?: string | null;
+          rating?: string | null;
+          reviewCount?: number | null;
+          latitude?: number | null;
+          longitude?: number | null;
+        };
+        const latestPlace = bundle.placeProfiles?.[0];
+        return (
+          <SchemaGeneratorSection
+            business={{
+              name: biz.name,
+              address: biz.address,
+              phone: biz.phone,
+              website: biz.website,
+              primaryCategory: biz.primaryCategory ?? latestPlace?.primaryType ?? null,
+              vertical: biz.vertical,
+              rating: biz.rating ?? (latestPlace?.rating != null ? String(latestPlace.rating) : null),
+              reviewCount: biz.reviewCount ?? latestPlace?.reviewCount ?? null,
+              latitude: biz.latitude ?? null,
+              longitude: biz.longitude ?? null,
+              googleMapsUri: biz.googleMapsUri ?? latestPlace?.mapsUri ?? null,
+            }}
+          />
+        );
+      })()}
 
       {/* ────────────────────────────────────────────────────────────────────── */}
       {/* HISTORY — everything completed, with dates                            */}

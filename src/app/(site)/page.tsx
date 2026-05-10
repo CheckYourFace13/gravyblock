@@ -63,9 +63,55 @@ const steps = [
   },
 ];
 
+const productSchema = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Product",
+      name: "GravyBlock Starter",
+      description: "Monthly local SEO monitoring with visibility score, content ideas, citation and review fix queue, and AI search check.",
+      url: "https://gravyblock.com/scan?plan=starter",
+      offers: {
+        "@type": "Offer",
+        priceCurrency: "USD",
+        price: "79.99",
+        url: "https://gravyblock.com/scan?plan=starter",
+      },
+    },
+    {
+      "@type": "Product",
+      name: "GravyBlock Scale",
+      description: "Weekly AI articles published to your site, Reddit posts, backlink outreach, Facebook and Instagram auto-posting, and review inbox with AI reply drafts.",
+      url: "https://gravyblock.com/scan?plan=growth",
+      offers: {
+        "@type": "Offer",
+        priceCurrency: "USD",
+        price: "149.99",
+        url: "https://gravyblock.com/scan?plan=growth",
+      },
+    },
+    {
+      "@type": "Product",
+      name: "GravyBlock Pro",
+      description: "Everything in Scale twice as often, plus programmatic city pages, lead pipeline, and up to 3 locations.",
+      url: "https://gravyblock.com/scan?plan=pro",
+      offers: {
+        "@type": "Offer",
+        priceCurrency: "USD",
+        price: "299.99",
+        url: "https://gravyblock.com/scan?plan=pro",
+      },
+    },
+  ],
+};
+
 export default function HomePage() {
   return (
     <div className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+      />
 
       {/* ── HERO ───────────────────────────────────────────── */}
       <section className="bg-gradient-to-b from-red-50 to-white px-4 pt-14 pb-12 sm:px-6 text-center">
