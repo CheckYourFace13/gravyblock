@@ -36,6 +36,9 @@ import { getReviewGatingData } from "./review-gating-actions";
 import { SchemaGeneratorSection } from "./schema-generator-section";
 import { AiCitationSection } from "./ai-citation-section";
 import { FaqBuilderSection } from "./faq-builder-section";
+import { ScoresOverviewSection } from "./scores-overview-section";
+import { computeAeoScore } from "@/lib/scoring/aeo-score";
+import { computeEntityScore } from "@/lib/scoring/entity-score";
 
 export const dynamic = "force-dynamic";
 
@@ -125,6 +128,65 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
 
   // Feature #9: social credentials for FB/IG section
   const socialCredentials = await getSocialCredentials(businessId).catch(() => null);
+
+  // ─── Compute 4-score panel ────────────────────────────────────────────────
+  // Derive website audit signals from techAudit items (zero extra API cost)
+  const techItems = techAudit?.items ?? [];
+  const techPass = (key: string) => techItems.find((i) => i.key === key)?.status === "pass";
+
+  const syntheticWebsiteAudit = bundle.business.website
+    ? {
+        score: techAudit?.score ?? 0,
+        findings: [],
+        signals: {
+          hasTitle: techPass("no-title"),
+          hasMetaDescription: techPass("no-meta-description"),
+          hasH1: techPass("no-h1"),
+          hasViewport: techPass("no-viewport"),
+          hasStructuredData: techPass("no-structured-data"),
+          hasClickToCall: techPass("no-tel"),
+          locationClarity: techPass("no-location"),
+          hoursClarity: techPass("no-hours"),
+          ctaClarity: techPass("no-cta"),
+          speedHook: "not_tested" as const,
+        },
+      }
+    : null;
+
+  const publishedContentCount = autopilot.publishedContent.filter(
+    (p) => p.status === "published",
+  ).length;
+  const latestReviewCount = bundle.placeProfiles[0]?.reviewCount ?? 0;
+
+  const aeoResult = computeAeoScore({
+    websiteAudit: syntheticWebsiteAudit,
+    publishedContentCount,
+    // techPass returns true when there is NO problem found — meaning structured data IS present
+    hasSchemaMarkup: techPass("no-structured-data"),
+    reviewCount: latestReviewCount,
+  });
+
+  const citationMismatches = autopilot.citationIssues.filter(
+    (c) => c.mismatchNote !== null,
+  ).length;
+  const aiMentionRate =
+    aiVisibility.total > 0 ? aiVisibility.mentioned / aiVisibility.total : 0;
+
+  const entityResult = computeEntityScore({
+    citationMismatches,
+    citationTotal: autopilot.citationIssues.length,
+    socialProfilesFound: bundle.socialProfiles.length,
+    hasWebsite: Boolean(bundle.business.website),
+    hasPhone: Boolean(bundle.business.phone),
+    hasAddress: Boolean(bundle.business.address),
+    aiMentionRate,
+  });
+
+  const geoScore =
+    aiVisibility.total > 0
+      ? Math.round((aiVisibility.mentioned / aiVisibility.total) * 100)
+      : null;
+  const geoGrade = geoAudit?.grade ?? null;
 
   // Review gating data (shareable link + private feedback)
   const reviewGatingData = features.reviewManagement
@@ -268,18 +330,17 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             ) : null}
           </div>
         </div>
-        <div className="flex flex-col gap-3">
-          <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Visibility score</p>
-            <p className="mt-2 text-5xl font-semibold text-zinc-900">{latest?.overallScore ?? "—"}</p>
-            {delta !== null && delta !== undefined ? (
-              <p className={`mt-2 text-sm font-semibold ${delta >= 0 ? "text-zinc-900" : "text-red-700"}`}>
-                {delta >= 0 ? "+" : ""}{delta} vs last scan
-              </p>
-            ) : (
-              <p className="mt-2 text-sm text-zinc-500">Run another scan to see trends.</p>
-            )}
-          </div>
+        <div className="flex flex-col gap-3 lg:min-w-[520px]">
+          <ScoresOverviewSection
+            seoScore={latest?.overallScore ?? null}
+            geoScore={geoScore}
+            geoGrade={geoGrade}
+            aeoScore={aeoResult.score}
+            aeoGrade={aeoResult.grade}
+            entityScore={entityResult.score}
+            entityGrade={entityResult.grade}
+            scoreDelta={delta ?? null}
+          />
           {tier === "agency" ? (
             <a
               href={`/workspace/${businessId}/report-print`}

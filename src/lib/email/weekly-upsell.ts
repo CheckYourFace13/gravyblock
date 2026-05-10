@@ -1,6 +1,8 @@
 import { desc, eq, gte, and, ne } from "drizzle-orm";
-import { getDb, businesses, leads, visibilitySnapshots, jobs, contentQueue, operatorTasks, publishedContent } from "@/lib/db";
+import { getDb, businesses, leads, visibilitySnapshots, jobs, contentQueue, operatorTasks, publishedContent, aiVisibilityChecks, auditFindings } from "@/lib/db";
 import { normalizePlanTierFromDb, planFeatures, type PlanTier } from "@/lib/plans";
+import { computeAeoScore } from "@/lib/scoring/aeo-score";
+import type { WebsiteAuditSummary } from "@/lib/report/types";
 
 const NEXT_TIER: Record<PlanTier, PlanTier | null> = {
   free: "starter",
@@ -66,7 +68,67 @@ async function getWeeklyActivity(businessId: string) {
   };
 }
 
-async function sendUpsellEmail(to: string, businessName: string, tier: PlanTier, activity: NonNullable<Awaited<ReturnType<typeof getWeeklyActivity>>>, workspaceUrl: string, upgradeUrl: string) {
+async function getAeoAndGeoScores(businessId: string): Promise<{ aeoScore: number | null; geoScore: number | null }> {
+  const db = getDb();
+  if (!db) return { aeoScore: null, geoScore: null };
+
+  try {
+    const [findings, aiChecks, published] = await Promise.all([
+      db.select({ title: auditFindings.title, category: auditFindings.category, severity: auditFindings.severity, detail: auditFindings.detail })
+        .from(auditFindings).where(eq(auditFindings.businessId, businessId)).limit(50),
+      db.select({ mentionFound: aiVisibilityChecks.mentionFound })
+        .from(aiVisibilityChecks).where(eq(aiVisibilityChecks.businessId, businessId)).limit(60),
+      db.select({ id: publishedContent.id }).from(publishedContent)
+        .where(and(eq(publishedContent.businessId, businessId), eq(publishedContent.status, "published"))).limit(100),
+    ]);
+
+    function titleHas(...terms: string[]) {
+      return findings.some((f) => terms.some((t) => f.title.toLowerCase().includes(t) || f.category.toLowerCase().includes(t)));
+    }
+    // A finding in the DB means there's a problem — so "no-X" finding means the signal fails
+    const syntheticAudit: WebsiteAuditSummary = {
+      score: 0,
+      findings: [],
+      signals: {
+        hasTitle: !titleHas("title tag", "no title", "missing title"),
+        hasMetaDescription: !titleHas("meta description", "description tag"),
+        hasH1: !titleHas("h1", "heading"),
+        hasViewport: !titleHas("viewport", "mobile"),
+        hasStructuredData: !titleHas("structured data", "schema", "json-ld"),
+        hasClickToCall: !titleHas("phone", "tel:", "click to call", "telephone"),
+        locationClarity: !titleHas("location", "service area", "city"),
+        hoursClarity: !titleHas("hours", "open", "schedule"),
+        ctaClarity: !titleHas("call to action", "cta", "contact"),
+        speedHook: "not_tested",
+      },
+    };
+
+    const total = aiChecks.length;
+    const mentioned = aiChecks.filter((c) => c.mentionFound === "true").length;
+    const geoScore = total > 0 ? Math.round((mentioned / total) * 100) : null;
+
+    const aeoResult = computeAeoScore({
+      websiteAudit: findings.length > 0 ? syntheticAudit : null,
+      publishedContentCount: published.length,
+      hasSchemaMarkup: !titleHas("structured data", "schema", "json-ld"),
+      reviewCount: 0, // not fetched here — conservative
+    });
+
+    return { aeoScore: aeoResult.score, geoScore };
+  } catch {
+    return { aeoScore: null, geoScore: null };
+  }
+}
+
+async function sendUpsellEmail(
+  to: string,
+  businessName: string,
+  tier: PlanTier,
+  activity: NonNullable<Awaited<ReturnType<typeof getWeeklyActivity>>>,
+  workspaceUrl: string,
+  upgradeUrl: string,
+  extras?: { aeoScore?: number | null; geoScore?: number | null },
+) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
   if (!apiKey) return;
@@ -77,6 +139,8 @@ async function sendUpsellEmail(to: string, businessName: string, tier: PlanTier,
   if (!pitch) return;
 
   const nextFeatures = planFeatures(nextTier);
+  const aeoScore = extras?.aeoScore ?? null;
+  const geoScore = extras?.geoScore ?? null;
 
   const html = `
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -87,8 +151,21 @@ async function sendUpsellEmail(to: string, businessName: string, tier: PlanTier,
 
   <div style="margin:20px 0;padding:16px;background:#f4f4f5;border-radius:12px">
     <p style="margin:0;font-size:13px;font-weight:600;color:#52525b;text-transform:uppercase;letter-spacing:0.1em">This week on ${planFeatures(tier).label}</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 0;border-collapse:collapse;">
+      ${activity.latestScore !== null ? `<tr>
+        <td style="padding: 4px 0; color: #71717a; font-size: 13px;">SEO visibility score</td>
+        <td style="padding: 4px 0; font-weight: 600; color: #18181b;">${activity.latestScore}/100</td>
+      </tr>` : ""}
+      <tr>
+        <td style="padding: 4px 0; color: #71717a; font-size: 13px;">AEO score</td>
+        <td style="padding: 4px 0; font-weight: 600; color: #18181b;">${aeoScore !== null ? `${aeoScore}/100` : "—"}</td>
+      </tr>
+      <tr>
+        <td style="padding: 4px 0; color: #71717a; font-size: 13px;">GEO score</td>
+        <td style="padding: 4px 0; font-weight: 600; color: #18181b;">${geoScore !== null ? `${geoScore}/100` : "—"}</td>
+      </tr>
+    </table>
     <ul style="margin:8px 0 0;padding-left:20px;color:#3f3f46;font-size:14px;line-height:1.8">
-      ${activity.latestScore !== null ? `<li>Visibility score: <strong>${activity.latestScore}</strong></li>` : ""}
       <li><strong>${activity.contentQueued}</strong> content ideas queued</li>
       <li><strong>${activity.articlesPublished}</strong> articles published</li>
       <li><strong>${activity.tasksDone}</strong> tasks completed (citations, reviews)</li>
@@ -105,6 +182,14 @@ async function sendUpsellEmail(to: string, businessName: string, tier: PlanTier,
   <p style="color:#52525b;font-size:14px;margin:16px 0">
     Upgrade to <strong>${nextFeatures.label}</strong> for $${nextFeatures.introPrice}/month introductory pricing (use code <strong>INTRO50</strong>).
   </p>
+
+  <div style="margin:16px 0;padding:14px 16px;background:#fafafa;border:1px solid #e4e4e7;border-radius:10px">
+    <p style="margin:0;font-size:12px;font-weight:700;color:#52525b;text-transform:uppercase;letter-spacing:0.1em">Competitor insight</p>
+    <p style="margin:6px 0 0;font-size:13px;color:#3f3f46;line-height:1.6">
+      BrightLocal charges $29–$79/month just for citation tracking. Yext charges $199+/year just for listing sync.
+      GravyBlock automates citations, content, reviews, AND tracks your AI search visibility — all in one.
+    </p>
+  </div>
   <div style="display:flex;gap:12px;flex-wrap:wrap">
     <a href="${upgradeUrl}" style="display:inline-block;background:#dc2626;color:#fff;font-weight:700;font-size:13px;padding:10px 22px;border-radius:100px;text-decoration:none">
       Upgrade to ${nextFeatures.label} →
@@ -148,11 +233,12 @@ export async function sendWeeklyUpsellEmails(): Promise<{ sent: number; skipped:
     const activity = await getWeeklyActivity(biz.id);
     if (!activity) { skipped++; continue; }
 
+    const scores = await getAeoAndGeoScores(biz.id);
     const workspaceUrl = `${base}/workspace/${biz.id}`;
     const nextTier = NEXT_TIER[tier]!;
     const upgradeUrl = `${base}/workspace/${biz.id}?plan=${nextTier}#billing`;
 
-    await sendUpsellEmail(biz.billingEmail, biz.name, tier, activity, workspaceUrl, upgradeUrl);
+    await sendUpsellEmail(biz.billingEmail, biz.name, tier, activity, workspaceUrl, upgradeUrl, scores);
 
     await db.insert(jobs).values({
       businessId: biz.id,
