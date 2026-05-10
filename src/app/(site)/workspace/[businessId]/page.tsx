@@ -34,6 +34,8 @@ import { TopicClusterSection } from "./topic-cluster-section";
 import { ReviewGatingSection } from "./review-gating-section";
 import { getReviewGatingData } from "./review-gating-actions";
 import { SchemaGeneratorSection } from "./schema-generator-section";
+import { AiCitationSection } from "./ai-citation-section";
+import { FaqBuilderSection } from "./faq-builder-section";
 
 export const dynamic = "force-dynamic";
 
@@ -899,21 +901,30 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         };
         const latestPlace = bundle.placeProfiles?.[0];
         return (
-          <SchemaGeneratorSection
-            business={{
-              name: biz.name,
-              address: biz.address,
-              phone: biz.phone,
-              website: biz.website,
-              primaryCategory: biz.primaryCategory ?? latestPlace?.primaryType ?? null,
-              vertical: biz.vertical,
-              rating: biz.rating ?? (latestPlace?.rating != null ? String(latestPlace.rating) : null),
-              reviewCount: biz.reviewCount ?? latestPlace?.reviewCount ?? null,
-              latitude: biz.latitude ?? null,
-              longitude: biz.longitude ?? null,
-              googleMapsUri: biz.googleMapsUri ?? latestPlace?.mapsUri ?? null,
-            }}
-          />
+          <>
+            <SchemaGeneratorSection
+              business={{
+                name: biz.name,
+                address: biz.address,
+                phone: biz.phone,
+                website: biz.website,
+                primaryCategory: biz.primaryCategory ?? latestPlace?.primaryType ?? null,
+                vertical: biz.vertical,
+                rating: biz.rating ?? (latestPlace?.rating != null ? String(latestPlace.rating) : null),
+                reviewCount: biz.reviewCount ?? latestPlace?.reviewCount ?? null,
+                latitude: biz.latitude ?? null,
+                longitude: biz.longitude ?? null,
+                googleMapsUri: biz.googleMapsUri ?? latestPlace?.mapsUri ?? null,
+              }}
+            />
+            <FaqBuilderSection
+              business={{
+                name: biz.name,
+                vertical: biz.vertical,
+                primaryCategory: biz.primaryCategory ?? latestPlace?.primaryType ?? null,
+              }}
+            />
+          </>
         );
       })()}
 
@@ -1091,22 +1102,13 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         </section>
       ) : null}
 
-      {/* AI visibility probes detail */}
-      {autopilot.aiVisibilityChecks.length > 0 ? (
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-zinc-900">AI visibility probe log</h3>
-          <ul className="mt-3 space-y-2 text-sm">
-            {autopilot.aiVisibilityChecks.slice(0, 6).map((probe) => (
-              <li key={probe.id} className="rounded-lg bg-zinc-50 px-3 py-2">
-                <p className="font-medium text-zinc-900">{probe.prompt}</p>
-                <p className="text-xs text-zinc-500">
-                  mention {probe.mentionFound ? "yes" : "no"} · confidence {probe.confidence ?? "n/a"} · {new Date(probe.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      {/* AI Citation Monitor */}
+      <AiCitationSection
+        stats={aiVisibility}
+        businessId={businessId}
+        businessName={bundle.business.name}
+        canRunCheck={tier !== "free"}
+      />
 
       {/* ─── Billing ─────────────────────────────────────────────────────────── */}
       <section id="billing" className="rounded-2xl border-2 border-red-200 bg-white p-6 shadow-sm">
