@@ -14,6 +14,7 @@ export type SeoPageModel = {
   sections: SeoSection[];
   relatedLinks: { href: string; label: string }[];
   ctaLabel?: string;
+  directAnswer?: string;
 };
 
 export function SeoContentPage({ model }: { model: SeoPageModel }) {
@@ -21,6 +22,12 @@ export function SeoContentPage({ model }: { model: SeoPageModel }) {
     <article className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
       <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-800">{model.eyebrow}</p>
       <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">{model.title}</h1>
+      {model.directAnswer && (
+        <div className="mt-4 rounded-2xl border border-red-100 bg-red-50/60 p-4 text-sm text-zinc-800">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-700 mb-1">Quick answer</p>
+          <p className="leading-relaxed">{model.directAnswer}</p>
+        </div>
+      )}
       <p className="mt-4 text-lg text-zinc-600">{model.intro}</p>
       <div className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">What this means for your business</p>

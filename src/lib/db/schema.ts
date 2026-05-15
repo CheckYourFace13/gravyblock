@@ -98,6 +98,10 @@ export const businesses = pgTable("businesses", {
   subscriptionStatus: text("subscription_status"),
   billingEmail: text("billing_email"),
   currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+  /** Yelp business alias/id — auto-discovered on first review sync */
+  yelpBusinessId: text("yelp_business_id"),
+  /** TripAdvisor location id — auto-discovered on first review sync */
+  tripAdvisorLocationId: text("trip_advisor_location_id"),
 });
 
 /** Each visibility run (free scan, rescan, future scheduled job). */
@@ -384,6 +388,12 @@ export const publishedContent = pgTable("published_content", {
   channel: text("channel").notNull().default("internal_site"),
   publicUrl: text("public_url"),
   status: text("status").notNull().default("published"),
+  // Feature #5: article cover image from Unsplash
+  coverImageUrl: text("cover_image_url"),
+  coverImageCredit: text("cover_image_credit"),
+  // Feature #2: auto-generated SEO meta tags
+  metaTitle: text("meta_title"),
+  metaDescription: text("meta_description"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -536,17 +546,26 @@ export const businessConfigs = pgTable("business_configs", {
   youtubeUrl: text("youtube_url"),
   linkedinUrl: text("linkedin_url"),
   additionalContext: text("additional_context"),
+  // Feature #3: brand voice — describe writing style, personality, tone examples
+  brandVoice: text("brand_voice"),
+  // Feature #9: Facebook/Instagram API credentials (stored per-business)
+  facebookPageId: text("facebook_page_id"),
+  facebookAccessToken: text("facebook_access_token"),
+  instagramAccountId: text("instagram_account_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-/** Google reviews fetched from Places API with AI-generated reply suggestions. */
+/** Reviews fetched from Google, Yelp, TripAdvisor, etc. with AI-generated reply suggestions. */
 export const businessReviews = pgTable("business_reviews", {
   id: uuid("id").defaultRandom().primaryKey(),
   businessId: uuid("business_id")
     .references(() => businesses.id, { onDelete: "cascade" })
     .notNull(),
+  /** Platform-agnostic external ID. Format: google:{placeId}:{time}:{author}, yelp:{id}, ta:{id} */
   googleReviewId: text("google_review_id").notNull(),
+  /** Source platform: google | yelp | tripadvisor */
+  source: text("source").notNull().default("google"),
   authorName: text("author_name"),
   authorPhotoUri: text("author_photo_uri"),
   rating: integer("rating").notNull(),
@@ -554,7 +573,42 @@ export const businessReviews = pgTable("business_reviews", {
   publishTime: timestamp("publish_time", { withTimezone: true }),
   suggestedReply: text("suggested_reply"),
   status: text("status").notNull().default("new"),
+  repliedAt: timestamp("replied_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ─── Feature #1: Keyword Rankings from Google Search Console ─────────────────
+export const keywordRankings = pgTable("keyword_rankings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  keyword: text("keyword").notNull(),
+  position: text("position"),          // avg position (decimal, stored as text)
+  clicks: integer("clicks").default(0),
+  impressions: integer("impressions").default(0),
+  ctr: text("ctr"),                    // 0–1, stored as text
+  date: text("date").notNull(),        // YYYY-MM-DD
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** Review gating: shareable links that route happy customers to Google. */
+export const reviewRequestLinks = pgTable("review_request_links", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  token: uuid("token").defaultRandom().notNull().unique(),
+  positiveRedirectUrl: text("positive_redirect_url"),
+  threshold: integer("threshold").notNull().default(4),
+  active: text("active").notNull().default("true"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** Responses submitted via review gating links. */
+export const reviewRequestResponses = pgTable("review_request_responses", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  linkId: uuid("link_id").references(() => reviewRequestLinks.id, { onDelete: "cascade" }).notNull(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  rating: integer("rating").notNull(),
+  feedback: text("feedback"),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 /** Single-use token links emailed to business owners for no-login setup. */

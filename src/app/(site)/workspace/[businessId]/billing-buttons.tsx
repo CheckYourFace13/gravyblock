@@ -3,13 +3,14 @@
 import { useState, useTransition } from "react";
 import { createBillingPortalAction, createCheckoutSessionAction } from "@/app/(site)/workspace/[businessId]/billing-actions";
 import type { CheckoutPlan } from "@/lib/stripe/server";
+import type { PromoCode } from "@/lib/stripe/promo-codes";
 
 function InlineError({ message }: { message: string | null }) {
   if (!message) return null;
   return <p className="mt-2 text-xs font-medium text-red-700">{message}</p>;
 }
 
-async function runCheckout(businessId: string, plan: CheckoutPlan, promoCode?: "ILoveYouFree" | "ILikeYou50" | null) {
+async function runCheckout(businessId: string, plan: CheckoutPlan, promoCode?: PromoCode | null) {
   const formData = new FormData();
   formData.set("businessId", businessId);
   formData.set("plan", plan);
@@ -39,7 +40,7 @@ export function CheckoutButton({
   label: string;
   className: string;
   requireGrowthUpsell?: boolean;
-  promoCode?: "ILoveYouFree" | "ILikeYou50" | null;
+  promoCode?: PromoCode | null;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();

@@ -51,6 +51,8 @@ function memoryBusinessToRow(businessId: string): BusinessRow | null {
     subscriptionStatus: mem.subscriptionStatus,
     billingEmail: mem.billingEmail,
     currentPeriodEnd: mem.currentPeriodEnd ? new Date(mem.currentPeriodEnd) : null,
+    yelpBusinessId: null,
+    tripAdvisorLocationId: null,
   };
 }
 

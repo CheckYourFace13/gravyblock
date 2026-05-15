@@ -38,15 +38,26 @@ export function SetupForm({ token, businessName }: { token: string; businessName
           />
         </label>
 
-        <label className="space-y-1.5">
-          <span className="text-sm font-semibold text-zinc-900">Cities and areas you serve</span>
-          <textarea
-            name="targetCities"
-            rows={2}
-            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
-            placeholder="e.g. Austin, Round Rock, Cedar Park, Georgetown"
-          />
-        </label>
+        <div className="space-y-1.5">
+          <span className="text-sm font-semibold text-zinc-900">Where do you serve customers?</span>
+          <p className="text-xs text-zinc-500">Enter your main city and how far out you travel. We'll target all areas in that radius.</p>
+          <div className="flex gap-2">
+            <input
+              name="serviceCity"
+              className="flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
+              placeholder="City, State (e.g. Austin, TX)"
+            />
+            <select
+              name="serviceRadius"
+              defaultValue="25"
+              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
+            >
+              {[5, 10, 15, 25, 35, 50, 75, 100].map((r) => (
+                <option key={r} value={r}>{r} miles</option>
+              ))}
+            </select>
+          </div>
+        </div>
 
         <label className="space-y-1.5">
           <span className="text-sm font-semibold text-zinc-900">Main competitors</span>

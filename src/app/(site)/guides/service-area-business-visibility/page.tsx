@@ -12,7 +12,7 @@ export default function ServiceAreaBusinessVisibilityGuidePage() {
   return (
     <GuideShell
       title="Service-area businesses: earn the map without faking a storefront"
-      intro="Plumbers, HVAC, mobile clinics, and consultants often serve a radius. The job is to make that radius legible to humans and systems — not to keyword-stuff city names."
+      intro="Plumbers, HVAC, mobile clinics, and consultants often serve a radius. The job is to make that radius legible to humans and systems, not to keyword-stuff city names."
       related={[
         { href: "/guides/multi-location-local-seo", label: "Multi-location local SEO" },
         { href: "/guides/social-proof-and-local-conversion", label: "Social proof and local conversion" },
@@ -32,11 +32,11 @@ export default function ServiceAreaBusinessVisibilityGuidePage() {
       <h2>Proof for high-stakes jobs</h2>
       <p>
         Licenses, insurance, warranties, and response-time SLAs belong in obvious places. For SABs, trust beats clever
-        copy — especially when someone is comparing three tabs at midnight.
+        copy, especially when someone is comparing three tabs at midnight.
       </p>
       <h2>What GravyBlock checks today</h2>
       <p>
-        The scan scores public listing signals plus a fetch of your website and discovered social links — a practical
+        The scan scores public listing signals plus a fetch of your website and discovered social links, a practical
         baseline for SABs that live on maps + mobile.{" "}
         <Link href="/scan" className="font-medium text-red-800 hover:underline">
           Run a scan

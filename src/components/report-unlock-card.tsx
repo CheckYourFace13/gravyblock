@@ -1,4 +1,5 @@
 "use client";
+import type { PromoCode } from "@/lib/stripe/promo-codes";
 
 import Link from "next/link";
 import { useActionState, useEffect, useRef } from "react";
@@ -18,7 +19,7 @@ export function ReportUnlockCard({
   onUnlocked: () => void;
   selectedPlan?: "starter" | "growth" | "pro" | "agency" | null;
   businessId?: string;
-  promoCode?: "ILoveYouFree" | "ILikeYou50" | null;
+  promoCode?: PromoCode | null;
 }) {
   const [state, formAction, pending] = useActionState(unlockReportAction, initialState);
   const formRef = useRef<HTMLFormElement>(null);

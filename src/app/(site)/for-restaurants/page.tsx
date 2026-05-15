@@ -2,24 +2,27 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "GravyBlock for restaurants",
+  title: "Local SEO for restaurants — rank higher on Google Maps | GravyBlock",
   description:
-    "Autopilot-friendly growth for restaurants — clearer listings, stronger conversion paths, and recurring content ideas.",
+    "GravyBlock automates local SEO for restaurants: publishes content weekly, tracks Google rankings, manages reviews, and keeps your Google Business Profile optimized. Free scan.",
 };
 
 export default function ForRestaurantsPage() {
   return (
     <VerticalLanding
       eyebrow="Restaurants"
-      title="Win the map moment before someone picks a competitor two doors down."
-      body="Restaurants live and die on clarity: hours, menu, reservations, parking, and dietary promises. GravyBlock scores the whole stack, ships a prioritized roadmap, and keeps a workspace so improvements do not stall after the first win."
+      title="Diners pick the first restaurant they trust on Google Maps. Make sure it's yours."
+      body="Restaurant searches happen right before someone eats. High intent, short window. GravyBlock keeps your Google Business Profile complete and active, your review count climbing, and your content publishing automatically so you show up before the competitor two doors down."
       bullets={[
-        "Tighten homepage messaging for walk-ins, reservations, and delivery paths.",
-        "Spot weak trust signals like thin reviews, inconsistent hours, or missing schema.",
-        "Prioritize fixes that help Google, Apple Maps, and humans agree on the same story.",
+        "Audit your Google Business Profile for hours, menu links, photos, and dietary attributes.",
+        "Publish weekly local content: neighborhood food guides, seasonal specials, event recaps.",
+        "Track your Google Map ranking for 'restaurants near me' and top cuisine searches.",
+        "Monitor review count and recency on Google and Yelp, the two biggest trust signals for dining.",
+        "Post to Reddit local community boards (r/[yourcity]) to drive discovery and backlinks.",
+        "Check whether AI assistants mention your restaurant when asked for dining recommendations.",
       ]}
       ctaHref="/scan"
-      ctaLabel="Run a restaurant scan"
+      ctaLabel="Run a free restaurant scan"
     />
   );
 }

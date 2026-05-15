@@ -1,7 +1,7 @@
 import { and, eq, gte, inArray, lt, ne, notInArray, sql } from "drizzle-orm";
 import { getDb, leads, businesses, jobs, visibilitySnapshots } from "@/lib/db";
 
-const DRIP_DAYS = 7;
+const DRIP_DAYS = 14;
 
 type DripEmail = {
   day: number;
@@ -150,28 +150,115 @@ const DRIP_SEQUENCE: DripEmail[] = [
           <li>8 backlink opportunities queued monthly</li>
         </ul>
       </div>
-      ${btn(`${siteUrl}/scan?plan=growth&promo=ILikeYou50`, "Claim 50% off Growth")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">Applies to first month only. Regular pricing of $149.99/month resumes at renewal.</p>
+      ${btn(`${siteUrl}/scan?plan=growth`, "Claim 50% off Scale — code INTRO50")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Enter code <strong>INTRO50</strong> at checkout. Applies to first month only. Regular pricing of $149.99/month resumes at renewal.</p>
     `),
   },
   {
     day: 7,
-    subject: ({ businessName }) => `Last note about ${businessName}`,
-    html: ({ name, businessName, reportUrl }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">One Last Thing</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Still thinking it over?</h1>
+    subject: ({ businessName }) => `Quick question about ${businessName}`,
+    html: ({ name, businessName, reportUrl, scanUrl }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Check In</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">What is holding you back?</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        This is the last email in this series. Your free scan report for ${businessName} is still available if you want to review it.
+        You ran a free scan for ${businessName} a week ago. Most people who do not start a plan tell us one of three things:
       </p>
+      <ul style="margin:8px 0 0;padding-left:20px;color:#3f3f46;font-size:14px;line-height:2">
+        <li><strong>"I'm not sure it will work for my type of business."</strong></li>
+        <li><strong>"The price isn't right yet."</strong></li>
+        <li><strong>"I got busy and forgot."</strong></li>
+      </ul>
+      <p style="color:#52525b;font-size:14px;margin:16px 0">
+        If it's #3 — your report is still there. Starter is $39.99 first month with code <strong>INTRO50</strong>. No contract, cancel any time.
+      </p>
+      ${btn(`${siteUrl}/scan?plan=starter`, "Start Starter — $39.99 first month")}
+      <p style="color:#71717a;font-size:13px;margin:16px 0">Reply to this email with any questions. A real person will answer.</p>
+    `),
+  },
+  {
+    day: 8,
+    subject: ({ businessName }) => `What ${businessName}'s Google listing looks like to customers right now`,
+    html: ({ name, businessName, score, reportUrl }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Visibility Check</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Your listing right now vs. 30 days from now</h1>
+      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        If the timing is not right, no problem. When you are ready to automate local SEO for ${businessName}, run a new scan and the workspace will still be there.
+        ${score !== null ? `${businessName} scored ${score}/100 on local visibility when you scanned.` : `Your scan found gaps in ${businessName}'s local visibility.`}
+        Here is what changes after one month on GravyBlock:
       </p>
+      <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
+        <div style="display:flex;gap:16px">
+          <div style="flex:1">
+            <p style="margin:0;font-size:12px;font-weight:700;color:#71717a;text-transform:uppercase">Today</p>
+            <ul style="margin:8px 0 0;padding-left:18px;color:#71717a;font-size:13px;line-height:1.9">
+              <li>Static listing, no new content</li>
+              <li>Citation inconsistencies unfixed</li>
+              <li>Reviews going unanswered</li>
+              <li>Not appearing in AI search</li>
+            </ul>
+          </div>
+          <div style="flex:1">
+            <p style="margin:0;font-size:12px;font-weight:700;color:#16a34a;text-transform:uppercase">30 Days In</p>
+            <ul style="margin:8px 0 0;padding-left:18px;color:#3f3f46;font-size:13px;line-height:1.9">
+              <li>2–4 local articles published</li>
+              <li>Citation gaps surfaced and fixed</li>
+              <li>AI reply drafts for every review</li>
+              <li>AI citation monitor tracking you</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      ${btn(`${siteUrl}/scan?plan=starter`, "Start for $39.99 — code INTRO50")}
+    `),
+  },
+  {
+    day: 10,
+    subject: ({ businessName, vertical }) => `How other ${vertical ? vertical.toLowerCase() + "s" : "local businesses"} use GravyBlock`,
+    html: ({ name, businessName, vertical }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">How It Works in Practice</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">The first 30 days, step by step</h1>
+      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        One thing worth knowing: Starter is $39.99 for your first month with code <strong>INTRO50</strong>. That is monthly monitoring, content ideas, citation tasks, and a review queue. No contract.
+        Here is exactly what happens when ${businessName} goes live on GravyBlock — no login required after setup:
       </p>
-      ${btn(reportUrl, "Open my report")}
-      <p style="color:#71717a;font-size:13px;margin:16px 0">No more emails after this unless you start a new scan.</p>
+      <ol style="margin:12px 0;padding-left:22px;color:#3f3f46;font-size:14px;line-height:2.2">
+        <li>GravyBlock scans your Google listing, website, and competitors and scores all visibility signals.</li>
+        <li>It writes the first ${vertical ? vertical.toLowerCase() : "local"} article targeting your city and queues it for your site.</li>
+        <li>A citation audit checks your business name, address, and phone across 40+ directories and surfaces inconsistencies.</li>
+        <li>New reviews get an AI-drafted reply suggested in your inbox. You copy and post in 10 seconds.</li>
+        <li>Every week, the visibility score refreshes and a new content piece queues. Every month, you get a digest showing exactly what ran.</li>
+      </ol>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        None of this requires you to learn SEO. It just runs.
+      </p>
+      ${btn(`${siteUrl}/scan?plan=growth`, "Start autopilot for ${businessName}")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> at checkout — 50% off your first month.</p>
+    `),
+  },
+  {
+    day: 14,
+    subject: ({ businessName }) => `${businessName}: the INTRO50 code expires soon`,
+    html: ({ name, businessName, reportUrl }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#dc2626">Offer Expiring</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Last chance at 50% off</h1>
+      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">
+        The <strong>INTRO50</strong> promo code — 50% off your first month — is valid for new signups from scan leads. It will not last indefinitely, and this is the last time I will mention it.
+      </p>
+      <div style="margin:20px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
+        <p style="margin:0;font-size:15px;font-weight:700;color:#991b1b">Starter — $39.99 first month (was $79.99)</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Monthly visibility monitoring, citation audit, review queue, content ideas, and a full workspace for ${businessName}. No contract.</p>
+      </div>
+      <div style="margin:12px 0;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px">
+        <p style="margin:0;font-size:15px;font-weight:700;color:#166534">Scale — $74.99 first month (was $149.99)</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Everything in Starter plus weekly AI articles published to your site, Reddit outreach, backlink prospecting, and AI citation monitoring. Fully automated.</p>
+      </div>
+      ${btn(`${siteUrl}/scan?plan=starter`, "Claim 50% off — use code INTRO50")}
+      <p style="color:#71717a;font-size:13px;margin:16px 0">
+        After this email, GravyBlock will not contact you again unless you run a new scan. Your report for ${businessName} stays available at the link below.
+      </p>
+      <p style="margin:8px 0;font-size:13px"><a href="${reportUrl}" style="color:#dc2626">${reportUrl}</a></p>
     `),
   },
 ];

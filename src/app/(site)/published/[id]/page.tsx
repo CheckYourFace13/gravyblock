@@ -131,6 +131,21 @@ export default async function PublishedContentPage({ params }: Props) {
           <span>Local Content</span>
         </nav>
 
+        {content.coverImageUrl ? (
+          <div className="-mx-4 sm:-mx-6 mb-8 h-64 overflow-hidden rounded-2xl bg-zinc-100">
+            <img
+              src={content.coverImageUrl}
+              alt={content.title}
+              className="h-full w-full object-cover"
+            />
+            {content.coverImageCredit ? (
+              <p className="mt-1 text-center text-[10px] text-zinc-400">
+                Photo: {content.coverImageCredit}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <header className="mb-8">
           {content.businessName && (
             <p className="mb-1 text-xs font-semibold uppercase tracking-[0.22em] text-red-700">

@@ -1,14 +1,10 @@
 /**
- * Auto-generates a businessConfig from existing business data when the owner
- * has not filled out the setup form. Uses the LLM to synthesize reasonable
- * service description, keywords, and tone from GBP profile data.
- *
- * Called by the worker when queueContentForBusiness encounters a business
- * with no config row.
+ * Auto-generates a full businessConfig from existing business data + website scrape.
+ * Runs via the worker for every paid business without a config row.
  */
 
-import { eq } from "drizzle-orm";
-import { getDb, businesses, businessConfigs, jobs } from "@/lib/db";
+import { eq, inArray } from "drizzle-orm";
+import { getDb, businesses, businessConfigs, jobs, auditFindings, placeProfiles } from "@/lib/db";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
 
 function cityFromAddress(address: string | null | undefined): string {
@@ -23,31 +19,50 @@ function stateFromAddress(address: string | null | undefined): string {
   return parts[2]?.trim().split(/\s+/)[0] ?? "";
 }
 
-type AutoConfigResult = {
-  ok: boolean;
-  skipped?: string;
-};
+/** Fetch the business homepage and extract readable text (max 2000 chars). */
+async function scrapeWebsiteText(url: string): Promise<string> {
+  try {
+    const normalised = url.startsWith("http") ? url : `https://${url}`;
+    const res = await fetch(normalised, {
+      signal: AbortSignal.timeout(8000),
+      headers: { "user-agent": "GravyBlock-Crawler/1.0 (marketing analysis)" },
+    });
+    if (!res.ok) return "";
+    const html = await res.text();
+    // Strip tags, collapse whitespace, take first 2000 chars
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 2000);
+    return text;
+  } catch {
+    return "";
+  }
+}
+
+type AutoConfigResult = { ok: boolean; skipped?: string };
 
 export async function autoConfigBusiness(businessId: string): Promise<AutoConfigResult> {
   const db = getDb();
   if (!db) return { ok: false, skipped: "no_db" };
 
-  // Check if config already exists
+  // Skip if config already exists
   const [existing] = await db
     .select({ id: businessConfigs.id })
     .from(businessConfigs)
     .where(eq(businessConfigs.businessId, businessId))
     .limit(1);
-
   if (existing) return { ok: false, skipped: "config_exists" };
 
-  // Check if we already tried this business
+  // Skip if already attempted
   const [alreadyTried] = await db
     .select({ id: jobs.id })
     .from(jobs)
     .where(eq(jobs.type, `auto_config_${businessId}`))
     .limit(1);
-
   if (alreadyTried) return { ok: false, skipped: "already_attempted" };
 
   const [biz] = await db
@@ -60,6 +75,9 @@ export async function autoConfigBusiness(businessId: string): Promise<AutoConfig
       phone: businesses.phone,
       rating: businesses.rating,
       reviewCount: businesses.reviewCount,
+      businessModel: businesses.businessModel,
+      focusArea: businesses.focusArea,
+      targetScope: businesses.targetScope,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))
@@ -71,43 +89,67 @@ export async function autoConfigBusiness(businessId: string): Promise<AutoConfig
   const state = stateFromAddress(biz.address);
   const industry = biz.vertical ?? biz.primaryCategory ?? "local business";
 
-  const prompt = `You are writing marketing config for a local business. Based on this business profile data, generate:
-1. A 2-3 sentence service description (what they do, who they serve, and what makes them good)
-2. 5-8 target SEO keywords (comma-separated, local-intent phrases like "plumber in Austin TX")
-3. Target city or cities (1-3, based on address)
+  // Scrape website for richer context
+  const websiteText = biz.website ? await scrapeWebsiteText(biz.website) : "";
 
-Business data:
+  // Pull any audit findings for extra context
+  const findings = await db
+    .select({ title: auditFindings.title, category: auditFindings.category })
+    .from(auditFindings)
+    .where(eq(auditFindings.businessId, businessId))
+    .limit(8);
+
+  // Pull place profile for types/categories
+  const [place] = await db
+    .select({ types: placeProfiles.types })
+    .from(placeProfiles)
+    .where(eq(placeProfiles.businessId, businessId))
+    .limit(1);
+
+  const prompt = `You are setting up a GravyBlock marketing profile for a local business. Generate a complete, realistic business profile using ONLY the data provided. Do NOT invent facts.
+
+BUSINESS DATA:
 - Name: ${biz.name}
-- Industry/Category: ${industry}
-- Location: ${[city, state].filter(Boolean).join(", ") || "US"}
-- Website: ${biz.website ?? "none listed"}
-- Phone: ${biz.phone ?? "none listed"}
+- Category: ${industry}
+- Address: ${biz.address ?? "not provided"}
+- City/State: ${[city, state].filter(Boolean).join(", ") || "US"}
+- Website: ${biz.website ?? "none"}
+- Phone: ${biz.phone ?? "none"}
 - Google rating: ${biz.rating ?? "unknown"} (${biz.reviewCount ?? 0} reviews)
+- Business model: ${biz.businessModel ?? "single_location"}
+${place?.types ? `- Place types: ${JSON.stringify(place.types)}` : ""}
+${findings.length ? `- Audit findings:\n${findings.map((f) => `  • ${f.category}: ${f.title}`).join("\n")}` : ""}
+${websiteText ? `\nWEBSITE CONTENT (first 2000 chars):\n${websiteText}` : ""}
 
-Return ONLY valid JSON in this format, no markdown, no explanation:
+Return ONLY valid JSON, no markdown, no extra text:
 {
-  "serviceDescription": "...",
-  "targetKeywords": "keyword1, keyword2, keyword3, keyword4, keyword5",
-  "targetCities": "City, State"
+  "serviceDescription": "2-3 sentences: what they do, who they serve, what makes them reliable",
+  "uniqueSellingPoints": "3-4 bullet points starting with •",
+  "tone": "professional|friendly|authoritative|casual",
+  "targetKeywords": "5-8 comma-separated SEO phrases with location, e.g. plumber Austin TX",
+  "targetCities": "comma-separated cities they serve",
+  "focusArea": "local|regional|national|online",
+  "targetScope": "primary city and state, e.g. Austin, TX",
+  "additionalContext": "1-2 sentences of extra context from website/data useful for writing content"
 }`;
 
-  const response = await openRouterChat({
-    model: MODELS.content,
-    messages: [{ role: "user", content: prompt }],
-    maxTokens: 400,
-    temperature: 0.5,
-  });
-
-  // Record the attempt regardless of success
+  // Record attempt before calling LLM
   await db.insert(jobs).values({
     type: `auto_config_${businessId}`,
     status: "completed",
     payload: { businessId },
   });
 
+  const response = await openRouterChat({
+    model: MODELS.outreach,
+    messages: [{ role: "user", content: prompt }],
+    maxTokens: 600,
+    temperature: 0.4,
+  });
+
   if (!response) return { ok: false, skipped: "no_llm_response" };
 
-  let parsed: { serviceDescription?: string; targetKeywords?: string; targetCities?: string };
+  let parsed: Record<string, string>;
   try {
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     parsed = JSON.parse(jsonMatch?.[0] ?? response);
@@ -122,12 +164,16 @@ Return ONLY valid JSON in this format, no markdown, no explanation:
     businessId,
     source: "auto_generated",
     serviceDescription: parsed.serviceDescription,
+    uniqueSellingPoints: parsed.uniqueSellingPoints ?? null,
+    tone: (parsed.tone as string) ?? "professional",
     targetKeywords: parsed.targetKeywords ?? null,
     targetCities: parsed.targetCities ?? (city || null),
-    tone: "professional",
+    focusArea: (parsed.focusArea as string) ?? biz.focusArea ?? "local",
+    targetScope: parsed.targetScope ?? biz.targetScope ?? (city ? `${city}, ${state}` : null),
+    additionalContext: parsed.additionalContext ?? null,
   });
 
-  console.info("[auto-config] config generated", { businessId, industry });
+  console.info("[auto-config] full profile generated", { businessId, industry, hasWebsiteText: websiteText.length > 0 });
   return { ok: true };
 }
 
@@ -138,7 +184,6 @@ export async function runAutoConfigBatch(batchSize = 5): Promise<{ configured: n
 
   const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
 
-  // Get paid businesses without a config
   const allPaid = await db
     .select({ id: businesses.id, planTier: businesses.planTier })
     .from(businesses)

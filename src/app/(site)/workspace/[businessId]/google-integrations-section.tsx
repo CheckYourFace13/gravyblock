@@ -44,7 +44,7 @@ export function GoogleIntegrationsSection({
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">Google integrations</h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Connect your Google account to unlock real Search Console ranking data and direct Google Business Profile posting — no third-party tools needed.
+            Connect your Google account to pull real Search Console ranking data and post directly to your Google Business Profile. No third-party tools needed.
           </p>
         </div>
         {connected ? (
@@ -88,10 +88,10 @@ export function GoogleIntegrationsSection({
           </div>
 
           <div className="rounded-xl border border-zinc-100 bg-zinc-50/60 px-4 py-3 text-sm text-zinc-700">
-            <p className="font-semibold text-zinc-900">What this unlocks</p>
+            <p className="font-semibold text-zinc-900">What you get</p>
             <ul className="mt-2 space-y-1 text-xs text-zinc-600">
               <li>✓ Real keyword rankings, clicks, and impressions from Search Console</li>
-              <li>✓ AI-written GBP posts published directly — no copy-pasting</li>
+              <li>✓ AI-written GBP posts published directly, no copy-pasting</li>
               <li>✓ Automated review replies drafted and sent</li>
               <li>✓ Q&As posted to your profile automatically</li>
             </ul>
@@ -108,7 +108,7 @@ export function GoogleIntegrationsSection({
       ) : (
         <div className="mt-5 space-y-4">
           <div className="rounded-xl border border-zinc-100 bg-zinc-50/60 px-4 py-3 text-sm text-zinc-700">
-            <p className="font-semibold text-zinc-900">What connecting unlocks</p>
+            <p className="font-semibold text-zinc-900">What you get after connecting</p>
             <ul className="mt-2 space-y-1 text-xs text-zinc-600">
               <li>✓ Real keyword rankings from Search Console (not estimates)</li>
               <li>✓ GBP posts published directly from your automation queue</li>

@@ -29,7 +29,7 @@ export default async function SetupPage({ params }: Props) {
         </h1>
         <p className="max-w-2xl text-zinc-600">
           GravyBlock uses this to write content, find the right places to post, and run outreach that
-          actually sounds like you. Takes about 2 minutes — no login required.
+          actually sounds like you. Takes about 2 minutes, no login required.
         </p>
       </div>
 

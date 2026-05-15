@@ -26,13 +26,19 @@ import { runOnboardingBatch } from "@/lib/email/onboarding";
 import { runReviewRequestBatch } from "@/lib/email/review-request";
 import { runAutoConfigBatch } from "@/lib/setup/auto-config";
 import { runMonthlyDigestBatch } from "@/lib/email/monthly-digest";
+import { runAbandonedCheckoutBatch } from "@/lib/email/abandoned-checkout";
 import { runCitationAuditBatch } from "@/lib/citations/citation-audit";
-import { runReviewSyncBatch } from "@/lib/reviews/review-fetcher";
+import { runMultiPlatformReviewBatch } from "@/lib/reviews/platform-sync";
 import { runLlmProbeBatch } from "@/lib/ai-visibility/llm-probes";
 import { runBacklinkProspectBatch } from "@/lib/backlinks/prospect-finder";
 import { runRepurposeBatch } from "@/lib/content-gen/repurpose";
 import { runGbpQaOptimizerBatch } from "@/lib/gbp/qa-optimizer";
 import { runDirectoryProfileBatch } from "@/lib/directories/profile-generator";
+import { runRedditPostingBatch } from "@/lib/social/reddit-poster";
+import { runFacebookPostingBatch } from "@/lib/social/facebook-poster";
+import { runRankTrackingBatch } from "@/lib/seo/rank-tracker";
+import { runOutreachBatch } from "@/lib/outreach/run-outreach-batch";
+import { getTodaysOutreachTarget } from "@/lib/outreach/outreach-calendar";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -222,6 +228,86 @@ async function maybeCitationAudit() {
   }
 }
 
+/**
+ * Cold outreach — weekdays: 3 windows × up to 10 emails = up to 30/day
+ *                 weekends: restaurants only, 2 windows × up to 10 = up to 20/day
+ * Settings (paused, emailsPerBatch, etc.) are read from the DB via admin UI.
+ */
+
+const WEEKEND_RESTAURANT_TARGETS = [
+  { windowKey: "sat_morning",   day: 6, hour: 9,  city: "Houston",   state: "TX", industry: "restaurant", industryLabel: "restaurant" },
+  { windowKey: "sat_afternoon", day: 6, hour: 13, city: "Chicago",   state: "IL", industry: "restaurant", industryLabel: "restaurant" },
+  { windowKey: "sun_morning",   day: 0, hour: 9,  city: "Miami",     state: "FL", industry: "restaurant", industryLabel: "restaurant" },
+  { windowKey: "sun_afternoon", day: 0, hour: 13, city: "Nashville", state: "TN", industry: "restaurant", industryLabel: "restaurant" },
+];
+
+async function runColdOutreachWindow(
+  windowKey: string,
+  calendarOffset: number,
+  hour: number,
+  overrideTarget?: { city: string; state: string; industry: string; industryLabel: string },
+  emailsPerBatch = 8,
+) {
+  const now = new Date();
+  if (now.getUTCHours() < hour || now.getUTCHours() > hour + 1) return;
+  if (await hasJobRunToday(`cold_outreach_${windowKey}`)) return;
+
+  let target: { city: string; state: string; industry: string; industryLabel: string };
+  if (overrideTarget) {
+    target = overrideTarget;
+  } else {
+    const { OUTREACH_CALENDAR } = await import("@/lib/outreach/outreach-calendar");
+    const slot = ((now.getUTCDate() - 1 + calendarOffset) % 30);
+    target = OUTREACH_CALENDAR[slot]!;
+  }
+
+  try {
+    const result = await runOutreachBatch({
+      city: target.city,
+      state: target.state,
+      industry: target.industry,
+      industryLabel: target.industryLabel,
+      maxEmails: emailsPerBatch,
+    });
+    await recordWorkerJob(`cold_outreach_${windowKey}`, { ...result, ...target, window: windowKey });
+    await recordWorkerJob("cold_outreach_batch", { ...result, ...target, window: windowKey });
+    console.info(`[worker] cold outreach [${windowKey}]`, { sent: result.sent, target: `${target.industry} in ${target.city}` });
+  } catch (error) {
+    console.error(`[worker] cold outreach [${windowKey}] failed`, {
+      error: error instanceof Error ? error.message : String(error), target,
+    });
+  }
+}
+
+async function maybeSendColdOutreach() {
+  // Read settings from DB (admin-controlled)
+  const { getOutreachSettings } = await import("@/app/admin/(dashboard)/outreach/actions");
+  const settings = await getOutreachSettings().catch(() => ({
+    emailsPerBatch: 8, paused: false, weekdayEnabled: true, weekendRestaurantsEnabled: true,
+  }));
+
+  if (settings.paused) return;
+
+  const now = new Date();
+  const day = now.getUTCDay(); // 0=Sun, 6=Sat
+
+  // ── WEEKDAYS: 3 windows hitting different city+industry combos ──
+  if (settings.weekdayEnabled && day >= 1 && day <= 5) {
+    await runColdOutreachWindow("morning",   0,  9,  undefined, settings.emailsPerBatch);
+    await runColdOutreachWindow("midday",   10, 12,  undefined, settings.emailsPerBatch);
+    await runColdOutreachWindow("afternoon",20, 15,  undefined, settings.emailsPerBatch);
+  }
+
+  // ── WEEKENDS: restaurants only ──
+  if (settings.weekendRestaurantsEnabled && (day === 0 || day === 6)) {
+    for (const wt of WEEKEND_RESTAURANT_TARGETS) {
+      if (wt.day === day) {
+        await runColdOutreachWindow(wt.windowKey, 0, wt.hour, wt, settings.emailsPerBatch);
+      }
+    }
+  }
+}
+
 async function maybeSendReviewRequests() {
   const now = new Date();
   if (now.getUTCDay() !== 3) return; // Wednesday only
@@ -236,6 +322,28 @@ async function maybeSendReviewRequests() {
     }
   } catch (error) {
     console.error("[worker] review request batch failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+async function ensureSelfBusinessQueued() {
+  // If GravyBlock is registered as its own customer, make sure it always has content queued
+  const selfId = process.env.GRAVYBLOCK_SELF_BUSINESS_ID;
+  if (!selfId) return;
+  const db = getDb();
+  if (!db) return;
+  try {
+    const [countRow] = await db
+      .select({ count: count() })
+      .from(contentQueue)
+      .where(and(eq(contentQueue.businessId, selfId), eq(contentQueue.status, "queued")));
+    if ((countRow?.count ?? 0) === 0) {
+      const result = await queueContentForBusiness(selfId);
+      if (result.queued > 0) {
+        console.info("[worker] self-business content queued", { queued: result.queued });
+      }
+    }
+  } catch (err) {
+    console.error("[worker] self-business queue failed", { error: err instanceof Error ? err.message : String(err) });
   }
 }
 
@@ -260,6 +368,12 @@ async function tick() {
   }
 
   try {
+    await ensureSelfBusinessQueued();
+  } catch (error) {
+    console.error("[worker] self-business failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
     await processContentGeneration();
   } catch (error) {
     console.error("[worker] content generation failed", { error: error instanceof Error ? error.message : String(error) });
@@ -275,12 +389,13 @@ async function tick() {
   await maybeSendMonthlyDigest();
   await maybeSendWeeklyUpsell();
   await maybeSendReviewRequests();
+  await maybeSendColdOutreach();
   await maybeCitationAudit();
 
   try {
-    const reviewResult = await runReviewSyncBatch(5);
+    const reviewResult = await runMultiPlatformReviewBatch(5);
     if (reviewResult.newReviews > 0) {
-      console.info("[worker] review sync", reviewResult);
+      console.info("[worker] multi-platform review sync", reviewResult);
     }
   } catch (error) {
     console.error("[worker] review sync failed", { error: error instanceof Error ? error.message : String(error) });
@@ -341,12 +456,52 @@ async function tick() {
   }
 
   try {
+    const abandonedResult = await runAbandonedCheckoutBatch();
+    if (abandonedResult.sent > 0) {
+      console.info("[worker] abandoned checkout emails sent", abandonedResult);
+    }
+  } catch (error) {
+    console.error("[worker] abandoned checkout failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
     const onboardResult = await runOnboardingBatch();
     if (onboardResult.sent > 0) {
       console.info("[worker] onboarding emails sent", onboardResult);
     }
   } catch (error) {
     console.error("[worker] onboarding batch failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const redditResult = await runRedditPostingBatch();
+    if (redditResult.posted > 0) {
+      console.info("[worker] reddit posts published", redditResult);
+    }
+  } catch (error) {
+    console.error("[worker] reddit posting failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const fbResult = await runFacebookPostingBatch();
+    if (fbResult.posted > 0) {
+      console.info("[worker] facebook/instagram posts published", fbResult);
+    }
+  } catch (error) {
+    console.error("[worker] facebook posting failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  // Feature #1: GSC rank tracking — runs once per day
+  if (!(await hasJobRunToday("rank_tracking_batch"))) {
+    try {
+      const rankResult = await runRankTrackingBatch(10);
+      if (rankResult.synced > 0) {
+        await recordWorkerJob("rank_tracking_batch", rankResult);
+        console.info("[worker] rank tracking synced", rankResult);
+      }
+    } catch (error) {
+      console.error("[worker] rank tracking failed", { error: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   console.info("[worker] tick done", { durationMs: Date.now() - new Date(startedAt).getTime() });

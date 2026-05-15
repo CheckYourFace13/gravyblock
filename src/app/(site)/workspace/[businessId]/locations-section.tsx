@@ -71,7 +71,7 @@ export function LocationsSection({ businessId, initialLocations, maxLocations, p
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">Locations</h2>
           <p className="mt-1 text-sm text-zinc-600">
-            1 location included with Pro. Add up to {MAX_ADDON_LOCATIONS} more at $99.99/mo each — billed automatically to your card on file.
+            1 location included with Pro. Add up to {MAX_ADDON_LOCATIONS} more at $99.99/mo each, billed automatically to your card on file.
           </p>
         </div>
         {!atAddonLimit && !showForm ? (
@@ -94,7 +94,7 @@ export function LocationsSection({ businessId, initialLocations, maxLocations, p
             <p className="text-sm font-semibold text-zinc-900">New location</p>
             {nextWillBeAddon ? (
               <p className="mt-0.5 text-xs text-zinc-500">
-                This is an add-on location — <span className="font-semibold text-zinc-700">$99.99/mo</span> will be added to your subscription immediately (prorated for the current period).
+                This is an add-on location. <span className="font-semibold text-zinc-700">$99.99/mo</span> will be added to your subscription immediately (prorated for the current period).
               </p>
             ) : (
               <p className="mt-0.5 text-xs text-zinc-500">First location is included free with your Pro plan.</p>
@@ -107,7 +107,7 @@ export function LocationsSection({ businessId, initialLocations, maxLocations, p
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Acme Plumbing — Westside"
+                placeholder="e.g. Acme Plumbing (Westside)"
                 className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-red-500"
               />
             </div>
@@ -158,7 +158,7 @@ export function LocationsSection({ businessId, initialLocations, maxLocations, p
               disabled={isPending}
               className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
             >
-              {isPending ? "Adding..." : nextWillBeAddon ? "Add location — $99.99/mo" : "Add location"}
+              {isPending ? "Adding..." : nextWillBeAddon ? "Add location ($99.99/mo)" : "Add location"}
             </button>
             <button
               onClick={() => { setShowForm(false); setError(null); }}

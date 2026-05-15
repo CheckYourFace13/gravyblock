@@ -21,6 +21,7 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
     model: {
       eyebrow: "Question guide",
       title: "How to rank higher in Google Maps",
+      directAnswer: "Rank higher in Google Maps by completing your Google Business Profile fully, collecting genuine reviews consistently, keeping your name/address/phone identical across all listings, and publishing local content that confirms your service area.",
       intro: "Google Maps visibility improves when your profile facts, trust signals, and local conversion pathways all support each other.",
       meaningForBusiness: "Your ranking chance improves when Google and customers see consistent local relevance and quality signals, not when you chase hacks.",
       sections: [
@@ -55,6 +56,7 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
     model: {
       eyebrow: "Question guide",
       title: "How to show up in AI search for local businesses",
+      directAnswer: "Show up in AI search by keeping your business name, address, and service descriptions identical across your website, Google Business Profile, and major listing sites. AI tools cite businesses whose facts are consistent and easy to verify.",
       intro: "AI search tools summarize local options from signals they can verify and reconcile.",
       meaningForBusiness: "If your facts are inconsistent, assistants hesitate to recommend you even when your service quality is strong.",
       sections: [
@@ -163,6 +165,24 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
         { title: "Profile and practice clarity", body: "Align profile categories and services with your actual practice strengths and local offices." },
         { title: "Trust and intake conversion", body: "Make contact routes clear and reduce uncertainty with plain-language credibility cues." },
         { title: "AI answer-engine impact", body: "Consistent legal service facts improve how assistants summarize and recommend firms." },
+      ],
+      relatedLinks: related,
+    },
+  },
+  "how-to-get-more-google-reviews": {
+    slug: "how-to-get-more-google-reviews",
+    metaTitle: "How to get more Google reviews for your local business | GravyBlock",
+    metaDescription: "Get more Google reviews with proven ask timing, direct review links, and a response strategy that encourages future reviewers.",
+    model: {
+      eyebrow: "Question guide",
+      title: "How to get more Google reviews",
+      directAnswer: "Get more Google reviews by asking every satisfied customer immediately after the job, making it easy with a direct review link, and responding to every existing review to show future reviewers their feedback matters.",
+      intro: "Reviews are the most visible trust signal in local search and the easiest to improve with consistent effort.",
+      meaningForBusiness: "More recent, genuine reviews improve your Google Maps ranking and convert more searchers into paying customers.",
+      sections: [
+        { title: "Ask at the right moment", body: "The best time to ask for a review is immediately after a job is complete and the customer is satisfied. Waiting even a few hours reduces the likelihood they follow through. Train every team member to make the ask part of the closing interaction." },
+        { title: "Make it effortless with a direct link", body: "Create a short link directly to your Google review form and share it via text message after every job. Customers should be able to leave a review in under 30 seconds. Remove every extra click or login step possible.", bullets: ["Use your Google Business Profile short URL.", "Send via text — not email — for higher open rates.", "Include the link in your follow-up message template."] },
+        { title: "Respond to every review you already have", body: "Responding to existing reviews signals to future reviewers that their feedback will be acknowledged. It also shows Google your profile is actively managed, which supports local ranking.", bullets: ["Thank positive reviewers by name.", "Address negative reviews calmly and offer to resolve the issue offline.", "Keep responses short and human — avoid template-sounding replies."] },
       ],
       relatedLinks: related,
     },

@@ -2,24 +2,27 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "GravyBlock for breweries & taprooms",
+  title: "Local SEO for breweries & taprooms — rank on Google Maps | GravyBlock",
   description:
-    "Taproom-focused scans, Maps + AI visibility framing, and recurring content angles for events, flights, and tourism.",
+    "GravyBlock automates local SEO for craft breweries: publishes taproom content weekly, tracks Google Maps rankings, monitors tourist and local search visibility. Free scan.",
 };
 
 export default function ForBreweriesPage() {
   return (
     <VerticalLanding
       eyebrow="Breweries & taprooms"
-      title="Tell the story of your beer, your space, and tonight’s experience in one coherent digital thread."
-      body="Breweries juggle events, food trucks, distribution, and tourism. GravyBlock ties those threads into one growth workspace — so assistants, maps, and your site all agree on what is pouring and why tonight matters."
+      title="Tourists and locals search for the best taprooms nearby. Show up before the chain wins the click."
+      body="Breweries compete on experience, not just beer. The ones that win on Google have active profiles, fresh event content, and strong review counts. GravyBlock keeps all of that running automatically, so your taproom shows up when beer lovers search, plan trips, and ask AI assistants for recommendations."
       bullets={[
-        "Surface events, hours, and family or pet policies without burying them.",
-        "Make taproom-only exclusives obvious to people comparing options on maps.",
-        "Tie your website narrative back to the keywords locals actually use nearby.",
+        "Optimize your Google Business Profile for taproom hours, events, food options, and pet/family policies.",
+        "Publish weekly content: new releases, event recaps, brewery guides, local beer tourism.",
+        "Track Google Map rankings for ‘craft brewery near me’ and city-specific beer searches.",
+        "Monitor reviews on Google, Untappd, and Yelp. Key trust signals for brewery visitors.",
+        "Post to local and craft beer subreddits to build community and earn backlinks.",
+        "Check AI search visibility. Travelers increasingly ask ChatGPT for taproom recommendations.",
       ]}
       ctaHref="/scan"
-      ctaLabel="Run a brewery scan"
+      ctaLabel="Run a free brewery scan"
     />
   );
 }

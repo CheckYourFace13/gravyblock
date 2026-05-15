@@ -4,6 +4,7 @@ import { getBusinessById, persistStripeCustomerId } from "@/lib/billing/reposito
 import { getAppBaseUrl, getPriceIdForPlan, getStripeServerClient, type CheckoutPlan } from "@/lib/stripe/server";
 import { canAccessBusiness } from "@/lib/auth/customer-auth";
 import { isAdminSession } from "@/lib/auth/admin-session";
+import { normalizePromoCode } from "@/lib/stripe/promo-codes";
 
 function requiredField(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -18,11 +19,7 @@ function normalizeCheckoutPlan(raw: string): CheckoutPlan {
   throw new Error("Invalid plan");
 }
 
-function normalizePromoCodeIntent(raw: string): "ILoveYouFree" | "ILikeYou50" | null {
-  const value = raw.trim();
-  if (value === "ILoveYouFree" || value === "ILikeYou50") return value;
-  return null;
-}
+const normalizePromoCodeIntent = (raw: string) => normalizePromoCode(raw);
 
 export async function createCheckoutSessionAction(formData: FormData) {
   try {
@@ -69,7 +66,10 @@ export async function createCheckoutSessionAction(formData: FormData) {
       },
       success_url: `${baseUrl}/workspace/${businessId}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/workspace/${businessId}/billing/cancel`,
-      allow_promotion_codes: true,
+      // Auto-apply known promo code if present; otherwise let the user enter one manually
+      ...(promoIntent
+        ? { discounts: [{ coupon: promoIntent }] }
+        : { allow_promotion_codes: true }),
     });
 
     if (!session.url) {

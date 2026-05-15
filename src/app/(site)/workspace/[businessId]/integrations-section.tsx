@@ -156,7 +156,7 @@ export function IntegrationsSection({
               <div>
                 <p className="text-sm font-semibold text-zinc-900">WordPress</p>
                 {wpTarget ? (
-                  <p className="text-xs text-green-700 font-medium">{wpTarget.label} — connected</p>
+                  <p className="text-xs text-green-700 font-medium">{wpTarget.label} (connected)</p>
                 ) : (
                   <p className="text-xs text-zinc-500">Auto-publish articles to your WordPress blog</p>
                 )}
@@ -207,7 +207,7 @@ export function IntegrationsSection({
               <div>
                 <p className="text-sm font-semibold text-zinc-900">Webflow</p>
                 {wfTarget ? (
-                  <p className="text-xs text-green-700 font-medium">{wfTarget.label} — connected</p>
+                  <p className="text-xs text-green-700 font-medium">{wfTarget.label} (connected)</p>
                 ) : (
                   <p className="text-xs text-zinc-500">Publish content items to your Webflow CMS collection</p>
                 )}
@@ -258,7 +258,7 @@ export function IntegrationsSection({
               <div>
                 <p className="text-sm font-semibold text-zinc-900">Shopify</p>
                 {sfTarget ? (
-                  <p className="text-xs text-green-700 font-medium">{sfTarget.label} — connected</p>
+                  <p className="text-xs text-green-700 font-medium">{sfTarget.label} (connected)</p>
                 ) : (
                   <p className="text-xs text-zinc-500">Publish blog articles directly to your Shopify store</p>
                 )}

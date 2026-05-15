@@ -12,7 +12,7 @@ export default function MultiLocationLocalSeoGuidePage() {
   return (
     <GuideShell
       title="Multi-location local SEO that survives real operations"
-      intro="When you add locations, search systems do not automatically inherit your brand story. They inherit whatever each storefront publishes — which is how chains quietly lose map share."
+      intro="When you add locations, search systems do not automatically inherit your brand story. They inherit whatever each storefront publishes, which is how chains quietly lose map share."
       related={[
         { href: "/guides/service-area-business-visibility", label: "Service-area business visibility" },
         { href: "/guides/website-trust-signals", label: "Website trust signals" },
@@ -34,7 +34,7 @@ export default function MultiLocationLocalSeoGuidePage() {
       <p>
         Track a small set of KPIs per location: impression trends, call clicks, direction requests, and on-site conversion
         events tied to UTM discipline. GravyBlock’s workspace is built around snapshots and recommendations so you can
-        see movement over time — not a one-off PDF.
+        see movement over time, not a one-off PDF.
       </p>
       <h2>Multi-location readiness in the product</h2>
       <p>

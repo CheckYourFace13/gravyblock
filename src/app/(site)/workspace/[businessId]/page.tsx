@@ -24,6 +24,22 @@ import { getGoogleConnection } from "@/lib/integrations/google-oauth";
 import { GoogleIntegrationsSection } from "./google-integrations-section";
 import { BusinessProfileSection } from "./business-profile-section";
 import { getBusinessProfile } from "./business-profile-actions";
+import { getGeoAuditScore } from "@/lib/audit/geo-audit";
+import { getSiteTechAudit } from "@/lib/audit/tech-audit";
+import { getDb, keywordRankings } from "@/lib/db";
+import { desc as descOp, eq as eqOp } from "drizzle-orm";
+import { SocialCredentialsSection } from "./social-credentials-section";
+import { getSocialCredentials } from "./social-credentials-actions";
+import { TopicClusterSection } from "./topic-cluster-section";
+import { ReviewGatingSection } from "./review-gating-section";
+import { getReviewGatingData } from "./review-gating-actions";
+import { SchemaGeneratorSection } from "./schema-generator-section";
+import { ReferralSection } from "./referral-section";
+import { AiCitationSection } from "./ai-citation-section";
+import { FaqBuilderSection } from "./faq-builder-section";
+import { ScoresOverviewSection } from "./scores-overview-section";
+import { computeAeoScore } from "@/lib/scoring/aeo-score";
+import { computeEntityScore } from "@/lib/scoring/entity-score";
 
 export const dynamic = "force-dynamic";
 
@@ -32,12 +48,8 @@ type Props = {
   searchParams: Promise<{ plan?: string; promo?: string; google_connected?: string; google_error?: string }>;
 };
 
-function normalizePromoCodeIntent(raw?: string): "ILoveYouFree" | "ILikeYou50" | null {
-  if (!raw) return null;
-  const value = raw.trim();
-  if (value === "ILoveYouFree" || value === "ILikeYou50") return value;
-  return null;
-}
+import { normalizePromoCode } from "@/lib/stripe/promo-codes";
+const normalizePromoCodeIntent = normalizePromoCode;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   await params;
@@ -95,6 +107,93 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
     getAiVisibilityStats(businessId).catch(() => ({ total: 0, mentioned: 0, byEngine: {}, recentChecks: [] })),
   ]);
 
+  // Feature #1: keyword rankings from GSC
+  const topKeywords = await (async () => {
+    try {
+      const db = getDb();
+      if (!db) return [];
+      return await db
+        .select()
+        .from(keywordRankings)
+        .where(eqOp(keywordRankings.businessId, businessId))
+        .orderBy(descOp(keywordRankings.createdAt))
+        .limit(15);
+    } catch { return []; }
+  })();
+
+  // Feature #8: GEO audit score (uses existing probe data — zero API cost)
+  const geoAudit = await getGeoAuditScore(businessId).catch(() => null);
+
+  // Feature #10: site tech audit (uses existing crawl/audit_findings data — zero API cost)
+  const techAudit = await getSiteTechAudit(businessId).catch(() => null);
+
+  // Feature #9: social credentials for FB/IG section
+  const socialCredentials = await getSocialCredentials(businessId).catch(() => null);
+
+  // ─── Compute 4-score panel ────────────────────────────────────────────────
+  // Derive website audit signals from techAudit items (zero extra API cost)
+  const techItems = techAudit?.items ?? [];
+  const techPass = (key: string) => techItems.find((i) => i.key === key)?.status === "pass";
+
+  const syntheticWebsiteAudit = bundle.business.website
+    ? {
+        score: techAudit?.score ?? 0,
+        findings: [],
+        signals: {
+          hasTitle: techPass("no-title"),
+          hasMetaDescription: techPass("no-meta-description"),
+          hasH1: techPass("no-h1"),
+          hasViewport: techPass("no-viewport"),
+          hasStructuredData: techPass("no-structured-data"),
+          hasClickToCall: techPass("no-tel"),
+          locationClarity: techPass("no-location"),
+          hoursClarity: techPass("no-hours"),
+          ctaClarity: techPass("no-cta"),
+          speedHook: "not_tested" as const,
+        },
+      }
+    : null;
+
+  const publishedContentCount = autopilot.publishedContent.filter(
+    (p) => p.status === "published",
+  ).length;
+  const latestReviewCount = bundle.placeProfiles[0]?.reviewCount ?? 0;
+
+  const aeoResult = computeAeoScore({
+    websiteAudit: syntheticWebsiteAudit,
+    publishedContentCount,
+    // techPass returns true when there is NO problem found — meaning structured data IS present
+    hasSchemaMarkup: techPass("no-structured-data"),
+    reviewCount: latestReviewCount,
+  });
+
+  const citationMismatches = autopilot.citationIssues.filter(
+    (c) => c.mismatchNote !== null,
+  ).length;
+  const aiMentionRate =
+    aiVisibility.total > 0 ? aiVisibility.mentioned / aiVisibility.total : 0;
+
+  const entityResult = computeEntityScore({
+    citationMismatches,
+    citationTotal: autopilot.citationIssues.length,
+    socialProfilesFound: bundle.socialProfiles.length,
+    hasWebsite: Boolean(bundle.business.website),
+    hasPhone: Boolean(bundle.business.phone),
+    hasAddress: Boolean(bundle.business.address),
+    aiMentionRate,
+  });
+
+  const geoScore =
+    aiVisibility.total > 0
+      ? Math.round((aiVisibility.mentioned / aiVisibility.total) * 100)
+      : null;
+  const geoGrade = geoAudit?.grade ?? null;
+
+  // Review gating data (shareable link + private feedback)
+  const reviewGatingData = features.reviewManagement
+    ? await getReviewGatingData(businessId).catch(() => null)
+    : null;
+
   const roadmapRows = bundle.recommendations.map((r) => ({
     lane: r.lane as RoadmapLane,
     category: r.category,
@@ -148,15 +247,25 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
   const billingStatus = bundle.business.subscriptionStatus ?? "none";
   const hasBillingCustomer = Boolean(bundle.business.stripeCustomerId);
 
+  // Determine how many action items need attention
+  const pendingGbpTasks = gbpTasks.filter((t) => t.status !== "completed");
+  const pendingDirectoryTasks = directoryTasks.filter((t) => t.status !== "completed");
+  const hasActionItems =
+    pendingGbpTasks.length > 0 ||
+    pendingDirectoryTasks.length > 0 ||
+    queuedDrafts.length > 0 ||
+    !businessProfile?.config;
+
   return (
     <div className="mx-auto max-w-6xl space-y-12 px-4 py-14 sm:px-6">
+
+      {/* ─── Header ──────────────────────────────────────────────────────────── */}
       <header className="flex flex-col gap-6 border-b border-zinc-200 pb-10 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Your workspace</p>
           <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">{bundle.business.name}</h1>
           <p className="max-w-2xl text-sm text-zinc-600">
-            Command center for scan history, visibility snapshots, prioritized work, and (on Scale+) automation queues,
-            content publishing, Reddit outreach, and jobs that run on a schedule.
+            Snapshot, tasks, content, reviews, and history, all in one place.
           </p>
           <div className="flex flex-wrap gap-2 text-xs font-medium text-zinc-600">
             {bundle.business.website ? (
@@ -173,10 +282,10 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               Plan: {features.label}{" "}
               {features.monthlyPrice > 0 ? `($${features.introPrice}/mo introductory)` : ""}
             </span>
-            <span className="rounded-full bg-zinc-100 border border-zinc-300 px-3 py-1">Refresh cadence: {features.refreshCadenceLabel}</span>
+            <span className="rounded-full bg-zinc-100 border border-zinc-300 px-3 py-1">Refresh: {features.refreshCadenceLabel}</span>
             {selectedPlan ? (
               <span className="rounded-full bg-red-100 px-3 py-1 text-red-950">
-                Selected plan: {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}
+                Selected: {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)}
               </span>
             ) : null}
           </div>
@@ -222,19 +331,17 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             ) : null}
           </div>
         </div>
-        <div className="flex flex-col gap-3">
-          <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Latest visibility score</p>
-            <p className="mt-2 text-5xl font-semibold text-zinc-900">{latest?.overallScore ?? "—"}</p>
-            {delta !== null && delta !== undefined ? (
-              <p className={`mt-2 text-sm font-semibold ${delta >= 0 ? "text-zinc-900" : "text-red-700"}`}>
-                {delta >= 0 ? "+" : ""}
-                {delta} vs previous scan
-              </p>
-            ) : (
-              <p className="mt-2 text-sm text-zinc-500">Run another scan to unlock trendlines.</p>
-            )}
-          </div>
+        <div className="flex flex-col gap-3 lg:min-w-[520px]">
+          <ScoresOverviewSection
+            seoScore={latest?.overallScore ?? null}
+            geoScore={geoScore}
+            geoGrade={geoGrade}
+            aeoScore={aeoResult.score}
+            aeoGrade={aeoResult.grade}
+            entityScore={entityResult.score}
+            entityGrade={entityResult.grade}
+            scoreDelta={delta ?? null}
+          />
           {tier === "agency" ? (
             <a
               href={`/workspace/${businessId}/report-print`}
@@ -248,11 +355,12 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         </div>
       </header>
 
+      {/* ─── Free tier upsell ─────────────────────────────────────────────────── */}
       {!features.recurringRefresh ? (
         <div className="rounded-2xl border border-red-200 bg-red-50/60 px-5 py-5 text-sm text-zinc-900">
           <p>
-            <span className="font-semibold">Starter unlocks recurring automation.</span> Free includes scan history and core
-            report storage. Starter adds monthly refresh and content ideas. Scale adds full publishing, Reddit outreach, and sequences. See{" "}
+            <span className="font-semibold">Starter unlocks recurring automation.</span> Free includes your scan history and core report.
+            Starter adds monthly refreshes and content ideas. Scale adds full publishing, content drafts, and weekly sequences. See{" "}
             <Link href="/#plans" className="font-semibold underline">
               all plans
             </Link>
@@ -261,122 +369,92 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         </div>
       ) : null}
 
-      <section id="billing" className="rounded-2xl border-2 border-red-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      {/* ─── ACTION ITEMS ─────────────────────────────────────────────────────── */}
+      {hasActionItems ? (
+        <section className="space-y-6">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-900">Billing and plan</h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              Current plan <span className="font-semibold text-zinc-900">{features.label}</span> · subscription status{" "}
-              <span className="font-semibold text-zinc-900">{billingStatus}</span>
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">
-              Billing email {bundle.business.billingEmail ?? "not captured yet"}
-              {bundle.business.currentPeriodEnd
-                ? ` · period end ${new Date(bundle.business.currentPeriodEnd).toLocaleDateString()}`
-                : ""}
-            </p>
-            <p className="mt-1 text-xs font-medium text-zinc-600">
-              Start with your business, then activate the plan. We&apos;ll connect this plan to this business.
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">You can enter Stripe promotion codes during checkout.</p>
-            {promoCode ? <p className="mt-1 text-xs font-medium text-zinc-700">Promo code ready: {promoCode}</p> : null}
+            <h2 className="text-xl font-semibold text-zinc-900">Action items</h2>
+            <p className="mt-1 text-sm text-zinc-500">Things that need your attention right now.</p>
           </div>
-          {hasBillingCustomer ? (
-            <PortalButton
-              businessId={businessId}
-              label="Manage billing"
-              className="rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
-            />
-          ) : null}
-        </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-          {tier !== "starter" && tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Starter</p>
-              <p className="text-xs text-zinc-600">$79.99/month · introductory: $39.99/month with code INTRO50</p>
-              <div className="mt-3">
-                <CheckoutButton
-                  businessId={businessId}
-                  plan="starter"
-                  requireGrowthUpsell
-                  label={selectedPlan === "starter" ? "Continue to Starter checkout" : "Start Starter"}
-                  promoCode={promoCode}
-                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                />
-              </div>
-            </div>
-          ) : null}
-          {tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
-            <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Scale</p>
-              <p className="text-xs text-zinc-600">$149.99/month · introductory: $74.99/month with code INTRO50</p>
-              <div className="mt-3">
-                <CheckoutButton
-                  businessId={businessId}
-                  plan="growth"
-                  label={selectedPlan === "growth" ? "Continue to Scale checkout" : "Start Scale"}
-                  promoCode={promoCode}
-                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
-                />
-              </div>
-            </div>
-          ) : null}
-          {tier !== "pro" && tier !== "agency" ? (
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Pro</p>
-              <p className="text-xs text-zinc-600">$299.99/month · introductory: $149.99/month with code INTRO50</p>
-              <div className="mt-3">
-                <CheckoutButton
-                  businessId={businessId}
-                  plan="pro"
-                  label={selectedPlan === "pro" ? "Continue to Pro checkout" : "Start Pro"}
-                  promoCode={promoCode}
-                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                />
-              </div>
-            </div>
-          ) : null}
-          {tier !== "agency" ? (
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Agency</p>
-              <p className="text-xs text-zinc-600">$499.99/month · introductory: $249.99/month with code INTRO50</p>
-              <div className="mt-3">
-                <CheckoutButton
-                  businessId={businessId}
-                  plan="agency"
-                  label={selectedPlan === "agency" ? "Continue to Agency checkout" : "Start Agency"}
-                  promoCode={promoCode}
-                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                />
-              </div>
-            </div>
-          ) : null}
-        </div>
-        <p className="mt-4 text-xs text-zinc-500">
-          Downgrades and cancellations are self-serve in Stripe Billing portal after your first successful subscription.
-        </p>
-      </section>
 
-      {/* Business profile — must be complete before content generation runs */}
-      <BusinessProfileSection
-        businessId={businessId}
-        businessName={bundle.business.name}
-        initialConfig={businessProfile?.config ?? null}
-      />
+          {/* Business profile — needed for content generation */}
+          <BusinessProfileSection
+            businessId={businessId}
+            businessName={bundle.business.name}
+            initialConfig={businessProfile?.config ?? null}
+            discoveredSocials={businessProfile?.discoveredSocials ?? []}
+          />
 
-      {features.multiLocationReady ? (
-        <LocationsSection
-          businessId={businessId}
-          initialLocations={initialLocations}
-          maxLocations={features.clientSeats}
-          planLabel={features.label}
-        />
+          {/* Content drafts to approve */}
+          {features.contentDraftsPerMonth > 0 && queuedDrafts.length > 0 ? (
+            <ContentApprovalSection businessId={businessId} initialDrafts={queuedDrafts} />
+          ) : null}
+
+          {/* GBP tasks */}
+          {pendingGbpTasks.length > 0 ? (
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-5 shadow-sm">
+              <h3 className="text-base font-semibold text-zinc-900">Google Business Profile: paste these in</h3>
+              <p className="mt-1 text-sm text-zinc-600">
+                Go to{" "}
+                <a href="https://business.google.com" className="text-red-800 underline" target="_blank" rel="noreferrer">
+                  business.google.com
+                </a>{" "}
+                and paste each item below. Takes about 5 minutes total.
+              </p>
+              <ul className="mt-4 space-y-4">
+                {pendingGbpTasks.map((task) => (
+                  <li key={task.id} className="rounded-xl border border-blue-100 bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-semibold text-zinc-900">{task.title}</p>
+                      <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
+                        {task.status}
+                      </span>
+                    </div>
+                    {task.detail ? (
+                      <pre className="mt-3 whitespace-pre-wrap rounded-lg bg-zinc-50 p-3 text-xs text-zinc-700 font-sans leading-relaxed">
+                        {task.detail}
+                      </pre>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {/* Free directory listings */}
+          {pendingDirectoryTasks.length > 0 ? (
+            <div className="rounded-2xl border border-green-100 bg-green-50/40 p-5 shadow-sm">
+              <h3 className="text-base font-semibold text-zinc-900">Free directory listings: claim your spots</h3>
+              <p className="mt-1 text-sm text-zinc-600">
+                Each directory below sends trust signals and backlinks to Google. About 5 minutes each.
+              </p>
+              <ul className="mt-4 space-y-4">
+                {pendingDirectoryTasks.map((task) => (
+                  <li key={task.id} className="rounded-xl border border-green-100 bg-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-semibold text-zinc-900">{task.title}</p>
+                      <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">
+                        {task.status}
+                      </span>
+                    </div>
+                    {task.detail ? (
+                      <pre className="mt-3 whitespace-pre-wrap rounded-lg bg-zinc-50 p-3 text-xs text-zinc-700 font-sans leading-relaxed">
+                        {task.detail}
+                      </pre>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
       ) : null}
 
+      {/* ─── Snapshot: score history + automation status ──────────────────────── */}
       <section className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm lg:col-span-2">
           <h2 className="text-lg font-semibold text-zinc-900">Visibility history</h2>
-          <p className="text-sm text-zinc-600">Each bar is a saved snapshot from a scan or future automated check.</p>
+          <p className="text-sm text-zinc-500">Each bar is a snapshot from a scan or scheduled refresh.</p>
           <div className="mt-6 flex h-40 items-end gap-2">
             {[...bundle.snapshots].reverse().map((s) => (
               <div key={s.id} className="flex flex-1 flex-col items-center gap-2">
@@ -392,32 +470,30 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           </div>
         </div>
         <div className="space-y-4 rounded-2xl border border-zinc-200 bg-zinc-900 p-5 text-white shadow-sm">
-          <h2 className="text-lg font-semibold">Automation status</h2>
+          <h2 className="text-lg font-semibold">What&apos;s running</h2>
           <ul className="space-y-3 text-sm text-zinc-200">
             <FeatureRow label="Recurring visibility refreshes" on={features.recurringRefresh} />
             <FeatureRow label="Monthly summary email" on={features.monthlySummaryEmail} />
             <FeatureRow label={`Content ideas (${features.contentIdeasPerMonth}/mo)`} on={features.contentIdeasPerMonth > 0} />
             <FeatureRow label="AI content drafts + publishing" on={features.contentDraftsPerMonth > 0} />
-            <FeatureRow label="Reddit + blog posting" on={features.redditPosting} />
+            <FeatureRow label="Reddit auto-posting + backlink outreach" on={features.redditPosting} />
             <FeatureRow label="Multi-step outreach sequences" on={features.multiStepOutreach} />
-            <FeatureRow label="Review management" on={features.reviewManagement} />
+            <FeatureRow label="Review monitoring + AI replies" on={features.reviewManagement} />
             <FeatureRow label="Programmatic SEO pages" on={features.programmaticSEO} />
             <FeatureRow label="Multi-location support" on={features.multiLocationReady} />
-            <FeatureRow label="Google Business Profile sync" on={features.gbpSync} />
           </ul>
           <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs">
             <p className="font-semibold text-zinc-100">
               Latest run: {latestAutomation ? `${latestAutomation.type} · ${latestAutomation.status}` : "none yet"}
             </p>
             <p className="mt-1 text-zinc-300">
-              Upcoming:{" "}
+              Next:{" "}
               {upcomingAutomation?.runAfter
                 ? `${upcomingAutomation.type} at ${new Date(upcomingAutomation.runAfter).toLocaleString()}`
                 : "no pending recurring jobs"}
             </p>
             {latestRunSummary ? (
               <p className="mt-2 text-zinc-300">
-                Latest run output:{" "}
                 {[
                   `${Number(latestRunSummary.contentIdeas ?? 0)} ideas`,
                   `${Number(latestRunSummary.draftsGenerated ?? 0)} drafts`,
@@ -427,27 +503,504 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               </p>
             ) : null}
           </div>
-          <p className="text-xs text-zinc-400">
-            Listing snapshots use public Places data. Owner-authenticated GBP APIs are not connected in this build.
-          </p>
         </div>
       </section>
 
+      {/* ─── KPI snapshot ────────────────────────────────────────────────────── */}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Generated this month" value={String(contentIdeasThisMonth)} note="content ideas queued" />
-        <KpiCard label="Drafts generated" value={String(draftsThisMonth)} note="internal drafts" />
-        <KpiCard label="Queued for publishing" value={String(publishingQueuedThisMonth)} note="published where target supports it" />
-        <KpiCard label="AI checks completed" value={String(aiChecksThisMonth)} note="this month" />
-        <KpiCard label="Citation tasks queued" value={String(citationQueuedThisMonth)} note="listing cleanup work" />
-        <KpiCard label="Review tasks queued" value={String(reviewQueuedThisMonth)} note="reputation work" />
+        <KpiCard label="Content ideas" value={String(contentIdeasThisMonth)} note="queued this month" />
+        <KpiCard label="Drafts generated" value={String(draftsThisMonth)} note="ready for review" />
+        <KpiCard label="Queued for publishing" value={String(publishingQueuedThisMonth)} note="this month" />
+        <KpiCard label="AI checks" value={String(aiChecksThisMonth)} note="completed this month" />
+        <KpiCard label="Citation tasks" value={String(citationQueuedThisMonth)} note="listing cleanup" />
+        <KpiCard label="Review tasks" value={String(reviewQueuedThisMonth)} note="reputation work" />
         <KpiCard label="Outreach drafted" value={String(outreachTasks.filter((item) => isThisMonth(item.createdAt)).length)} note="this month" />
-        <KpiCard label="Authority opportunities found" value={String(backlinkQueuedThisMonth)} note="queued opportunities" />
-        <KpiCard label="Local page queue items" value={String(localPagesThisMonth)} note="service-area and local pages" />
+        <KpiCard label="Backlink opportunities" value={String(backlinkQueuedThisMonth)} note="identified this month" />
+        <KpiCard label="Local pages queued" value={String(localPagesThisMonth)} note="service-area pages" />
       </section>
 
+      {/* ─── Reviews ─────────────────────────────────────────────────────────── */}
+      {features.reviewManagement ? (
+        <ReviewsSection reviews={reviews.map((r) => ({
+          id: r.id,
+          authorName: r.authorName,
+          rating: r.rating,
+          text: r.text,
+          publishTime: r.publishTime,
+          suggestedReply: r.suggestedReply,
+          status: r.status,
+        }))} />
+      ) : null}
+
+      {/* ─── Review gating ───────────────────────────────────────────────────── */}
+      {reviewGatingData ? (
+        <ReviewGatingSection businessId={businessId} initialData={reviewGatingData} />
+      ) : null}
+
+      {/* ─── Feature #8: GEO audit — AI search visibility ───────────────────── */}
+      {geoAudit ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-900">GEO: AI search visibility</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                How visible is your business when people ask ChatGPT, Perplexity, and other AI assistants?
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className={`rounded-2xl px-5 py-3 text-center ${geoAudit.grade === "A" ? "bg-green-100" : geoAudit.grade === "B" ? "bg-blue-100" : geoAudit.grade === "C" ? "bg-yellow-100" : "bg-red-100"}`}>
+                <p className={`text-4xl font-bold ${geoAudit.grade === "A" ? "text-green-800" : geoAudit.grade === "B" ? "text-blue-800" : geoAudit.grade === "C" ? "text-yellow-800" : "text-red-800"}`}>
+                  {geoAudit.grade}
+                </p>
+                <p className="text-xs font-semibold text-zinc-600 mt-0.5">GEO grade</p>
+              </div>
+              <div className="rounded-2xl border border-zinc-100 bg-zinc-50 px-5 py-3 text-center">
+                <p className="text-4xl font-bold text-zinc-900">{geoAudit.overallScore}</p>
+                <p className="text-xs font-semibold text-zinc-500 mt-0.5">/ 100</p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+              <p className="text-2xl font-semibold text-zinc-900">{geoAudit.totalMentions}</p>
+              <p className="text-xs text-zinc-500 mt-0.5">times mentioned</p>
+            </div>
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+              <p className="text-2xl font-semibold text-zinc-900">{geoAudit.totalProbes}</p>
+              <p className="text-xs text-zinc-500 mt-0.5">AI probes run</p>
+            </div>
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+              <p className="text-2xl font-semibold text-zinc-900">{geoAudit.mentionRate}%</p>
+              <p className="text-xs text-zinc-500 mt-0.5">mention rate</p>
+            </div>
+          </div>
+          {geoAudit.byEngine.length > 0 ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {geoAudit.byEngine.map((e) => (
+                <div key={e.engine} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{e.engine}</p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-800">{e.mentionRate}% mention rate</p>
+                  <p className="text-xs text-zinc-500">{e.mentions}/{e.probes} probes · {e.sentiment}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <div className="mt-4 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3">
+            <p className="text-sm font-semibold text-zinc-800">Recommendation</p>
+            <p className="mt-1 text-sm text-zinc-600">{geoAudit.topRecommendation}</p>
+          </div>
+          {geoAudit.recentMentions.length > 0 ? (
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">Recent AI mentions</p>
+              <ul className="space-y-2">
+                {geoAudit.recentMentions.map((m, i) => (
+                  <li key={i} className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
+                    <span className="font-semibold text-zinc-900">{m.engine}</span>: {m.prompt}
+                    <span className="ml-2 text-zinc-400">{m.date}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          <p className="mt-3 text-xs text-zinc-400">Probes run monthly. GEO score = 60% mention rate + 40% avg confidence.</p>
+        </section>
+      ) : aiVisibility.total > 0 ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">AI search visibility</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Does your business come up when people ask AI assistants for local recommendations?
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+              <p className="text-2xl font-semibold text-zinc-900">{aiVisibility.mentioned}</p>
+              <p className="text-xs text-zinc-500 mt-0.5">times mentioned</p>
+            </div>
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+              <p className="text-2xl font-semibold text-zinc-900">{aiVisibility.total}</p>
+              <p className="text-xs text-zinc-500 mt-0.5">probes run</p>
+            </div>
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+              <p className="text-2xl font-semibold text-zinc-900">
+                {aiVisibility.total > 0 ? Math.round((aiVisibility.mentioned / aiVisibility.total) * 100) : 0}%
+              </p>
+              <p className="text-xs text-zinc-500 mt-0.5">mention rate</p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-zinc-400">Probes run monthly.</p>
+        </section>
+      ) : null}
+
+      {/* ─── Feature #1: Keyword rankings from Google Search Console ────────── */}
+      {topKeywords.length > 0 ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-900">Keyword rankings</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Your top Google Search Console keywords, synced automatically from your connected account.
+              </p>
+            </div>
+            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+              GSC live
+            </span>
+          </div>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 border-b border-zinc-100">
+                  <th className="pb-2 pr-4">Keyword</th>
+                  <th className="pb-2 pr-4 text-right">Position</th>
+                  <th className="pb-2 pr-4 text-right">Clicks</th>
+                  <th className="pb-2 pr-4 text-right">Impressions</th>
+                  <th className="pb-2 text-right">CTR</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {topKeywords.slice(0, 10).map((kw) => (
+                  <tr key={kw.id} className="hover:bg-zinc-50">
+                    <td className="py-2.5 pr-4 font-medium text-zinc-900">{kw.keyword}</td>
+                    <td className="py-2.5 pr-4 text-right">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        Number(kw.position) <= 3 ? "bg-green-100 text-green-800" :
+                        Number(kw.position) <= 10 ? "bg-blue-100 text-blue-800" :
+                        "bg-zinc-100 text-zinc-600"
+                      }`}>
+                        #{kw.position ? Math.round(Number(kw.position)) : "—"}
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-4 text-right text-zinc-700">{kw.clicks ?? 0}</td>
+                    <td className="py-2.5 pr-4 text-right text-zinc-500">{kw.impressions ?? 0}</td>
+                    <td className="py-2.5 text-right text-zinc-500">
+                      {kw.ctr ? `${Math.round(Number(kw.ctr) * 100)}%` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs text-zinc-400">Synced daily · last 28 days · connected via Google OAuth</p>
+        </section>
+      ) : googleConn?.searchConsoleProperty ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Keyword rankings</h2>
+          <p className="mt-2 text-sm text-zinc-500">
+            Google Search Console is connected. Rankings will appear here after the first nightly sync.
+          </p>
+        </section>
+      ) : null}
+
+      {/* ─── Feature #10: Site tech audit ───────────────────────────────────── */}
+      {techAudit ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-900">Site tech audit</h2>
+              <p className="mt-1 text-sm text-zinc-500">
+                Technical SEO checks from your last scan. These directly affect how Google and AI assistants index your site.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className={`rounded-2xl px-5 py-3 text-center ${techAudit.grade === "A" ? "bg-green-100" : techAudit.grade === "B" ? "bg-blue-100" : techAudit.grade === "C" ? "bg-yellow-100" : "bg-red-100"}`}>
+                <p className={`text-3xl font-bold ${techAudit.grade === "A" ? "text-green-800" : techAudit.grade === "B" ? "text-blue-800" : techAudit.grade === "C" ? "text-yellow-800" : "text-red-800"}`}>
+                  {techAudit.grade}
+                </p>
+                <p className="text-xs font-semibold text-zinc-500 mt-0.5">{techAudit.score}/100</p>
+              </div>
+            </div>
+          </div>
+          <ul className="mt-5 divide-y divide-zinc-100">
+            {techAudit.items.map((item) => (
+              <li key={item.key} className="flex items-start gap-3 py-3">
+                <span className={`mt-0.5 shrink-0 text-sm ${item.status === "pass" ? "text-green-600" : item.status === "warn" ? "text-yellow-600" : "text-red-600"}`}>
+                  {item.status === "pass" ? "✓" : item.status === "warn" ? "⚠" : "✗"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-semibold ${item.status === "pass" ? "text-zinc-700" : "text-zinc-900"}`}>
+                    {item.label}
+                  </p>
+                  <p className="mt-0.5 text-xs text-zinc-500">{item.detail}</p>
+                </div>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${item.status === "pass" ? "bg-green-100 text-green-700" : item.status === "warn" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}`}>
+                  {item.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {techAudit.website ? (
+            <p className="mt-3 text-xs text-zinc-400">Auditing <span className="font-medium">{techAudit.website}</span> · run a new scan to refresh results</p>
+          ) : (
+            <p className="mt-3 text-xs text-zinc-400">Add a website to your Google listing to unlock full tech checks.</p>
+          )}
+        </section>
+      ) : null}
+
+      {/* ─── Feature #7: Content calendar ────────────────────────────────────── */}
+      {autopilot.contentQueue.length > 0 ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Content calendar</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Everything queued and scheduled. Autopilot works through this list on your plan cadence.
+          </p>
+          <div className="mt-5 space-y-6">
+            {(() => {
+              // Group content by week
+              const grouped = new Map<string, typeof autopilot.contentQueue>();
+              for (const item of autopilot.contentQueue.slice(0, 20)) {
+                const d = new Date(item.createdAt);
+                const weekStart = new Date(d);
+                weekStart.setDate(d.getDate() - d.getDay());
+                const key = weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                if (!grouped.has(key)) grouped.set(key, []);
+                grouped.get(key)!.push(item);
+              }
+              return Array.from(grouped.entries()).map(([week, items]) => (
+                <div key={week}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">
+                    Week of {week}
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {items.map((item) => (
+                      <div key={item.id} className={`rounded-xl border px-3 py-3 text-sm ${
+                        item.status === "published" ? "border-green-100 bg-green-50" :
+                        item.status === "ready" ? "border-blue-100 bg-blue-50" :
+                        item.kind === "reddit_post" ? "border-orange-100 bg-orange-50" :
+                        item.kind === "facebook_post" || item.kind === "instagram_caption" ? "border-purple-100 bg-purple-50" :
+                        "border-zinc-100 bg-zinc-50"
+                      }`}>
+                        <p className="font-medium text-zinc-900 truncate">{item.title}</p>
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <span className="text-xs uppercase text-zinc-500">
+                            {item.kind.replace(/_/g, " ")}
+                          </span>
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            item.status === "published" ? "bg-green-100 text-green-800" :
+                            item.status === "ready" ? "bg-blue-100 text-blue-800" :
+                            "bg-zinc-100 text-zinc-600"
+                          }`}>
+                            {item.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        </section>
+      ) : null}
+
+      {/* ─── Feature #6: Topic cluster map ───────────────────────────────────── */}
+      <TopicClusterSection businessId={businessId} />
+
+      {/* ─── Roadmap ─────────────────────────────────────────────────────────── */}
+      <AutopilotRoadmap rows={roadmapRows} />
+
+      {/* ─── Content queue ───────────────────────────────────────────────────── */}
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Content queue</h2>
+          <p className="mt-1 text-sm text-zinc-500">Staged for publishing. Autopilot works through these on your plan cadence.</p>
+          {autopilot.contentQueue.length > 0 ? (
+            <ul className="mt-4 space-y-2">
+              {autopilot.contentQueue.slice(0, 10).map((item) => (
+                <li key={item.id} className="flex items-center justify-between gap-4 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-zinc-900">{item.title}</p>
+                    <p className="mt-0.5 text-xs text-zinc-500">
+                      {item.kind.replace(/_/g, " ")} · queued {new Date(item.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-zinc-100 border border-zinc-200 px-2.5 py-1 text-xs font-semibold text-zinc-600">{item.status}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-zinc-500">Empty. Autopilot will fill it on the next scheduled run.</p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-zinc-900">Citation + listing issues</h2>
+          <p className="mt-1 text-sm text-zinc-500">Listing mismatches and citation integrity checks.</p>
+          <ul className="mt-4 space-y-2 text-sm">
+            {autopilot.citationIssues.slice(0, 8).map((item) => (
+              <li key={item.id} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+                <p className="font-semibold text-zinc-900">{item.sourceName}</p>
+                <p className="text-xs uppercase tracking-wide text-zinc-500">{item.status}</p>
+                {item.mismatchNote ? <p className="text-xs text-zinc-600">{item.mismatchNote}</p> : null}
+              </li>
+            ))}
+            {!autopilot.citationIssues.length ? <li className="text-zinc-500">No citation issues queued.</li> : null}
+          </ul>
+        </div>
+      </section>
+
+      {/* ─── Authority + backlink queue ──────────────────────────────────────── */}
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-zinc-900">Backlink opportunities</h3>
+          <p className="mt-1 text-xs text-zinc-500">Identified and queued. These are opportunities, not links already placed.</p>
+          <ul className="mt-3 space-y-2 text-sm">
+            {autopilot.backlinkQueue.slice(0, 8).map((item) => (
+              <li key={item.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+                <p className="font-medium text-zinc-900">{item.sourceName}</p>
+                <p className="text-xs uppercase text-zinc-500">
+                  {item.status} · quality {item.qualityScore ?? "n/a"}
+                </p>
+                {item.targetUrl ? (
+                  <a className="text-xs text-red-800 underline" href={item.targetUrl} target="_blank" rel="noreferrer">
+                    {item.targetUrl}
+                  </a>
+                ) : null}
+              </li>
+            ))}
+            {!autopilot.backlinkQueue.length ? <li className="text-zinc-500">No opportunities queued yet.</li> : null}
+          </ul>
+        </div>
+
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-zinc-900">Outreach drafts</h3>
+          <ul className="mt-3 space-y-2 text-sm">
+            {outreachTasks.slice(0, 8).map((task) => (
+              <li key={task.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+                <p className="font-medium text-zinc-900">{task.title}</p>
+                <p className="text-xs uppercase text-zinc-500">{task.status}</p>
+                {task.detail ? (
+                  <pre className="mt-2 whitespace-pre-wrap text-xs text-zinc-600 font-sans">{task.detail}</pre>
+                ) : null}
+              </li>
+            ))}
+            {!outreachTasks.length ? <li className="text-zinc-500">No outreach drafts yet.</li> : null}
+          </ul>
+        </div>
+      </section>
+
+      {/* ─── Local pages + AI probes ─────────────────────────────────────────── */}
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-zinc-900">Local page queue</h3>
+          <ul className="mt-3 space-y-2 text-sm">
+            {localPageQueue.slice(0, 8).map((item) => (
+              <li key={item.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+                <p className="font-medium text-zinc-900">{item.title}</p>
+                <p className="text-xs uppercase text-zinc-500">{item.kind} · {item.status}</p>
+              </li>
+            ))}
+            {!localPageQueue.length ? <li className="text-zinc-500">No local pages queued yet.</li> : null}
+          </ul>
+        </div>
+
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-zinc-900">Review + local trust tasks</h3>
+          <ul className="mt-3 space-y-2 text-sm">
+            {reviewTasks.slice(0, 6).map((task) => (
+              <li key={task.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+                <p className="font-medium text-zinc-900">{task.title}</p>
+                <p className="text-xs uppercase text-zinc-500">{task.queue} · {task.status}</p>
+              </li>
+            ))}
+            {!reviewTasks.length ? <li className="text-zinc-500">No review tasks queued.</li> : null}
+          </ul>
+        </div>
+      </section>
+
+      {/* ─── Competitor panel ────────────────────────────────────────────────── */}
+      <CompetitorPanel businessId={businessId} />
+
+      {/* ─── Integrations ────────────────────────────────────────────────────── */}
+      {features.contentDraftsPerMonth > 0 ? (
+        <IntegrationsSection
+          businessId={businessId}
+          initialTargets={publishingTargets.map((t) => ({
+            id: t.id,
+            label: t.label,
+            adapter: t.adapter,
+            active: t.active,
+          }))}
+        />
+      ) : null}
+
+      {/* ─── Google integrations ─────────────────────────────────────────────── */}
+      <GoogleIntegrationsSection
+        businessId={businessId}
+        connected={Boolean(googleConn)}
+        googleEmail={googleConn?.googleEmail ?? null}
+        searchConsoleProperty={googleConn?.searchConsoleProperty ?? null}
+        gbpLocationName={googleConn?.gbpLocationName ?? null}
+        errorParam={query.google_error ?? null}
+        successParam={Boolean(query.google_connected)}
+      />
+
+      {/* ─── Feature #9: Facebook + Instagram credentials ───────────────────── */}
+      {features.redditPosting ? (
+        <SocialCredentialsSection
+          businessId={businessId}
+          initial={socialCredentials}
+        />
+      ) : null}
+
+      {/* ─── Multi-location ──────────────────────────────────────────────────── */}
+      {features.multiLocationReady ? (
+        <LocationsSection
+          businessId={businessId}
+          initialLocations={initialLocations}
+          maxLocations={features.clientSeats}
+          planLabel={features.label}
+        />
+      ) : null}
+
+      {/* ─── Schema Markup Generator ─────────────────────────────────────────── */}
+      {(() => {
+        // Some fields exist on MemBusiness but not the DB-path business object.
+        // We read them safely with optional chaining and fall back to placeProfiles.
+        const biz = bundle.business as typeof bundle.business & {
+          primaryCategory?: string | null;
+          rating?: string | null;
+          reviewCount?: number | null;
+          latitude?: number | null;
+          longitude?: number | null;
+        };
+        const latestPlace = bundle.placeProfiles?.[0];
+        return (
+          <>
+            <SchemaGeneratorSection
+              business={{
+                name: biz.name,
+                address: biz.address,
+                phone: biz.phone,
+                website: biz.website,
+                primaryCategory: biz.primaryCategory ?? latestPlace?.primaryType ?? null,
+                vertical: biz.vertical,
+                rating: biz.rating ?? (latestPlace?.rating != null ? String(latestPlace.rating) : null),
+                reviewCount: biz.reviewCount ?? latestPlace?.reviewCount ?? null,
+                latitude: biz.latitude ?? null,
+                longitude: biz.longitude ?? null,
+                googleMapsUri: biz.googleMapsUri ?? latestPlace?.mapsUri ?? null,
+              }}
+            />
+            <FaqBuilderSection
+              business={{
+                name: biz.name,
+                vertical: biz.vertical,
+                primaryCategory: biz.primaryCategory ?? latestPlace?.primaryType ?? null,
+              }}
+            />
+          </>
+        );
+      })()}
+
+      {/* ────────────────────────────────────────────────────────────────────── */}
+      {/* HISTORY — everything completed, with dates                            */}
+      {/* ────────────────────────────────────────────────────────────────────── */}
+      <div className="border-t border-zinc-200 pt-8">
+        <h2 className="text-xl font-semibold text-zinc-900">History</h2>
+        <p className="mt-1 text-sm text-zinc-500">Everything completed, with dates.</p>
+      </div>
+
+      {/* Activity feed */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-900">Recent autopilot activity</h2>
-        <p className="mt-1 text-sm text-zinc-600">Everything GravyBlock did for you in the last 30 days.</p>
+        <h3 className="text-base font-semibold text-zinc-900">Autopilot activity: last 30 days</h3>
         <ul className="mt-4 divide-y divide-zinc-100">
           {activity.map((item) => {
             const iconMap: Record<ActivityItem["type"], string> = {
@@ -476,259 +1029,23 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                   {item.detail ? <p className="text-xs text-zinc-500">{item.detail}</p> : null}
                 </div>
                 <time className="shrink-0 text-xs text-zinc-400">
-                  {item.createdAt.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  {item.createdAt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                 </time>
               </li>
             );
           })}
           {!activity.length ? (
             <li className="py-4 text-sm text-zinc-500">
-              No autopilot activity yet. Once automation runs, actions will appear here.
+              No autopilot activity yet. Actions will appear here once automation runs.
             </li>
           ) : null}
         </ul>
       </section>
 
+      {/* Published content */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-900">Changes detected on your site and public profile</h2>
-        <p className="mt-1 text-sm text-zinc-600">
-          Refresh cycles re-check homepage, listing details, and public social footprint where supported.
-        </p>
-        <ul className="mt-3 space-y-2 text-sm">
-          {latestDetectedChanges.map((change) => (
-            <li key={change} className="rounded-lg bg-zinc-50 px-3 py-2 text-zinc-700">
-              {change}
-            </li>
-          ))}
-          {!latestDetectedChanges.length ? (
-            <li className="rounded-lg bg-zinc-50 px-3 py-2 text-zinc-600">
-              No major changes detected in the latest refresh cycle.
-            </li>
-          ) : null}
-        </ul>
-      </section>
-
-      <AutopilotRoadmap rows={roadmapRows} />
-
-      {features.contentDraftsPerMonth > 0 ? (
-        <ContentApprovalSection businessId={businessId} initialDrafts={queuedDrafts} />
-      ) : null}
-
-      {features.reviewManagement ? (
-        <ReviewsSection reviews={reviews.map((r) => ({
-          id: r.id,
-          authorName: r.authorName,
-          rating: r.rating,
-          text: r.text,
-          publishTime: r.publishTime,
-          suggestedReply: r.suggestedReply,
-          status: r.status,
-        }))} />
-      ) : null}
-
-      <CompetitorPanel businessId={businessId} />
-
-      {aiVisibility.total > 0 ? (
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">AI search visibility</h2>
-          <p className="mt-1 text-sm text-zinc-600">
-            Does your business appear when people ask AI assistants like Gemini or Llama for recommendations in your area?
-          </p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
-              <p className="text-2xl font-semibold text-zinc-900">{aiVisibility.mentioned}</p>
-              <p className="text-xs text-zinc-500 mt-0.5">times mentioned</p>
-            </div>
-            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
-              <p className="text-2xl font-semibold text-zinc-900">{aiVisibility.total}</p>
-              <p className="text-xs text-zinc-500 mt-0.5">probes run</p>
-            </div>
-            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
-              <p className="text-2xl font-semibold text-zinc-900">
-                {aiVisibility.total > 0 ? Math.round((aiVisibility.mentioned / aiVisibility.total) * 100) : 0}%
-              </p>
-              <p className="text-xs text-zinc-500 mt-0.5">mention rate</p>
-            </div>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            {Object.entries(aiVisibility.byEngine).map(([engine, stats]) => (
-              <div key={engine} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{engine}</p>
-                <p className="mt-1 text-sm text-zinc-800">
-                  {stats.mentioned}/{stats.total} probes — {stats.total > 0 ? Math.round((stats.mentioned / stats.total) * 100) : 0}%
-                </p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 text-xs text-zinc-400">
-            Probes run monthly. Results reflect whether AI models trained on public data mention your business for relevant local queries.
-          </p>
-        </section>
-      ) : null}
-
-      {features.contentDraftsPerMonth > 0 ? (
-        <IntegrationsSection
-          businessId={businessId}
-          initialTargets={publishingTargets.map((t) => ({
-            id: t.id,
-            label: t.label,
-            adapter: t.adapter,
-            active: t.active,
-          }))}
-        />
-      ) : null}
-
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Content queue</h2>
-          <p className="mt-1 text-sm text-zinc-600">All content items including queued, approved, and dismissed.</p>
-          <ul className="mt-4 space-y-2 text-sm">
-            {autopilot.contentQueue.slice(0, 8).map((item) => (
-              <li key={item.id} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
-                <p className="font-semibold text-zinc-900">{item.title}</p>
-                <p className="text-xs uppercase tracking-wide text-zinc-500">
-                  {item.kind} · {item.status}
-                </p>
-              </li>
-            ))}
-            {!autopilot.contentQueue.length ? <li className="text-zinc-500">No queued content yet.</li> : null}
-          </ul>
-        </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Citation + listing issue queue</h2>
-          <p className="mt-1 text-sm text-zinc-600">Listing mismatches and citation integrity checks.</p>
-          <ul className="mt-4 space-y-2 text-sm">
-            {autopilot.citationIssues.slice(0, 8).map((item) => (
-              <li key={item.id} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
-                <p className="font-semibold text-zinc-900">{item.sourceName}</p>
-                <p className="text-xs uppercase tracking-wide text-zinc-500">
-                  {item.status}
-                </p>
-                {item.mismatchNote ? <p className="text-xs text-zinc-600">{item.mismatchNote}</p> : null}
-              </li>
-            ))}
-            {!autopilot.citationIssues.length ? <li className="text-zinc-500">No citation/listing issues queued.</li> : null}
-          </ul>
-        </div>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-zinc-900">AI visibility probes</h3>
-          <ul className="mt-3 space-y-2 text-sm">
-            {autopilot.aiVisibilityChecks.slice(0, 6).map((probe) => (
-              <li key={probe.id} className="rounded-lg bg-zinc-50 px-3 py-2">
-                <p className="font-medium text-zinc-900">{probe.prompt}</p>
-                <p className="text-xs text-zinc-500">
-                  mention {probe.mentionFound} · confidence {probe.confidence ?? "n/a"}
-                </p>
-              </li>
-            ))}
-            {!autopilot.aiVisibilityChecks.length ? <li className="text-zinc-500">No probes yet.</li> : null}
-          </ul>
-        </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-zinc-900">Review and local trust tasks</h3>
-          <ul className="mt-3 space-y-2 text-sm">
-            {reviewTasks.slice(0, 6).map((task) => (
-              <li key={task.id} className="rounded-lg bg-zinc-50 px-3 py-2">
-                <p className="font-medium text-zinc-900">{task.title}</p>
-                <p className="text-xs uppercase text-zinc-500">
-                  {task.queue} · {task.status}
-                </p>
-              </li>
-            ))}
-            {!reviewTasks.length ? <li className="text-zinc-500">No review/local trust tasks queued.</li> : null}
-          </ul>
-        </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-zinc-900">Automation jobs</h3>
-          <ul className="mt-3 space-y-2 text-sm">
-            {autopilot.automationJobs.slice(0, 6).map((job) => (
-              <li key={job.id} className="rounded-lg bg-zinc-50 px-3 py-2">
-                <p className="font-medium text-zinc-900">{job.type}</p>
-                <p className="text-xs uppercase text-zinc-500">{job.status}</p>
-              </li>
-            ))}
-            {!autopilot.automationJobs.length ? <li className="text-zinc-500">No automation jobs running yet.</li> : null}
-          </ul>
-        </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-zinc-900">Outreach execution</h3>
-          <ul className="mt-3 space-y-2 text-sm">
-            {outreachTasks.slice(0, 8).map((task) => (
-              <li key={task.id} className="rounded-lg bg-zinc-50 px-3 py-2">
-                <p className="font-medium text-zinc-900">{task.title}</p>
-                <p className="text-xs uppercase text-zinc-500">{task.status}</p>
-                {task.detail ? (
-                  <pre className="mt-2 whitespace-pre-wrap text-xs text-zinc-600 font-sans">{task.detail}</pre>
-                ) : null}
-              </li>
-            ))}
-            {!outreachTasks.length ? <li className="text-zinc-500">No outreach drafts generated yet.</li> : null}
-          </ul>
-        </div>
-      </section>
-
-      {gbpTasks.length > 0 ? (
-        <section className="rounded-2xl border border-blue-100 bg-blue-50/40 p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Google Business Profile — action items</h2>
-          <p className="mt-1 text-sm text-zinc-600">
-            Copy these into your Google Business Profile at{" "}
-            <a href="https://business.google.com" className="text-red-800 underline" target="_blank" rel="noreferrer">
-              business.google.com
-            </a>
-            . Each task has the exact text ready to paste.
-          </p>
-          <ul className="mt-4 space-y-4">
-            {gbpTasks.map((task) => (
-              <li key={task.id} className="rounded-xl border border-blue-100 bg-white p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="font-semibold text-zinc-900">{task.title}</p>
-                  <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
-                    {task.status}
-                  </span>
-                </div>
-                {task.detail ? (
-                  <pre className="mt-3 whitespace-pre-wrap rounded-lg bg-zinc-50 p-3 text-xs text-zinc-700 font-sans leading-relaxed">
-                    {task.detail}
-                  </pre>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {directoryTasks.length > 0 ? (
-        <section className="rounded-2xl border border-green-100 bg-green-50/40 p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Free directory listings — claim your spots</h2>
-          <p className="mt-1 text-sm text-zinc-600">
-            These free directories send backlinks and trust signals to Google. Click each link and paste your business info — it takes about 5 minutes per directory.
-          </p>
-          <ul className="mt-4 space-y-4">
-            {directoryTasks.map((task) => (
-              <li key={task.id} className="rounded-xl border border-green-100 bg-white p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="font-semibold text-zinc-900">{task.title}</p>
-                  <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">
-                    {task.status}
-                  </span>
-                </div>
-                {task.detail ? (
-                  <pre className="mt-3 whitespace-pre-wrap rounded-lg bg-zinc-50 p-3 text-xs text-zinc-700 font-sans leading-relaxed">
-                    {task.detail}
-                  </pre>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-900">Published content</h2>
-        <p className="mt-1 text-sm text-zinc-600">Everything GravyBlock has written and published for this business — articles, GBP posts, Reddit posts, and drafts.</p>
+        <h3 className="text-base font-semibold text-zinc-900">Published content</h3>
+        <p className="mt-1 text-sm text-zinc-500">Articles, posts, and drafts GravyBlock has written for you.</p>
         {autopilot.publishedContent.length > 0 ? (
           <ul className="mt-4 space-y-3">
             {autopilot.publishedContent.slice(0, 12).map((item) => (
@@ -736,7 +1053,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 <div className="min-w-0">
                   <p className="truncate font-medium text-zinc-900">{item.title}</p>
                   <p className="mt-0.5 text-xs text-zinc-500">
-                    {item.channel.replace(/_/g, " ")} · {item.status} · {new Date(item.createdAt).toLocaleDateString()}
+                    {item.channel.replace(/_/g, " ")} · {item.status} · {new Date(item.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                   </p>
                 </div>
                 {item.publicUrl ? (
@@ -756,153 +1073,40 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           </ul>
         ) : (
           <div className="mt-4 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">
-            No content published yet.{" "}
+            Nothing published yet.{" "}
             {features.contentDraftsPerMonth > 0
-              ? "Once autopilot runs, articles and posts will appear here with links."
+              ? "Articles and posts will appear here once autopilot runs."
               : "Upgrade to Scale or higher to unlock automated content publishing."}
           </div>
         )}
       </section>
 
+      {/* Completed automation jobs */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-900">Content queue</h2>
-        <p className="mt-1 text-sm text-zinc-600">Articles and posts staged for publishing. Autopilot works through these on your plan cadence.</p>
-        {autopilot.contentQueue.length > 0 ? (
-          <ul className="mt-4 space-y-2">
-            {autopilot.contentQueue.slice(0, 10).map((item) => (
-              <li key={item.id} className="flex items-center justify-between gap-4 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm">
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-zinc-900">{item.title}</p>
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    {item.kind.replace(/_/g, " ")} · {item.targetKeyword ?? "no keyword"} · queued {new Date(item.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <span className="shrink-0 rounded-full bg-zinc-100 border border-zinc-200 px-2.5 py-1 text-xs font-semibold text-zinc-600">{item.status}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-4 text-sm text-zinc-500">Queue is empty. Autopilot will fill it on the next scheduled run.</p>
-        )}
-      </section>
-
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h3 className="text-base font-semibold text-zinc-900">Recent completed work log</h3>
+        <h3 className="text-base font-semibold text-zinc-900">Completed automation runs</h3>
         <ul className="mt-3 space-y-2 text-sm">
           {autopilot.automationJobs
             .filter((job) => job.status === "completed")
             .slice(0, 10)
             .map((job) => (
-              <li key={job.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+              <li key={job.id} className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2">
                 <p className="font-medium text-zinc-900">{job.type}</p>
                 <p className="text-xs text-zinc-500">
-                  {new Date(job.createdAt).toLocaleString()} · refresh completed
+                  {new Date(job.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                 </p>
               </li>
             ))}
           {!autopilot.automationJobs.filter((job) => job.status === "completed").length ? (
-            <li className="text-zinc-500">No completed automation cycles yet.</li>
+            <li className="text-zinc-500">No completed runs yet.</li>
           ) : null}
         </ul>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-zinc-900">Local page / service-area queue</h3>
-          <ul className="mt-3 space-y-2 text-sm">
-            {localPageQueue.slice(0, 8).map((item) => (
-              <li key={item.id} className="rounded-lg bg-zinc-50 px-3 py-2">
-                <p className="font-medium text-zinc-900">{item.title}</p>
-                <p className="text-xs uppercase text-zinc-500">
-                  {item.kind} · {item.status}
-                </p>
-              </li>
-            ))}
-            {!localPageQueue.length ? <li className="text-zinc-500">No local page items queued yet.</li> : null}
-          </ul>
-        </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-zinc-900">Authority queue</h3>
-          <p className="mt-1 text-xs text-zinc-500">Opportunities found and queued. This does not mean links are already placed.</p>
-          <ul className="mt-3 space-y-2 text-sm">
-            {autopilot.backlinkQueue.slice(0, 8).map((item) => (
-              <li key={item.id} className="rounded-lg bg-zinc-50 px-3 py-2">
-                <p className="font-medium text-zinc-900">{item.sourceName}</p>
-                <p className="text-xs uppercase text-zinc-500">
-                  {item.status} · quality {item.qualityScore ?? "n/a"}
-                </p>
-                {item.targetUrl ? (
-                  <a className="text-xs text-red-800 underline" href={item.targetUrl} target="_blank" rel="noreferrer">
-                    {item.targetUrl}
-                  </a>
-                ) : null}
-              </li>
-            ))}
-            {!autopilot.backlinkQueue.length ? <li className="text-zinc-500">No authority opportunities queued.</li> : null}
-          </ul>
-        </div>
-      </section>
-
-      <GoogleIntegrationsSection
-        businessId={businessId}
-        connected={Boolean(googleConn)}
-        googleEmail={googleConn?.googleEmail ?? null}
-        searchConsoleProperty={googleConn?.searchConsoleProperty ?? null}
-        gbpLocationName={googleConn?.gbpLocationName ?? null}
-        errorParam={query.google_error ?? null}
-        successParam={Boolean(query.google_connected)}
-      />
-
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-900">Refer a business</h2>
-        <p className="mt-1 text-sm text-zinc-600">
-          Share your referral link. When another business runs a scan using your link, you both get credit.
-          Contact us to apply your referral credit toward your next billing cycle.
-        </p>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <code className="flex-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700 font-mono break-all">
-            {referralUrl}
-          </code>
-        </div>
-        <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-center">
-            <p className="text-2xl font-semibold text-zinc-900">{referralStats.clicks}</p>
-            <p className="text-xs text-zinc-500">link clicks</p>
-          </div>
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-center">
-            <p className="text-2xl font-semibold text-zinc-900">{referralStats.scans}</p>
-            <p className="text-xs text-zinc-500">scans run</p>
-          </div>
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-center">
-            <p className="text-2xl font-semibold text-zinc-900">{referralStats.paid}</p>
-            <p className="text-xs text-zinc-500">converted to paid</p>
-          </div>
-        </div>
-        <p className="mt-3 text-xs text-zinc-500">
-          Each paid referral earns you one free month. Reply to any GravyBlock email to claim credit.
-        </p>
-      </section>
-
+      {/* Scan & report history */}
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-zinc-900">Content opportunities</h2>
-            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{bundle.content.length} ideas</span>
-          </div>
-          <ul className="mt-4 space-y-3">
-            {bundle.content.map((c) => (
-              <li key={c.id} className="rounded-xl border border-zinc-100 bg-zinc-50/80 px-3 py-3 text-sm text-zinc-700">
-                <p className="text-xs font-semibold uppercase tracking-wide text-red-800">{c.angle}</p>
-                <p className="font-semibold text-zinc-900">{c.title}</p>
-                <p className="mt-1 text-zinc-600">{c.body}</p>
-              </li>
-            ))}
-            {!bundle.content.length ? <li className="text-sm text-zinc-500">No ideas yet — run a scan.</li> : null}
-          </ul>
-        </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-zinc-900">Scan & report history</h2>
+            <h3 className="text-base font-semibold text-zinc-900">Scan history</h3>
             <Link href="/scan" className="text-xs font-semibold text-red-800 hover:text-red-900">
               New scan
             </Link>
@@ -914,7 +1118,9 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                   <Link href={`/report/${r.publicId}`} className="font-semibold text-zinc-900 hover:underline">
                     View report
                   </Link>
-                  <p className="text-xs text-zinc-500">{new Date(r.createdAt).toLocaleString()}</p>
+                  <p className="text-xs text-zinc-500">
+                    {new Date(r.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-semibold text-zinc-900">{r.score}</p>
@@ -925,7 +1131,149 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             {!bundle.reports.length ? <li className="py-4 text-sm text-zinc-500">No reports yet.</li> : null}
           </ul>
         </div>
+
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-zinc-900">Content ideas</h3>
+            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{bundle.content.length} total</span>
+          </div>
+          <ul className="mt-4 space-y-3">
+            {bundle.content.map((c) => (
+              <li key={c.id} className="rounded-xl border border-zinc-100 bg-zinc-50/80 px-3 py-3 text-sm text-zinc-700">
+                <p className="text-xs font-semibold uppercase tracking-wide text-red-800">{c.angle}</p>
+                <p className="font-semibold text-zinc-900">{c.title}</p>
+                <p className="mt-1 text-zinc-600">{c.body}</p>
+              </li>
+            ))}
+            {!bundle.content.length ? <li className="text-sm text-zinc-500">No ideas yet. Run a scan to generate some.</li> : null}
+          </ul>
+        </div>
       </section>
+
+      {/* Changes detected */}
+      {latestDetectedChanges.length > 0 ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-zinc-900">Changes detected in latest refresh</h3>
+          <ul className="mt-3 space-y-2 text-sm">
+            {latestDetectedChanges.map((change) => (
+              <li key={change} className="rounded-lg bg-zinc-50 px-3 py-2 text-zinc-700">
+                {change}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* AI Citation Monitor */}
+      <AiCitationSection
+        stats={aiVisibility}
+        businessId={businessId}
+        businessName={bundle.business.name}
+        canRunCheck={tier !== "free"}
+      />
+
+      {/* ─── Billing ─────────────────────────────────────────────────────────── */}
+      <section id="billing" className="rounded-2xl border-2 border-red-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-900">Billing and plan</h2>
+            <p className="mt-1 text-sm text-zinc-600">
+              Plan: <span className="font-semibold text-zinc-900">{features.label}</span> · status:{" "}
+              <span className="font-semibold text-zinc-900">{billingStatus}</span>
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              {bundle.business.billingEmail ?? "Billing email not captured"}
+              {bundle.business.currentPeriodEnd
+                ? ` · renews ${new Date(bundle.business.currentPeriodEnd).toLocaleDateString()}`
+                : ""}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">Use code <strong>INTRO50</strong> at checkout for 50% off your first month.</p>
+            {promoCode ? <p className="mt-1 text-xs font-medium text-zinc-700">Promo ready: {promoCode}</p> : null}
+          </div>
+          {hasBillingCustomer ? (
+            <PortalButton
+              businessId={businessId}
+              label="Manage billing"
+              className="rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+            />
+          ) : null}
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          {tier !== "starter" && tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <p className="text-sm font-semibold text-zinc-900">Starter</p>
+              <p className="text-xs text-zinc-600">$79.99/mo · intro $39.99/mo with INTRO50</p>
+              <div className="mt-3">
+                <CheckoutButton
+                  businessId={businessId}
+                  plan="starter"
+                  requireGrowthUpsell
+                  label={selectedPlan === "starter" ? "Continue to Starter checkout" : "Start Starter"}
+                  promoCode={promoCode}
+                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+                />
+              </div>
+            </div>
+          ) : null}
+          {tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
+            <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
+              <p className="text-sm font-semibold text-zinc-900">Scale</p>
+              <p className="text-xs text-zinc-600">$149.99/mo · intro $74.99/mo with INTRO50</p>
+              <div className="mt-3">
+                <CheckoutButton
+                  businessId={businessId}
+                  plan="growth"
+                  label={selectedPlan === "growth" ? "Continue to Scale checkout" : "Start Scale"}
+                  promoCode={promoCode}
+                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+                />
+              </div>
+            </div>
+          ) : null}
+          {tier !== "pro" && tier !== "agency" ? (
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <p className="text-sm font-semibold text-zinc-900">Pro</p>
+              <p className="text-xs text-zinc-600">$299.99/mo · intro $149.99/mo with INTRO50</p>
+              <div className="mt-3">
+                <CheckoutButton
+                  businessId={businessId}
+                  plan="pro"
+                  label={selectedPlan === "pro" ? "Continue to Pro checkout" : "Start Pro"}
+                  promoCode={promoCode}
+                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+                />
+              </div>
+            </div>
+          ) : null}
+          {tier !== "agency" ? (
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <p className="text-sm font-semibold text-zinc-900">Agency</p>
+              <p className="text-xs text-zinc-600">$499.99/mo · intro $249.99/mo with INTRO50</p>
+              <div className="mt-3">
+                <CheckoutButton
+                  businessId={businessId}
+                  plan="agency"
+                  label={selectedPlan === "agency" ? "Continue to Agency checkout" : "Start Agency"}
+                  promoCode={promoCode}
+                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
+        <p className="mt-4 text-xs text-zinc-500">
+          Downgrades and cancellations are self-serve via the Stripe billing portal.
+        </p>
+      </section>
+
+      {/* ─── Referral ────────────────────────────────────────────────────────── */}
+      <ReferralSection
+        referralUrl={referralUrl}
+        clicks={referralStats.clicks}
+        scans={referralStats.scans}
+        paid={referralStats.paid}
+      />
+
     </div>
   );
 }
@@ -934,7 +1282,7 @@ function FeatureRow({ label, on }: { label: string; on: boolean }) {
   return (
     <li className="flex items-center justify-between gap-3">
       <span>{label}</span>
-      <span className={on ? "text-red-300" : "text-zinc-500"}>{on ? "Included" : "Locked"}</span>
+      <span className={on ? "text-red-300" : "text-zinc-500"}>{on ? "On" : "Locked"}</span>
     </li>
   );
 }

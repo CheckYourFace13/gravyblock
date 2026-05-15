@@ -32,9 +32,9 @@ export function GuideShell({
           ))}
         </ul>
         <p className="mt-6 text-sm text-zinc-600">
-          GravyBlock runs a free, automated local visibility scan —{" "}
+          GravyBlock runs a free local visibility scan.{" "}
           <Link href="/scan" className="font-semibold text-red-800 hover:underline">
-            start a scan
+            Start a scan
           </Link>{" "}
           to see prioritized fixes for your business.
         </p>

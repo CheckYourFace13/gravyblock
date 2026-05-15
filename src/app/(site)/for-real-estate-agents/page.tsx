@@ -2,22 +2,23 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "Local SEO for real estate agents | GravyBlock",
-  description: "Autopilot local SEO for real estate agents. Rank for neighborhood searches, build your online reputation, and generate leads without paid ads.",
+  title: "Local SEO for real estate agents — rank for neighborhood searches on Google | GravyBlock",
+  description: "GravyBlock automates local SEO for real estate agents: publishes neighborhood content weekly, tracks Google rankings, manages reviews, and monitors AI search visibility. Free scan.",
 };
 
 export default function ForRealEstateAgentsPage() {
   return (
     <VerticalLanding
       eyebrow="Real estate agents"
-      title="Buyers and sellers Google agents in their area before they reach out to anyone."
-      body="Real estate is intensely local. People search by neighborhood, by city, by school district. An agent with strong local search presence gets called first. GravyBlock tracks your visibility across Google, builds your review foundation, and publishes neighborhood content that signals local expertise — automatically."
+      title="Buyers and sellers Google agents in their area before they reach out to anyone. Win that first impression."
+      body="Real estate is the most local of all local businesses. Buyers search by neighborhood, by school district, by zip code. The agent who ranks first in those searches gets the call. GravyBlock builds your content, grows your reviews, and keeps your profile sharp so you look like the obvious local expert."
       bullets={[
-        "Score your Google Business Profile and website for local real estate searches.",
-        "Generate neighborhood guides and market update content that ranks for city-specific searches.",
-        "Track reviews and ratings as trust signals for buyer and seller prospects.",
-        "Monitor AI search visibility — a growing share of home buyers start with ChatGPT or Perplexity.",
-        "Publish content across multiple cities or zip codes you serve on Growth and Pro plans.",
+        "Optimize your GBP and website for buyer, seller, and neighborhood-specific search terms.",
+        "Publish weekly neighborhood guides, market update articles, and local area content that rank for city searches.",
+        "Track Google rankings for 'real estate agent near me' and neighborhood-specific searches.",
+        "Monitor reviews on Google and Zillow, the two biggest trust signals for buyers and sellers.",
+        "Send backlink outreach to local news, community boards, and real estate directories.",
+        "Track AI search visibility. Home buyers increasingly use ChatGPT and Perplexity to find agents.",
       ]}
       ctaHref="/scan"
       ctaLabel="Run a free agent visibility scan"
