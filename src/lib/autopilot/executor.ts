@@ -753,67 +753,76 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         );
       }
       if (runProfile.outreachDrafts > 0) {
-        const [lead] = await db
-          .select({ email: leads.email })
-          .from(leads)
-          .where(eq(leads.businessId, businessId))
-          .orderBy(desc(leads.lastSeenAt))
-          .limit(1);
-        const businessName = business?.name ?? "GravyBlock customer";
-        const publishedReference = publishedUrls[0] ?? (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
-        const outreachTasks = Array.from({ length: runProfile.outreachDrafts }).map((_, idx) => {
-          const opportunity = backlinkRows[idx];
-          const pitch = `We just published a fresh local story update and would like to contribute a relevant resource entry for your audience. ${changeResult.summary}`;
-          return {
-            id: randomUUID(),
-            businessId,
-            title: `Outreach draft ${idx + 1}`,
-            detail: `Target ${opportunity?.targetUrl ?? "community source"} | angle local relevance update | pitch: ${pitch}`,
-            queue: "outreach_ops",
-            status: "draft_generated",
-          };
-        });
-        await db.insert(operatorTasks).values(outreachTasks);
-        for (let idx = 0; idx < outreachTasks.length; idx += 1) {
-          const task = outreachTasks[idx];
-          const opportunity = backlinkRows[idx];
-          if (!opportunity) continue;
-          const targetEmail = outreachEmailForTarget(opportunity.targetUrl, lead?.email ?? null);
-          if (!targetEmail) continue;
-          try {
-            const aiPitch = await generateOutreachPitch({
-              businessName,
-              city: cityFromAddress(business?.address),
-              targetName: opportunity.sourceName,
-              targetUrl: opportunity.targetUrl ?? "",
-              referenceUrl: publishedReference,
-              changeSummary: changeResult.summary,
-            });
-            const pitch = aiPitch ??
-              "We have a newly refreshed local visibility page and can provide an audience-relevant contribution tied to current service-area demand.";
-            const sendResult = await sendOutreachEmail({
-              to: targetEmail,
-              businessName,
-              targetName: opportunity.sourceName,
-              angle: "Local resource collaboration",
-              pitch,
-              referenceUrl: publishedReference,
-            });
-            if (sendResult.ok && !sendResult.skipped) {
-              await db.update(operatorTasks).set({ status: "sent" }).where(eq(operatorTasks.id, task.id));
-              await db.update(backlinkOpportunities).set({ status: "awaiting_response" }).where(eq(backlinkOpportunities.id, opportunity.id));
-              outreachSentThisRun += 1;
-            }
-          } catch (error) {
-            await db
-              .update(operatorTasks)
-              .set({
-                status: "draft_generated",
-                detail: `${task.detail} | send_error: ${error instanceof Error ? error.message : "unknown"}`,
-              })
+        // Use real prospects from the prospect-finder (not synthetic rows)
+        const realProspects = await db
+          .select({ id: backlinkOpportunities.id, sourceName: backlinkOpportunities.sourceName, targetUrl: backlinkOpportunities.targetUrl })
+          .from(backlinkOpportunities)
+          .where(and(eq(backlinkOpportunities.businessId, businessId), eq(backlinkOpportunities.status, "draft_generated")))
+          .orderBy(desc(backlinkOpportunities.qualityScore))
+          .limit(runProfile.outreachDrafts);
+
+        if (realProspects.length > 0) {
+          const [lead] = await db
+            .select({ email: leads.email })
+            .from(leads)
+            .where(eq(leads.businessId, businessId))
+            .orderBy(desc(leads.lastSeenAt))
+            .limit(1);
+          const businessName = business?.name ?? "GravyBlock customer";
+          const publishedReference = publishedUrls[0] ?? (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
+          const outreachTasks = realProspects.map((opportunity, idx) => {
+            const pitch = `We just published a fresh local story update and would like to contribute a relevant resource entry for your audience. ${changeResult.summary}`;
+            return {
+              id: randomUUID(),
+              businessId,
+              title: `Outreach draft ${idx + 1}`,
+              detail: `Target ${opportunity.targetUrl ?? "community source"} | angle local relevance update | pitch: ${pitch}`,
+              queue: "outreach_ops",
+              status: "draft_generated",
+            };
+          });
+          await db.insert(operatorTasks).values(outreachTasks);
+          for (let idx = 0; idx < outreachTasks.length; idx += 1) {
+            const task = outreachTasks[idx];
+            const opportunity = realProspects[idx];
+            if (!opportunity) continue;
+            const targetEmail = outreachEmailForTarget(opportunity.targetUrl, lead?.email ?? null);
+            if (!targetEmail) continue;
+            try {
+              const aiPitch = await generateOutreachPitch({
+                businessName,
+                city: cityFromAddress(business?.address),
+                targetName: opportunity.sourceName,
+                targetUrl: opportunity.targetUrl ?? "",
+                referenceUrl: publishedReference,
+                changeSummary: changeResult.summary,
+              });
+              const pitch = aiPitch ??
+                "We have a newly refreshed local visibility page and can provide an audience-relevant contribution tied to current service-area demand.";
+              const sendResult = await sendOutreachEmail({
+                to: targetEmail,
+                businessName,
+                targetName: opportunity.sourceName,
+                angle: "Local resource collaboration",
+                pitch,
+                referenceUrl: publishedReference,
+              });
+              if (sendResult.ok && !sendResult.skipped) {
+                await db.update(operatorTasks).set({ status: "sent" }).where(eq(operatorTasks.id, task.id));
+                await db.update(backlinkOpportunities).set({ status: "awaiting_response" }).where(eq(backlinkOpportunities.id, opportunity.id));
+                outreachSentThisRun += 1;
+              }
+            } catch (error) {
+              await db
+                .update(operatorTasks)
+                .set({
+                  status: "draft_generated",
+                  detail: `${task.detail} | send_error: ${error instanceof Error ? error.message : "unknown"}`,
+                })
               .where(eq(operatorTasks.id, task.id));
+            }
           }
-        }
+        } // end if (realProspects.length > 0)
       }
       actionItems.push({
         id: randomUUID(),
