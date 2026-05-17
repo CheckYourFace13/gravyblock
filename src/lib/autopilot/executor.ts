@@ -547,47 +547,63 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
 
       const queuedContentIds: string[] = [];
       const publishedUrls: string[] = [];
+      const bizName = business?.name ?? "Local business";
+      const bizCity = cityFromAddress(business?.address);
+      const bizVertical = business?.vertical ?? "local service";
+      // Article title/outline templates — real SEO copy, not stubs
+      const articleTemplates = [
+        {
+          title: `Why ${bizCity} Residents Choose ${bizName}`,
+          outline: `Write a 700-word local SEO article explaining why customers in ${bizCity} choose ${bizName} for ${bizVertical} services. Cover: what makes the business stand out locally, real benefits for ${bizCity} residents, common customer questions answered, and a clear call to action. Use a friendly, conversational tone.`,
+          keyword: `${bizVertical} ${bizCity}`,
+        },
+        {
+          title: `${bizName}: The ${bizCity} ${bizVertical} Guide`,
+          outline: `Write a 700-word guide covering everything ${bizCity} customers need to know about getting ${bizVertical} services from ${bizName}. Include: what services are offered, what to expect, how to get started, and why choosing a local business matters. Mention ${bizCity} specifically throughout.`,
+          keyword: `best ${bizVertical} in ${bizCity}`,
+        },
+        {
+          title: `Top ${bizVertical} Questions Answered — ${bizName} in ${bizCity}`,
+          outline: `Write a 700-word FAQ-style article where ${bizName} answers the most common questions ${bizCity} customers have about ${bizVertical}. Cover at least 5 specific questions with detailed, helpful answers. End with a clear call to action.`,
+          keyword: `${bizVertical} questions ${bizCity}`,
+        },
+        {
+          title: `How ${bizName} Serves the ${bizCity} Community`,
+          outline: `Write a 700-word local story about how ${bizName} has become part of the ${bizCity} community. Cover: local roots, how it meets local needs differently than national chains, what customers experience, and how to get in touch. Warm, community-focused tone.`,
+          keyword: `${bizName} ${bizCity}`,
+        },
+      ];
+      const locationTemplates = [
+        {
+          title: `${bizVertical} Services in ${bizCity} — ${bizName}`,
+          outline: `Write a 500-word location page for ${bizName} serving customers in ${bizCity}. Cover: specific services offered in this area, why local customers trust this business, service area coverage, and contact or booking information. Optimize for "${bizVertical} in ${bizCity}" searches.`,
+          keyword: `${bizVertical} in ${bizCity}`,
+        },
+        {
+          title: `Serving ${bizCity}: ${bizName}'s Local ${bizVertical} Promise`,
+          outline: `Write a 500-word location landing page for ${bizName} in ${bizCity}. Focus on: the specific neighborhoods and areas served, what makes their ${bizVertical} service right for ${bizCity} residents, testimonials context, and a direct call to action.`,
+          keyword: `${bizName} near ${bizCity}`,
+        },
+      ];
       const contentItems = Array.from({ length: runProfile.contentIdeas }).map((_, idx) => {
         const id = randomUUID();
         queuedContentIds.push(id);
+        const isLocationPage = idx < runProfile.localPages;
+        const template = isLocationPage
+          ? locationTemplates[idx % locationTemplates.length]!
+          : articleTemplates[(idx - runProfile.localPages) % articleTemplates.length]!;
         return {
           id,
           businessId,
-          kind: idx < runProfile.localPages ? "location_page" : "article",
-          title:
-            idx < runProfile.localPages
-              ? `Service-area story ${idx + 1}: local proof update`
-              : `Story ${idx + 1}: local demand update`,
+          kind: isLocationPage ? "location_page" : "article",
+          title: template.title,
           status: "generated",
-          variant: idx < runProfile.localPages ? "geo_variant" : "primary_market",
-          outline:
-            idx < runProfile.localPages
-              ? "Local page angle from refresh: update service area proof, local FAQ trust cues, and neighborhood coverage."
-              : "Story angle from refresh changes: explain what shifted and how the business helps now.",
-          targetKeyword:
-            idx < runProfile.localPages
-              ? "service area page"
-              : `local ${business?.vertical ?? "business"} guide`,
+          variant: isLocationPage ? "geo_variant" : "primary_market",
+          outline: template.outline,
+          targetKeyword: template.keyword,
         };
       });
       await db.insert(contentQueue).values(contentItems);
-
-      if (runProfile.drafts > 0) {
-        await db.insert(publishedContent).values(
-          Array.from({ length: runProfile.drafts }).map((_, idx) => ({
-            id: randomUUID(),
-            businessId,
-            locationId: null,
-            queueId: queuedContentIds[idx] ?? null,
-            title: `Draft article/page ${idx + 1} (${job.type})`,
-            body:
-              "Internal draft generated by recurring automation. Review before external publishing. External CMS autopublish depends on configured target.",
-            channel: "internal_draft",
-            publicUrl: null,
-            status: "draft",
-          })),
-        );
-      }
 
       if (runProfile.publishingJobs > 0) {
         const publishNowQueueIds = queuedContentIds.slice(0, runProfile.publishingJobs);
@@ -687,24 +703,9 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         })),
       );
 
-      const authorityTargets = [
-        "https://www.chamberofcommerce.com/",
-        "https://www.alignable.com/",
-        "https://nextdoor.com/",
-        "https://www.yelp.com/",
-      ];
-      const backlinkRows = Array.from({ length: runProfile.backlinkOpportunities }).map((_, idx) => ({
-        id: randomUUID(),
-        businessId,
-        locationId: null,
-        sourceName: `Authority opportunity ${idx + 1}`,
-        sourceType: "partner",
-        targetUrl: authorityTargets[idx % authorityTargets.length],
-        relevanceNote: "Opportunity generated from recurring refresh changes and current local visibility needs.",
-        qualityScore: Math.max(52, Math.min(90, nextScore - idx)),
-        status: "draft_generated",
-      }));
-      await db.insert(backlinkOpportunities).values(backlinkRows);
+      // Backlink opportunities are discovered by the real prospect-finder (monthly batch job)
+      // which finds actual local chambers, associations, and directories via Google Places.
+      // No synthetic placeholder rows — only real prospects show here.
 
       const actionItems: Array<{
         id: string;

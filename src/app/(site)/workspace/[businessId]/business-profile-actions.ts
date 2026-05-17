@@ -298,7 +298,7 @@ Return ONLY a valid JSON object with these exact keys (no markdown, no explanati
     temperature: 0.3,
   });
 
-  if (!raw) return { ok: false, error: "AI generation failed — check OPENROUTER_API_KEY" };
+  if (!raw) return { ok: false, error: "We couldn't generate suggestions right now — please try again in a moment." };
 
   try {
     const jsonMatch = raw.match(/\{[\s\S]*\}/);

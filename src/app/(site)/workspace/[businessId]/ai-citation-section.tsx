@@ -26,7 +26,7 @@ type Props = {
 };
 
 const ENGINE_DISPLAY_NAMES: Record<string, string> = {
-  gemini: "Google Gemini",
+  gemini: "Llama 3.1",
   llama: "Meta Llama",
   mistral: "Mistral AI",
 };
