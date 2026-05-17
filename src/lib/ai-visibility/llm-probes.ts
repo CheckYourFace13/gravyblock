@@ -19,7 +19,7 @@ const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "en
 
 // Models that approximate different AI search engines
 const PROBE_ENGINES = [
-  { model: "google/gemini-flash-1.5", engine: "gemini" },
+  { model: "google/gemini-2.0-flash-001", engine: "gemini" },
   { model: "meta-llama/llama-3.1-8b-instruct", engine: "llama" },
   { model: "mistralai/mistral-7b-instruct", engine: "mistral" },
 ];

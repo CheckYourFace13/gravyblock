@@ -9,7 +9,7 @@ type OpenRouterResponse = {
 
 // Model aliases — swap here to change cost/quality tradeoff globally
 export const MODELS = {
-  content: "google/gemini-flash-1.5",      // cheap, solid for local SEO articles
+  content: "google/gemini-2.0-flash-001",  // cheap, solid for local SEO articles
   outreach: "anthropic/claude-3-haiku",    // better writing for short persuasive copy
   visibility: "perplexity/sonar",           // real web search for AI mention checks
 } as const;
