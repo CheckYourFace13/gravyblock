@@ -144,7 +144,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Start Scale for $74.99 this month</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        Use code <strong>INTRO50</strong> at checkout and your first month of Growth is $74.99 instead of $149.99.
+        Use code <strong>INTRO50</strong> at checkout and your first month of Scale is $74.99 instead of $149.99.
       </p>
       <div style="margin:20px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
         <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b"<>Scale includes:</p>
@@ -257,7 +257,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
       </p>
       ${btn(`${siteUrl}/scan?plan=growth`, `Start autopilot for ${businessName}`)}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> at checkout — 50% off your first month.</p>
-    `),
+    `, email, leadId),
   },
   {
     day: 14,

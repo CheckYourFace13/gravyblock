@@ -259,7 +259,29 @@ export function ReportView({
                 </div>
               ) : null}
             </section>
-          ) : null}
+          ) : (
+            /* No businessId — cold visitor viewing a shared report */
+            <section className="rounded-2xl border border-red-200 bg-red-50/50 p-5 shadow-sm">
+              <h2 className="text-lg font-semibold text-zinc-900">Fix these issues automatically</h2>
+              <p className="mt-1 text-sm text-zinc-700">
+                GravyBlock can run all of this for your business — weekly content, citations, review monitoring, and backlink outreach. Scan your own business to get started free.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link
+                  href="/scan"
+                  className="inline-flex items-center justify-center rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500"
+                >
+                  Scan my business free →
+                </Link>
+                <Link
+                  href="/pricing"
+                  className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-700 hover:border-zinc-400"
+                >
+                  See pricing
+                </Link>
+              </div>
+            </section>
+          )}
 
           <AutopilotRoadmap rows={roadmapRows} />
 

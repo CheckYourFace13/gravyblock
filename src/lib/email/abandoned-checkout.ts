@@ -29,7 +29,7 @@ ${content}
 function buildEmail(businessName: string, plan: string): { subject: string; html: string } {
   const planLabel = plan === "growth" ? "Scale" : plan === "pro" ? "Pro" : "Starter";
   const planPrice = plan === "growth" ? "$74.99" : plan === "pro" ? "$149.99" : "$39.99";
-  const introPrice = plan === "growth" ? "$74.99" : plan === "pro" ? "$74.99" : "$39.99";
+  const introPrice = plan === "growth" ? "$74.99" : plan === "pro" ? "$74.99 first month (reg. $149.99)" : "$39.99";
 
   const subject = `You left ${businessName}'s plan unfinished`;
 

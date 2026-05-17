@@ -126,11 +126,11 @@ export default function HomePage() {
             GravyBlock publishes content, posts to Reddit, sends backlink outreach, monitors reviews, and tracks your Google rankings. <strong className="text-zinc-800">Every week, hands-free.</strong>
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
-            <Link href="/scan" className="rounded-full bg-zinc-900 px-7 py-3 text-sm font-semibold text-white hover:bg-zinc-800 shadow-sm">
-              Get my free visibility score
+            <Link href="/scan" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-semibold text-white hover:bg-red-500 shadow-sm">
+              Get my free visibility score →
             </Link>
-            <Link href="/scan?plan=growth" className="rounded-full bg-red-600 px-7 py-3 text-sm font-semibold text-white hover:bg-red-500 shadow-sm">
-              Start Scale — $74.99/mo
+            <Link href="/pricing" className="rounded-full border border-zinc-300 bg-white px-7 py-3.5 text-sm font-semibold text-zinc-700 hover:border-zinc-400 shadow-sm">
+              See pricing
             </Link>
           </div>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 pt-1 text-xs text-zinc-500">

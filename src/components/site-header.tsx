@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
 
@@ -9,6 +12,8 @@ const links = [
 ];
 
 export function SiteHeader() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <>
       {/* Announcement bar */}
@@ -23,6 +28,7 @@ export function SiteHeader() {
       <header className="border-b border-zinc-200/80 bg-white/90 backdrop-blur sticky top-0 z-40">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-1.5 sm:px-6">
           <BrandMark compact />
+          {/* Desktop nav */}
           <nav className="hidden flex-wrap items-center justify-end gap-5 text-sm font-medium text-zinc-600 lg:flex">
             {links.map((l) => (
               <Link key={l.href} href={l.href} className="transition hover:text-zinc-900">
@@ -43,8 +49,42 @@ export function SiteHeader() {
             >
               Free scan
             </Link>
+            {/* Mobile hamburger */}
+            <button
+              className="ml-1 flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 hover:bg-zinc-100 lg:hidden"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label="Toggle menu"
+            >
+              {menuOpen ? (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"/></svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"/></svg>
+              )}
+            </button>
           </div>
         </div>
+        {/* Mobile dropdown */}
+        {menuOpen && (
+          <nav className="border-t border-zinc-100 bg-white px-4 pb-4 pt-2 lg:hidden">
+            {links.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setMenuOpen(false)}
+                className="block py-2.5 text-sm font-medium text-zinc-700 hover:text-zinc-900"
+              >
+                {l.label}
+              </Link>
+            ))}
+            <Link
+              href="/login"
+              onClick={() => setMenuOpen(false)}
+              className="mt-1 block py-2.5 text-sm font-medium text-zinc-500 hover:text-zinc-900"
+            >
+              Log in
+            </Link>
+          </nav>
+        )}
       </header>
     </>
   );
