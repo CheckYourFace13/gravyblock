@@ -624,15 +624,17 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
           const publicPath = `/published/${artifactId}`;
           const publicUrl = `${base.replace(/\/$/, "")}${publicPath}`;
           publishedUrls.push(publicUrl);
-          // Feature #3: fetch brand voice for recurring jobs too
+          // Fetch brand voice, service area city, and geographic focus from config
           const [recurringBizConfig] = await db
-            .select({ brandVoice: businessConfigs.brandVoice })
+            .select({ brandVoice: businessConfigs.brandVoice, targetScope: businessConfigs.targetScope, focusArea: businessConfigs.focusArea })
             .from(businessConfigs)
             .where(eq(businessConfigs.businessId, businessId))
             .limit(1);
+          // Use the customer's configured service area city, fall back to Google address
+          const configuredCity = recurringBizConfig?.targetScope?.split(",")[0]?.trim();
           const generatorParams = {
             businessName: business?.name ?? "Local business",
-            city: cityFromAddress(business?.address),
+            city: configuredCity || cityFromAddress(business?.address),
             vertical: business?.vertical ?? null,
             title: queueRow.title,
             outline: queueRow.outline ?? "",
@@ -640,6 +642,7 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
             changeSummary: changeResult.summary,
             address: business?.address ?? null,
             brandVoice: recurringBizConfig?.brandVoice ?? null,
+            focusArea: recurringBizConfig?.focusArea ?? "local",
           };
           const aiBody = queueRow.kind === "location_page"
             ? await generateLocalPageBody(generatorParams)

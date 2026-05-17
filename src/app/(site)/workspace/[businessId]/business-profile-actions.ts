@@ -190,6 +190,13 @@ export async function saveBusinessProfile(
       });
     }
 
+    // Keep businesses table in sync so executor always reads current values
+    await db
+      .update(businesses)
+      .set({ focusArea: data.focusArea, targetScope: data.targetScope })
+      .where(eq(businesses.id, businessId))
+      .catch(() => {}); // non-fatal
+
     revalidatePath(`/workspace/${businessId}`);
     return { ok: true };
   } catch (err) {

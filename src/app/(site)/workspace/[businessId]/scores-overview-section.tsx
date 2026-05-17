@@ -79,7 +79,8 @@ export function ScoresOverviewSection({
   entityScore,
   entityGrade,
   scoreDelta,
-}: Props) {
+  hasContentPublishing = false,
+}: Props & { hasContentPublishing?: boolean }) {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -117,10 +118,17 @@ export function ScoresOverviewSection({
       <div className="rounded-2xl border border-red-100 bg-red-50/60 p-5">
         <p className="text-sm font-semibold text-red-900 mb-3">How GravyBlock is helping your scores</p>
         <ul className="space-y-1.5 text-sm text-zinc-700">
-          <li className="flex items-start gap-2">
-            <span className="mt-0.5 shrink-0 text-red-500">&#x2713;</span>
-            Publishing weekly articles to improve your AEO signals
-          </li>
+          {hasContentPublishing ? (
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0 text-red-500">&#x2713;</span>
+              Publishing weekly articles to improve your AEO signals
+            </li>
+          ) : (
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0 text-zinc-300">&#x2713;</span>
+              <span className="text-zinc-400">Weekly article publishing <a href="/pricing" className="text-red-600 underline">— upgrade to Scale</a></span>
+            </li>
+          )}
           <li className="flex items-start gap-2">
             <span className="mt-0.5 shrink-0 text-red-500">&#x2713;</span>
             Running monthly AI citation probes to track your GEO score

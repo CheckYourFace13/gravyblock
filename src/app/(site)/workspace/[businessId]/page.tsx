@@ -341,6 +341,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             entityScore={entityResult.score}
             entityGrade={entityResult.grade}
             scoreDelta={delta ?? null}
+            hasContentPublishing={features.contentDraftsPerMonth > 0}
           />
           {tier === "agency" ? (
             <a

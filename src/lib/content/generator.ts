@@ -28,8 +28,9 @@ type GenerateParams = {
   targetKeyword: string | null;
   changeSummary?: string;
   address?: string | null;
-  // Feature #3: Brand voice — injects business personality into every article
   brandVoice?: string | null;
+  /** Geographic focus — changes how city/location are used in content */
+  focusArea?: "local" | "regional" | "national" | "online" | string | null;
 };
 
 export async function generateArticleBody(params: GenerateParams): Promise<string | null> {
@@ -39,10 +40,12 @@ export async function generateArticleBody(params: GenerateParams): Promise<strin
       { role: "system", content: SYSTEM_PROMPT },
       {
         role: "user",
-        content: `Write a local SEO article for this business:
+        content: `Write a ${params.focusArea === "national" || params.focusArea === "online" ? "broad-reach" : "local SEO"} article for this business:
 
 Business name: ${params.businessName}
-City: ${params.city}
+${params.focusArea === "national" || params.focusArea === "online"
+  ? `Geographic focus: ${params.focusArea} (do NOT add a specific city — write for a national/online audience)`
+  : `City: ${params.city}`}
 Industry: ${params.vertical ?? "local business"}
 Article title: ${params.title}
 Target keyword: ${params.targetKeyword ?? "local services"}
@@ -54,7 +57,7 @@ Required structure (in order):
 3. 2-3 H2 sections each phrased as a question, each with body text and at least one numbered list or bullets
 4. One blockquote (> ...) with the most quotable sentence
 5. "Bottom line:" sentence
-6. Local CTA naming ${params.city}
+6. CTA${params.focusArea === "national" || params.focusArea === "online" ? "" : ` naming ${params.city}`}
 
 Write the full article in markdown now.`,
       },
