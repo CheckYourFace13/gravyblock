@@ -23,15 +23,21 @@ function buildScanUrl(prospect: Prospect): string {
 }
 
 function buildSubjectLine(prospect: Prospect): string {
-  const { businessName, rating, reviewCount } = prospect;
-  // A/B-style subject variety based on their specific weakness
-  if (reviewCount !== undefined && reviewCount < 20) {
-    return `${businessName} — your Google ranking`;
+  const { businessName, rating, reviewCount, city } = prospect;
+  // Specific, observation-based subjects — avoid anything that sounds like mass email
+  if (reviewCount !== undefined && reviewCount < 10) {
+    return `${businessName} — not showing up in the ${city} top 3`;
+  }
+  if (reviewCount !== undefined && reviewCount < 25) {
+    return `${businessName} — competitors have 3x more reviews`;
   }
   if (rating !== undefined && rating < 4.0) {
-    return `Quick note about ${businessName} on Google Maps`;
+    return `saw ${businessName} on Google Maps — quick note`;
   }
-  return `${businessName} — found something that could help`;
+  if (rating !== undefined && rating >= 4.5) {
+    return `${businessName} has great reviews — here's what's still holding it back`;
+  }
+  return `${businessName} — missing from the ${city} top 3`;
 }
 
 function buildTextEmail(prospect: Prospect, industryLabel: string): string {

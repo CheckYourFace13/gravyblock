@@ -106,7 +106,8 @@ const DRIP_SEQUENCE: DripEmail[] = [
         <p style="margin:12px 0 0;font-size:13px;font-weight:700;color:#18181b">Week 4</p>
         <p style="margin:6px 0 0;font-size:13px;color:#52525b">Monthly visibility refresh runs. Score updates. Summary email with everything that was done and what is queued next.</p>
       </div>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Start Growth today")}
+      ${btn(`${siteUrl}/scan?plan=starter`, "Start Starter — $39.99 first month")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> at checkout. Scale plan available at $74.99 first month if you want full autopilot.</p>
     `),
   },
   {
@@ -156,24 +157,20 @@ const DRIP_SEQUENCE: DripEmail[] = [
   },
   {
     day: 7,
-    subject: ({ businessName }) => `Quick question about ${businessName}`,
-    html: ({ name, businessName, reportUrl, scanUrl }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Check In</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">What is holding you back?</h1>
-      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">
-        You ran a free scan for ${businessName} a week ago. Most people who do not start a plan tell us one of three things:
+    subject: ({ businessName }) => `still thinking about it?`,
+    html: ({ name, businessName, reportUrl }) => wrap(`
+      <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">Hi ${name},</p>
+      <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">
+        I noticed you haven't started a plan for ${businessName} yet. That's fine — just didn't want the report to get buried.
       </p>
-      <ul style="margin:8px 0 0;padding-left:20px;color:#3f3f46;font-size:14px;line-height:2">
-        <li><strong>"I'm not sure it will work for my type of business."</strong></li>
-        <li><strong>"The price isn't right yet."</strong></li>
-        <li><strong>"I got busy and forgot."</strong></li>
-      </ul>
-      <p style="color:#52525b;font-size:14px;margin:16px 0">
-        If it's #3 — your report is still there. Starter is $39.99 first month with code <strong>INTRO50</strong>. No contract, cancel any time.
+      <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">
+        If the price is the thing, Starter is $39.99 for the first month with code <strong>INTRO50</strong>. That's less than most businesses spend on a single Google Ads click.
       </p>
-      ${btn(`${siteUrl}/scan?plan=starter`, "Start Starter — $39.99 first month")}
-      <p style="color:#71717a;font-size:13px;margin:16px 0">Reply to this email with any questions. A real person will answer.</p>
+      <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">
+        If you're not sure it'll work for your type of business — just reply and tell me what ${businessName} does. I'll give you an honest answer.
+      </p>
+      ${btn(`${siteUrl}/scan?plan=starter`, "Start for $39.99 — code INTRO50")}
+      <p style="color:#71717a;font-size:13px;margin:16px 0">No pressure. Your free report is still at: <a href="${reportUrl}" style="color:#dc2626">${reportUrl}</a></p>
     `),
   },
   {
@@ -213,6 +210,26 @@ const DRIP_SEQUENCE: DripEmail[] = [
     `),
   },
   {
+    day: 9,
+    subject: ({ businessName }) => `3 things ${businessName} can fix on Google right now (free)`,
+    html: ({ name, businessName, reportUrl }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Free Tips</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">3 quick wins — no tool required</h1>
+      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">Whether or not you ever use GravyBlock, here are three things that move the needle for almost every local business:</p>
+      <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
+        <p style="margin:0;font-size:14px;font-weight:700;color:#18181b">1. Reply to every Google review — even old ones</p>
+        <p style="margin:6px 0 16px;font-size:13px;color:#52525b">Google's algorithm rewards engagement. Replying to reviews (5-star and 1-star) signals an active business. Most owners ignore this completely.</p>
+        <p style="margin:0;font-size:14px;font-weight:700;color:#18181b">2. Make sure your business name, address, and phone match everywhere</p>
+        <p style="margin:6px 0 16px;font-size:13px;color:#52525b">Check Google, Yelp, Facebook, and your website. If the info is inconsistent, Google lowers your local rank. This is one of the most common and easily fixed issues.</p>
+        <p style="margin:0;font-size:14px;font-weight:700;color:#18181b">3. Add a "services" section to your Google Business Profile</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#52525b">Most profiles skip this. Adding your specific services (not just your category) helps Google match you to more searches.</p>
+      </div>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">GravyBlock monitors and automates all three of these for ${businessName} — but if you want to do it manually first, start there.</p>
+      ${btn(`${reportUrl}`, "See the full report for ${businessName}".replace("${businessName}", businessName))}
+    `),
+  },
+  {
     day: 10,
     subject: ({ businessName, vertical }) => `How other ${vertical ? vertical.toLowerCase() + "s" : "local businesses"} use GravyBlock`,
     html: ({ name, businessName, vertical }) => wrap(`
@@ -232,7 +249,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         None of this requires you to learn SEO. It just runs.
       </p>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Start autopilot for ${businessName}")}
+      ${btn(`${siteUrl}/scan?plan=growth`, `Start autopilot for ${businessName}`)}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> at checkout — 50% off your first month.</p>
     `),
   },
