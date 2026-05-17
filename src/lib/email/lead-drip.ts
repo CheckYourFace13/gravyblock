@@ -423,6 +423,8 @@ export async function runLeadDripBatch(): Promise<{ sent: number; skipped: numbe
       vertical: lead.vertical,
       reportUrl,
       scanUrl: `${siteUrl}/scan`,
+      email: lead.email,
+      leadId: lead.id,
     };
 
     try {
