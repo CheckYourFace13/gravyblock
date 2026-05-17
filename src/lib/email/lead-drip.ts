@@ -255,7 +255,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         None of this requires you to learn SEO. It just runs.
       </p>
-      ${btn(`${siteUrl}/scan?plan=growth`, `Start autopilot for ${businessName}`, email, leadId)}
+      ${btn(`${siteUrl}/scan?plan=growth`, `Start autopilot for ${businessName}`)}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> at checkout — 50% off your first month.</p>
     `),
   },
