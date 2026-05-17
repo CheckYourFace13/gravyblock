@@ -108,7 +108,7 @@ Return only the email body, no subject line.`;
         "http-referer": process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-001",
+        model: "meta-llama/llama-3.1-8b-instruct:free",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 250,
         temperature: 0.7,

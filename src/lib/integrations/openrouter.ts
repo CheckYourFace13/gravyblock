@@ -9,9 +9,9 @@ type OpenRouterResponse = {
 
 // Model aliases — swap here to change cost/quality tradeoff globally
 export const MODELS = {
-  content: "google/gemini-2.0-flash-001",  // cheap, solid for local SEO articles
-  outreach: "anthropic/claude-3-haiku",    // better writing for short persuasive copy
-  visibility: "perplexity/sonar",           // real web search for AI mention checks
+  content: "meta-llama/llama-3.1-8b-instruct:free",  // free tier, solid for local SEO content
+  outreach: "meta-llama/llama-3.1-8b-instruct:free", // free tier for short copy
+  visibility: "meta-llama/llama-3.1-8b-instruct:free", // free tier for AI mention checks
 } as const;
 
 export async function openRouterChat(params: {
