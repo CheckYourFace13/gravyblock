@@ -298,7 +298,35 @@ Return ONLY a valid JSON object with these exact keys (no markdown, no explanati
     temperature: 0.3,
   });
 
-  if (!raw) return { ok: false, error: "We couldn't generate suggestions right now — please try again in a moment." };
+  // If AI is unavailable, build a basic profile directly from scraped + Google data
+  if (!raw) {
+    const city = biz.address?.split(",")[1]?.trim() ?? "";
+    const state = biz.address?.split(",")[2]?.trim()?.split(/\s+/)[0] ?? "";
+    const vertical = biz.primaryCategory ?? biz.vertical ?? "local business";
+    const fallbackProfile: BusinessProfileData = {
+      serviceDescription: websiteText
+        ? websiteText.slice(0, 300).replace(/\s+/g, " ").trim()
+        : `${biz.name} is a ${vertical} serving ${city}${state ? ", " + state : ""}.`,
+      uniqueSellingPoints: findings.length
+        ? findings.slice(0, 4).map((f) => `• ${f.title}`).join("\n")
+        : `• Local ${vertical} serving ${city}\n• ${biz.reviewCount ?? 0} Google reviews`,
+      tone: "friendly",
+      brandVoice: `Clear, helpful, and locally-focused content for ${city} customers.`,
+      targetKeywords: `${vertical} ${city}, ${vertical} near me, best ${vertical} in ${city}`,
+      targetCities: `${city}${state ? ", " + state : ""} (within 25 miles)`,
+      competitorNames: "",
+      additionalContext: "",
+      focusArea: "local",
+      targetScope: `${city}${state ? ", " + state : ""}`,
+      instagramHandle: igProfile?.handle ? (igProfile.handle.startsWith("@") ? igProfile.handle : `@${igProfile.handle}`) : (igProfile?.url ?? ""),
+      facebookUrl: fbProfile?.url ?? "",
+    };
+    return {
+      ok: true,
+      profile: fallbackProfile,
+      sources: { websiteScraped: websiteOk, socialFound: socialFoundPlatforms, websiteUrl: biz.website },
+    };
+  }
 
   try {
     const jsonMatch = raw.match(/\{[\s\S]*\}/);

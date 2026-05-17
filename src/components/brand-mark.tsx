@@ -15,7 +15,7 @@ export function BrandMark({
         alt="GravyBlock"
         width={compact ? 180 : 183}
         height={compact ? 96 : 97}
-        className={compact ? "h-14 w-auto shrink-0" : "h-14 w-auto shrink-0"}
+        className={compact ? "h-16 w-auto shrink-0" : "h-20 w-auto shrink-0"}
         priority
       />
     </Link>
