@@ -1,4 +1,5 @@
 import type { Prospect } from "./prospect-finder";
+import { isOptedOut, coldOutreachFooter } from "@/lib/email/optout";
 
 type SendEmailResult = { ok: boolean; skipped?: boolean; reason?: string };
 
@@ -72,11 +73,11 @@ Either way, the scan is free and takes a minute.
 ${SENDER_NAME}
 ${SENDER_TITLE} — https://gravyblock.com
 
-P.S. — I send these personally when I notice a business that could be ranking higher. No CRM blast, no unsubscribe needed — just reply and I'll stop.`;
+P.S. — I send these personally when I notice a business that could be ranking higher. Reply to stop receiving these.`;
 }
 
-function buildHtmlEmail(prospect: Prospect, industryLabel: string): string {
-  const { businessName, city, rating, reviewCount, weaknessReasons } = prospect;
+function buildHtmlEmail(prospect: Prospect & { emailTo?: string }, industryLabel: string): string {
+  const { businessName, city, rating, reviewCount, weaknessReasons, emailTo = "" } = prospect;
   const scanUrl = buildScanUrl(prospect);
 
   const reviewStr =
@@ -143,10 +144,7 @@ function buildHtmlEmail(prospect: Prospect, industryLabel: string): string {
 
   <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
 
-  <p style="font-size:12px;color:#999;margin:0">
-    I send these personally when I notice a business that could be ranking higher.
-    No CRM blast, no unsubscribe link needed — just reply and I'll stop.
-  </p>
+  ${coldOutreachFooter(emailTo)}
 
 </body>
 </html>`;
@@ -175,6 +173,15 @@ export async function sendProspectEmail(
   if (candidates.length === 0) return { ok: false, skipped: true, reason: "could not parse website domain" };
 
   const toEmail = candidates[0]!; // send to primary; others are fallback for future retry logic
+
+  // Skip opted-out addresses
+  if (await isOptedOut(toEmail)) {
+    return { ok: false, skipped: true, reason: "opted out" };
+  }
+
+  // Attach the recipient email to the prospect so the HTML footer can build the unsubscribe link
+  (prospect as Prospect & { emailTo?: string }).emailTo = toEmail;
+
   const industryLabel = senderContext?.industryLabel ?? "local business";
 
   const subject = buildSubjectLine(prospect);

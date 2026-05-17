@@ -1,5 +1,6 @@
 import { and, eq, gte, inArray, lt, ne, notInArray, sql } from "drizzle-orm";
 import { getDb, leads, businesses, jobs, visibilitySnapshots } from "@/lib/db";
+import { isOptedOut, unsubscribeFooter } from "@/lib/email/optout";
 
 const DRIP_DAYS = 14;
 
@@ -16,6 +17,8 @@ type DripContext = {
   vertical: string | null;
   reportUrl: string;
   scanUrl: string;
+  email: string;
+  leadId: string;
 };
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
@@ -24,12 +27,15 @@ function btn(href: string, label: string, style = "#dc2626") {
   return `<a href="${href}" style="display:inline-block;background:${style};color:#fff;font-weight:700;font-size:13px;padding:10px 24px;border-radius:100px;text-decoration:none">${label}</a>`;
 }
 
-function wrap(content: string) {
+function wrap(content: string, email = "", leadId = "") {
+  const footer = email
+    ? unsubscribeFooter(email, leadId || undefined)
+    : `<p style="margin:32px 0 0;font-size:12px;color:#a1a1aa;text-align:center">GravyBlock &middot; <a href="${siteUrl}/scan" style="color:#a1a1aa">Run another scan</a></p>`;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="font-family:system-ui,sans-serif;background:#f9f9f9;margin:0;padding:24px">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e4e4e7;padding:32px">
 ${content}
-<p style="margin:32px 0 0;font-size:12px;color:#a1a1aa">GravyBlock &middot; <a href="${siteUrl}/scan" style="color:#a1a1aa">Run another scan</a></p>
+${footer}
 </div></body></html>`;
 }
 
@@ -38,7 +44,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
     day: 1,
     subject: ({ businessName, score }) =>
       score ? `${businessName} scored ${score} on your free local SEO scan` : `Your free local SEO scan for ${businessName}`,
-    html: ({ name, businessName, score, reportUrl }) => wrap(`
+    html: ({ name, businessName, score, reportUrl, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Your Scan Results</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Hi ${name}, here is what we found</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">
@@ -49,12 +55,12 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#71717a;font-size:13px;margin:20px 0 0">
         The biggest drivers of local search rankings are Google Business Profile completeness, review volume and recency, consistent citations across directories, and published local content. Your report shows exactly where ${businessName} stands on each.
       </p>
-    `),
+    `, email, leadId),
   },
   {
     day: 2,
     subject: ({ businessName }) => `The most common reason ${businessName} loses customers before they call`,
-    html: ({ name, businessName, scanUrl }) => wrap(`
+    html: ({ name, businessName, scanUrl, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Local SEO Insight</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Most customers decide before they call</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
@@ -68,12 +74,12 @@ const DRIP_SEQUENCE: DripEmail[] = [
         GravyBlock fixes all of that automatically. Every month it refreshes your visibility score, queues citation fixes, and generates content ideas to keep your listing fresh and competitive.
       </p>
       ${btn(`${siteUrl}/scan?plan=starter`, "Start Starter for $39.99 introductory")}
-    `),
+    `, email, leadId),
   },
   {
     day: 3,
     subject: ({ businessName }) => `Is ${businessName} showing up when people ask ChatGPT for recommendations?`,
-    html: ({ name, businessName, scanUrl }) => wrap(`
+    html: ({ name, businessName, scanUrl, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">AI Search Visibility</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">AI assistants are the new word of mouth</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
@@ -87,12 +93,12 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#71717a;font-size:13px;margin:16px 0">
         Scale includes AI visibility monitoring, weekly refreshes, published content, and Reddit outreach. Use code <strong>INTRO50</strong> for 50% off your first month.
       </p>
-    `),
+    `, email, leadId),
   },
   {
     day: 4,
     subject: ({ businessName }) => `What 30 days of autopilot looks like for ${businessName}`,
-    html: ({ name, businessName }) => wrap(`
+    html: ({ name, businessName, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">What to Expect</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Here is what happens in month one</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
@@ -108,12 +114,12 @@ const DRIP_SEQUENCE: DripEmail[] = [
       </div>
       ${btn(`${siteUrl}/scan?plan=starter`, "Start Starter — $39.99 first month")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> at checkout. Scale plan available at $74.99 first month if you want full autopilot.</p>
-    `),
+    `, email, leadId),
   },
   {
     day: 5,
     subject: ({ businessName }) => `Your competitors are publishing content. ${businessName} should be too.`,
-    html: ({ name, businessName, vertical }) => wrap(`
+    html: ({ name, businessName, vertical, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Content and Rankings</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Local content drives local rankings</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
@@ -128,12 +134,12 @@ const DRIP_SEQUENCE: DripEmail[] = [
       </p>
       ${btn(`${siteUrl}/scan?plan=growth`, "Get content running for $74.99/mo")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> for 50% off your first month.</p>
-    `),
+    `, email, leadId),
   },
   {
     day: 6,
     subject: ({ businessName }) => `50% off this week: GravyBlock Scale for ${businessName}`,
-    html: ({ name, businessName }) => wrap(`
+    html: ({ name, businessName, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Limited Offer</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Start Scale for $74.99 this month</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
@@ -153,12 +159,12 @@ const DRIP_SEQUENCE: DripEmail[] = [
       </div>
       ${btn(`${siteUrl}/scan?plan=growth`, "Claim 50% off Scale — code INTRO50")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Enter code <strong>INTRO50</strong> at checkout. Applies to first month only. Regular pricing of $149.99/month resumes at renewal.</p>
-    `),
+    `, email, leadId),
   },
   {
     day: 7,
     subject: ({ businessName }) => `still thinking about it?`,
-    html: ({ name, businessName, reportUrl }) => wrap(`
+    html: ({ name, businessName, reportUrl, email, leadId }) => wrap(`
       <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">
         I noticed you haven't started a plan for ${businessName} yet. That's fine — just didn't want the report to get buried.
@@ -171,12 +177,12 @@ const DRIP_SEQUENCE: DripEmail[] = [
       </p>
       ${btn(`${siteUrl}/scan?plan=starter`, "Start for $39.99 — code INTRO50")}
       <p style="color:#71717a;font-size:13px;margin:16px 0">No pressure. Your free report is still at: <a href="${reportUrl}" style="color:#dc2626">${reportUrl}</a></p>
-    `),
+    `, email, leadId),
   },
   {
     day: 8,
     subject: ({ businessName }) => `What ${businessName}'s Google listing looks like to customers right now`,
-    html: ({ name, businessName, score, reportUrl }) => wrap(`
+    html: ({ name, businessName, score, reportUrl, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Visibility Check</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Your listing right now vs. 30 days from now</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
@@ -207,12 +213,12 @@ const DRIP_SEQUENCE: DripEmail[] = [
         </div>
       </div>
       ${btn(`${siteUrl}/scan?plan=starter`, "Start for $39.99 — code INTRO50")}
-    `),
+    `, email, leadId),
   },
   {
     day: 9,
     subject: ({ businessName }) => `3 things ${businessName} can fix on Google right now (free)`,
-    html: ({ name, businessName, reportUrl }) => wrap(`
+    html: ({ name, businessName, reportUrl, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Free Tips</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">3 quick wins — no tool required</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
@@ -227,12 +233,12 @@ const DRIP_SEQUENCE: DripEmail[] = [
       </div>
       <p style="color:#52525b;font-size:14px;margin:12px 0">GravyBlock monitors and automates all three of these for ${businessName} — but if you want to do it manually first, start there.</p>
       ${btn(`${reportUrl}`, "See the full report for ${businessName}".replace("${businessName}", businessName))}
-    `),
+    `, email, leadId),
   },
   {
     day: 10,
     subject: ({ businessName, vertical }) => `How other ${vertical ? vertical.toLowerCase() + "s" : "local businesses"} use GravyBlock`,
-    html: ({ name, businessName, vertical }) => wrap(`
+    html: ({ name, businessName, vertical, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">How It Works in Practice</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">The first 30 days, step by step</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
@@ -249,14 +255,14 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         None of this requires you to learn SEO. It just runs.
       </p>
-      ${btn(`${siteUrl}/scan?plan=growth`, `Start autopilot for ${businessName}`)}
+      ${btn(`${siteUrl}/scan?plan=growth`, `Start autopilot for ${businessName}`, email, leadId)}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> at checkout — 50% off your first month.</p>
     `),
   },
   {
     day: 14,
     subject: ({ businessName }) => `${businessName}: the INTRO50 code expires soon`,
-    html: ({ name, businessName, reportUrl }) => wrap(`
+    html: ({ name, businessName, reportUrl, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#dc2626">Offer Expiring</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Last chance at 50% off</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
@@ -276,7 +282,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
         After this email, GravyBlock will not contact you again unless you run a new scan. Your report for ${businessName} stays available at the link below.
       </p>
       <p style="margin:8px 0;font-size:13px"><a href="${reportUrl}" style="color:#dc2626">${reportUrl}</a></p>
-    `),
+    `, email, leadId),
   },
 ];
 
@@ -355,6 +361,7 @@ export async function runLeadDripBatch(): Promise<{ sent: number; skipped: numbe
       and(
         gte(leads.createdAt, cutoffDate),
         ne(leads.pipelineStatus, "converted"),
+        ne(leads.pipelineStatus, "unsubscribed"),
         ne(leads.email, ""),
       ),
     )
@@ -375,8 +382,12 @@ export async function runLeadDripBatch(): Promise<{ sent: number; skipped: numbe
   let skipped = 0;
 
   for (const lead of allLeads) {
-    // Skip if they converted
+    // Skip if they converted or opted out
     if (convertedEmails.has(lead.email.toLowerCase())) {
+      skipped++;
+      continue;
+    }
+    if (await isOptedOut(lead.email)) {
       skipped++;
       continue;
     }
