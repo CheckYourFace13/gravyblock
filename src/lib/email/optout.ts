@@ -3,7 +3,7 @@
  * Used by both the drip sequence and cold outreach to check + generate unsubscribe links.
  */
 
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { getDb, jobs } from "@/lib/db";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
@@ -31,8 +31,7 @@ export async function isOptedOut(email: string): Promise<boolean> {
   const [row] = await db
     .select({ id: jobs.id })
     .from(jobs)
-    .where(eq(jobs.type, "email_optout"))
-    .where(eq(sql`lower(payload->>'email')`, email.toLowerCase()))
+    .where(and(eq(jobs.type, "email_optout"), eq(sql`lower(payload->>'email')`, email.toLowerCase())))
     .limit(1)
     .catch(() => []);
 

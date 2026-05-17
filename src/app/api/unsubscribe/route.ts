@@ -10,7 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { getDb, leads, jobs } from "@/lib/db";
 
 function decodeEmail(encoded: string): string | null {
@@ -86,8 +86,7 @@ export async function GET(request: NextRequest) {
     const alreadyOptedOut = await db
       .select({ id: jobs.id })
       .from(jobs)
-      .where(eq(jobs.type, "email_optout"))
-      .where(eq(sql`lower(payload->>'email')`, email.toLowerCase()))
+      .where(and(eq(jobs.type, "email_optout"), eq(sql`lower(payload->>'email')`, email.toLowerCase())))
       .limit(1)
       .catch(() => []);
 
