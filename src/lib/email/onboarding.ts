@@ -7,12 +7,15 @@ function btn(href: string, label: string, color = "#dc2626") {
   return `<a href="${href}" style="display:inline-block;background:${color};color:#fff;font-weight:700;font-size:13px;padding:10px 24px;border-radius:100px;text-decoration:none">${label}</a>`;
 }
 
-function wrap(content: string) {
+function wrap(content: string, email?: string) {
+  const unsub = email
+    ? ` &middot; <a href="${siteUrl}/api/unsubscribe?e=${Buffer.from(email.toLowerCase()).toString("base64url")}" style="color:#a1a1aa">Unsubscribe</a>`
+    : "";
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="font-family:system-ui,sans-serif;background:#f9f9f9;margin:0;padding:24px">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e4e4e7;padding:32px">
 ${content}
-<p style="margin:32px 0 0;font-size:12px;color:#a1a1aa">GravyBlock &middot; <a href="${siteUrl}" style="color:#a1a1aa">gravyblock.com</a></p>
+<p style="margin:32px 0 0;font-size:12px;color:#a1a1aa">GravyBlock &middot; <a href="${siteUrl}" style="color:#a1a1aa">gravyblock.com</a>${unsub}</p>
 </div></body></html>`;
 }
 
@@ -22,6 +25,7 @@ type OnboardCtx = {
   planLabel: string;
   workspaceUrl: string;
   score: number | null;
+  email?: string;
 };
 
 type OnboardEmail = {
@@ -34,34 +38,40 @@ const ONBOARD_SEQUENCE: OnboardEmail[] = [
   {
     day: 1,
     subject: ({ businessName, planLabel }) => `Welcome to GravyBlock — ${businessName} is now on ${planLabel}`,
-    html: ({ firstName, businessName, planLabel, workspaceUrl, score }) => wrap(`
+    html: ({ firstName, businessName, planLabel, workspaceUrl, score, email }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Welcome to GravyBlock</p>
       <h1 style="margin:8px 0 0;font-size:22px;font-weight:700;color:#18181b">You are all set, ${firstName}</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">
-        ${businessName} is now on <strong>${planLabel}</strong>. Your automation is running.
+        ${businessName} is now on <strong>${planLabel}</strong>. Your automation is live.
         ${score !== null ? ` Current visibility score: <strong>${score}/100</strong>.` : ""}
       </p>
+      <div style="margin:16px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#991b1b">One action to do right now (5 minutes)</p>
+        <p style="margin:0;font-size:13px;color:#3f3f46;line-height:1.6">
+          Open your workspace and complete the <strong>Business Profile</strong> — your services, target city, and brand voice.
+          This is what GravyBlock uses to write content specifically about your business. Skip it and articles will be generic.
+        </p>
+      </div>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        Here is what happens next:
+        After that, here is what runs automatically:
       </p>
       <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
         <ul style="margin:0;padding-left:20px;color:#3f3f46;font-size:13px;line-height:2">
-          <li>Your first automation run will execute on schedule</li>
-          <li>Content ideas, citation tasks, and review tasks will queue automatically</li>
-          <li>You will receive a monthly summary email with everything that was done</li>
-          <li>Log into your workspace anytime to see the latest activity</li>
+          <li>Content ideas, citation tasks, and review tasks queue within 24 hours</li>
+          <li>Your first article will be published to your site on the next scheduled run</li>
+          <li>Monthly summary email arrives with everything that was done</li>
         </ul>
       </div>
-      ${btn(workspaceUrl, "Open my workspace")}
+      ${btn(workspaceUrl, "Complete my business profile →")}
       <p style="color:#71717a;font-size:13px;margin:20px 0 0">
         Questions? Reply to this email and we will get back to you quickly.
       </p>
-    `),
+    `, email),
   },
   {
     day: 3,
     subject: ({ businessName }) => `3 things to do this week for ${businessName}`,
-    html: ({ firstName, businessName, workspaceUrl }) => wrap(`
+    html: ({ firstName, businessName, workspaceUrl, email }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Quick Wins</p>
       <h1 style="margin:8px 0 0;font-size:22px;font-weight:700;color:#18181b">3 things worth doing this week</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${firstName},</p>
@@ -83,12 +93,12 @@ const ONBOARD_SEQUENCE: OnboardEmail[] = [
         </div>
       </div>
       ${btn(workspaceUrl, "Open my workspace")}
-    `),
+    `, email),
   },
   {
     day: 7,
     subject: ({ businessName }) => `First week recap: what GravyBlock has done for ${businessName}`,
-    html: ({ firstName, businessName, planLabel, workspaceUrl, score }) => wrap(`
+    html: ({ firstName, businessName, planLabel, workspaceUrl, score, email }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Week One</p>
       <h1 style="margin:8px 0 0;font-size:22px;font-weight:700;color:#18181b">Your first week on ${planLabel}</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${firstName},</p>
@@ -111,7 +121,7 @@ const ONBOARD_SEQUENCE: OnboardEmail[] = [
       <p style="color:#71717a;font-size:13px;margin:20px 0 0">
         Need help getting more out of GravyBlock? Reply to this email — we read every response.
       </p>
-    `),
+    `, email),
   },
 ];
 
@@ -225,6 +235,7 @@ export async function runOnboardingBatch(): Promise<{ sent: number; skipped: num
         planLabel,
         workspaceUrl: `${siteUrl}/workspace/${biz.id}`,
         score,
+        email: biz.billingEmail,
       };
 
       try {

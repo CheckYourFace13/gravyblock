@@ -680,6 +680,102 @@ export const COMPARE_PAGES: Record<string, ComparePage> = {
       ],
     },
   },
+
+  "gravyblock-vs-whitespark": {
+    slug: "gravyblock-vs-whitespark",
+    metaTitle: "GravyBlock vs Whitespark: local SEO for small businesses | GravyBlock",
+    metaDescription: "GravyBlock vs Whitespark for local SEO. Whitespark provides rank trackers and citation tools. GravyBlock automates the whole workflow — content, citations, reviews, and outreach — hands-free.",
+    model: {
+      eyebrow: "GravyBlock vs Whitespark",
+      title: "GravyBlock vs Whitespark: rank tracking vs. full autopilot",
+      intro: "Whitespark makes excellent rank tracking and citation tools. GravyBlock is a different kind of product — it does the work automatically instead of showing you what to do next.",
+      meaningForBusiness: "If you want to track your rankings yourself and manually manage citations, Whitespark is a good fit. If you want a platform that publishes content, builds citations, and runs outreach without logging in, GravyBlock is built for you.",
+      sections: [
+        {
+          title: "What Whitespark does well",
+          body: "Whitespark's Local Rank Tracker and Citation Finder are among the best data tools in the local SEO industry. Agencies and advanced operators use them to benchmark and report accurately.",
+          bullets: [
+            "Local Rank Tracker shows Google Map Pack and organic positions across any city.",
+            "Citation Finder identifies where you're listed and where competitors have citations you don't.",
+            "Reputation Builder helps collect and manage reviews.",
+          ],
+        },
+        {
+          title: "Where Whitespark is a mismatch for owner-operators",
+          body: "Whitespark gives you data. You still have to do everything yourself — submit citations manually, create content, send outreach, respond to reviews. It's a toolkit, not an autopilot.",
+          bullets: [
+            "Local Rank Tracker starts at $17–$83/month and gives you data only, no fixes.",
+            "Citation building is a paid-per-location service, not automatic.",
+            "No content publishing, no Reddit posting, no backlink outreach automation.",
+          ],
+        },
+        {
+          title: "What GravyBlock does differently",
+          body: "GravyBlock combines local visibility tracking with actual automated execution. You run a free scan, see your score, and on a paid plan the platform starts publishing articles, running outreach, and monitoring your citations — automatically, every week.",
+          bullets: [
+            "Free scan in 60 seconds — no setup, no credit card.",
+            "Weekly AI articles published to your website automatically.",
+            "Citation accuracy monitoring built in — no manual checking.",
+            "Reddit, Facebook, and Instagram auto-posting on Scale and above.",
+            "AI citation monitor tracks whether ChatGPT and Perplexity mention your business.",
+          ],
+        },
+      ],
+      relatedLinks: [
+        { href: "/scan", label: "Run a free GravyBlock scan" },
+        { href: "/pricing", label: "GravyBlock plans and pricing" },
+        ...links,
+      ],
+    },
+  },
+
+  "gravyblock-vs-gmb-everywhere": {
+    slug: "gravyblock-vs-gmb-everywhere",
+    metaTitle: "GravyBlock vs GMB Everywhere: local SEO automation | GravyBlock",
+    metaDescription: "GravyBlock vs GMB Everywhere. GMB Everywhere is a Chrome extension for GBP research. GravyBlock is a full autopilot platform that publishes content, manages reviews, and runs outreach weekly.",
+    model: {
+      eyebrow: "GravyBlock vs GMB Everywhere",
+      title: "GravyBlock vs GMB Everywhere: research tool vs. full autopilot",
+      intro: "GMB Everywhere is a popular Chrome extension for auditing Google Business Profiles. GravyBlock is a complete local SEO automation platform — it researches, executes, and publishes on your behalf every week.",
+      meaningForBusiness: "GMB Everywhere helps you see what competitors are doing. GravyBlock automatically does what competitors are doing better than you — and more.",
+      sections: [
+        {
+          title: "What GMB Everywhere does well",
+          body: "GMB Everywhere is a fast, lightweight tool for auditing Google Business Profiles from the browser. It's popular for seeing competitor categories, attributes, Q&A, and post history without logging into GBP.",
+          bullets: [
+            "Shows Google Business Profile categories, attributes, and review patterns at a glance.",
+            "Useful for competitor research before optimizing your own profile.",
+            "Low cost — a one-time or low monthly fee for the Chrome extension.",
+          ],
+        },
+        {
+          title: "Where GMB Everywhere ends",
+          body: "GMB Everywhere is a research tool. It tells you what to look at. It does not publish content, build citations, send outreach emails, respond to reviews, or monitor your AI search presence. After using it, you still have a full to-do list.",
+          bullets: [
+            "No content publishing — you still need a writer and a posting workflow.",
+            "No automation — every action requires you to log in and execute manually.",
+            "No recurring monitoring — you have to remember to check manually.",
+          ],
+        },
+        {
+          title: "What GravyBlock does differently",
+          body: "GravyBlock starts with the same kind of profile audit, then actually does the work. Every week it publishes content, tracks your rankings, monitors AI search visibility, and sends outreach — without you having to do anything.",
+          bullets: [
+            "Free visibility scan covers GBP quality, reviews, citations, website, and AI search.",
+            "Autopilot publishes weekly articles, Reddit posts, and backlink outreach on paid plans.",
+            "Review inbox with AI-drafted reply suggestions — copy, paste, done.",
+            "AI citation monitor — tracks whether ChatGPT, Perplexity, and others mention you.",
+            "Monthly score reports show you what changed and what runs next.",
+          ],
+        },
+      ],
+      relatedLinks: [
+        { href: "/scan", label: "Run a free GravyBlock scan" },
+        { href: "/pricing", label: "GravyBlock plans and pricing" },
+        ...links,
+      ],
+    },
+  },
 };
 
 export const COMPARE_SLUGS = Object.keys(COMPARE_PAGES);

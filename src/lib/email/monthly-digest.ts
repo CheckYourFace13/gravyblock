@@ -51,6 +51,7 @@ function buildDigestHtml(params: {
   entityScore?: number | null;
   aiProbesRun?: number;
   citationChecks?: number;
+  businessEmail?: string;
 }): string {
   const {
     businessName, planLabel, monthLabel, workspaceUrl,
@@ -164,6 +165,7 @@ function buildDigestHtml(params: {
   <p style="margin:0;font-size:13px;color:#888;">
     GravyBlock &bull; <a href="${siteUrl}" style="color:#888;">gravyblock.com</a>
     &bull; <a href="${workspaceUrl}" style="color:#888;">Manage your plan</a>
+    &bull; <a href="${siteUrl}/api/unsubscribe?e=${Buffer.from(params.businessEmail?.toLowerCase() ?? "").toString("base64url")}" style="color:#888;">Unsubscribe</a>
   </p>
 </td></tr>
 </table>
@@ -337,6 +339,7 @@ export async function runMonthlyDigestBatch(): Promise<{ sent: number; skipped: 
           entityScore: entityResult.score,
           aiProbesRun: totalAiChecks,
           citationChecks: citationRow.length,
+          businessEmail: biz.billingEmail,
         }),
       );
 

@@ -58,7 +58,12 @@ export default function LocalSeoIndexPage() {
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {CITIES.map((city) => (
             <div key={city.slug} className="rounded-2xl border border-zinc-200 bg-white p-4">
-              <p className="font-semibold text-zinc-900">{city.name}, {city.state}</p>
+              <Link
+                href={`/local-seo/${city.slug}`}
+                className="font-semibold text-zinc-900 hover:text-red-800 hover:underline"
+              >
+                {city.name}, {city.state}
+              </Link>
               <div className="mt-2 flex flex-wrap gap-1">
                 {INDUSTRIES.slice(0, 6).map((industry) => (
                   <Link

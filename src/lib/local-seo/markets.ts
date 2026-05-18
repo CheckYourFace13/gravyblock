@@ -32,6 +32,11 @@ export const CITIES: City[] = [
   { slug: "louisville-ky", name: "Louisville", state: "KY" },
   { slug: "oklahoma-city-ok", name: "Oklahoma City", state: "OK" },
   { slug: "albuquerque-nm", name: "Albuquerque", state: "NM" },
+  { slug: "new-york-ny", name: "New York", state: "NY" },
+  { slug: "philadelphia-pa", name: "Philadelphia", state: "PA" },
+  { slug: "san-francisco-ca", name: "San Francisco", state: "CA" },
+  { slug: "boston-ma", name: "Boston", state: "MA" },
+  { slug: "toronto-on", name: "Toronto", state: "ON" },
 ];
 
 export const INDUSTRIES: Industry[] = [

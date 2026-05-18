@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "GravyBlock — Local SEO That Runs Itself | Automated Content, Reviews & Rankings",
+  title: "GravyBlock — Best Local SEO Services That Run Themselves | Automated Rankings",
   description:
-    "GravyBlock replaces your local SEO agency for a fraction of the cost. AI writes and publishes content weekly, posts to Reddit, sends backlink outreach, and tracks your Google rankings — automatically. Free scan, no credit card.",
+    "GravyBlock is the best local SEO service for small businesses in the USA. AI writes content weekly, grows Google reviews, fixes citations, and tracks Map Pack rankings — automatically. From $39.99/mo. Free scan.",
 };
 
 const siteUrl = "https://gravyblock.com";
@@ -63,6 +63,22 @@ const steps = [
   },
 ];
 
+const orgSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "GravyBlock",
+  url: "https://gravyblock.com",
+  logo: "https://gravyblock.com/opengraph-image.png",
+  description: "GravyBlock is an automated local SEO platform for small businesses. It publishes AI-written content, posts to Reddit, sends backlink outreach, monitors reviews, and tracks Google rankings — automatically every week.",
+  contactPoint: {
+    "@type": "ContactPoint",
+    contactType: "customer support",
+    email: "hello@gravyblock.com",
+    url: "https://gravyblock.com/support",
+  },
+  sameAs: [],
+};
+
 const productSchema = {
   "@context": "https://schema.org",
   "@graph": [
@@ -108,6 +124,10 @@ const productSchema = {
 export default function HomePage() {
   return (
     <div className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
@@ -187,7 +207,8 @@ export default function HomePage() {
       {/* ── TESTIMONIALS ───────────────────────────────────── */}
       <section className="px-4 py-14 sm:px-6">
         <div className="mx-auto max-w-5xl">
-          <p className="mb-8 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">What customers say</p>
+          <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">What customers say</p>
+          <p className="mb-8 text-center text-xs text-zinc-400">Results based on early access customers and beta testers. Individual results vary.</p>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {

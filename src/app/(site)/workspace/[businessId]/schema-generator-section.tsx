@@ -102,7 +102,19 @@ export function SchemaGeneratorSection({ business }: { business: BusinessProps }
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
             {TABS.find((t) => t.id === activeTab)?.label} Schema
           </p>
-          <CopyButton text={jsonString} />
+          <div className="flex items-center gap-2">
+            <CopyButton text={jsonString} />
+            <a
+              href={business.website
+                ? `https://search.google.com/test/rich-results?url=${encodeURIComponent(business.website)}`
+                : "https://search.google.com/test/rich-results"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50 transition-colors"
+            >
+              Test in Google ↗
+            </a>
+          </div>
         </div>
         <pre className="overflow-x-auto text-xs leading-relaxed text-zinc-700 font-mono whitespace-pre">
           <code>{jsonString}</code>

@@ -33,6 +33,7 @@ const staticRoutes: MetadataRoute.Sitemap = [
     changeFrequency: "monthly" as const,
     priority: 0.7,
   })),
+  { url: `${siteUrl}/blog`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
   { url: `${siteUrl}/guides`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
   ...QUESTION_GUIDE_SLUGS.map((slug) => ({
     url: `${siteUrl}/guides/${slug}`,
@@ -58,6 +59,16 @@ const staticRoutes: MetadataRoute.Sitemap = [
   { url: `${siteUrl}/for-salons`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
   { url: `${siteUrl}/for-chiropractors`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
   { url: `${siteUrl}/for-real-estate-agents`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
+  // Standalone guides (not in QUESTION_GUIDE_SLUGS)
+  { url: `${siteUrl}/guides/google-3-pack`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.8 },
+  { url: `${siteUrl}/guides/local-citation-sites-usa`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.8 },
+  // City hub pages
+  ...CITIES.map((city) => ({
+    url: `${siteUrl}/local-seo/${city.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  })),
 ];
 
 const localSeoRoutes: MetadataRoute.Sitemap = CITIES.flatMap((city) =>

@@ -3,13 +3,15 @@ import Link from "next/link";
 import { COMPARE_PAGES, COMPARE_SLUGS } from "@/lib/content/compare-pages";
 
 export const metadata: Metadata = {
-  title: "GravyBlock vs BrightLocal, Yext, Semrush, Search Atlas, Soro & More — 2026",
+  title: "GravyBlock vs BrightLocal, Yext, Semrush, Whitespark, GMB Everywhere & More — 2026",
   description:
-    "Compare GravyBlock to BrightLocal, Yext, Semrush, Search Atlas, Reputation.com, Soro, RankScore, Adaptify, SimilarWeb, BabyLoveGrowth, OutreachFrog, and BulletProof. See which local SEO tool actually runs the work for you.",
+    "Compare GravyBlock to BrightLocal, Yext, Semrush, Whitespark, GMB Everywhere, Search Atlas, Reputation.com, Soro, RankScore, Adaptify, SimilarWeb, and more. See which local SEO tool actually runs the work for you.",
 };
 
 const featuredComps = [
   { slug: "gravyblock-vs-brightlocal", name: "BrightLocal", price: "From $39/mo", note: "Reports only. You still do all the work." },
+  { slug: "gravyblock-vs-whitespark", name: "Whitespark", price: "$33–$99/mo", note: "Manual rank tracking and citation tools — you still run everything" },
+  { slug: "gravyblock-vs-gmb-everywhere", name: "GMB Everywhere", price: "~$14–$29/mo", note: "Chrome extension for GBP data — no automation, no content" },
   { slug: "gravyblock-vs-yext", name: "Yext", price: "From $199+/yr", note: "Enterprise listing sync, not a growth tool" },
   { slug: "gravyblock-vs-semrush-local", name: "Semrush Local", price: "From $140+/mo", note: "Built for SEO pros, not business owners" },
   { slug: "gravyblock-vs-searchatlas", name: "Search Atlas", price: "$99–$399/mo", note: "60+ tools, powerful but built for agency teams" },
@@ -30,7 +32,7 @@ export default function CompareIndexPage() {
       <div className="space-y-4">
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-800">Competitor comparison</p>
         <h1 className="text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
-          GravyBlock vs. BrightLocal, Yext, Semrush, and more
+          GravyBlock vs. BrightLocal, Whitespark, GMB Everywhere, Yext &amp; more
         </h1>
         <p className="max-w-2xl text-lg text-zinc-600">
           Every other local SEO tool shows you what's wrong. GravyBlock fixes it, automatically. Here's how we stack up against the tools you're probably already evaluating.

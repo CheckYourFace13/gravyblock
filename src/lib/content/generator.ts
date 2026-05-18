@@ -29,6 +29,10 @@ type GenerateParams = {
   changeSummary?: string;
   address?: string | null;
   brandVoice?: string | null;
+  /** One-paragraph description of what this business does and who it serves */
+  serviceDescription?: string | null;
+  /** Writing tone: professional, friendly, authoritative, casual */
+  tone?: string | null;
   /** Geographic focus — changes how city/location are used in content */
   focusArea?: "local" | "regional" | "national" | "online" | string | null;
 };
@@ -46,10 +50,10 @@ Business name: ${params.businessName}
 ${params.focusArea === "national" || params.focusArea === "online"
   ? `Geographic focus: ${params.focusArea} (do NOT add a specific city — write for a national/online audience)`
   : `City: ${params.city}`}
-Industry: ${params.vertical ?? "local business"}
+Industry: ${params.vertical ?? "local business"}${params.serviceDescription ? `\nAbout this business: ${params.serviceDescription}` : ""}
 Article title: ${params.title}
 Target keyword: ${params.targetKeyword ?? "local services"}
-Angle / outline: ${params.outline}${params.changeSummary ? `\nRecent context: ${params.changeSummary}` : ""}${params.brandVoice ? `\nBrand voice / tone: ${params.brandVoice}` : ""}
+Angle / outline: ${params.outline}${params.changeSummary ? `\nRecent context: ${params.changeSummary}` : ""}${params.tone ? `\nTone: ${params.tone}` : ""}${params.brandVoice ? `\nBrand voice: ${params.brandVoice}` : ""}
 
 Required structure (in order):
 1. H1 title
@@ -76,9 +80,9 @@ export async function generateLocalPageBody(params: GenerateParams): Promise<str
 
 Business name: ${params.businessName}
 City: ${params.city}${params.address ? `\nAddress: ${params.address}` : ""}
-Industry: ${params.vertical ?? "local business"}
+Industry: ${params.vertical ?? "local business"}${params.serviceDescription ? `\nAbout this business: ${params.serviceDescription}` : ""}
 Page title: ${params.title}
-Angle / outline: ${params.outline}${params.brandVoice ? `\nBrand voice / tone: ${params.brandVoice}` : ""}
+Angle / outline: ${params.outline}${params.tone ? `\nTone: ${params.tone}` : ""}${params.brandVoice ? `\nBrand voice: ${params.brandVoice}` : ""}
 
 Required structure (in order):
 1. H1 title

@@ -1,4 +1,4 @@
-import { desc, eq, gte, and, ne } from "drizzle-orm";
+import { desc, eq, gte, and, ne, sql } from "drizzle-orm";
 import { getDb, businesses, leads, visibilitySnapshots, jobs, contentQueue, operatorTasks, publishedContent, aiVisibilityChecks, auditFindings } from "@/lib/db";
 import { normalizePlanTierFromDb, planFeatures, type PlanTier } from "@/lib/plans";
 import { computeAeoScore } from "@/lib/scoring/aeo-score";
@@ -200,7 +200,8 @@ async function sendUpsellEmail(
   </div>
   <p style="color:#a1a1aa;font-size:11px;margin:24px 0 0">
     You're receiving this because you have an active GravyBlock plan for ${businessName}.
-    <a href="${workspaceUrl}" style="color:#dc2626">Manage billing</a>
+    <a href="${workspaceUrl}" style="color:#dc2626">Manage billing</a> &middot;
+    <a href="https://gravyblock.com/api/unsubscribe?e=${Buffer.from(to.toLowerCase()).toString("base64url")}" style="color:#a1a1aa">Unsubscribe</a>
   </p>
 </div>
 </body></html>`;
@@ -232,6 +233,15 @@ export async function sendWeeklyUpsellEmails(): Promise<{ sent: number; skipped:
 
     const activity = await getWeeklyActivity(biz.id);
     if (!activity) { skipped++; continue; }
+
+    // Skip if this email address has opted out of marketing emails
+    const [optOut] = await db
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(and(eq(jobs.type, "email_optout"), eq(sql`lower(payload->>'email')`, biz.billingEmail.toLowerCase())))
+      .limit(1)
+      .catch(() => []);
+    if (optOut) { skipped++; continue; }
 
     const scores = await getAeoAndGeoScores(biz.id);
     const workspaceUrl = `${base}/workspace/${biz.id}`;

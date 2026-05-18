@@ -35,7 +35,7 @@ async function sendEmail(to: string, subject: string, html: string) {
   return { ok: true };
 }
 
-function buildReviewRequestHtml(businessName: string, reviewUrl: string, workspaceUrl: string): string {
+function buildReviewRequestHtml(businessName: string, reviewUrl: string, workspaceUrl: string, billingEmail: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -72,7 +72,10 @@ function buildReviewRequestHtml(businessName: string, reviewUrl: string, workspa
   </a>
 </td></tr>
 <tr><td style="padding:24px 40px;border-top:1px solid #e5e5e5;">
-  <p style="margin:0;font-size:13px;color:#888;">GravyBlock &bull; <a href="${siteUrl}" style="color:#888;">gravyblock.com</a></p>
+  <p style="margin:0;font-size:13px;color:#888;">
+    GravyBlock &bull; <a href="${siteUrl}" style="color:#888;">gravyblock.com</a>
+    &bull; <a href="${siteUrl}/api/unsubscribe?e=${Buffer.from(billingEmail.toLowerCase()).toString("base64url")}" style="color:#888;">Unsubscribe</a>
+  </p>
 </td></tr>
 </table>
 </td></tr>
@@ -134,7 +137,7 @@ export async function runReviewRequestBatch(): Promise<{ sent: number; skipped: 
       await sendEmail(
         biz.billingEmail,
         `Quick tip to help ${biz.name} get more Google reviews this week`,
-        buildReviewRequestHtml(biz.name, reviewUrl, workspaceUrl),
+        buildReviewRequestHtml(biz.name, reviewUrl, workspaceUrl, biz.billingEmail),
       );
 
       await db.insert(jobs).values({

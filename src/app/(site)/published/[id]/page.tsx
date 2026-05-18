@@ -204,7 +204,17 @@ export default async function PublishedContentPage({ params }: Props) {
           </aside>
         ) : null}
 
-        <footer className="mt-8 border-t border-zinc-100 pt-6">
+        <footer className="mt-8 border-t border-zinc-100 pt-6 space-y-4">
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-center">
+            <p className="text-sm font-medium text-zinc-700">Does your business need content like this?</p>
+            <p className="mt-1 text-xs text-zinc-500">GravyBlock publishes SEO articles automatically — no copywriter needed.</p>
+            <a
+              href={`${siteUrl}/scan`}
+              className="mt-3 inline-block rounded-full bg-red-600 px-5 py-2 text-xs font-semibold text-white hover:bg-red-500 transition-colors"
+            >
+              Get a free visibility score →
+            </a>
+          </div>
           <p className="text-xs text-zinc-400">
             Published by{" "}
             <a href={siteUrl} className="underline hover:text-zinc-700">

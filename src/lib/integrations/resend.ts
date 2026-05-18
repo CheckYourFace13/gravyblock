@@ -315,7 +315,10 @@ export async function sendWeeklyDigestEmail(payload: WeeklyDigestPayload) {
             <a href="${payload.workspaceUrl}" style="display:inline-block;background:#dc2626;color:#fff;padding:13px 32px;border-radius:9999px;font-weight:700;font-size:14px;text-decoration:none;letter-spacing:0.01em">
               Open workspace →
             </a>
-            <p style="margin:16px 0 0;font-size:12px;color:#a1a1aa">GravyBlock · You're receiving this because you have an active subscription.</p>
+            <p style="margin:16px 0 0;font-size:12px;color:#a1a1aa">
+              GravyBlock &middot; You&apos;re receiving this as part of your active plan. &middot;
+              <a href="https://gravyblock.com/api/unsubscribe?e=${Buffer.from(payload.to.toLowerCase()).toString("base64url")}" style="color:#a1a1aa;text-decoration:underline">Unsubscribe</a>
+            </p>
           </div>
 
         </div>

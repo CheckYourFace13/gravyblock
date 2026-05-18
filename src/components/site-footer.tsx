@@ -32,6 +32,9 @@ export function SiteFooter() {
               <Link href="/pricing" className="hover:underline">
                 Pricing
               </Link>
+              <Link href="/blog" className="hover:underline">
+                Blog
+              </Link>
               <Link href="/glossary" className="hover:underline">
                 SEO glossary
               </Link>
@@ -52,14 +55,17 @@ export function SiteFooter() {
               <Link href="/guides" className="hover:underline">
                 All guides
               </Link>
-              <Link href="/guides/multi-location-local-seo" className="hover:underline">
-                Multi-location SEO
+              <Link href="/guides/google-3-pack" className="hover:underline">
+                What is the Google 3-Pack?
               </Link>
-              <Link href="/guides/ai-search-local-businesses" className="hover:underline">
-                AI search visibility
+              <Link href="/guides/local-citation-sites-usa" className="hover:underline">
+                Local citation sites USA
               </Link>
               <Link href="/guides/how-to-rank-higher-in-google-maps" className="hover:underline">
                 Maps ranking guide
+              </Link>
+              <Link href="/guides/ai-search-local-businesses" className="hover:underline">
+                AI search visibility
               </Link>
             </div>
           </div>
@@ -83,17 +89,23 @@ export function SiteFooter() {
               <Link href="/local-seo" className="font-medium text-zinc-900 hover:underline">
                 All cities &amp; industries
               </Link>
+              <Link href="/local-seo/new-york-ny" className="hover:text-zinc-900 hover:underline">
+                Local SEO New York
+              </Link>
+              <Link href="/local-seo/philadelphia-pa" className="hover:text-zinc-900 hover:underline">
+                Local SEO Philadelphia
+              </Link>
+              <Link href="/local-seo/denver-co" className="hover:text-zinc-900 hover:underline">
+                Local SEO Denver
+              </Link>
+              <Link href="/local-seo/los-angeles-ca" className="hover:text-zinc-900 hover:underline">
+                Local SEO Los Angeles
+              </Link>
               <Link href="/local-seo/austin-tx/restaurant" className="hover:text-zinc-900 hover:underline">
                 Restaurants in Austin
               </Link>
               <Link href="/local-seo/dallas-tx/dentist" className="hover:text-zinc-900 hover:underline">
                 Dentists in Dallas
-              </Link>
-              <Link href="/local-seo/miami-fl/attorney" className="hover:text-zinc-900 hover:underline">
-                Attorneys in Miami
-              </Link>
-              <Link href="/local-seo/chicago-il/plumber" className="hover:text-zinc-900 hover:underline">
-                Plumbers in Chicago
               </Link>
             </div>
           </div>
@@ -118,6 +130,8 @@ export function SiteFooter() {
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Compare</p>
             <div className="mt-2 flex flex-col gap-1.5 text-zinc-600">
               <Link href="/compare/gravyblock-vs-brightlocal" className="hover:text-zinc-900 hover:underline">vs BrightLocal</Link>
+              <Link href="/compare/gravyblock-vs-whitespark" className="hover:text-zinc-900 hover:underline">vs Whitespark</Link>
+              <Link href="/compare/gravyblock-vs-gmb-everywhere" className="hover:text-zinc-900 hover:underline">vs GMB Everywhere</Link>
               <Link href="/compare/gravyblock-vs-yext" className="hover:text-zinc-900 hover:underline">vs Yext</Link>
               <Link href="/compare/gravyblock-vs-semrush-local" className="hover:text-zinc-900 hover:underline">vs Semrush</Link>
               <Link href="/compare/gravyblock-vs-searchatlas" className="hover:text-zinc-900 hover:underline">vs Search Atlas</Link>

@@ -285,35 +285,42 @@ export async function executeContentPublishPath(businessId: string) {
       .where(eq(businesses.id, businessId))
       .limit(1);
 
-    // Feature #3: fetch brand voice from config
+    // Feature #3: fetch full config for content generation
     const [bizConfig] = await db
-      .select({ brandVoice: businessConfigs.brandVoice })
+      .select({
+        brandVoice: businessConfigs.brandVoice,
+        serviceDescription: businessConfigs.serviceDescription,
+        tone: businessConfigs.tone,
+        targetScope: businessConfigs.targetScope,
+        focusArea: businessConfigs.focusArea,
+      })
       .from(businessConfigs)
       .where(eq(businessConfigs.businessId, businessId))
       .limit(1);
 
+    const configuredCity = bizConfig?.targetScope?.split(",")[0]?.trim();
     const generatorParams = {
       businessName: biz?.name ?? "Local business",
-      city: cityFromAddress(biz?.address),
+      city: configuredCity || cityFromAddress(biz?.address),
       vertical: biz?.vertical ?? null,
       title: queuedItem.title,
       outline: queuedItem.outline ?? "",
       targetKeyword: queuedItem.targetKeyword ?? null,
       address: biz?.address ?? null,
       brandVoice: bizConfig?.brandVoice ?? null,
+      serviceDescription: bizConfig?.serviceDescription ?? null,
+      tone: bizConfig?.tone ?? null,
+      focusArea: bizConfig?.focusArea ?? "local",
     };
     const aiBody = queuedItem.kind === "location_page"
       ? await generateLocalPageBody(generatorParams)
       : await generateArticleBody(generatorParams);
-    let body = aiBody ?? [
-      `# ${queuedItem.title}`,
-      "",
-      "Published by GravyBlock autopilot execution path.",
-      "",
-      queuedItem.outline ?? "Auto-generated starter draft from queue metadata.",
-      "",
-      `Target keyword: ${queuedItem.targetKeyword ?? "n/a"}`,
-    ].join("\n");
+    // Never publish hollow placeholder content — skip and retry on next tick
+    if (!aiBody) {
+      console.warn("[executeContentPublishPath] AI generation returned null — skipping", { businessId, itemId: queuedItem.id });
+      return { ok: false, reason: "ai_generation_failed" };
+    }
+    let body = aiBody;
 
     // Feature #4: smart internal linking
     body = await addInternalLinks({
@@ -624,9 +631,15 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
           const publicPath = `/published/${artifactId}`;
           const publicUrl = `${base.replace(/\/$/, "")}${publicPath}`;
           publishedUrls.push(publicUrl);
-          // Fetch brand voice, service area city, and geographic focus from config
+          // Fetch full config for content generation
           const [recurringBizConfig] = await db
-            .select({ brandVoice: businessConfigs.brandVoice, targetScope: businessConfigs.targetScope, focusArea: businessConfigs.focusArea })
+            .select({
+              brandVoice: businessConfigs.brandVoice,
+              targetScope: businessConfigs.targetScope,
+              focusArea: businessConfigs.focusArea,
+              serviceDescription: businessConfigs.serviceDescription,
+              tone: businessConfigs.tone,
+            })
             .from(businessConfigs)
             .where(eq(businessConfigs.businessId, businessId))
             .limit(1);
@@ -643,17 +656,20 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
             address: business?.address ?? null,
             brandVoice: recurringBizConfig?.brandVoice ?? null,
             focusArea: recurringBizConfig?.focusArea ?? "local",
+            serviceDescription: recurringBizConfig?.serviceDescription ?? null,
+            tone: recurringBizConfig?.tone ?? null,
           };
           const aiBody = queueRow.kind === "location_page"
             ? await generateLocalPageBody(generatorParams)
             : await generateArticleBody(generatorParams);
-          let body = aiBody ?? buildPublishBody({
-            title: queueRow.title,
-            changeSummary: changeResult.summary,
-            changeSignals: changeResult.changes,
-            keyword: queueRow.targetKeyword ?? null,
-            kind: queueRow.kind,
-          });
+          // If AI generation failed, skip this item rather than publish hollow content.
+          // It will be retried on the next worker tick.
+          if (!aiBody) {
+            console.warn("[executor] AI generation returned null — skipping publish", { businessId, queueId: queueRow.id, title: queueRow.title });
+            publishedUrls.push(`[skipped — AI unavailable]`);
+            continue;
+          }
+          let body = aiBody;
           // Feature #4: smart internal linking
           body = await addInternalLinks({
             body,

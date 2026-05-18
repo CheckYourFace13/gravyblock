@@ -9,6 +9,16 @@ export const metadata: Metadata = {
 
 const guides = [
   {
+    href: "/guides/google-3-pack",
+    title: "What is the Google 3-Pack (and how do you get in it)?",
+    description: "The map pack shows three businesses at the top of local search results. Here's how Google chooses who gets in, and the exact steps to rank there.",
+  },
+  {
+    href: "/guides/local-citation-sites-usa",
+    title: "Local citation sites USA — complete list for 2026",
+    description: "The top US directories to build NAP consistency: Tier 1 essentials, industry-specific sites, and how to keep them accurate automatically.",
+  },
+  {
     href: "/guides/multi-location-local-seo",
     title: "Multi-location local SEO",
     description: "Consistency, internal linking, and measuring each location without drowning in spreadsheets.",

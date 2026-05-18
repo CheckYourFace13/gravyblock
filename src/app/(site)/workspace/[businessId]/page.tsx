@@ -370,6 +370,60 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         </div>
       ) : null}
 
+      {/* ─── FIRST-RUN ONBOARDING ─────────────────────────────────────────────── */}
+      {!businessProfile?.config ? (
+        <section className="rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-white p-6 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0 rounded-full bg-red-100 p-2.5">
+              <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-semibold text-zinc-900">Let&apos;s get you set up — 3 quick steps</h2>
+              <p className="mt-1 text-sm text-zinc-600">Complete these once and GravyBlock runs on autopilot from there.</p>
+              <ol className="mt-4 space-y-3">
+                <li className="flex items-start gap-3">
+                  <span className="mt-0.5 shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[11px] font-bold text-white">1</span>
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">Complete your business profile</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">Your services, target city, and brand voice — used by every piece of content we generate.</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className={`mt-0.5 shrink-0 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white ${googleConn ? "bg-green-600" : "bg-zinc-400"}`}>
+                    {googleConn ? "✓" : "2"}
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">
+                      {googleConn ? "Google Search Console connected ✓" : "Connect Google Search Console"}
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      {googleConn ? "Keyword ranking data is flowing in." : "Unlocks keyword rankings and GSC data for your dashboard."}
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className={`mt-0.5 shrink-0 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white ${features.contentDraftsPerMonth > 0 ? "bg-zinc-900" : "bg-zinc-300"}`}>
+                    {features.contentDraftsPerMonth > 0 ? "3" : "3"}
+                  </span>
+                  <div>
+                    <p className={`text-sm font-semibold ${features.contentDraftsPerMonth > 0 ? "text-zinc-900" : "text-zinc-400"}`}>
+                      {features.contentDraftsPerMonth > 0 ? "Approve your first article" : "Approve your first article (Scale plan)"}
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      {features.contentDraftsPerMonth > 0
+                        ? "Your first AI-written SEO article should appear in the action items below within 24 hours."
+                        : <>Upgrade to Scale to unlock weekly article publishing. <a href="/pricing" className="text-red-600 underline">See pricing →</a></>}
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {/* ─── ACTION ITEMS ─────────────────────────────────────────────────────── */}
       {hasActionItems ? (
         <section className="space-y-6">
