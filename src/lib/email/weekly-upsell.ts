@@ -4,17 +4,18 @@ import { normalizePlanTierFromDb, planFeatures, type PlanTier } from "@/lib/plan
 import { computeAeoScore } from "@/lib/scoring/aeo-score";
 import type { WebsiteAuditSummary } from "@/lib/report/types";
 
+// Pro is the target tier — we don't upsell beyond it automatically.
 const NEXT_TIER: Record<PlanTier, PlanTier | null> = {
   free: "starter",
   starter: "growth",
   growth: "pro",
-  pro: "agency",
+  pro: null,     // Pro users get a value/retention email, not an agency pitch
   agency: null,
 };
 
 const UPSELL_PITCH: Record<string, { headline: string; bullets: string[] }> = {
   starter: {
-    headline: "Growth would have also done this week:",
+    headline: "Scale would have also done this week:",
     bullets: [
       "Written and published 1 SEO article to your site",
       "Posted on 2 relevant Reddit threads with your business linked",
@@ -30,15 +31,6 @@ const UPSELL_PITCH: Record<string, { headline: string; bullets: string[] }> = {
       "Synced and posted to Google Business Profile",
       "Monitored all 3 of your business locations",
       "Queued 5 citation fixes and 5 review tasks",
-    ],
-  },
-  pro: {
-    headline: "Agency would have also done this week:",
-    bullets: [
-      "Run the same full autopilot for up to 10 client businesses",
-      "Generated white-label PDF reports for each client",
-      "Used the cold outreach engine to find and pitch new prospects",
-      "Refreshed all clients daily instead of weekly",
     ],
   },
 };

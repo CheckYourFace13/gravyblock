@@ -59,7 +59,7 @@ function buildEmail(businessName: string, plan: string): { subject: string; html
   return { subject, html };
 }
 
-async function hasAbandonedEmailSent(businessId: string): Promise<boolean> {
+async function hasAbandonedEmailSent(businessId: string, type = "abandoned_checkout_email"): Promise<boolean> {
   const db = getDb();
   if (!db) return false;
   const [row] = await db
@@ -67,7 +67,7 @@ async function hasAbandonedEmailSent(businessId: string): Promise<boolean> {
     .from(jobs)
     .where(
       and(
-        eq(jobs.type, "abandoned_checkout_email"),
+        eq(jobs.type, type),
         eq(sql`payload->>'businessId'`, businessId),
       ),
     )
@@ -75,14 +75,35 @@ async function hasAbandonedEmailSent(businessId: string): Promise<boolean> {
   return Boolean(row);
 }
 
-async function recordAbandonedEmailSent(businessId: string) {
+async function recordAbandonedEmailSent(businessId: string, type = "abandoned_checkout_email") {
   const db = getDb();
   if (!db) return;
   await db.insert(jobs).values({
-    type: "abandoned_checkout_email",
+    type,
     status: "completed",
     payload: { businessId },
   });
+}
+
+function buildFollowUpEmail(businessName: string): { subject: string; html: string } {
+  const subject = `still there? your GravyBlock workspace is waiting`;
+  const html = wrap(`
+    <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">Hey,</p>
+    <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">
+      You started GravyBlock for <strong>${businessName}</strong> a few days ago but didn't finish checkout. Just checking in — your workspace is still set up and ready.
+    </p>
+    <p style="color:#52525b;font-size:14px;margin:0 0 16px 0">
+      If the price was the issue: use code <strong>INTRO50</strong> at checkout and Scale drops to $74.99 for the first month. That's full autopilot — weekly articles published to your site, citation fixes, review requests, and rank tracking — all running without you lifting a finger.
+    </p>
+    <p style="color:#52525b;font-size:14px;margin:0 0 16px 0">
+      If something else stopped you — just reply and tell me. I'll sort it out.
+    </p>
+    ${btn(`${siteUrl}/scan?plan=growth`, "Complete checkout — code INTRO50")}
+    <p style="color:#71717a;font-size:13px;margin:20px 0 0">
+      No pressure. If you're not interested, just ignore this — I won't send more.
+    </p>
+  `);
+  return { subject, html };
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
@@ -131,29 +152,46 @@ export async function runAbandonedCheckoutBatch(): Promise<{ sent: number; skipp
   let sent = 0;
   let skipped = 0;
 
+  const window3dStart = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const window3dEnd = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+
   for (const biz of candidates) {
     const createdAt = new Date(biz.createdAt).getTime();
-    if (createdAt > windowEnd.getTime()) {
-      skipped++; // Too recent — hasn't been 24h yet
+    if (!biz.billingEmail) { skipped++; continue; }
+
+    // Day 1 email: fires 24–72h after checkout was started
+    const past24h = createdAt <= windowEnd.getTime();
+    const past72h = createdAt <= window3dEnd.getTime();
+
+    if (!past24h) {
+      skipped++; // Too recent
       continue;
     }
 
-    if (!biz.billingEmail) { skipped++; continue; }
-    if (await hasAbandonedEmailSent(biz.id)) { skipped++; continue; }
+    const firstSent = await hasAbandonedEmailSent(biz.id, "abandoned_checkout_email");
 
-    const { subject, html } = buildEmail(biz.name, "starter");
-
-    try {
-      const ok = await sendEmail(biz.billingEmail, subject, html);
-      if (ok) {
-        await recordAbandonedEmailSent(biz.id);
-        sent++;
-      } else {
-        skipped++;
-      }
-    } catch {
-      skipped++;
+    if (!firstSent) {
+      const { subject, html } = buildEmail(biz.name, "starter");
+      try {
+        const ok = await sendEmail(biz.billingEmail, subject, html);
+        if (ok) { await recordAbandonedEmailSent(biz.id, "abandoned_checkout_email"); sent++; }
+        else skipped++;
+      } catch { skipped++; }
+      continue;
     }
+
+    // Day 3 follow-up: fires 72h+ after checkout, only if first email already sent and no follow-up yet
+    if (past72h && !await hasAbandonedEmailSent(biz.id, "abandoned_checkout_followup")) {
+      const { subject, html } = buildFollowUpEmail(biz.name);
+      try {
+        const ok = await sendEmail(biz.billingEmail, subject, html);
+        if (ok) { await recordAbandonedEmailSent(biz.id, "abandoned_checkout_followup"); sent++; }
+        else skipped++;
+      } catch { skipped++; }
+      continue;
+    }
+
+    skipped++;
   }
 
   return { sent, skipped };

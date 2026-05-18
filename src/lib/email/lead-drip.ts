@@ -39,59 +39,65 @@ ${footer}
 </div></body></html>`;
 }
 
+function proof() {
+  return `<div style="margin:20px 0;padding:14px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px">
+    <p style="margin:0;font-size:12px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.08em">Early access result</p>
+    <p style="margin:6px 0 0;font-size:13px;color:#3f3f46;line-height:1.6">"We went from barely showing up in the map pack to ranking in the top 3 for our main keyword in about 8 weeks. The weekly articles and citation cleanup made the biggest difference." — Local service business, Chicago area</p>
+  </div>`;
+}
+
 const DRIP_SEQUENCE: DripEmail[] = [
   {
     day: 1,
     subject: ({ businessName, score }) =>
-      score ? `${businessName} scored ${score} on your free local SEO scan` : `Your free local SEO scan for ${businessName}`,
+      score ? `${businessName} scored ${score}/100 — here's what to fix first` : `Your free local SEO scan for ${businessName}`,
     html: ({ name, businessName, score, reportUrl, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Your Scan Results</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Hi ${name}, here is what we found</h1>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Hi ${name}, here's what we found</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">
         ${score !== null ? `<strong>${businessName}</strong> scored <strong>${score}/100</strong> on local visibility, trust signals, and AI search coverage.` : `We completed the local SEO scan for <strong>${businessName}</strong>.`}
-        Your full report has the exact gaps and a prioritized action list.
+        Your full report breaks down exactly where you're losing rankings and what to fix first.
       </p>
-      ${btn(reportUrl, "Open my full report")}
+      ${btn(reportUrl, "Open my full report →")}
       <p style="color:#71717a;font-size:13px;margin:20px 0 0">
-        The biggest drivers of local search rankings are Google Business Profile completeness, review volume and recency, consistent citations across directories, and published local content. Your report shows exactly where ${businessName} stands on each.
+        The biggest drivers: Google Business Profile completeness, review volume and recency, consistent citations across directories, and published local content. Your report shows exactly where ${businessName} stands on each.
       </p>
     `, email, leadId),
   },
   {
     day: 2,
-    subject: ({ businessName }) => `The most common reason ${businessName} loses customers before they call`,
-    html: ({ name, businessName, scanUrl, email, leadId }) => wrap(`
+    subject: ({ businessName }) => `The real reason ${businessName} loses customers before they call`,
+    html: ({ name, businessName, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Local SEO Insight</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Most customers decide before they call</h1>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Customers decide in 90 seconds</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        When someone searches for a business like ${businessName}, they compare three to five options in about 90 seconds. The businesses that win are the ones with complete profiles, recent reviews, and clear service information.
+        When someone searches for a business like ${businessName}, they compare 3–5 options in about 90 seconds. The winners have complete profiles, recent reviews, and fresh content. The losers have outdated listings and missing information — even if they're the better business.
       </p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        The ones that lose are often great businesses with outdated listings, inconsistent phone numbers across directories, or no recent content for Google to surface.
+        GravyBlock fixes all of that automatically. Every week it publishes content, refreshes your listing signals, and queues citation and review tasks so you're always the freshest result on the page.
       </p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">
-        GravyBlock fixes all of that automatically. Every month it refreshes your visibility score, queues citation fixes, and generates content ideas to keep your listing fresh and competitive.
-      </p>
-      ${btn(`${siteUrl}/scan?plan=starter`, "Start Starter for $39.99 introductory")}
+      ${proof()}
+      ${btn(`${siteUrl}/scan?plan=growth`, "Start Scale — $74.99 first month →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> at checkout for 50% off. No contract.</p>
     `, email, leadId),
   },
   {
     day: 3,
     subject: ({ businessName }) => `Is ${businessName} showing up when people ask ChatGPT for recommendations?`,
-    html: ({ name, businessName, scanUrl, email, leadId }) => wrap(`
+    html: ({ name, businessName, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">AI Search Visibility</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">AI assistants are the new word of mouth</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        More and more people ask ChatGPT, Perplexity, and Google AI Overviews to recommend local businesses. The results are not random. They come from businesses with consistent information, strong review profiles, and published content that AI systems can verify.
+        More and more people ask ChatGPT, Perplexity, and Google AI Overviews to recommend local businesses. These answers aren't random — they pull from businesses with consistent listings, strong review profiles, and published content that AI systems can verify.
       </p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        GravyBlock monitors whether ${businessName} is being mentioned in AI-assisted search results and helps build the signals that get you recommended.
+        GravyBlock tracks whether ${businessName} gets mentioned when AI assistants answer questions about your industry and city — and runs the work that improves your chances every week.
       </p>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Start Scale for $74.99 introductory")}
+      ${btn(`${siteUrl}/scan?plan=growth`, "Track my AI visibility — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:16px 0">
-        Scale includes AI visibility monitoring, weekly refreshes, published content, and Reddit outreach. Use code <strong>INTRO50</strong> for 50% off your first month.
+        Scale includes AI visibility monitoring, weekly ranking refreshes, published content, and Reddit outreach. Code <strong>INTRO50</strong> = 50% off first month.
       </p>
     `, email, leadId),
   },
@@ -100,65 +106,67 @@ const DRIP_SEQUENCE: DripEmail[] = [
     subject: ({ businessName }) => `What 30 days of autopilot looks like for ${businessName}`,
     html: ({ name, businessName, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">What to Expect</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Here is what happens in month one</h1>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Month one, week by week</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
         <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 1</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#52525b">GravyBlock scans ${businessName}, scores all visibility signals, and queues the first set of citation and review tasks for your action list.</p>
-        <p style="margin:12px 0 0;font-size:13px;font-weight:700;color:#18181b">Week 2</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#52525b">First AI-written article published to your site. Reddit posting begins in relevant local communities. Review request campaign queued.</p>
-        <p style="margin:12px 0 0;font-size:13px;font-weight:700;color:#18181b">Week 3</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#52525b">Backlink opportunities identified and queued. Second content piece drafted. Citation inconsistencies surfaced for correction.</p>
-        <p style="margin:12px 0 0;font-size:13px;font-weight:700;color:#18181b">Week 4</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#52525b">Monthly visibility refresh runs. Score updates. Summary email with everything that was done and what is queued next.</p>
+        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">GravyBlock scans ${businessName}, scores all visibility signals, and queues the first citation and review tasks.</p>
+        <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 2</p>
+        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">First AI-written article goes live on your site. Reddit posting starts in local communities. Review request campaign queued.</p>
+        <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 3</p>
+        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">Backlink opportunities queued. Second article drafted. Citation mismatches surfaced and flagged for correction.</p>
+        <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 4</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#52525b">Monthly visibility refresh. Score updates. You get a full summary of everything that ran and what's queued next month.</p>
       </div>
-      ${btn(`${siteUrl}/scan?plan=starter`, "Start Starter — $39.99 first month")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> at checkout. Scale plan available at $74.99 first month if you want full autopilot.</p>
+      ${proof()}
+      ${btn(`${siteUrl}/scan?plan=growth`, "Start Scale — $74.99 first month →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Code <strong>INTRO50</strong> at checkout. 50% off first month.</p>
     `, email, leadId),
   },
   {
     day: 5,
-    subject: ({ businessName }) => `Your competitors are publishing content. ${businessName} should be too.`,
+    subject: ({ businessName }) => `Your competitors are publishing content every week. ${businessName} isn't.`,
     html: ({ name, businessName, vertical, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Content and Rankings</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Local content drives local rankings</h1>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Local content = local rankings</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        Google rewards businesses that publish relevant, local content regularly. ${vertical ? `For ${vertical.toLowerCase()}s, t` : "T"}hat means articles about your services, your city, your customers' questions, and your differentiators.
+        Google rewards businesses that publish relevant, local content consistently. ${vertical ? `For ${vertical.toLowerCase()}s, t` : "T"}hat means articles about your services, your city, your customers' questions, and what makes you different from the 4 other results on the same page.
       </p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        GravyBlock writes and publishes these articles for ${businessName} automatically, targeting the exact keywords your customers search for in your city.
+        GravyBlock writes and publishes these for ${businessName} automatically — targeting the exact keywords your customers search in your city. It also posts to Reddit and local forums where your potential customers already spend time.
       </p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        It also posts to Reddit and local community forums, creating backlinks and awareness in the places your potential customers actually spend time.
+        Most local businesses don't do this at all. That's the opportunity.
       </p>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Get content running for $74.99/mo")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> for 50% off your first month.</p>
+      ${btn(`${siteUrl}/scan?plan=growth`, "Start publishing content — $74.99/mo →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Code <strong>INTRO50</strong> = 50% off first month.</p>
     `, email, leadId),
   },
   {
     day: 6,
-    subject: ({ businessName }) => `50% off this week: GravyBlock Scale for ${businessName}`,
+    subject: ({ businessName }) => `50% off Scale for ${businessName} — this week only`,
     html: ({ name, businessName, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Limited Offer</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Start Scale for $74.99 this month</h1>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">$74.99 first month. Full autopilot.</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        Use code <strong>INTRO50</strong> at checkout and your first month of Scale is $74.99 instead of $149.99.
+        Use code <strong>INTRO50</strong> at checkout — your first month of Scale drops from $149.99 to $74.99.
       </p>
       <div style="margin:20px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
-        <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b"<>Scale includes:</p>
+        <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b">Scale includes everything:</p>
         <ul style="margin:8px 0 0;padding-left:20px;color:#3f3f46;font-size:13px;line-height:1.9">
-          <li>Weekly visibility refreshes for ${businessName}</li>
-          <li>AI-written articles published to your site every month</li>
-          <li>Reddit and blog posting in your city and industry</li>
-          <li>Multi-step outreach sequences with follow-ups</li>
+          <li>Weekly visibility refreshes and score tracking</li>
+          <li>AI-written articles published to your site automatically</li>
+          <li>Reddit and blog outreach in your city and industry</li>
           <li>12 citation tasks and 8 review tasks per month</li>
           <li>8 backlink opportunities queued monthly</li>
+          <li>AI search visibility monitoring (ChatGPT, Perplexity, Google AI)</li>
         </ul>
       </div>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Claim 50% off Scale — code INTRO50")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">Enter code <strong>INTRO50</strong> at checkout. Applies to first month only. Regular pricing of $149.99/month resumes at renewal.</p>
+      ${proof()}
+      ${btn(`${siteUrl}/scan?plan=growth`, "Claim 50% off Scale — code INTRO50 →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">First month only. Renews at $149.99/month. Cancel any time.</p>
     `, email, leadId),
   },
   {
@@ -167,121 +175,121 @@ const DRIP_SEQUENCE: DripEmail[] = [
     html: ({ name, businessName, reportUrl, email, leadId }) => wrap(`
       <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">
-        I noticed you haven't started a plan for ${businessName} yet. That's fine — just didn't want the report to get buried.
+        You haven't started a plan for ${businessName} yet — totally fine. Just didn't want the report to get buried.
       </p>
       <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">
-        If the price is the thing, Starter is $39.99 for the first month with code <strong>INTRO50</strong>. That's less than most businesses spend on a single Google Ads click.
+        If the price is the sticking point: Starter is $39.99 for the first month with code <strong>INTRO50</strong>. That's less than most businesses spend on a single Google Ads click — and this keeps running every week without you touching it.
       </p>
       <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">
-        If you're not sure it'll work for your type of business — just reply and tell me what ${businessName} does. I'll give you an honest answer.
+        If you're not sure it'll work for your type of business — just reply to this email and tell me what ${businessName} does. I'll give you a straight answer.
       </p>
       ${btn(`${siteUrl}/scan?plan=starter`, "Start for $39.99 — code INTRO50")}
-      <p style="color:#71717a;font-size:13px;margin:16px 0">No pressure. Your free report is still at: <a href="${reportUrl}" style="color:#dc2626">${reportUrl}</a></p>
+      <p style="color:#71717a;font-size:13px;margin:16px 0">Your report: <a href="${reportUrl}" style="color:#dc2626">${reportUrl}</a></p>
     `, email, leadId),
   },
   {
     day: 8,
-    subject: ({ businessName }) => `What ${businessName}'s Google listing looks like to customers right now`,
-    html: ({ name, businessName, score, reportUrl, email, leadId }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Visibility Check</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Your listing right now vs. 30 days from now</h1>
+    subject: ({ businessName, score }) => score ? `${businessName} scored ${score}. Here's what that means in 30 days.` : `${businessName}: before and after one month on GravyBlock`,
+    html: ({ name, businessName, score, email, leadId }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Before vs. After</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">What changes in 30 days</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        ${score !== null ? `${businessName} scored ${score}/100 on local visibility when you scanned.` : `Your scan found gaps in ${businessName}'s local visibility.`}
-        Here is what changes after one month on GravyBlock:
+        ${score !== null ? `${businessName} scored ${score}/100 when you scanned.` : `Your scan found gaps in ${businessName}'s local visibility.`}
+        Here's what changes after one month of GravyBlock running in the background:
       </p>
       <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
-        <div style="display:flex;gap:16px">
-          <div style="flex:1">
-            <p style="margin:0;font-size:12px;font-weight:700;color:#71717a;text-transform:uppercase">Today</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <p style="margin:0;font-size:12px;font-weight:700;color:#71717a;text-transform:uppercase">Right now</p>
             <ul style="margin:8px 0 0;padding-left:18px;color:#71717a;font-size:13px;line-height:1.9">
-              <li>Static listing, no new content</li>
-              <li>Citation inconsistencies unfixed</li>
+              <li>No new content being published</li>
+              <li>Citation mismatches unfixed</li>
               <li>Reviews going unanswered</li>
-              <li>Not appearing in AI search</li>
+              <li>Not mentioned in AI search</li>
             </ul>
           </div>
-          <div style="flex:1">
-            <p style="margin:0;font-size:12px;font-weight:700;color:#16a34a;text-transform:uppercase">30 Days In</p>
+          <div>
+            <p style="margin:0;font-size:12px;font-weight:700;color:#16a34a;text-transform:uppercase">30 days in</p>
             <ul style="margin:8px 0 0;padding-left:18px;color:#3f3f46;font-size:13px;line-height:1.9">
-              <li>2–4 local articles published</li>
-              <li>Citation gaps surfaced and fixed</li>
+              <li>2–4 local articles live</li>
+              <li>Citation gaps fixed</li>
               <li>AI reply drafts for every review</li>
-              <li>AI citation monitor tracking you</li>
+              <li>AI visibility monitored weekly</li>
             </ul>
           </div>
         </div>
       </div>
-      ${btn(`${siteUrl}/scan?plan=starter`, "Start for $39.99 — code INTRO50")}
+      ${btn(`${siteUrl}/scan?plan=growth`, "Start Scale — $74.99 first month →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Code <strong>INTRO50</strong> at checkout.</p>
     `, email, leadId),
   },
   {
     day: 9,
-    subject: ({ businessName }) => `3 things ${businessName} can fix on Google right now (free)`,
+    subject: ({ businessName }) => `3 things ${businessName} can fix on Google today — no tool needed`,
     html: ({ name, businessName, reportUrl, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Free Tips</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">3 quick wins — no tool required</h1>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">3 quick wins — free, right now</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">Whether or not you ever use GravyBlock, here are three things that move the needle for almost every local business:</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">Whether or not you ever use GravyBlock, these three things move the needle for almost every local business:</p>
       <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
-        <p style="margin:0;font-size:14px;font-weight:700;color:#18181b">1. Reply to every Google review — even old ones</p>
-        <p style="margin:6px 0 16px;font-size:13px;color:#52525b">Google's algorithm rewards engagement. Replying to reviews (5-star and 1-star) signals an active business. Most owners ignore this completely.</p>
-        <p style="margin:0;font-size:14px;font-weight:700;color:#18181b">2. Make sure your business name, address, and phone match everywhere</p>
-        <p style="margin:6px 0 16px;font-size:13px;color:#52525b">Check Google, Yelp, Facebook, and your website. If the info is inconsistent, Google lowers your local rank. This is one of the most common and easily fixed issues.</p>
-        <p style="margin:0;font-size:14px;font-weight:700;color:#18181b">3. Add a "services" section to your Google Business Profile</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#52525b">Most profiles skip this. Adding your specific services (not just your category) helps Google match you to more searches.</p>
+        <p style="margin:0;font-size:14px;font-weight:700;color:#18181b">1. Reply to every Google review — especially old ones</p>
+        <p style="margin:6px 0 16px;font-size:13px;color:#52525b">Replying to reviews (good and bad) signals an active business. Most owners don't bother. Google notices.</p>
+        <p style="margin:0;font-size:14px;font-weight:700;color:#18181b">2. Make your name, address, and phone identical everywhere</p>
+        <p style="margin:6px 0 16px;font-size:13px;color:#52525b">Check Google, Yelp, Facebook, and your website. Even small differences (St. vs Street) hurt your local rank.</p>
+        <p style="margin:0;font-size:14px;font-weight:700;color:#18181b">3. Add specific services to your Google Business Profile</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#52525b">Most profiles just list a category. Adding individual services (e.g. "drain cleaning," "water heater installation") helps Google match you to more specific searches.</p>
       </div>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">GravyBlock monitors and automates all three of these for ${businessName} — but if you want to do it manually first, start there.</p>
-      ${btn(`${reportUrl}`, "See the full report for ${businessName}".replace("${businessName}", businessName))}
+      <p style="color:#52525b;font-size:14px;margin:12px 0">GravyBlock automates all three for ${businessName} — but if you want to start manually, these are the highest-leverage moves.</p>
+      ${btn(reportUrl, "View my full report →")}
     `, email, leadId),
   },
   {
     day: 10,
-    subject: ({ businessName, vertical }) => `How other ${vertical ? vertical.toLowerCase() + "s" : "local businesses"} use GravyBlock`,
+    subject: ({ businessName, vertical }) => `How ${vertical ? vertical.toLowerCase() + "s" : "local businesses"} like ${businessName} use GravyBlock`,
     html: ({ name, businessName, vertical, email, leadId }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">How It Works in Practice</p>
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">How It Works</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">The first 30 days, step by step</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        Here is exactly what happens when ${businessName} goes live on GravyBlock — no login required after setup:
+        Here's exactly what happens when ${businessName} goes live on GravyBlock — no ongoing work required after setup:
       </p>
       <ol style="margin:12px 0;padding-left:22px;color:#3f3f46;font-size:14px;line-height:2.2">
-        <li>GravyBlock scans your Google listing, website, and competitors and scores all visibility signals.</li>
-        <li>It writes the first ${vertical ? vertical.toLowerCase() : "local"} article targeting your city and queues it for your site.</li>
-        <li>A citation audit checks your business name, address, and phone across 40+ directories and surfaces inconsistencies.</li>
-        <li>New reviews get an AI-drafted reply suggested in your inbox. You copy and post in 10 seconds.</li>
-        <li>Every week, the visibility score refreshes and a new content piece queues. Every month, you get a digest showing exactly what ran.</li>
+        <li>Scans your Google listing, website, and nearby competitors. Scores all visibility signals.</li>
+        <li>Writes the first ${vertical ? vertical.toLowerCase() : "local"} article targeting your city and publishes it to your site.</li>
+        <li>Audits your business name, address, and phone across 40+ directories for inconsistencies.</li>
+        <li>New reviews get an AI-drafted reply in your inbox. You copy and post in 10 seconds.</li>
+        <li>Every week: visibility score refreshes, new content queues, outreach sends. Monthly digest shows everything that ran.</li>
       </ol>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">
-        None of this requires you to learn SEO. It just runs.
-      </p>
-      ${btn(`${siteUrl}/scan?plan=growth`, `Start autopilot for ${businessName}`)}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> at checkout — 50% off your first month.</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">You don't need to learn SEO. It runs without you.</p>
+      ${proof()}
+      ${btn(`${siteUrl}/scan?plan=growth`, "Start full autopilot — $74.99/mo →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Code <strong>INTRO50</strong> at checkout = 50% off first month.</p>
     `, email, leadId),
   },
   {
     day: 14,
-    subject: ({ businessName }) => `${businessName}: the INTRO50 code expires soon`,
+    subject: ({ businessName }) => `Last email — INTRO50 expires for ${businessName}`,
     html: ({ name, businessName, reportUrl, email, leadId }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#dc2626">Offer Expiring</p>
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#dc2626">Final Notice</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Last chance at 50% off</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        The <strong>INTRO50</strong> promo code — 50% off your first month — is valid for new signups from scan leads. It will not last indefinitely, and this is the last time I will mention it.
+        This is the last time GravyBlock will email you about this. The <strong>INTRO50</strong> code — 50% off your first month — is still valid, but this sequence ends today.
       </p>
-      <div style="margin:20px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
-        <p style="margin:0;font-size:15px;font-weight:700;color:#991b1b">Starter — $39.99 first month (was $79.99)</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Monthly visibility monitoring, citation audit, review queue, content ideas, and a full workspace for ${businessName}. No contract.</p>
+      <div style="margin:20px 0;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px">
+        <p style="margin:0;font-size:15px;font-weight:700;color:#166534">Scale — $74.99 first month (reg. $149.99)</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Weekly AI articles, Reddit outreach, citation audit, review requests, backlink prospecting, and AI visibility monitoring. Fully automated. No contract.</p>
       </div>
-      <div style="margin:12px 0;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px">
-        <p style="margin:0;font-size:15px;font-weight:700;color:#166534">Scale — $74.99 first month (was $149.99)</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Everything in Starter plus weekly AI articles published to your site, Reddit outreach, backlink prospecting, and AI citation monitoring. Fully automated.</p>
+      <div style="margin:12px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
+        <p style="margin:0;font-size:15px;font-weight:700;color:#991b1b">Starter — $39.99 first month (reg. $79.99)</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Monthly visibility monitoring, citation audit, review queue, and content ideas. Good starting point for ${businessName}.</p>
       </div>
-      ${btn(`${siteUrl}/scan?plan=starter`, "Claim 50% off — use code INTRO50")}
+      ${btn(`${siteUrl}/scan?plan=growth`, "Start Scale — use code INTRO50")}
       <p style="color:#71717a;font-size:13px;margin:16px 0">
-        After this email, GravyBlock will not contact you again unless you run a new scan. Your report for ${businessName} stays available at the link below.
+        Your report stays live: <a href="${reportUrl}" style="color:#dc2626">${reportUrl}</a>
       </p>
-      <p style="margin:8px 0;font-size:13px"><a href="${reportUrl}" style="color:#dc2626">${reportUrl}</a></p>
+      <p style="color:#71717a;font-size:13px;margin:0">After today, no more emails from GravyBlock unless you run a new scan.</p>
     `, email, leadId),
   },
 ];
