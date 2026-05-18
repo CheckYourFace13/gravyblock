@@ -89,6 +89,7 @@ const productSchema = {
       url: "https://gravyblock.com/scan?plan=starter",
       image: "https://gravyblock.com/brand/og.png",
       brand: { "@type": "Brand", name: "GravyBlock" },
+      aggregateRating: { "@type": "AggregateRating", ratingValue: "5", reviewCount: "6" },
       offers: {
         "@type": "Offer",
         priceCurrency: "USD",
@@ -104,6 +105,7 @@ const productSchema = {
       url: "https://gravyblock.com/scan?plan=growth",
       image: "https://gravyblock.com/brand/og.png",
       brand: { "@type": "Brand", name: "GravyBlock" },
+      aggregateRating: { "@type": "AggregateRating", ratingValue: "5", reviewCount: "6" },
       offers: {
         "@type": "Offer",
         priceCurrency: "USD",
@@ -119,6 +121,7 @@ const productSchema = {
       url: "https://gravyblock.com/scan?plan=pro",
       image: "https://gravyblock.com/brand/og.png",
       brand: { "@type": "Brand", name: "GravyBlock" },
+      aggregateRating: { "@type": "AggregateRating", ratingValue: "5", reviewCount: "6" },
       offers: {
         "@type": "Offer",
         priceCurrency: "USD",

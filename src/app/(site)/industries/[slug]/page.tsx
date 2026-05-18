@@ -18,6 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title: individual.metaTitle,
       description: individual.metaDescription,
+      alternates: { canonical: `https://gravyblock.com/industries/${slug}` },
     };
   }
   const page = getIndustryPage(slug);
@@ -25,6 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: page.metaTitle,
     description: page.metaDescription,
+    alternates: { canonical: `https://gravyblock.com/industries/${slug}` },
   };
 }
 

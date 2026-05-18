@@ -17,6 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: page.metaTitle,
     description: page.metaDescription,
+    alternates: { canonical: `https://gravyblock.com/compare/${slug}` },
   };
 }
 
