@@ -43,3 +43,8 @@ next-env.d.ts
 # local postgres / dev runtime
 .postgres-real/
 .pglite-data/
+
+# Claude Code worktrees and artifacts
+.claude/
+*.zip
+GRAVYBLOCK_FULL_HANDOFF_FOR_CLAUDE.md
