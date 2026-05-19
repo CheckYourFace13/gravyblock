@@ -1,6 +1,4 @@
 import type { MetadataRoute } from "next";
-import { desc, eq } from "drizzle-orm";
-import { getDb, publishedContent } from "@/lib/db";
 import { CITIES, INDUSTRIES } from "@/lib/local-seo/markets";
 import { GLOSSARY_TERMS } from "@/lib/content/glossary";
 import { COMPARE_SLUGS } from "@/lib/content/compare-pages";
@@ -80,29 +78,8 @@ const localSeoRoutes: MetadataRoute.Sitemap = CITIES.flatMap((city) =>
   })),
 );
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const db = getDb();
-
-  let contentRoutes: MetadataRoute.Sitemap = [];
-  if (db) {
-    try {
-      const published = await db
-        .select({ id: publishedContent.id, createdAt: publishedContent.createdAt })
-        .from(publishedContent)
-        .where(eq(publishedContent.status, "published"))
-        .orderBy(desc(publishedContent.createdAt))
-        .limit(5000);
-
-      contentRoutes = published.map((row) => ({
-        url: `${siteUrl}/published/${row.id}`,
-        lastModified: new Date(row.createdAt),
-        changeFrequency: "monthly" as const,
-        priority: 0.6,
-      }));
-    } catch {
-      // non-fatal
-    }
-  }
-
-  return [...staticRoutes, ...localSeoRoutes, ...contentRoutes];
+export default function sitemap(): MetadataRoute.Sitemap {
+  // /published/[id] pages are noindexed — the articles live on customer websites
+  // (that's the canonical source). Don't include them in the sitemap.
+  return [...staticRoutes, ...localSeoRoutes];
 }

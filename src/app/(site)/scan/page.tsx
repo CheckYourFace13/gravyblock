@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Free local SEO scan — see your visibility score in 60 seconds | GravyBlock",
   description:
     "Free Google visibility scan for local businesses. See your score, top ranking problems, and a prioritized fix list in under 60 seconds. No credit card required.",
+  // Canonical without query params — prevents /scan?vertical=X&location=Y
+  // variants from being indexed as separate pages.
+  alternates: { canonical: "https://gravyblock.com/scan" },
 };
 
 import { trackReferralEvent } from "@/lib/referrals/referral-tracker";

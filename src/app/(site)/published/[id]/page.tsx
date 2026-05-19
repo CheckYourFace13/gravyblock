@@ -63,7 +63,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: content.title,
     description,
-    alternates: { canonical: url },
+    // These articles are published on the customer's own website — that is the
+    // canonical source. Noindex gravyblock.com/published/[id] so Google doesn't
+    // treat them as duplicate content competing with the customer's site.
+    robots: { index: false, follow: false },
     openGraph: {
       title: content.title,
       description,
