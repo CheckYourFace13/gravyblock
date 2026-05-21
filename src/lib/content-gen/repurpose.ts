@@ -149,7 +149,8 @@ export async function repurposePublishedArticle(publishedContentId: string): Pro
       kind: variant,
       title: `${variant.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}: ${article.title}`,
       outline: body,
-      targetKeyword: null,
+      // Store source article ID so runRepurposeBatch can deduplicate
+      targetKeyword: publishedContentId,
       status: "queued",
       variant: "social_repurpose",
     });
@@ -179,25 +180,27 @@ export async function runRepurposeBatch(batchSize = 5): Promise<{ processed: num
 
   if (recentArticles.length === 0) return { processed: 0, queued: 0 };
 
-  // Check which ones already have social repurpose items queued
+  // Check which article IDs have already been repurposed (stored in targetKeyword)
   const articleIds = recentArticles.map((a) => a.id);
   const alreadyRepurposed = await db
-    .select({ variant: contentQueue.variant })
+    .select({ targetKeyword: contentQueue.targetKeyword })
     .from(contentQueue)
     .where(and(
       eq(contentQueue.variant, "social_repurpose"),
-      inArray(contentQueue.businessId, recentArticles.map((a) => a.businessId).filter(Boolean) as string[]),
+      inArray(contentQueue.targetKeyword, articleIds),
     ))
     .limit(1000);
 
-  // Simple check: if any social_repurpose exists for a business, skip (per-article tracking would need a join column)
-  const businessesWithRepurpose = new Set(alreadyRepurposed.map((r) => r.variant));
-  void businessesWithRepurpose; // used as a future optimization — for now process all unprocessed articles
+  const repurposedArticleIds = new Set(
+    alreadyRepurposed.map((r) => r.targetKeyword).filter(Boolean) as string[],
+  );
+
+  const unprocessed = recentArticles.filter((a) => !repurposedArticleIds.has(a.id));
 
   let processed = 0;
   let totalQueued = 0;
 
-  for (const article of recentArticles.slice(0, batchSize)) {
+  for (const article of unprocessed.slice(0, batchSize)) {
     const result = await repurposePublishedArticle(article.id);
     totalQueued += result.queued;
     processed += 1;

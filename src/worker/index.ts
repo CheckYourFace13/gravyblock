@@ -39,6 +39,8 @@ import { runFacebookPostingBatch } from "@/lib/social/facebook-poster";
 import { runRankTrackingBatch } from "@/lib/seo/rank-tracker";
 import { runOutreachBatch } from "@/lib/outreach/run-outreach-batch";
 import { getTodaysOutreachTarget } from "@/lib/outreach/outreach-calendar";
+import { runGbpReviewReplyBatch } from "@/lib/gbp/review-responder";
+import { runGbpPostBatch } from "@/lib/gbp/post-publisher";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -435,6 +437,24 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] gbp qa optimizer failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const reviewReplyResult = await runGbpReviewReplyBatch(5);
+    if (reviewReplyResult.replied > 0) {
+      console.info("[worker] gbp review replies", reviewReplyResult);
+    }
+  } catch (error) {
+    console.error("[worker] gbp review replies failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const gbpPostResult = await runGbpPostBatch(3);
+    if (gbpPostResult.posted > 0) {
+      console.info("[worker] gbp posts published", gbpPostResult);
+    }
+  } catch (error) {
+    console.error("[worker] gbp posts failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   try {
