@@ -644,6 +644,59 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <p className="text-sm font-semibold text-zinc-800">Recommendation</p>
             <p className="mt-1 text-sm text-zinc-600">{geoAudit.topRecommendation}</p>
           </div>
+
+          {geoAudit.overallScore < 60 ? (() => {
+            const checks = [
+              {
+                label: "Google Business Profile connected",
+                done: Boolean(googleConn),
+                action: "Connect Google in the Integrations section below to enable AI probes.",
+              },
+              {
+                label: "4+ local articles published",
+                done: publishedContentCount >= 4,
+                action: `${publishedContentCount} published so far. GravyBlock is writing more — AI models cite businesses with frequent local content.`,
+              },
+              {
+                label: "Structured data (schema markup) on your website",
+                done: techPass("no-structured-data"),
+                action: "Add LocalBusiness schema to your site. Use the Schema Generator below to generate the code.",
+              },
+              {
+                label: "20+ Google reviews",
+                done: latestReviewCount >= 20,
+                action: `${latestReviewCount} reviews so far. AI assistants heavily favor businesses with strong review volume.`,
+              },
+              {
+                label: "Listed in 5+ local directories",
+                done: autopilot.citationIssues.length >= 5,
+                action: "Citations from Yelp, BBB, and local directories signal legitimacy to AI models.",
+              },
+            ];
+            const doneCount = checks.filter((c) => c.done).length;
+            return (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-amber-900">AI visibility checklist</p>
+                  <span className="text-xs font-semibold text-amber-700 bg-amber-100 rounded-full px-2.5 py-0.5">{doneCount}/{checks.length} complete</span>
+                </div>
+                <ul className="space-y-2.5">
+                  {checks.map((c) => (
+                    <li key={c.label} className="flex items-start gap-2.5">
+                      <span className={`mt-0.5 flex-shrink-0 text-base leading-none ${c.done ? "text-green-600" : "text-amber-400"}`}>
+                        {c.done ? "✓" : "○"}
+                      </span>
+                      <div>
+                        <p className={`text-sm font-medium ${c.done ? "text-zinc-500 line-through" : "text-zinc-800"}`}>{c.label}</p>
+                        {!c.done ? <p className="text-xs text-zinc-500 mt-0.5">{c.action}</p> : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })() : null}
+
           {geoAudit.recentMentions.length > 0 ? (
             <div className="mt-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">Recent AI mentions</p>
