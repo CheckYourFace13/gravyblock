@@ -151,7 +151,8 @@ export async function repurposePublishedArticle(publishedContentId: string): Pro
       outline: body,
       // Store source article ID so runRepurposeBatch can deduplicate
       targetKeyword: publishedContentId,
-      status: "queued",
+      // Hold for customer approval before the worker posts it
+      status: "pending_approval",
       variant: "social_repurpose",
     });
   }

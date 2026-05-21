@@ -8,7 +8,18 @@ const KIND_LABELS: Record<string, string> = {
   gbp_post: "GBP Post",
   reddit_post: "Reddit Post",
   location_page: "Location Page",
+  facebook_post: "Facebook Post",
+  instagram_caption: "Instagram Caption",
+  linkedin_post: "LinkedIn Post",
 };
+
+const PLATFORM_STYLES: Record<string, { badge: string; dot: string }> = {
+  facebook_post:     { badge: "bg-blue-100 text-blue-800",   dot: "bg-blue-500" },
+  instagram_caption: { badge: "bg-pink-100 text-pink-800",   dot: "bg-pink-500" },
+  linkedin_post:     { badge: "bg-sky-100 text-sky-800",     dot: "bg-sky-600" },
+};
+
+const SOCIAL_KINDS = new Set(["facebook_post", "instagram_caption", "linkedin_post"]);
 
 type Props = {
   businessId: string;
@@ -23,7 +34,9 @@ export function ContentApprovalSection({ businessId, initialDrafts }: Props) {
   function handleApprove(id: string) {
     startTransition(async () => {
       await approveQueuedDraft(businessId, id);
-      setDrafts((prev) => prev.map((d) => d.id === id ? { ...d, status: "approved" } : d));
+      setDrafts((prev) =>
+        prev.map((d) => d.id === id ? { ...d, status: "approved" } : d),
+      );
     });
   }
 
@@ -34,8 +47,15 @@ export function ContentApprovalSection({ businessId, initialDrafts }: Props) {
     });
   }
 
-  const pending = drafts.filter((d) => d.status === "queued");
+  const pending = drafts.filter((d) => d.status === "queued" || d.status === "pending_approval");
   const approved = drafts.filter((d) => d.status === "approved");
+
+  // Social posts needing approval
+  const pendingSocial = pending.filter((d) => SOCIAL_KINDS.has(d.kind));
+  // Article drafts
+  const pendingArticles = pending.filter((d) => !SOCIAL_KINDS.has(d.kind));
+
+  const allVisible = [...pending, ...approved];
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -43,7 +63,7 @@ export function ContentApprovalSection({ businessId, initialDrafts }: Props) {
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">Content approval queue</h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Review AI-generated drafts before they publish. Approve to prioritize, or dismiss to skip.
+            Review AI-generated drafts before they publish. Approve to publish, or dismiss to skip.
           </p>
         </div>
         {pending.length > 0 ? (
@@ -53,35 +73,59 @@ export function ContentApprovalSection({ businessId, initialDrafts }: Props) {
         ) : null}
       </div>
 
-      {pending.length === 0 && approved.length === 0 ? (
+      {/* Social posts need approval banner */}
+      {pendingSocial.length > 0 ? (
+        <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          <span className="font-semibold">{pendingSocial.length} social post{pendingSocial.length > 1 ? "s" : ""} ready for review.</span>
+          {" "}Approve to publish to Facebook/Instagram, or dismiss to skip.
+        </div>
+      ) : null}
+
+      {allVisible.length === 0 ? (
         <p className="mt-4 text-sm text-zinc-500">
           No content drafts queued yet. GravyBlock generates new drafts automatically each week on paid plans.
         </p>
       ) : null}
 
       <ul className="mt-4 space-y-3">
-        {[...pending, ...approved].map((draft) => {
+        {allVisible.map((draft) => {
           const isExpanded = expanded === draft.id;
           const isApproved = draft.status === "approved";
+          const isSocial = SOCIAL_KINDS.has(draft.kind);
+          const platformStyle = PLATFORM_STYLES[draft.kind];
+          const isPendingApproval = draft.status === "pending_approval";
 
           return (
             <li
               key={draft.id}
-              className={`rounded-xl border px-4 py-3 ${isApproved ? "border-green-200 bg-green-50/50" : "border-zinc-200 bg-zinc-50"}`}
+              className={`rounded-xl border px-4 py-3 ${
+                isApproved
+                  ? "border-green-200 bg-green-50/50"
+                  : isPendingApproval
+                  ? "border-blue-200 bg-blue-50/40"
+                  : "border-zinc-200 bg-zinc-50"
+              }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-semibold text-zinc-700">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        platformStyle
+                          ? platformStyle.badge
+                          : "bg-zinc-200 text-zinc-700"
+                      }`}
+                    >
                       {KIND_LABELS[draft.kind] ?? draft.kind}
                     </span>
                     {isApproved ? (
                       <span className="rounded-full bg-green-200 px-2 py-0.5 text-xs font-semibold text-green-800">
-                        Approved
+                        Approved — queued to post
                       </span>
-                    ) : null}
-                    {draft.targetKeyword ? (
-                      <span className="text-xs text-zinc-400">keyword: {draft.targetKeyword}</span>
+                    ) : isPendingApproval ? (
+                      <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                        Needs your approval
+                      </span>
                     ) : null}
                   </div>
                   <p className="mt-1 font-semibold text-zinc-900 text-sm">{draft.title}</p>
@@ -102,7 +146,7 @@ export function ContentApprovalSection({ businessId, initialDrafts }: Props) {
                         disabled={isPending}
                         className="rounded-full bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-500 disabled:opacity-50"
                       >
-                        Approve
+                        {isSocial ? "Approve & post" : "Approve"}
                       </button>
                       <button
                         onClick={() => handleDismiss(draft.id)}
@@ -118,9 +162,16 @@ export function ContentApprovalSection({ businessId, initialDrafts }: Props) {
 
               {isExpanded && draft.outline ? (
                 <div className="mt-3 max-h-64 overflow-y-auto rounded-lg bg-white border border-zinc-200 p-3">
-                  <pre className="whitespace-pre-wrap text-xs text-zinc-700 font-sans leading-relaxed">
-                    {draft.outline}
-                  </pre>
+                  {isSocial ? (
+                    // Social posts are plain text — render as readable paragraphs
+                    <p className="text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap">
+                      {draft.outline}
+                    </p>
+                  ) : (
+                    <pre className="whitespace-pre-wrap text-xs text-zinc-700 font-sans leading-relaxed">
+                      {draft.outline}
+                    </pre>
+                  )}
                 </div>
               ) : null}
             </li>
