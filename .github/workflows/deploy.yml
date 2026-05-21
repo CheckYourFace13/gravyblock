@@ -1,4 +1,4 @@
-name: Deploy to VPS
+﻿name: Deploy to VPS
 
 on:
   push:
@@ -9,17 +9,19 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to VPS
+      - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
           script: |
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            set -e
             cd /home/deploy/gravyblock
-            git pull
-            npm install --legacy-peer-deps
+            git pull origin main
+            npm install --production=false
             npm run build
-            pm2 restart all
+            pm2 restart gravyblock gravyblock-worker
+            pm2 save
+            echo "Deploy complete at $(date)"
