@@ -178,6 +178,59 @@ export async function postGbpQuestion(
   return { ok: true, questionName: json.name };
 }
 
+// ── Photos ────────────────────────────────────────────────────────────────────
+
+export type GbpMediaCategory =
+  | "ADDITIONAL"
+  | "COVER"
+  | "PROFILE"
+  | "EXTERIOR"
+  | "INTERIOR"
+  | "PRODUCT"
+  | "FOOD_AND_DRINK"
+  | "MENU"
+  | "TEAMS";
+
+export async function uploadGbpPhoto(
+  businessId: string,
+  params: {
+    sourceUrl: string;
+    description?: string;
+    category?: GbpMediaCategory;
+  },
+): Promise<{ ok: boolean; mediaName?: string; error?: string }> {
+  const accessToken = await getFreshAccessToken(businessId);
+  if (!accessToken) return { ok: false, error: "Google not connected" };
+
+  const { locationName } = await discoverGbpLocation(businessId);
+  if (!locationName) return { ok: false, error: "No GBP location found" };
+
+  const body: Record<string, unknown> = {
+    mediaFormat: "PHOTO",
+    locationAssociation: { category: params.category ?? "ADDITIONAL" },
+    sourceUrl: params.sourceUrl,
+  };
+  if (params.description) body.description = params.description.slice(0, 1500);
+
+  const res = await fetch(
+    `https://mybusiness.googleapis.com/v4/${locationName}/media`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error("[gbp-write] uploadPhoto failed", err);
+    return { ok: false, error: "GBP photo upload failed" };
+  }
+
+  const json = (await res.json()) as { name?: string };
+  return { ok: true, mediaName: json.name };
+}
+
 // ── Worker helper: auto-post queued GBP content ───────────────────────────────
 
 export async function isGbpConnected(businessId: string): Promise<boolean> {

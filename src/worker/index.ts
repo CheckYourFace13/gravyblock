@@ -41,6 +41,7 @@ import { runOutreachBatch } from "@/lib/outreach/run-outreach-batch";
 import { getTodaysOutreachTarget } from "@/lib/outreach/outreach-calendar";
 import { runGbpReviewReplyBatch } from "@/lib/gbp/review-responder";
 import { runGbpPostBatch } from "@/lib/gbp/post-publisher";
+import { runGbpPhotoUploadBatch } from "@/lib/gbp/photo-uploader";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -455,6 +456,15 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] gbp posts failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const photoResult = await runGbpPhotoUploadBatch(3);
+    if (photoResult.uploaded > 0) {
+      console.info("[worker] gbp photos uploaded", photoResult);
+    }
+  } catch (error) {
+    console.error("[worker] gbp photo upload failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   try {
