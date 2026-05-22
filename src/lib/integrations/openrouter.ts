@@ -11,16 +11,16 @@ type OpenRouterResponse = {
 // Batch models run in background workers (rate limits are fine — they're spread over time)
 // Interactive model is used for real-time user-facing requests — falls back if rate-limited
 export const MODELS = {
-  content: "meta-llama/llama-3.1-8b-instruct:free",       // batch: content generation
-  outreach: "mistralai/mistral-7b-instruct:free",          // interactive: profile pull, copy
-  visibility: "meta-llama/llama-3.1-8b-instruct:free",    // batch: AI visibility probes
+  content: "mistralai/mistral-7b-instruct:free",     // batch: content generation
+  outreach: "mistralai/mistral-7b-instruct:free",    // interactive: profile pull, copy
+  visibility: "mistralai/mistral-7b-instruct:free",  // batch: AI visibility probes
 } as const;
 
 // Free-tier fallback chain — tried in order if primary model rate-limits (429)
 const FALLBACK_MODELS = [
   "mistralai/mistral-7b-instruct:free",
-  "meta-llama/llama-3.1-8b-instruct:free",
-  "google/gemma-3-4b-it:free",
+  "google/gemma-2-9b-it:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
 ];
 
 async function callModel(
