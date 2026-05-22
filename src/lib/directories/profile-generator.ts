@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import { getDb, businesses, businessConfigs, operatorTasks, jobs } from "@/lib/db";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
 
@@ -146,7 +146,7 @@ export async function runDirectoryProfileBatch(batchSize = 3): Promise<{ process
       and(
         eq(jobs.type, "directory_profile_generator"),
         eq(jobs.status, "completed"),
-        sql`${jobs.createdAt} > ${oneMonthAgo}`,
+        gte(jobs.createdAt, oneMonthAgo),
       ),
     )
     .limit(200);

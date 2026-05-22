@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import { getDb, businesses, businessConfigs, operatorTasks, jobs } from "@/lib/db";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
 
@@ -87,7 +87,7 @@ export async function runGbpQaOptimizerBatch(batchSize = 3): Promise<{ processed
       and(
         eq(jobs.type, "gbp_qa_optimizer"),
         eq(jobs.status, "completed"),
-        sql`${jobs.createdAt} > ${oneMonthAgo}`,
+        gte(jobs.createdAt, oneMonthAgo),
       ),
     )
     .limit(200);
