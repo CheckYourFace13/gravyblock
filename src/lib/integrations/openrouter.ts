@@ -13,19 +13,17 @@ type CallResult = { text: string | null; rateLimited: boolean; modelNotFound: bo
 // Batch models run in background workers (rate limits are fine — they're spread over time)
 // Interactive model is used for real-time user-facing requests — falls back if rate-limited
 export const MODELS = {
-  content: "meta-llama/llama-3.2-3b-instruct:free",   // batch: content generation (free tier)
-  outreach: "meta-llama/llama-3.2-3b-instruct:free",  // interactive: profile pull, copy
-  visibility: "meta-llama/llama-3.2-3b-instruct:free", // batch: AI visibility probes
+  content: "meta-llama/llama-3.1-8b-instruct",    // batch: content generation (~$0.04/M tokens)
+  outreach: "meta-llama/llama-3.1-8b-instruct",   // interactive: profile pull, copy
+  visibility: "meta-llama/llama-3.1-8b-instruct", // batch: AI visibility probes
 } as const;
 
 // Fallback chain — tried in order if primary model rate-limits or has no endpoints
-// All :free tier — no credits required. Add OpenRouter credits and swap to paid slugs for production.
 const FALLBACK_MODELS = [
+  "meta-llama/llama-3.1-8b-instruct",
+  "openai/gpt-4o-mini",
   "meta-llama/llama-3.2-3b-instruct:free",
   "qwen/qwen-2.5-7b-instruct:free",
-  "deepseek/deepseek-r1:free",
-  "meta-llama/llama-3.2-1b-instruct:free",
-  "mistralai/mistral-7b-instruct:free",
 ];
 
 async function callModel(
