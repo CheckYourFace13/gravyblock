@@ -10,6 +10,7 @@ export const PROMO_CODES = [
   "PRODUCTHUNT",
   "GOOGLE50",
   "CONNECT",
+  "EMAILFREE",
 ] as const;
 
 export type PromoCode = (typeof PROMO_CODES)[number];

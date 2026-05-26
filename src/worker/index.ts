@@ -39,6 +39,7 @@ import { runFacebookPostingBatch } from "@/lib/social/facebook-poster";
 import { runRankTrackingBatch } from "@/lib/seo/rank-tracker";
 import { runOutreachBatch } from "@/lib/outreach/run-outreach-batch";
 import { getTodaysOutreachTarget } from "@/lib/outreach/outreach-calendar";
+import { runFollowupOutreachBatch } from "@/lib/outreach/run-followup-batch";
 import { runGbpReviewReplyBatch } from "@/lib/gbp/review-responder";
 import { runGbpPostBatch } from "@/lib/gbp/post-publisher";
 import { runGbpPhotoUploadBatch } from "@/lib/gbp/photo-uploader";
@@ -286,7 +287,7 @@ async function maybeSendColdOutreach() {
   // Read settings from DB (admin-controlled)
   const { getOutreachSettings } = await import("@/app/admin/(dashboard)/outreach/actions");
   const settings = await getOutreachSettings().catch(() => ({
-    emailsPerBatch: 8, paused: false, weekdayEnabled: true, weekendRestaurantsEnabled: true,
+    emailsPerBatch: 13, paused: false, weekdayEnabled: true, weekendRestaurantsEnabled: true,
   }));
 
   if (settings.paused) return;
@@ -294,11 +295,13 @@ async function maybeSendColdOutreach() {
   const now = new Date();
   const day = now.getUTCDay(); // 0=Sun, 6=Sat
 
-  // ── WEEKDAYS: 3 windows hitting different city+industry combos ──
+  // ── WEEKDAYS: 4 windows hitting different city+industry combos ──
+  // 4 × 13 = ~52 emails/day on weekdays
   if (settings.weekdayEnabled && day >= 1 && day <= 5) {
     await runColdOutreachWindow("morning",   0,  9,  undefined, settings.emailsPerBatch);
     await runColdOutreachWindow("midday",   10, 12,  undefined, settings.emailsPerBatch);
     await runColdOutreachWindow("afternoon",20, 15,  undefined, settings.emailsPerBatch);
+    await runColdOutreachWindow("evening",   5, 17,  undefined, settings.emailsPerBatch);
   }
 
   // ── WEEKENDS: restaurants only ──
@@ -393,6 +396,21 @@ async function tick() {
   await maybeSendWeeklyUpsell();
   await maybeSendReviewRequests();
   await maybeSendColdOutreach();
+
+  // Follow-up email (#2): free trial offer to prospects who got email #1 3-21 days ago
+  // Runs once per day at 10am UTC
+  if (new Date().getUTCHours() === 10 && !(await hasJobRunToday("followup_outreach_batch"))) {
+    try {
+      const followupResult = await runFollowupOutreachBatch(20);
+      if (followupResult.sent > 0) {
+        await recordWorkerJob("followup_outreach_batch", followupResult);
+        console.info("[worker] followup outreach emails sent", followupResult);
+      }
+    } catch (error) {
+      console.error("[worker] followup outreach failed", { error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
   await maybeCitationAudit();
 
   try {

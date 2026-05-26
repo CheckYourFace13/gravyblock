@@ -150,6 +150,143 @@ function buildHtmlEmail(prospect: Prospect & { emailTo?: string }, industryLabel
 </html>`;
 }
 
+// ── Follow-up email (email #2 — free trial offer) ───────────────────────────
+
+function buildFollowupSubject(businessName: string): string {
+  return `${businessName} — one more note (+ a free month)`;
+}
+
+function buildFollowupText(businessName: string, scanUrl: string): string {
+  return `Hi,
+
+I reached out last week about ${businessName}'s local search rankings and wanted to follow up once.
+
+I know you're busy, so I'll make this quick: GravyBlock is running a trial where we give new customers their first month completely free — no credit card charge, cancel any time.
+
+Here's what happens during that month:
+- We generate SEO content for your website automatically every week
+- We clean up your Google Business Profile (Q&As, services, photos)
+- We find and fix citation issues that hurt your local rankings
+- We track where you rank vs. competitors
+
+Most customers see ranking movement within 30 days. After the free month, it's $79.99/mo — less than most SEO agencies charge for a single hour.
+
+Run your free visibility score first (takes 60 seconds):
+${scanUrl}
+
+Then use code EMAILFREE at checkout for your first month free.
+
+If the timing isn't right, I completely understand — I won't follow up again after this.
+
+${SENDER_NAME}
+${SENDER_TITLE} — https://gravyblock.com`;
+}
+
+function buildFollowupHtml(businessName: string, scanUrl: string, emailTo: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+</head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:#1a1a1a;max-width:560px;margin:0 auto;padding:32px 20px;background:#fff">
+
+  <p style="margin:0 0 18px">Hi,</p>
+
+  <p style="margin:0 0 18px">
+    I reached out last week about <strong>${businessName}</strong>'s local search rankings — wanted to follow up once before I move on.
+  </p>
+
+  <p style="margin:0 0 18px">
+    I'll make this quick: GravyBlock is offering new customers their <strong>first month completely free</strong> — no charge, cancel any time.
+  </p>
+
+  <p style="margin:0 0 6px;font-weight:600;color:#1a1a1a">Here's what happens during that free month:</p>
+  <ul style="margin:0 0 18px;padding-left:20px;color:#333">
+    <li style="margin-bottom:6px">Weekly SEO content published for your business automatically</li>
+    <li style="margin-bottom:6px">Google Business Profile cleanup — Q&amp;As, services, photos</li>
+    <li style="margin-bottom:6px">Citation fixes that directly affect your local rankings</li>
+    <li style="margin-bottom:6px">Competitor tracking so you can see exactly where you stand</li>
+  </ul>
+
+  <p style="margin:0 0 18px;font-size:14px;color:#555">
+    Most customers see ranking movement within 30 days. After the free month it's $79.99/mo —
+    less than most agencies charge for a single hour.
+  </p>
+
+  <p style="margin:0 0 8px">Start with your free visibility score (60 seconds):</p>
+
+  <p style="margin:0 0 24px;text-align:center">
+    <a href="${scanUrl}"
+       style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">
+      See your free score →
+    </a>
+    <br/>
+    <span style="font-size:12px;color:#666;margin-top:6px;display:block">Then use code <strong>EMAILFREE</strong> at checkout for your first month free</span>
+  </p>
+
+  <p style="margin:0 0 32px;font-size:14px;color:#555">
+    If the timing isn't right, I completely understand — I won't follow up again after this.
+  </p>
+
+  <p style="margin:0 0 6px;font-size:14px">
+    ${SENDER_NAME}<br/>
+    <a href="https://gravyblock.com" style="color:#dc2626;text-decoration:none">${SENDER_TITLE}</a>
+  </p>
+
+  <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
+
+  ${coldOutreachFooter(emailTo)}
+
+</body>
+</html>`;
+}
+
+export async function sendFollowupEmail(params: {
+  businessName: string;
+  email: string;
+  city?: string;
+}): Promise<SendEmailResult> {
+  const cfg = resendConfig();
+  if (!cfg.apiKey) return { ok: false, skipped: true, reason: "RESEND_API_KEY not set" };
+
+  if (await isOptedOut(params.email)) {
+    return { ok: false, skipped: true, reason: "opted out" };
+  }
+
+  const scanUrlParams = new URLSearchParams({ q: params.businessName, ...(params.city ? { city: params.city } : {}) });
+  const scanUrl = `${SITE_URL}/scan?${scanUrlParams.toString()}`;
+
+  const subject = buildFollowupSubject(params.businessName);
+  const text = buildFollowupText(params.businessName, scanUrl);
+  const html = buildFollowupHtml(params.businessName, scanUrl, params.email);
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${cfg.apiKey}`,
+    },
+    body: JSON.stringify({
+      from: cfg.from,
+      to: [params.email],
+      subject,
+      html,
+      text,
+      tags: [
+        { name: "type", value: "cold_outreach_followup" },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Resend API error: ${res.status} ${body}`);
+  }
+
+  return { ok: true };
+}
+
 /** Derives multiple candidate email addresses from a domain to try in order. */
 function deriveEmailCandidates(website: string): string[] {
   try {
