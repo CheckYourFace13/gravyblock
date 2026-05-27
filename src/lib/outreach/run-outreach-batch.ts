@@ -2,7 +2,7 @@ import { findWeakBusinesses } from "./prospect-finder";
 import { sendProspectEmail } from "./outreach-emailer";
 import { hasBeenContacted, recordOutreachSent } from "./outreach-tracker";
 
-const DEFAULT_MAX_EMAILS = 8; // 8 per batch × 3 batches/day = ~24/day, ~480/month
+const DEFAULT_MAX_EMAILS = 13; // 13 per batch × 4 batches/day = ~52/day
 
 export async function runOutreachBatch(params: {
   city: string;
@@ -14,8 +14,7 @@ export async function runOutreachBatch(params: {
 }): Promise<{ sent: number; skipped: number; prospects: number }> {
   const { city, state, industry, industryLabel, agencyName, maxEmails = DEFAULT_MAX_EMAILS } = params;
 
-  // Hard cap — cold outreach must never run unchecked
-  const cap = Math.min(maxEmails, 10);
+  const cap = maxEmails; // no artificial ceiling — controlled via admin UI
 
   console.info("[outreach-batch] Starting", { city, state, industry, cap });
 

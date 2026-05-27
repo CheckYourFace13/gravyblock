@@ -138,21 +138,16 @@ function buildWeaknessReasons(
   return reasons;
 }
 
-export async function findWeakBusinesses(params: {
-  city: string;
-  state: string;
-  industry: string;
-  maxResults?: number;
-}): Promise<Prospect[]> {
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-  if (!apiKey) throw new Error("GOOGLE_PLACES_API_KEY is not set");
-
-  const { city, state, industry, maxResults = 12 } = params;
-
-  const query = `${industry} in ${city} ${state}`;
+/** Fetches one page of Places Text Search results, returning results + next page token. */
+async function fetchPlacesPage(
+  query: string,
+  apiKey: string,
+  pageToken?: string,
+): Promise<{ results: PlacesTextSearchResult[]; nextPageToken?: string }> {
   const url = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
   url.searchParams.set("query", query);
   url.searchParams.set("key", apiKey);
+  if (pageToken) url.searchParams.set("pagetoken", pageToken);
 
   const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) });
   if (!res.ok) throw new Error(`Google Places Text Search failed: ${res.status}`);
@@ -162,12 +157,45 @@ export async function findWeakBusinesses(params: {
     throw new Error(`Google Places API error: ${data.status} — ${data.error_message ?? "unknown"}`);
   }
 
-  const results = data.results ?? [];
+  return { results: data.results ?? [], nextPageToken: data.next_page_token };
+}
 
-  // Fetch website + phone for each place in parallel
+export async function findWeakBusinesses(params: {
+  city: string;
+  state: string;
+  industry: string;
+  maxResults?: number;
+}): Promise<Prospect[]> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey) throw new Error("GOOGLE_PLACES_API_KEY is not set");
+
+  const { city, state, industry, maxResults = 50 } = params;
+  const query = `${industry} in ${city} ${state}`;
+
+  // Paginate through up to 3 pages (Google Places max) — 20 results/page = up to 60 raw results
+  const allResults: PlacesTextSearchResult[] = [];
+  let nextPageToken: string | undefined;
+
+  for (let page = 0; page < 3; page++) {
+    // Google requires a short delay before using a next_page_token
+    if (page > 0 && nextPageToken) {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+
+    const { results, nextPageToken: token } = await fetchPlacesPage(query, apiKey, nextPageToken);
+    allResults.push(...results);
+    nextPageToken = token;
+
+    if (!nextPageToken) break; // no more pages
+  }
+
+  // Dedupe by place_id
+  const unique = Array.from(new Map(allResults.map((r) => [r.place_id, r])).values());
+
+  // Fetch website + phone for all places in parallel
   const detailsMap = new Map<string, { website?: string; phone?: string }>();
   await Promise.all(
-    results.map(async (place) => {
+    unique.map(async (place) => {
       const details = await fetchPlaceDetails(place.place_id, apiKey);
       detailsMap.set(place.place_id, details);
     }),
@@ -175,14 +203,14 @@ export async function findWeakBusinesses(params: {
 
   const prospects: Prospect[] = [];
 
-  for (const place of results) {
+  for (const place of unique) {
     const details = detailsMap.get(place.place_id) ?? {};
     const hasWebsite = Boolean(details.website);
     const opportunityScore = scoreOpportunity(place.rating, place.user_ratings_total, hasWebsite);
 
     // Skip no-website businesses (can't email) and skip already-dominant ones
     if (!hasWebsite) continue;
-    if (opportunityScore < 30) continue; // skip already dominating or too weak to convert
+    if (opportunityScore < 30) continue;
 
     const weaknessReasons = buildWeaknessReasons(place.rating, place.user_ratings_total, hasWebsite);
 
