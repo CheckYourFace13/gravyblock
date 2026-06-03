@@ -4,6 +4,7 @@ import { GLOSSARY_TERMS } from "@/lib/content/glossary";
 import { COMPARE_SLUGS } from "@/lib/content/compare-pages";
 import { QUESTION_GUIDE_SLUGS } from "@/lib/content/question-guides";
 import { INDIVIDUAL_INDUSTRY_PAGES, INDIVIDUAL_INDUSTRY_SLUGS } from "@/lib/content/industries/individual";
+import { getAllBlogPosts } from "@/lib/blog/posts";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
@@ -78,8 +79,15 @@ const localSeoRoutes: MetadataRoute.Sitemap = CITIES.flatMap((city) =>
   })),
 );
 
+const blogRoutes: MetadataRoute.Sitemap = getAllBlogPosts().map((post) => ({
+  url: `${siteUrl}/blog/${post.slug}`,
+  lastModified: new Date(post.publishedAt),
+  changeFrequency: "monthly" as const,
+  priority: 0.8,
+}));
+
 export default function sitemap(): MetadataRoute.Sitemap {
   // /published/[id] pages are noindexed — the articles live on customer websites
   // (that's the canonical source). Don't include them in the sitemap.
-  return [...staticRoutes, ...localSeoRoutes];
+  return [...staticRoutes, ...localSeoRoutes, ...blogRoutes];
 }

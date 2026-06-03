@@ -1,7 +1,7 @@
 "use server";
 
 import { getBusinessById, persistStripeCustomerId } from "@/lib/billing/repository";
-import { getAppBaseUrl, getPriceIdForPlan, getStripeServerClient, type CheckoutPlan } from "@/lib/stripe/server";
+import { getAppBaseUrl, getPriceIdForPlan, getStripeServerClient, type CheckoutPlan, type BillingInterval } from "@/lib/stripe/server";
 import { canAccessBusiness } from "@/lib/auth/customer-auth";
 import { isAdminSession } from "@/lib/auth/admin-session";
 import { normalizePromoCode } from "@/lib/stripe/promo-codes";
@@ -25,6 +25,8 @@ export async function createCheckoutSessionAction(formData: FormData) {
   try {
     const businessId = requiredField(formData, "businessId");
     const plan = normalizeCheckoutPlan(requiredField(formData, "plan"));
+    const rawInterval = String(formData.get("interval") ?? "monthly");
+    const interval: BillingInterval = rawInterval === "annual" ? "annual" : "monthly";
     const promoIntent = normalizePromoCodeIntent(String(formData.get("promoCode") ?? ""));
     const authorized = (await isAdminSession()) || (await canAccessBusiness(businessId));
     if (!authorized) throw new Error("Unauthorized business access");
@@ -57,12 +59,12 @@ export async function createCheckoutSessionAction(formData: FormData) {
       },
       line_items: [
         {
-          price: getPriceIdForPlan(plan),
+          price: getPriceIdForPlan(plan, interval),
           quantity: 1,
         },
       ],
       subscription_data: {
-        metadata: { businessId },
+        metadata: { businessId, billingInterval: interval },
       },
       success_url: `${baseUrl}/workspace/${businessId}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/workspace/${businessId}/billing/cancel`,

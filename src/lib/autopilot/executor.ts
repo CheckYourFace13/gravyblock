@@ -27,6 +27,7 @@ import { generateArticleBody, generateLocalPageBody, generateOutreachPitch, gene
 import { addInternalLinks } from "@/lib/content/internal-linker";
 import { getArticlePhoto } from "@/lib/integrations/unsplash";
 import { businessConfigs } from "@/lib/db";
+import { buildSchemaScriptBlock, injectSchemaIntoHtml } from "@/lib/publishing/inject-schema";
 import { checkBusinessVisibilityInAI } from "@/lib/integrations/perplexity";
 
 type AutomationRunProfile = {
@@ -347,9 +348,26 @@ export async function executeContentPublishPath(businessId: string) {
     let publicUrl = `/published/${artifactId}`;
     let channel = "internal_site";
 
+    // Build schema block once — injected into all external platform posts
+    const schemaBlock = buildSchemaScriptBlock({
+      business: {
+        name: biz?.name ?? "Local Business",
+        address: biz?.address ?? null,
+        phone: biz?.phone ?? null,
+        website: biz?.website ?? null,
+        vertical: biz?.vertical ?? null,
+        primaryCategory: biz?.primaryCategory ?? null,
+        rating: biz?.rating ?? null,
+        reviewCount: biz?.reviewCount ?? null,
+      },
+      articleTitle: queuedItem.title,
+      publishedAt: new Date(),
+    });
+
     if (target?.adapter === "wordpress" && target.config) {
       const wpConfig = target.config as unknown as WordPressConfig;
-      const wpResult = await publishToWordPress({ config: wpConfig, title: queuedItem.title, body });
+      const bodyWithSchema = injectSchemaIntoHtml(body, schemaBlock);
+      const wpResult = await publishToWordPress({ config: wpConfig, title: queuedItem.title, body: bodyWithSchema });
       if (wpResult.ok) {
         publicUrl = wpResult.postUrl;
         channel = "wordpress";
@@ -359,7 +377,7 @@ export async function executeContentPublishPath(businessId: string) {
     } else if (target?.adapter === "webflow" && target.config) {
       const wfConfig = extractWebflowConfig(target.config);
       if (wfConfig) {
-        const wfResult = await publishToWebflow(wfConfig, { title: queuedItem.title, content: body });
+        const wfResult = await publishToWebflow(wfConfig, { title: queuedItem.title, content: injectSchemaIntoHtml(body, schemaBlock) });
         if (wfResult.ok) {
           publicUrl = `https://webflow.com/item/${wfResult.itemId}`;
           channel = "webflow";
@@ -370,7 +388,7 @@ export async function executeContentPublishPath(businessId: string) {
     } else if (target?.adapter === "shopify" && target.config) {
       const sfConfig = extractShopifyConfig(target.config);
       if (sfConfig) {
-        const sfResult = await publishToShopify(sfConfig, { title: queuedItem.title, content: body });
+        const sfResult = await publishToShopify(sfConfig, { title: queuedItem.title, content: injectSchemaIntoHtml(body, schemaBlock) });
         if (sfResult.ok) {
           publicUrl = sfResult.url;
           channel = "shopify";

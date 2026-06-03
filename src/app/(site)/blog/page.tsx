@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { desc, eq, and, inArray } from "drizzle-orm";
 import { getDb, publishedContent, businesses } from "@/lib/db";
+import { getAllBlogPosts } from "@/lib/blog/posts";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,22 @@ function excerpt(body: string, length = 160): string {
 }
 
 export default async function BlogPage() {
-  const posts = await getBlogPosts();
+  const [dynamicPosts, staticPosts] = await Promise.all([
+    getBlogPosts(),
+    Promise.resolve(getAllBlogPosts()),
+  ]);
+
+  // Merge: dynamic posts first, then static blog posts
+  type PostItem =
+    | { type: "dynamic"; id: string; title: string; body: string; createdAt: Date; coverImageUrl: string | null; metaDescription: string | null; href: string }
+    | { type: "static"; slug: string; title: string; metaDescription: string; publishedAt: string; href: string };
+
+  const allPosts: PostItem[] = [
+    ...dynamicPosts.map((p) => ({ type: "dynamic" as const, ...p, href: `/published/${p.id}` })),
+    ...staticPosts.map((p) => ({ type: "static" as const, ...p, href: `/blog/${p.slug}` })),
+  ];
+
+  const posts = allPosts;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
@@ -72,22 +88,23 @@ export default async function BlogPage() {
         <p className="text-xs text-zinc-400">Articles written and published automatically by GravyBlock autopilot.</p>
       </header>
 
-      {posts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-6 py-16 text-center">
-          <p className="font-semibold text-zinc-700">First articles coming soon.</p>
-          <p className="mt-1 text-sm text-zinc-500">GravyBlock autopilot is generating content. Check back shortly.</p>
-          <Link href="/scan" className="mt-4 inline-block rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-500">
-            Run a free scan while you wait
-          </Link>
-        </div>
-      ) : (
-        <div className="grid gap-8 sm:grid-cols-2">
-          {posts.map((post) => (
-            <article key={post.id} className="group flex flex-col rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-              {post.coverImageUrl ? (
+      <div className="grid gap-8 sm:grid-cols-2">
+        {posts.map((post) => {
+          const coverImageUrl = post.type === "dynamic" ? post.coverImageUrl : null;
+          const dateStr = post.type === "dynamic"
+            ? new Date(post.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+            : new Date(post.publishedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+          const desc2 = post.type === "dynamic"
+            ? (post.metaDescription ?? excerpt(post.body))
+            : post.metaDescription;
+          const key = post.type === "dynamic" ? post.id : post.slug;
+
+          return (
+            <article key={key} className="group flex flex-col rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+              {coverImageUrl ? (
                 <div className="h-40 overflow-hidden bg-zinc-100">
                   <img
-                    src={post.coverImageUrl}
+                    src={coverImageUrl}
                     alt={post.title}
                     className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
@@ -96,26 +113,19 @@ export default async function BlogPage() {
                 <div className="h-2 bg-gradient-to-r from-red-500 to-red-700" />
               )}
               <div className="flex flex-1 flex-col p-5">
-                <p className="text-xs text-zinc-400 mb-2">
-                  {new Date(post.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                </p>
+                <p className="text-xs text-zinc-400 mb-2">{dateStr}</p>
                 <h2 className="text-base font-semibold text-zinc-900 group-hover:text-red-700 transition-colors leading-snug">
-                  <Link href={`/published/${post.id}`}>{post.title}</Link>
+                  <Link href={post.href}>{post.title}</Link>
                 </h2>
-                <p className="mt-2 flex-1 text-sm text-zinc-500 leading-relaxed">
-                  {post.metaDescription ?? excerpt(post.body)}
-                </p>
-                <Link
-                  href={`/published/${post.id}`}
-                  className="mt-4 text-xs font-semibold text-red-700 hover:text-red-800"
-                >
+                <p className="mt-2 flex-1 text-sm text-zinc-500 leading-relaxed">{desc2}</p>
+                <Link href={post.href} className="mt-4 text-xs font-semibold text-red-700 hover:text-red-800">
                   Read article →
                 </Link>
               </div>
             </article>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
       <section className="mt-16 rounded-2xl border border-red-200 bg-red-50/50 p-8 text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-800">Try it free</p>

@@ -38,6 +38,20 @@ export async function isOptedOut(email: string): Promise<boolean> {
   return Boolean(row);
 }
 
+/** Record an opt-out for an email address (used by webhook on bounce/complaint). */
+export async function recordOptOut(email: string): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  // Check if already opted out before inserting
+  const already = await isOptedOut(email);
+  if (already) return;
+  await db.insert(jobs).values({
+    type: "email_optout",
+    payload: { email: email.toLowerCase(), source: "webhook" },
+    status: "completed",
+  });
+}
+
 /** Unsubscribe footer HTML to append to all marketing emails. */
 export function unsubscribeFooter(email: string, leadId?: string): string {
   const url = unsubscribeUrl(email, leadId);

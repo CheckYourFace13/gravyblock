@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq, and, gte } from "drizzle-orm";
 import { getDb, businesses, businessConfigs, operatorTasks, jobs } from "@/lib/db";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
+import { postGbpQuestion, isGbpConnected } from "@/lib/integrations/gbp-write";
 
 function cityFromAddress(address: string | null | undefined): string {
   if (!address) return "your city";
@@ -144,14 +145,33 @@ export async function runGbpQaOptimizerBatch(batchSize = 3): Promise<{ processed
       const tasks = [];
 
       if (qaContent) {
-        tasks.push({
-          id: randomUUID(),
-          businessId: biz.id,
-          title: "Add these Q&As to your Google Business Profile",
-          detail: `Log in to your Google Business Profile at business.google.com, go to the Q&A section, and post these questions and answers. This helps customers find you for specific searches.\n\n${qaContent}`,
-          queue: "gbp_ops",
-          status: "queued",
-        });
+        // Auto-post Q&As if Google is connected; otherwise create a manual task
+        const gbpConnected = await isGbpConnected(biz.id);
+        if (gbpConnected) {
+          // Parse Q&A lines and post each question automatically
+          const qaLines = qaContent.split("\n");
+          let autoPosted = 0;
+          for (const line of qaLines) {
+            const match = line.match(/^Q:\s*(.+)$/);
+            if (match?.[1]) {
+              const result = await postGbpQuestion(biz.id, match[1].trim());
+              if (result.ok) autoPosted++;
+              await new Promise((r) => setTimeout(r, 500)); // small delay between posts
+            }
+          }
+          if (autoPosted > 0) {
+            console.info("[gbp-qa] auto-posted Q&As", { businessId: biz.id, count: autoPosted });
+          }
+        } else {
+          tasks.push({
+            id: randomUUID(),
+            businessId: biz.id,
+            title: "Add these Q&As to your Google Business Profile",
+            detail: `Log in to your Google Business Profile at business.google.com, go to the Q&A section, and post these questions and answers. This helps customers find you for specific searches.\n\n${qaContent}`,
+            queue: "gbp_ops",
+            status: "queued",
+          });
+        }
       }
 
       if (servicesContent) {

@@ -37,6 +37,7 @@ import { runDirectoryProfileBatch } from "@/lib/directories/profile-generator";
 import { runRedditPostingBatch } from "@/lib/social/reddit-poster";
 import { runFacebookPostingBatch } from "@/lib/social/facebook-poster";
 import { runRankTrackingBatch } from "@/lib/seo/rank-tracker";
+import { runLocalPackTrackingBatch } from "@/lib/seo/local-pack-tracker";
 import { runOutreachBatch } from "@/lib/outreach/run-outreach-batch";
 import { getTodaysOutreachTarget } from "@/lib/outreach/outreach-calendar";
 import { runFollowupOutreachBatch } from "@/lib/outreach/run-followup-batch";
@@ -539,7 +540,7 @@ async function tick() {
     console.error("[worker] facebook posting failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
-  // Feature #1: GSC rank tracking — runs once per day
+  // GSC rank tracking — runs once per day
   if (!(await hasJobRunToday("rank_tracking_batch"))) {
     try {
       const rankResult = await runRankTrackingBatch(10);
@@ -549,6 +550,19 @@ async function tick() {
       }
     } catch (error) {
       console.error("[worker] rank tracking failed", { error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  // DataForSEO local pack tracking — real Maps Pack rank data, runs weekly
+  if (new Date().getUTCDay() === 2 && !(await hasJobRunToday("local_pack_tracking_batch"))) { // Tuesday
+    try {
+      const packResult = await runLocalPackTrackingBatch(5);
+      if (packResult.synced > 0) {
+        await recordWorkerJob("local_pack_tracking_batch", packResult);
+        console.info("[worker] local pack tracking", packResult);
+      }
+    } catch (error) {
+      console.error("[worker] local pack tracking failed", { error: error instanceof Error ? error.message : String(error) });
     }
   }
 

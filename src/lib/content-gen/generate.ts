@@ -69,9 +69,10 @@ async function generateArticle(params: GenerateLocalContentParams): Promise<Gene
   const loc = locationLabel(params);
   const isLocal = !params.focusArea || params.focusArea === "local";
   const primaryKeyword = params.keywords[0] ?? `${params.industry} ${isLocal ? `in ${params.city}` : loc}`;
+  const year = new Date().getFullYear();
   const title = isLocal
-    ? `Best ${params.industry} in ${params.city}: What to Look for in 2025`
-    : `Best ${params.industry} ${loc === "online" ? "Online" : `in ${loc}`}: What to Look for in 2025`;
+    ? `Best ${params.industry} in ${params.city}: What to Look for in ${year}`
+    : `Best ${params.industry} ${loc === "online" ? "Online" : `in ${loc}`}: What to Look for in ${year}`;
 
   const crossLinkInstruction = params.crossLinkPartner
     ? `\nCross-link: In one of the H2 sections, naturally mention ${params.crossLinkPartner.name} (a ${params.crossLinkPartner.industry} in ${params.city}) as a complementary resource — not a competitor.${params.crossLinkPartner.url ? ` Link it as: [${params.crossLinkPartner.name}](${params.crossLinkPartner.url})` : ""}`

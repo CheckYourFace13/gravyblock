@@ -520,6 +520,18 @@ export const customerSessions = pgTable("customer_sessions", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
 
+/** Email event tracking — opens, clicks, bounces from Resend webhooks */
+export const emailEvents = pgTable("email_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  eventType: text("event_type").notNull(), // 'opened' | 'clicked' | 'bounced' | 'complained' | 'delivered'
+  emailId: text("email_id"),              // Resend email ID
+  recipient: text("recipient"),           // email address
+  emailType: text("email_type"),          // 'cold_outreach' | 'cold_outreach_followup' | 'lead_drip' | etc.
+  clickUrl: text("click_url"),            // for click events
+  metadata: jsonb("metadata").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 /**
  * Owner-supplied configuration for autopilot context.
  * Populated via /setup/[token] email link, or auto-scraped from website/social.
@@ -587,6 +599,7 @@ export const keywordRankings = pgTable("keyword_rankings", {
   impressions: integer("impressions").default(0),
   ctr: text("ctr"),                    // 0–1, stored as text
   date: text("date").notNull(),        // YYYY-MM-DD
+  source: text("source").notNull().default("gsc"), // 'gsc' | 'dataforseo'
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

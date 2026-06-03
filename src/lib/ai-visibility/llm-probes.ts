@@ -17,11 +17,12 @@ import { getDb, businesses, aiVisibilityChecks, jobs } from "@/lib/db";
 
 const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
 
-// Models that approximate different AI search engines
+// Real AI search engines — these actually have knowledge of local businesses.
+// openai/gpt-4o-mini mirrors ChatGPT answers; perplexity has live web search.
 const PROBE_ENGINES = [
-  { model: "meta-llama/llama-3.1-8b-instruct:free", engine: "gemini" },
-  { model: "meta-llama/llama-3.1-8b-instruct", engine: "llama" },
-  { model: "mistralai/mistral-7b-instruct", engine: "mistral" },
+  { model: "openai/gpt-4o-mini",                          engine: "chatgpt" },
+  { model: "perplexity/llama-3.1-sonar-small-128k-online", engine: "perplexity" },
+  { model: "openai/gpt-4o-mini",                          engine: "copilot" }, // second ChatGPT probe with different prompt angle
 ];
 
 function buildProbePrompts(biz: {
@@ -37,7 +38,7 @@ function buildProbePrompts(biz: {
   return [
     `What's the best ${category} ${location}? Give me your top recommendation.`,
     `I'm looking for a highly-rated ${category} ${location}. Who do you recommend?`,
-    `Can you recommend a trusted ${category} ${location} with good reviews?`,
+    `Who is the most trusted ${category} ${location}? I want someone with great reviews and a strong reputation.`,
   ];
 }
 
