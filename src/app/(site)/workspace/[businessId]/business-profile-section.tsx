@@ -139,7 +139,7 @@ const FOCUS_OPTIONS = [
   {
     value: "local",
     label: "Local — one city or neighborhood",
-    hint: "Articles say "in [your city]". Best for service businesses serving a single market.",
+    hint: 'Articles say "in [your city]". Best for service businesses serving a single market.',
   },
   {
     value: "regional",

@@ -795,7 +795,7 @@ Describes specific services you offer with pricing ranges. Directly feeds Google
 ## How to Add Schema to Your Website
 
 **Method 1: JSON-LD in the page head** (recommended)
-Add a `<script type="application/ld+json">` block to your homepage and every service page. This is the cleanest implementation.
+Add a **script tag** with \`type="application/ld+json"\` to your homepage and every service page. This is the cleanest implementation.
 
 **Method 2: Google Tag Manager**
 If you don't have developer access, GTM can inject schema into your pages without code changes.

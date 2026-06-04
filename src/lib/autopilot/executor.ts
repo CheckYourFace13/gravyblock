@@ -281,7 +281,16 @@ export async function executeContentPublishPath(businessId: string) {
 
   try {
     const [biz] = await db
-      .select({ name: businesses.name, vertical: businesses.vertical, address: businesses.address })
+      .select({
+        name: businesses.name,
+        vertical: businesses.vertical,
+        address: businesses.address,
+        phone: businesses.phone,
+        website: businesses.website,
+        primaryCategory: businesses.primaryCategory,
+        rating: businesses.rating,
+        reviewCount: businesses.reviewCount,
+      })
       .from(businesses)
       .where(eq(businesses.id, businessId))
       .limit(1);
