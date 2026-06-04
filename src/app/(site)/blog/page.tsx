@@ -21,6 +21,7 @@ export const metadata: Metadata = {
 async function getBlogPosts() {
   const db = getDb();
   if (!db) return [];
+  try {
 
   const selfId = process.env.GRAVYBLOCK_SELF_BUSINESS_ID;
 
@@ -47,6 +48,9 @@ async function getBlogPosts() {
     .limit(50);
 
   return rows;
+  } catch {
+    return [];
+  }
 }
 
 function excerpt(body: string, length = 160): string {
