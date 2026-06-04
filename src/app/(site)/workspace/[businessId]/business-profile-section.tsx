@@ -5,12 +5,27 @@ import { saveBusinessProfile, generateBusinessProfile, type BusinessProfileData,
 
 const TONE_OPTIONS = ["professional", "friendly", "authoritative", "casual"];
 const FOCUS_OPTIONS = [
-  { value: "local", label: "Local (one city / neighborhood)" },
-  { value: "regional", label: "Regional (multi-city / state)" },
-  { value: "national", label: "National" },
-  { value: "online", label: "Online only" },
+  {
+    value: "local",
+    label: "Local — one city or neighborhood",
+    hint: "Articles say "in [your city]". Best for service businesses serving a single market.",
+  },
+  {
+    value: "regional",
+    label: "Regional — multi-city or statewide",
+    hint: "Articles reference your state or metro area. Good for businesses serving a wide radius.",
+  },
+  {
+    value: "national",
+    label: "National — no city references",
+    hint: "Articles never mention a specific city. Use this for e-commerce or nationwide services.",
+  },
+  {
+    value: "online",
+    label: "Online only — no physical location",
+    hint: "Skips location pages and GBP posts. Use this for fully digital businesses.",
+  },
 ];
-const RADIUS_OPTIONS = [5, 10, 15, 25, 35, 50, 75, 100];
 
 const EMPTY: BusinessProfileData = {
   serviceDescription: "",
@@ -68,7 +83,6 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
   const [serviceCity, setServiceCity] = useState(
     initialConfig?.targetScope || parsed.city || ""
   );
-  const [serviceRadius, setServiceRadius] = useState(parsed.radius);
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
   const [sources, setSources] = useState<SourceInfo | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -92,7 +106,6 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
         // Parse service area from the generated targetCities
         const sa = parseServiceArea(p.targetCities);
         setServiceCity(p.targetScope || sa.city);
-        setServiceRadius(sa.radius || 25);
         setSources(result.sources ?? null);
         setStatus({ ok: true, message: "Profile generated from your website and business data. Review each field and save." });
       } else {
@@ -104,11 +117,10 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setStatus(null);
-    const encoded = encodeServiceArea(serviceCity, serviceRadius);
     const toSave: BusinessProfileData = {
       ...form,
       targetScope: serviceCity,
-      targetCities: encoded,
+      targetCities: serviceCity, // keep targetCities in sync for legacy reads
     };
     startTransition(async () => {
       const result = await saveBusinessProfile(businessId, toSave);
@@ -231,57 +243,74 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
             />
           </div>
 
-          {/* Service area — city + radius */}
-          <div className="md:col-span-2 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-3">
-              Service area
-            </label>
-            <div className="grid gap-3 sm:grid-cols-2">
+          {/* Location + content scope — merged single section */}
+          <div className="md:col-span-2 rounded-xl border border-zinc-200 bg-zinc-50 p-4 space-y-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-0.5">
+                Where do you operate?
+              </p>
+              <p className="text-xs text-zinc-400 mb-3">
+                These two settings control all location references in your content.
+              </p>
+
+              {/* City field — hidden when national/online */}
+              {form.focusArea !== "national" && form.focusArea !== "online" && (
+                <div className="mb-3">
+                  <label className="block text-xs text-zinc-600 font-medium mb-1">
+                    Your primary city
+                  </label>
+                  <input
+                    type="text"
+                    value={serviceCity}
+                    onChange={(e) => setServiceCity(e.target.value)}
+                    placeholder="Houston, TX"
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
+                  />
+                  <p className="mt-1 text-xs text-zinc-400">
+                    This city name is inserted into every article, GBP post, and page we generate.
+                  </p>
+                </div>
+              )}
+
+              {/* Scope dropdown */}
               <div>
-                <label className="block text-xs text-zinc-500 mb-1">Primary city you serve</label>
-                <input
-                  type="text"
-                  value={serviceCity}
-                  onChange={(e) => setServiceCity(e.target.value)}
-                  placeholder="Austin, TX"
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
-                />
-                <p className="mt-1 text-xs text-zinc-400">Your main market, used in all local content targeting</p>
-              </div>
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1">How far do you serve? (miles from that city)</label>
+                <label className="block text-xs text-zinc-600 font-medium mb-1">
+                  Content scope — who are you writing for?
+                </label>
                 <select
-                  value={serviceRadius}
-                  onChange={(e) => setServiceRadius(parseInt(e.target.value, 10))}
+                  {...field("focusArea")}
                   className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
                 >
-                  {RADIUS_OPTIONS.map((r) => (
-                    <option key={r} value={r}>Within {r} miles</option>
+                  {FOCUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-zinc-400">We'll generate content and pages for all cities in this radius</p>
+                {/* Contextual hint for selected option */}
+                {(() => {
+                  const opt = FOCUS_OPTIONS.find((o) => o.value === form.focusArea);
+                  return opt ? (
+                    <p className="mt-1.5 text-xs text-zinc-500">{opt.hint}</p>
+                  ) : null;
+                })()}
               </div>
-            </div>
-            {serviceCity && (
-              <p className="mt-2 text-xs text-emerald-700 font-medium">
-                ✓ Targeting: {serviceCity} and surrounding areas within {serviceRadius} miles
-              </p>
-            )}
-          </div>
 
-          {/* Geographic focus */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Geographic focus
-            </label>
-            <select
-              {...field("focusArea")}
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none bg-white"
-            >
-              {FOCUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+              {/* Preview of what will be generated */}
+              {(form.focusArea === "local" || form.focusArea === "regional") && serviceCity && (
+                <p className="mt-2 text-xs font-medium text-emerald-700">
+                  ✓ Content will reference &ldquo;{serviceCity}&rdquo; throughout
+                </p>
+              )}
+              {form.focusArea === "national" && (
+                <p className="mt-2 text-xs font-medium text-blue-700">
+                  ✓ Content will be written for a nationwide audience — no city name will be used
+                </p>
+              )}
+              {form.focusArea === "online" && (
+                <p className="mt-2 text-xs font-medium text-blue-700">
+                  ✓ GBP posts and local city pages will be skipped — content targets your online audience
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Target keywords */}
