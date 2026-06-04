@@ -64,7 +64,7 @@ export default function CompareIndexPage() {
           <Link href="/scan" className="rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800">
             Get my free visibility score
           </Link>
-          <Link href="/scan?plan=growth" className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500">
+          <Link href="/start?plan=growth" className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500">
             Start Scale — $74.99/mo
           </Link>
         </div>

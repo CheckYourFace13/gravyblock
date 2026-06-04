@@ -96,7 +96,7 @@ export default function LaunchPage() {
               Get my free visibility score
             </Link>
             <Link
-              href="/scan?plan=growth&promo=PRODUCTHUNT"
+              href="/start?plan=growth&promo=PRODUCTHUNT"
               className="rounded-full bg-zinc-900 px-8 py-3.5 text-sm font-bold text-white hover:bg-zinc-800 shadow-sm"
             >
               Start Scale — $74.99/mo
@@ -232,7 +232,7 @@ export default function LaunchPage() {
             <Link href="/scan?promo=PRODUCTHUNT" className="rounded-full bg-white px-8 py-3.5 text-sm font-bold text-zinc-900 hover:bg-zinc-100">
               Get my free score
             </Link>
-            <Link href="/scan?plan=growth&promo=PRODUCTHUNT" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-bold text-white hover:bg-red-500">
+            <Link href="/start?plan=growth&promo=PRODUCTHUNT" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-bold text-white hover:bg-red-500">
               Start Scale — $74.99/mo
             </Link>
           </div>

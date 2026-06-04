@@ -73,19 +73,19 @@ export default async function ScanPage({ searchParams }: Props) {
         <p className="text-sm font-semibold text-zinc-900">Want ongoing automation? Pick a plan after your scan:</p>
         <div className="flex flex-wrap gap-2">
           <Link
-            href={promoCode ? `/scan?plan=starter&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=starter"}
+            href={promoCode ? `/start?plan=starter&promo=${encodeURIComponent(promoCode)}` : "/start?plan=starter"}
             className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-200"
           >
             Starter — $39.99/mo
           </Link>
           <Link
-            href={promoCode ? `/scan?plan=growth&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=growth"}
+            href={promoCode ? `/start?plan=growth&promo=${encodeURIComponent(promoCode)}` : "/start?plan=growth"}
             className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-500"
           >
             Scale — $74.99/mo ★
           </Link>
           <Link
-            href={promoCode ? `/scan?plan=pro&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=pro"}
+            href={promoCode ? `/start?plan=pro&promo=${encodeURIComponent(promoCode)}` : "/start?plan=pro"}
             className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-200"
           >
             Pro — $149.99/mo

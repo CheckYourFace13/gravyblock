@@ -80,7 +80,7 @@ export default function GoPage() {
                   Get my free visibility score
                 </Link>
                 <Link
-                  href="/scan?plan=growth&promo=GOOGLE50"
+                  href="/start?plan=growth&promo=GOOGLE50"
                   className="flex w-full items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3.5 text-sm font-bold text-zinc-900 hover:bg-zinc-50 transition"
                 >
                   Start Scale — $74.99/mo

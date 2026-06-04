@@ -31,7 +31,7 @@ const plans = [
       "Social media posting",
     ],
     cta: "Start Starter",
-    href: "/scan?plan=starter",
+    href: "/start?plan=starter",
     ctaStyle: "bg-zinc-900 hover:bg-zinc-800 text-white",
   },
   {
@@ -60,7 +60,7 @@ const plans = [
       "Lead pipeline (competitor outreach)",
     ],
     cta: "Start Scale",
-    href: "/scan?plan=growth",
+    href: "/start?plan=growth",
     ctaStyle: "bg-red-600 hover:bg-red-500 text-white",
   },
   {
@@ -80,7 +80,7 @@ const plans = [
     ],
     notIncluded: [],
     cta: "Start Pro",
-    href: "/scan?plan=pro",
+    href: "/start?plan=pro",
     ctaStyle: "bg-zinc-900 hover:bg-zinc-800 text-white",
   },
 ] as const;
@@ -308,7 +308,7 @@ export default function PricingPage() {
             <Link href="/scan" className="rounded-full bg-white px-7 py-3 text-sm font-bold text-zinc-900 hover:bg-zinc-100">
               Get my free score
             </Link>
-            <Link href="/scan?plan=growth" className="rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">
+            <Link href="/start?plan=growth" className="rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">
               Start Scale — $74.99/mo
             </Link>
           </div>
