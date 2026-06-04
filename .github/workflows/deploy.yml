@@ -31,6 +31,6 @@ jobs:
             node scripts/setup-annual-prices.mjs 2>&1 || echo "Annual price setup warning (non-fatal)"
 
             npm run build
-            pm2 restart gravyblock gravyblock-worker
+            pm2 startOrRestart ecosystem.config.js --update-env
             pm2 save
             echo "Deploy complete at $(date)"
