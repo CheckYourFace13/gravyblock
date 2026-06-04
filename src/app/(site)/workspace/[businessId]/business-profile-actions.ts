@@ -12,12 +12,16 @@ export type BusinessProfileData = {
   tone: string;
   brandVoice: string;
   targetKeywords: string;
-  /** Stored as "{city}, {state} (within {radius} miles)" — parsed by the UI */
-  targetCities: string;
+  targetCities: string;   // legacy — kept for backward compat
   competitorNames: string;
   additionalContext: string;
-  focusArea: string;
-  targetScope: string;
+  // Location fields — the foundation for all content targeting
+  focusArea: string;       // "global" | "national" | "regional" | "local"
+  targetScope: string;     // derived text used in AI prompts
+  serviceAddress: string;  // full street address
+  serviceCountry: string;  // country name
+  serviceState: string;    // state/province (regional)
+  serviceRadius: number;   // miles (regional + local)
   instagramHandle: string;
   facebookUrl: string;
 };
@@ -55,7 +59,7 @@ async function scrapeWebsiteText(url: string): Promise<{ text: string; ok: boole
 export async function getBusinessProfile(businessId: string): Promise<{
   business: {
     name: string;
-    address: string | null;
+    address: string | null;  // used to pre-fill serviceAddress
     website: string | null;
     primaryCategory: string | null;
     vertical: string | null;
@@ -128,6 +132,10 @@ export async function getBusinessProfile(businessId: string): Promise<{
           additionalContext: cfg.additionalContext ?? "",
           focusArea: cfg.focusArea ?? "local",
           targetScope: cfg.targetScope ?? "",
+          serviceAddress: cfg.serviceAddress ?? "",
+          serviceCountry: cfg.serviceCountry ?? "United States",
+          serviceState: cfg.serviceState ?? "",
+          serviceRadius: cfg.serviceRadius ?? 25,
           instagramHandle: cfg.instagramHandle ?? "",
           facebookUrl: cfg.facebookUrl ?? "",
         }
@@ -166,6 +174,10 @@ export async function saveBusinessProfile(
           additionalContext: data.additionalContext,
           focusArea: data.focusArea,
           targetScope: data.targetScope,
+          serviceAddress: data.serviceAddress || null,
+          serviceCountry: data.serviceCountry || "United States",
+          serviceState: data.serviceState || null,
+          serviceRadius: data.serviceRadius ?? 25,
           instagramHandle: data.instagramHandle,
           facebookUrl: data.facebookUrl,
           updatedAt: new Date(),
@@ -185,6 +197,10 @@ export async function saveBusinessProfile(
         additionalContext: data.additionalContext,
         focusArea: data.focusArea,
         targetScope: data.targetScope,
+        serviceAddress: data.serviceAddress || null,
+        serviceCountry: data.serviceCountry || "United States",
+        serviceState: data.serviceState || null,
+        serviceRadius: data.serviceRadius ?? 25,
         instagramHandle: data.instagramHandle,
         facebookUrl: data.facebookUrl,
       });
@@ -195,7 +211,7 @@ export async function saveBusinessProfile(
       .update(businesses)
       .set({ focusArea: data.focusArea, targetScope: data.targetScope })
       .where(eq(businesses.id, businessId))
-      .catch(() => {}); // non-fatal
+      .catch(() => {});
 
     revalidatePath(`/workspace/${businessId}`);
     return { ok: true };
@@ -325,6 +341,10 @@ Return ONLY a valid JSON object with these exact keys (no markdown, no explanati
       additionalContext: "",
       focusArea: "local",
       targetScope: `${city}${state ? ", " + state : ""}`,
+      serviceAddress: biz.address ?? "",
+      serviceCountry: "United States",
+      serviceState: state,
+      serviceRadius: 25,
       instagramHandle: igProfile?.handle ? (igProfile.handle.startsWith("@") ? igProfile.handle : `@${igProfile.handle}`) : (igProfile?.url ?? ""),
       facebookUrl: fbProfile?.url ?? "",
     };
@@ -344,6 +364,14 @@ Return ONLY a valid JSON object with these exact keys (no markdown, no explanati
     if (igProfile?.handle) parsed.instagramHandle = igProfile.handle.startsWith("@") ? igProfile.handle : `@${igProfile.handle}`;
     else if (igProfile?.url) parsed.instagramHandle = igProfile.url;
     if (fbProfile?.url) parsed.facebookUrl = fbProfile.url;
+
+    // Fill in new location fields if AI didn't return them
+    if (!parsed.serviceAddress) parsed.serviceAddress = biz.address ?? "";
+    if (!parsed.serviceCountry) parsed.serviceCountry = "United States";
+    if (!parsed.serviceState) {
+      parsed.serviceState = biz.address?.split(",")?.[2]?.trim()?.split(/\s+/)?.[0] ?? "";
+    }
+    if (!parsed.serviceRadius) parsed.serviceRadius = 25;
 
     return {
       ok: true,

@@ -24,7 +24,7 @@ export type CrossLinkPartner = {
   url: string | null;
 };
 
-export type FocusArea = "local" | "regional" | "national" | "online";
+export type FocusArea = "local" | "regional" | "national" | "online" | "global";
 
 export type GenerateLocalContentParams = {
   businessName: string;
@@ -43,6 +43,7 @@ export type GenerateLocalContentParams = {
 /** Returns how to reference the target audience/geography in prompts. */
 function scopePhrase(params: GenerateLocalContentParams): string {
   if (params.targetScope) return params.targetScope;
+  if (params.focusArea === "global") return "a worldwide audience";
   if (params.focusArea === "national") return "customers across the country";
   if (params.focusArea === "online") return "their online audience";
   if (params.focusArea === "regional") return params.state || params.city;
@@ -51,6 +52,7 @@ function scopePhrase(params: GenerateLocalContentParams): string {
 
 /** Returns a location label appropriate for the focus area. */
 function locationLabel(params: GenerateLocalContentParams): string {
+  if (params.focusArea === "global") return "worldwide";
   if (params.focusArea === "national") return "nationwide";
   if (params.focusArea === "online") return "online";
   if (params.focusArea === "regional") return params.state || params.city;
@@ -123,7 +125,7 @@ Write the full article in markdown now.`;
 
 async function generateGbpPost(params: GenerateLocalContentParams): Promise<GeneratedContent | null> {
   // GBP posts only apply to businesses with a physical/local presence
-  if (params.focusArea === "online") return null;
+  if (params.focusArea === "online" || params.focusArea === "global") return null;
   const loc = locationLabel(params);
   const primaryKeyword = params.keywords[0] ?? `${params.industry} ${loc}`;
   const title = `${params.businessName} — ${loc} Update`;

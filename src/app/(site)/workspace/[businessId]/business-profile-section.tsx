@@ -3,80 +3,71 @@
 import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 import { saveBusinessProfile, generateBusinessProfile, type BusinessProfileData, type DiscoveredSocial } from "./business-profile-actions";
 
-// ── City autocomplete component ──────────────────────────────────────────────
+// ── Address autocomplete ─────────────────────────────────────────────────────
 
-type CitySuggestion = { label: string; city: string; placeId: string };
+type AddressSuggestion = { label: string; address: string; city: string; state: string; country: string; placeId: string };
 
-function CityAutocomplete({
+function AddressAutocomplete({
   value,
   onChange,
-  placeholder = "Houston, TX",
+  placeholder = "Start typing your address…",
 }: {
   value: string;
-  onChange: (city: string) => void;
+  onChange: (address: string, city: string, state: string) => void;
   placeholder?: string;
 }) {
   const [query, setQuery] = useState(value);
-  const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(Boolean(value));
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Sync external value changes (e.g. when "Pull from website" sets a city)
   useEffect(() => {
-    if (value && value !== query) {
-      setQuery(value);
-      setConfirmed(true);
-    }
+    if (value && value !== query) { setQuery(value); setConfirmed(true); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  // Close on outside click
   useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   const fetchSuggestions = useCallback(async (q: string) => {
-    if (q.length < 2) { setSuggestions([]); return; }
+    if (q.length < 3) { setSuggestions([]); return; }
     setLoading(true);
     try {
-      const res = await fetch(`/api/google/places/city-autocomplete?q=${encodeURIComponent(q)}`);
-      const data = (await res.json()) as { results?: CitySuggestion[] };
+      const res = await fetch(`/api/google/places/address-autocomplete?q=${encodeURIComponent(q)}`);
+      const data = (await res.json()) as { results?: AddressSuggestion[] };
       setSuggestions(data.results ?? []);
       setOpen((data.results?.length ?? 0) > 0);
-    } catch {
-      setSuggestions([]);
-    } finally {
-      setLoading(false);
-    }
+    } catch { setSuggestions([]); } finally { setLoading(false); }
   }, []);
 
   function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
     const q = e.target.value;
     setQuery(q);
     setConfirmed(false);
-    onChange(""); // clear confirmed value until they pick
+    onChange(q, "", ""); // keep raw text until confirmed
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => void fetchSuggestions(q), 300);
   }
 
-  function handleSelect(suggestion: CitySuggestion) {
-    setQuery(suggestion.city);
+  function handleSelect(s: AddressSuggestion) {
+    setQuery(s.address);
     setConfirmed(true);
     setOpen(false);
     setSuggestions([]);
-    onChange(suggestion.city);
+    onChange(s.address, s.city, s.state);
   }
 
-  const borderColor = confirmed ? "border-emerald-400 ring-1 ring-emerald-200" : query && !confirmed ? "border-amber-400" : "border-zinc-200";
+  const borderClass = confirmed
+    ? "border-emerald-400 ring-1 ring-emerald-200"
+    : query && !confirmed ? "border-amber-300" : "border-zinc-200";
 
   return (
     <div ref={wrapperRef} className="relative">
@@ -88,75 +79,307 @@ function CityAutocomplete({
           onFocus={() => suggestions.length > 0 && setOpen(true)}
           placeholder={placeholder}
           autoComplete="off"
-          className={`w-full rounded-xl border px-3 py-2 text-sm bg-white focus:outline-none transition-colors pr-8 ${borderColor}`}
+          className={`w-full rounded-xl border px-3 py-2.5 text-sm bg-white focus:outline-none transition-colors pr-8 ${borderClass}`}
         />
-        {loading && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs animate-pulse">…</span>
-        )}
-        {confirmed && !loading && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 text-sm">✓</span>
-        )}
-        {query && !confirmed && !loading && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500 text-xs">?</span>
-        )}
+        {loading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs animate-pulse">…</span>}
+        {confirmed && !loading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500">✓</span>}
       </div>
-
-      {/* Dropdown */}
       {open && suggestions.length > 0 && (
-        <ul className="absolute z-50 mt-1 w-full rounded-xl border border-zinc-200 bg-white shadow-lg overflow-hidden">
+        <ul className="absolute z-50 mt-1 w-full rounded-xl border border-zinc-200 bg-white shadow-lg overflow-hidden max-h-60 overflow-y-auto">
           {suggestions.map((s) => (
             <li key={s.placeId}>
-              <button
-                type="button"
-                onMouseDown={() => handleSelect(s)}
-                className="w-full px-3 py-2.5 text-left text-sm hover:bg-zinc-50 flex items-center gap-2"
-              >
-                <span className="text-zinc-400 text-xs shrink-0">📍</span>
+              <button type="button" onMouseDown={() => handleSelect(s)}
+                className="w-full px-3 py-2.5 text-left text-sm hover:bg-zinc-50 flex items-start gap-2">
+                <span className="text-zinc-400 shrink-0 mt-0.5">📍</span>
                 <span>
-                  <span className="font-medium text-zinc-900">{s.city}</span>
-                  {s.label !== s.city && (
-                    <span className="ml-1 text-zinc-400 text-xs">{s.label.replace(s.city, "").replace(/^,\s*/, "")}</span>
-                  )}
+                  <span className="font-medium text-zinc-900">{s.address}</span>
                 </span>
               </button>
             </li>
           ))}
         </ul>
       )}
+    </div>
+  );
+}
 
-      {/* Warning if user typed something but didn't pick */}
-      {query && !confirmed && !open && query.length > 2 && (
-        <p className="mt-1 text-xs text-amber-600">
-          Select a city from the dropdown — free-text entries won&apos;t be matched to real location data.
+// ── Radius slider ─────────────────────────────────────────────────────────────
+
+function RadiusSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const pct = ((value - 2) / (500 - 2)) * 100;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs font-medium text-zinc-600">Serve customers within</label>
+        <span className="text-sm font-semibold text-zinc-900 tabular-nums">
+          {value} <span className="text-zinc-500 font-normal">miles</span>
+        </span>
+      </div>
+      <input
+        type="range"
+        min={2}
+        max={500}
+        step={1}
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value, 10))}
+        className="w-full h-2 rounded-full appearance-none cursor-pointer accent-red-600"
+        style={{
+          background: `linear-gradient(to right, #dc2626 ${pct}%, #e4e4e7 ${pct}%)`,
+        }}
+      />
+      <div className="flex justify-between mt-1 text-[10px] text-zinc-400">
+        <span>2 mi</span>
+        <span>25</span>
+        <span>50</span>
+        <span>100</span>
+        <span>250</span>
+        <span>500 mi</span>
+      </div>
+    </div>
+  );
+}
+
+// ── US States ─────────────────────────────────────────────────────────────────
+
+const US_STATES = [
+  "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
+  "Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
+  "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
+  "Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire",
+  "New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio",
+  "Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota",
+  "Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia",
+  "Wisconsin","Wyoming","District of Columbia",
+];
+
+const COUNTRIES = [
+  "United States","Canada","United Kingdom","Australia","Germany","France",
+  "Spain","Italy","Netherlands","Brazil","Mexico","India","Japan","South Korea",
+  "Singapore","New Zealand","Ireland","South Africa","Nigeria","UAE",
+];
+
+// ── Location section ──────────────────────────────────────────────────────────
+
+type Scope = "global" | "national" | "regional" | "local";
+
+const SCOPE_OPTIONS: { value: Scope; label: string; icon: string; desc: string }[] = [
+  { value: "global",   icon: "🌍", label: "Global",   desc: "Worldwide audience — no location in content" },
+  { value: "national", icon: "🇺🇸", label: "National", desc: "Country-level — e.g. 'across the US'" },
+  { value: "regional", icon: "📍", label: "Regional",  desc: "State or multi-city — e.g. 'across Texas'" },
+  { value: "local",    icon: "🏪", label: "Local",     desc: "Single city or neighborhood — most specific" },
+];
+
+/** Derives the targetScope text used in AI content prompts */
+function deriveTargetScope(scope: Scope, country: string, state: string, address: string): string {
+  if (scope === "global") return "worldwide";
+  if (scope === "national") return country;
+  if (scope === "regional") return state ? `${state}, ${country}` : country;
+  // local — extract city from address
+  if (address) {
+    const parts = address.split(",").map((s) => s.trim());
+    if (parts.length >= 2) {
+      const city = parts[parts.length - 3] ?? parts[0];
+      const statePart = parts[parts.length - 2]?.replace(/\d+/g, "").trim();
+      return statePart ? `${city}, ${statePart}` : city;
+    }
+    return address.split(",")[0]?.trim() ?? address;
+  }
+  return state ? `${state}, ${country}` : country;
+}
+
+function LocationSection({
+  scope, country, state, address, radius, businessAddress,
+  onScopeChange, onCountryChange, onStateChange, onAddressChange, onRadiusChange,
+}: {
+  scope: Scope;
+  country: string;
+  state: string;
+  address: string;
+  radius: number;
+  businessAddress: string | null;
+  onScopeChange: (s: Scope) => void;
+  onCountryChange: (c: string) => void;
+  onStateChange: (s: string) => void;
+  onAddressChange: (addr: string, city: string, st: string) => void;
+  onRadiusChange: (r: number) => void;
+}) {
+  const targetScope = deriveTargetScope(scope, country, state, address);
+
+  return (
+    <div className="md:col-span-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-5 space-y-5">
+      <div>
+        <p className="text-sm font-semibold text-zinc-900 mb-0.5">Market scope</p>
+        <p className="text-xs text-zinc-500 mb-4">
+          This is the foundation of everything GravyBlock does for you — every article, post, and page
+          targets this location. Start broad, then drill down.
         </p>
+
+        {/* Scope selector */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {SCOPE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onScopeChange(opt.value)}
+              className={`flex flex-col items-center gap-1 rounded-xl border-2 px-3 py-3 text-center transition-all ${
+                scope === opt.value
+                  ? "border-red-500 bg-red-50 text-red-800"
+                  : "border-zinc-200 bg-white hover:border-zinc-300 text-zinc-700"
+              }`}
+            >
+              <span className="text-xl">{opt.icon}</span>
+              <span className="text-xs font-semibold">{opt.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Description of selected scope */}
+        <p className="mt-2 text-xs text-zinc-500">
+          {SCOPE_OPTIONS.find((o) => o.value === scope)?.desc}
+        </p>
+      </div>
+
+      {/* GLOBAL — no further input needed */}
+      {scope === "global" && (
+        <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+          <p className="text-sm font-medium text-blue-800">
+            ✓ Content will be written for a worldwide audience — no country or city references.
+          </p>
+          <p className="text-xs text-blue-600 mt-1">GBP posts and local city pages are skipped for global businesses.</p>
+        </div>
+      )}
+
+      {/* NATIONAL — country only */}
+      {scope === "national" && (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1.5">Country</label>
+            <select
+              value={country}
+              onChange={(e) => onCountryChange(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400"
+            >
+              {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
+            <p className="text-xs font-medium text-emerald-800">
+              ✓ Content will say things like "across {country}" and "serving customers throughout {country}"
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* REGIONAL — country + state + address + radius */}
+      {scope === "regional" && (
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1.5">Country</label>
+              <select
+                value={country}
+                onChange={(e) => onCountryChange(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400"
+              >
+                {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 mb-1.5">
+                State / Province
+              </label>
+              {country === "United States" ? (
+                <select
+                  value={state}
+                  onChange={(e) => onStateChange(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400"
+                >
+                  <option value="">Select state…</option>
+                  {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={state}
+                  onChange={(e) => onStateChange(e.target.value)}
+                  placeholder="e.g. Ontario"
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400"
+                />
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1.5">
+              Your business address
+              <span className="ml-1 font-normal text-zinc-400">(your base within the region)</span>
+            </label>
+            <AddressAutocomplete
+              value={address || businessAddress || ""}
+              onChange={onAddressChange}
+              placeholder="123 Main St, Austin, TX 78701"
+            />
+            <p className="mt-1 text-xs text-zinc-400">Pre-filled from your website or Google listing. Edit to correct.</p>
+          </div>
+
+          <RadiusSlider value={radius} onChange={onRadiusChange} />
+
+          {state && (
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
+              <p className="text-xs font-medium text-emerald-800">
+                ✓ Content will target customers in <strong>{state}</strong> within <strong>{radius} miles</strong> of your location
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* LOCAL — address + radius (city auto-derived) */}
+      {scope === "local" && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1.5">
+              Your business address
+            </label>
+            <AddressAutocomplete
+              value={address || businessAddress || ""}
+              onChange={onAddressChange}
+              placeholder="123 Main St, Houston, TX 77001"
+            />
+            <p className="mt-1 text-xs text-zinc-400">
+              Pre-filled from your website or Google listing. Edit to correct — this exact address is used in every article, GBP post, and page.
+            </p>
+          </div>
+
+          <RadiusSlider value={radius} onChange={onRadiusChange} />
+
+          {targetScope && targetScope !== "worldwide" && (
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
+              <p className="text-xs font-medium text-emerald-800">
+                ✓ Content will target customers in <strong>{targetScope}</strong> within <strong>{radius} miles</strong> of your location
+              </p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
 const TONE_OPTIONS = ["professional", "friendly", "authoritative", "casual"];
-const FOCUS_OPTIONS = [
-  {
-    value: "local",
-    label: "Local — one city or neighborhood",
-    hint: 'Articles say "in [your city]". Best for service businesses serving a single market.',
-  },
-  {
-    value: "regional",
-    label: "Regional — multi-city or statewide",
-    hint: "Articles reference your state or metro area. Good for businesses serving a wide radius.",
-  },
-  {
-    value: "national",
-    label: "National — no city references",
-    hint: "Articles never mention a specific city. Use this for e-commerce or nationwide services.",
-  },
-  {
-    value: "online",
-    label: "Online only — no physical location",
-    hint: "Skips location pages and GBP posts. Use this for fully digital businesses.",
-  },
-];
+
+const PLATFORM_LABELS: Record<string, string> = {
+  facebook: "Facebook",
+  instagram: "Instagram",
+  twitter: "Twitter / X",
+  tiktok: "TikTok",
+  youtube: "YouTube",
+  linkedin: "LinkedIn",
+};
+
+type SourceInfo = { websiteScraped: boolean; socialFound: string[]; websiteUrl: string | null };
 
 const EMPTY: BusinessProfileData = {
   serviceDescription: "",
@@ -169,60 +392,63 @@ const EMPTY: BusinessProfileData = {
   additionalContext: "",
   focusArea: "local",
   targetScope: "",
+  serviceAddress: "",
+  serviceCountry: "United States",
+  serviceState: "",
+  serviceRadius: 25,
   instagramHandle: "",
   facebookUrl: "",
 };
 
-/** Parse "Austin, TX (within 25 miles)" → { city: "Austin, TX", radius: 25 } */
-function parseServiceArea(raw: string): { city: string; radius: number } {
-  const m = raw.match(/^(.+?)\s*\(within\s+(\d+)\s+miles?\)/i);
-  if (m) return { city: m[1].trim(), radius: parseInt(m[2], 10) };
-  return { city: raw.trim(), radius: 25 };
-}
-
-/** Encode city + radius back into the stored format */
-function encodeServiceArea(city: string, radius: number): string {
-  if (!city.trim()) return "";
-  return `${city.trim()} (within ${radius} miles)`;
-}
-
-const PLATFORM_LABELS: Record<string, string> = {
-  facebook: "Facebook",
-  instagram: "Instagram",
-  twitter: "Twitter / X",
-  tiktok: "TikTok",
-  youtube: "YouTube",
-  linkedin: "LinkedIn",
-};
-
-type SourceInfo = {
-  websiteScraped: boolean;
-  socialFound: string[];
-  websiteUrl: string | null;
-};
+// ── Main component ────────────────────────────────────────────────────────────
 
 type Props = {
   businessId: string;
   businessName: string;
   initialConfig: BusinessProfileData | null;
   discoveredSocials: DiscoveredSocial[];
+  /** Business address from Google Places — used to pre-fill if no config saved yet */
+  businessAddress: string | null;
 };
 
-export function BusinessProfileSection({ businessId, businessName, initialConfig, discoveredSocials }: Props) {
-  const parsed = parseServiceArea(initialConfig?.targetCities ?? "");
+export function BusinessProfileSection({
+  businessId,
+  businessName,
+  initialConfig,
+  discoveredSocials,
+  businessAddress,
+}: Props) {
   const [form, setForm] = useState<BusinessProfileData>(initialConfig ?? EMPTY);
-  const [serviceCity, setServiceCity] = useState(
-    initialConfig?.targetScope || parsed.city || ""
+  const [scope, setScope] = useState<Scope>((initialConfig?.focusArea as Scope) ?? "local");
+  const [country, setCountry] = useState(initialConfig?.serviceCountry ?? "United States");
+  const [stateVal, setStateVal] = useState(initialConfig?.serviceState ?? "");
+  const [address, setAddress] = useState(
+    initialConfig?.serviceAddress ?? businessAddress ?? ""
   );
+  const [radius, setRadius] = useState(initialConfig?.serviceRadius ?? 25);
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
   const [sources, setSources] = useState<SourceInfo | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function field(key: keyof BusinessProfileData) {
     return {
-      value: form[key],
+      value: String(form[key] ?? ""),
       onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
         setForm((prev) => ({ ...prev, [key]: e.target.value })),
+    };
+  }
+
+  function buildSavePayload(): BusinessProfileData {
+    const targetScope = deriveTargetScope(scope, country, stateVal, address);
+    return {
+      ...form,
+      focusArea: scope,
+      targetScope,
+      serviceAddress: address,
+      serviceCountry: country,
+      serviceState: stateVal,
+      serviceRadius: radius,
+      targetCities: address, // keep in sync for legacy reads
     };
   }
 
@@ -234,11 +460,14 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
       if (result.ok && result.profile) {
         const p = result.profile;
         setForm(p);
-        // Parse service area from the generated targetCities
-        const sa = parseServiceArea(p.targetCities);
-        setServiceCity(p.targetScope || sa.city);
+        if (p.focusArea) setScope(p.focusArea as Scope);
+        if (p.serviceCountry) setCountry(p.serviceCountry);
+        if (p.serviceState) setStateVal(p.serviceState);
+        if (p.serviceAddress) setAddress(p.serviceAddress);
+        else if (p.targetScope) setAddress(p.targetScope);
+        if (p.serviceRadius) setRadius(p.serviceRadius);
         setSources(result.sources ?? null);
-        setStatus({ ok: true, message: "Profile generated from your website and business data. Review each field and save." });
+        setStatus({ ok: true, message: "Profile pulled from your website and business data. Review each field and save." });
       } else {
         setStatus({ ok: false, message: result.error ?? "Generation failed." });
       }
@@ -248,16 +477,12 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setStatus(null);
-    const toSave: BusinessProfileData = {
-      ...form,
-      targetScope: serviceCity,
-      targetCities: serviceCity, // keep targetCities in sync for legacy reads
-    };
+    const toSave = buildSavePayload();
     startTransition(async () => {
       const result = await saveBusinessProfile(businessId, toSave);
       if (result.ok) {
         setForm(toSave);
-        setStatus({ ok: true, message: "Profile saved. All AI content will now use these details." });
+        setStatus({ ok: true, message: "Saved. All content will now use this location and scope." });
       } else {
         setStatus({ ok: false, message: result.error ?? "Save failed." });
       }
@@ -272,35 +497,32 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">Business profile</h2>
           <p className="mt-1 max-w-xl text-sm text-zinc-600">
-            Every article, post, and campaign we generate is grounded in this profile.{" "}
-            <strong className="text-zinc-800">Click "Pull from website" first.</strong> We'll scrape your site and pre-fill everything automatically. Then review, correct anything wrong, and save.
+            Every article, post, and campaign is built from this profile.{" "}
+            <strong className="text-zinc-800">Click "Pull from website" first</strong> — we'll scrape your site and pre-fill everything automatically.
           </p>
         </div>
         <button
           type="button"
           onClick={handleGenerate}
           disabled={isPending}
-          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50 shrink-0"
         >
-          {isPending ? "Pulling from website…" : initialConfig ? "Re-pull from website" : "Pull from website ✦"}
+          {isPending ? "Pulling…" : initialConfig ? "Re-pull from website" : "Pull from website ✦"}
         </button>
       </div>
 
-      {/* No profile warning */}
       {!status && !initialConfig && (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          <strong>Profile not set up yet.</strong> Click <strong>"Pull from website"</strong> and we'll read your website, Google listing, and any social profiles we found, then pre-fill everything below. Content will be generic until this is saved.
+          <strong>Profile not set up yet.</strong> Click <strong>"Pull from website"</strong> — we'll read your website, Google listing, and social profiles, then pre-fill everything below.
         </div>
       )}
 
-      {/* Status message */}
       {status && (
         <div className={`mt-4 rounded-lg px-3 py-2 text-sm font-medium ${status.ok ? "bg-green-50 text-green-800 border border-green-100" : "bg-red-50 text-red-800 border border-red-100"}`}>
           {status.message}
         </div>
       )}
 
-      {/* Source indicators — shown after generate */}
       {sources && (
         <div className="mt-3 flex flex-wrap gap-2">
           <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${sources.websiteScraped ? "bg-green-50 text-green-800 border border-green-200" : "bg-zinc-100 text-zinc-500"}`}>
@@ -309,44 +531,48 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
           </span>
           {sources.socialFound.map((platform) => (
             <span key={platform} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-800 border border-blue-200">
-              ✓ {PLATFORM_LABELS[platform] ?? platform} found on site
+              ✓ {PLATFORM_LABELS[platform] ?? platform} found
             </span>
           ))}
-          {sources.socialFound.length === 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-500">
-              No social links found on website. Add them manually below.
-            </span>
-          )}
         </div>
       )}
 
-      {/* Discovered socials banner — always shown if found at scan time */}
       {hasSocials && !sources && (
         <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
           <p className="text-xs font-semibold text-blue-800 mb-1">Found on your website at scan time:</p>
           <div className="flex flex-wrap gap-2">
             {discoveredSocials.map((s) => (
-              <a
-                key={s.platform}
-                href={s.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-full bg-white border border-blue-200 px-2.5 py-0.5 text-xs text-blue-700 hover:bg-blue-100"
-              >
-                {PLATFORM_LABELS[s.platform] ?? s.platform}
-                {s.handle ? ` @${s.handle}` : ""}
-                <span className="text-blue-400">↗</span>
+              <a key={s.platform} href={s.url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-full bg-white border border-blue-200 px-2.5 py-0.5 text-xs text-blue-700 hover:bg-blue-100">
+                {PLATFORM_LABELS[s.platform] ?? s.platform}{s.handle ? ` @${s.handle}` : ""} ↗
               </a>
             ))}
           </div>
-          <p className="mt-1 text-xs text-blue-600">These will be pre-filled when you click "Pull from website".</p>
         </div>
       )}
 
       <form onSubmit={handleSave} className="mt-5 space-y-5">
         <div className="grid gap-5 md:grid-cols-2">
 
-          {/* Service description */}
+          {/* ── LOCATION SECTION (top of form — foundation of everything) ── */}
+          <LocationSection
+            scope={scope}
+            country={country}
+            state={stateVal}
+            address={address}
+            radius={radius}
+            businessAddress={businessAddress}
+            onScopeChange={(s) => { setScope(s); setForm((p) => ({ ...p, focusArea: s })); }}
+            onCountryChange={(c) => { setCountry(c); setStateVal(""); }}
+            onStateChange={setStateVal}
+            onAddressChange={(addr, city, st) => {
+              setAddress(addr);
+              if (st) setStateVal(st);
+            }}
+            onRadiusChange={setRadius}
+          />
+
+          {/* ── SERVICE DESCRIPTION ── */}
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
               What does {businessName} do?
@@ -355,12 +581,12 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
             <textarea
               {...field("serviceDescription")}
               rows={3}
-              placeholder="We'll pull this from your website. Describe your services, who you serve, and what makes you reliable."
+              placeholder="Describe your services, who you serve, and what makes you reliable."
               className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
             />
           </div>
 
-          {/* Unique selling points */}
+          {/* ── UNIQUE SELLING POINTS ── */}
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
               What sets you apart?
@@ -374,75 +600,7 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
             />
           </div>
 
-          {/* Location + content scope — merged single section */}
-          <div className="md:col-span-2 rounded-xl border border-zinc-200 bg-zinc-50 p-4 space-y-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-0.5">
-                Where do you operate?
-              </p>
-              <p className="text-xs text-zinc-400 mb-3">
-                These two settings control all location references in your content.
-              </p>
-
-              {/* City autocomplete — hidden when national/online */}
-              {form.focusArea !== "national" && form.focusArea !== "online" && (
-                <div className="mb-3">
-                  <label className="block text-xs text-zinc-600 font-medium mb-1">
-                    Your primary city
-                  </label>
-                  <CityAutocomplete
-                    value={serviceCity}
-                    onChange={setServiceCity}
-                    placeholder="Start typing a city…"
-                  />
-                  <p className="mt-1 text-xs text-zinc-400">
-                    This city name appears in every article, GBP post, and page we generate.
-                  </p>
-                </div>
-              )}
-
-              {/* Scope dropdown */}
-              <div>
-                <label className="block text-xs text-zinc-600 font-medium mb-1">
-                  Content scope — who are you writing for?
-                </label>
-                <select
-                  {...field("focusArea")}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
-                >
-                  {FOCUS_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-                {/* Contextual hint for selected option */}
-                {(() => {
-                  const opt = FOCUS_OPTIONS.find((o) => o.value === form.focusArea);
-                  return opt ? (
-                    <p className="mt-1.5 text-xs text-zinc-500">{opt.hint}</p>
-                  ) : null;
-                })()}
-              </div>
-
-              {/* Preview of what will be generated */}
-              {(form.focusArea === "local" || form.focusArea === "regional") && serviceCity && (
-                <p className="mt-2 text-xs font-medium text-emerald-700">
-                  ✓ Content will reference &ldquo;{serviceCity}&rdquo; throughout
-                </p>
-              )}
-              {form.focusArea === "national" && (
-                <p className="mt-2 text-xs font-medium text-blue-700">
-                  ✓ Content will be written for a nationwide audience — no city name will be used
-                </p>
-              )}
-              {form.focusArea === "online" && (
-                <p className="mt-2 text-xs font-medium text-blue-700">
-                  ✓ GBP posts and local city pages will be skipped — content targets your online audience
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Target keywords */}
+          {/* ── TARGET KEYWORDS ── */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Target keywords <span className="font-normal text-zinc-400">(comma-separated)</span>
@@ -455,7 +613,7 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
             />
           </div>
 
-          {/* Tone */}
+          {/* ── TONE ── */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Content tone
@@ -464,16 +622,14 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
               {...field("tone")}
               className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none bg-white"
             >
-              {TONE_OPTIONS.map((t) => (
-                <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-              ))}
+              {TONE_OPTIONS.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
             </select>
           </div>
 
-          {/* Brand voice */}
+          {/* ── BRAND VOICE ── */}
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Brand voice <span className="font-normal text-zinc-400">(injected into every article, pulled from your site&apos;s writing style)</span>
+              Brand voice <span className="font-normal text-zinc-400">(writing style, pulled from your site)</span>
             </label>
             <textarea
               {...field("brandVoice")}
@@ -483,7 +639,7 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
             />
           </div>
 
-          {/* Social — Instagram */}
+          {/* ── SOCIAL ── */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Instagram handle
@@ -491,15 +647,9 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
                 <span className="ml-2 font-normal normal-case text-blue-600">found on your website ✓</span>
               )}
             </label>
-            <input
-              type="text"
-              {...field("instagramHandle")}
-              placeholder="@yourbusiness"
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
-            />
+            <input type="text" {...field("instagramHandle")} placeholder="@yourbusiness"
+              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none" />
           </div>
-
-          {/* Social — Facebook */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Facebook page URL
@@ -507,28 +657,20 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
                 <span className="ml-2 font-normal normal-case text-blue-600">found on your website ✓</span>
               )}
             </label>
-            <input
-              type="url"
-              {...field("facebookUrl")}
-              placeholder="https://facebook.com/yourbusiness"
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
-            />
+            <input type="url" {...field("facebookUrl")} placeholder="https://facebook.com/yourbusiness"
+              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none" />
           </div>
 
-          {/* Competitors */}
+          {/* ── COMPETITORS ── */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Competitors <span className="font-normal text-zinc-400">(names, comma-separated)</span>
             </label>
-            <input
-              type="text"
-              {...field("competitorNames")}
-              placeholder="ABC Plumbing, XYZ Services..."
-              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
-            />
+            <input type="text" {...field("competitorNames")} placeholder="ABC Plumbing, XYZ Services..."
+              className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none" />
           </div>
 
-          {/* Additional context */}
+          {/* ── ADDITIONAL CONTEXT ── */}
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Anything else AI should know <span className="font-normal text-zinc-400">(optional)</span>

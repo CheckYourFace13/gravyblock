@@ -544,10 +544,17 @@ export const businessConfigs = pgTable("business_configs", {
     .unique(),
   /** How this config was populated. */
   source: text("source").notNull().default("owner_form"),
+  // Market scope — controls how all content references geography
+  // "global" | "national" | "regional" | "local"
   focusArea: text("focus_area").notNull().default("local"),
-  targetScope: text("target_scope"),
+  targetScope: text("target_scope"),      // derived text used in AI prompts ("Houston, TX", "Texas", "United States")
   targetKeywords: text("target_keywords"),
-  targetCities: text("target_cities"),
+  targetCities: text("target_cities"),    // legacy field — now use serviceAddress
+  // Structured location fields (replaces targetCities free-text encoding)
+  serviceAddress: text("service_address"), // full street address
+  serviceCountry: text("service_country").notNull().default("United States"),
+  serviceState: text("service_state"),
+  serviceRadius: integer("service_radius").notNull().default(25), // miles
   serviceDescription: text("service_description"),
   uniqueSellingPoints: text("unique_selling_points"),
   tone: text("tone").notNull().default("professional"),
