@@ -1,7 +1,138 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 import { saveBusinessProfile, generateBusinessProfile, type BusinessProfileData, type DiscoveredSocial } from "./business-profile-actions";
+
+// ── City autocomplete component ──────────────────────────────────────────────
+
+type CitySuggestion = { label: string; city: string; placeId: string };
+
+function CityAutocomplete({
+  value,
+  onChange,
+  placeholder = "Houston, TX",
+}: {
+  value: string;
+  onChange: (city: string) => void;
+  placeholder?: string;
+}) {
+  const [query, setQuery] = useState(value);
+  const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [confirmed, setConfirmed] = useState(Boolean(value));
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Sync external value changes (e.g. when "Pull from website" sets a city)
+  useEffect(() => {
+    if (value && value !== query) {
+      setQuery(value);
+      setConfirmed(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  // Close on outside click
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  const fetchSuggestions = useCallback(async (q: string) => {
+    if (q.length < 2) { setSuggestions([]); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/google/places/city-autocomplete?q=${encodeURIComponent(q)}`);
+      const data = (await res.json()) as { results?: CitySuggestion[] };
+      setSuggestions(data.results ?? []);
+      setOpen((data.results?.length ?? 0) > 0);
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const q = e.target.value;
+    setQuery(q);
+    setConfirmed(false);
+    onChange(""); // clear confirmed value until they pick
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => void fetchSuggestions(q), 300);
+  }
+
+  function handleSelect(suggestion: CitySuggestion) {
+    setQuery(suggestion.city);
+    setConfirmed(true);
+    setOpen(false);
+    setSuggestions([]);
+    onChange(suggestion.city);
+  }
+
+  const borderColor = confirmed ? "border-emerald-400 ring-1 ring-emerald-200" : query && !confirmed ? "border-amber-400" : "border-zinc-200";
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <div className="relative">
+        <input
+          type="text"
+          value={query}
+          onChange={handleInput}
+          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          placeholder={placeholder}
+          autoComplete="off"
+          className={`w-full rounded-xl border px-3 py-2 text-sm bg-white focus:outline-none transition-colors pr-8 ${borderColor}`}
+        />
+        {loading && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs animate-pulse">…</span>
+        )}
+        {confirmed && !loading && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 text-sm">✓</span>
+        )}
+        {query && !confirmed && !loading && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500 text-xs">?</span>
+        )}
+      </div>
+
+      {/* Dropdown */}
+      {open && suggestions.length > 0 && (
+        <ul className="absolute z-50 mt-1 w-full rounded-xl border border-zinc-200 bg-white shadow-lg overflow-hidden">
+          {suggestions.map((s) => (
+            <li key={s.placeId}>
+              <button
+                type="button"
+                onMouseDown={() => handleSelect(s)}
+                className="w-full px-3 py-2.5 text-left text-sm hover:bg-zinc-50 flex items-center gap-2"
+              >
+                <span className="text-zinc-400 text-xs shrink-0">📍</span>
+                <span>
+                  <span className="font-medium text-zinc-900">{s.city}</span>
+                  {s.label !== s.city && (
+                    <span className="ml-1 text-zinc-400 text-xs">{s.label.replace(s.city, "").replace(/^,\s*/, "")}</span>
+                  )}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Warning if user typed something but didn't pick */}
+      {query && !confirmed && !open && query.length > 2 && (
+        <p className="mt-1 text-xs text-amber-600">
+          Select a city from the dropdown — free-text entries won&apos;t be matched to real location data.
+        </p>
+      )}
+    </div>
+  );
+}
 
 const TONE_OPTIONS = ["professional", "friendly", "authoritative", "casual"];
 const FOCUS_OPTIONS = [
@@ -253,21 +384,19 @@ export function BusinessProfileSection({ businessId, businessName, initialConfig
                 These two settings control all location references in your content.
               </p>
 
-              {/* City field — hidden when national/online */}
+              {/* City autocomplete — hidden when national/online */}
               {form.focusArea !== "national" && form.focusArea !== "online" && (
                 <div className="mb-3">
                   <label className="block text-xs text-zinc-600 font-medium mb-1">
                     Your primary city
                   </label>
-                  <input
-                    type="text"
+                  <CityAutocomplete
                     value={serviceCity}
-                    onChange={(e) => setServiceCity(e.target.value)}
-                    placeholder="Houston, TX"
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-zinc-400 focus:outline-none"
+                    onChange={setServiceCity}
+                    placeholder="Start typing a city…"
                   />
                   <p className="mt-1 text-xs text-zinc-400">
-                    This city name is inserted into every article, GBP post, and page we generate.
+                    This city name appears in every article, GBP post, and page we generate.
                   </p>
                 </div>
               )}
