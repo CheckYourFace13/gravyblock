@@ -42,6 +42,7 @@ import { runOutreachBatch } from "@/lib/outreach/run-outreach-batch";
 import { getTodaysOutreachTarget } from "@/lib/outreach/outreach-calendar";
 import { runFollowupOutreachBatch } from "@/lib/outreach/run-followup-batch";
 import { runGbpReviewReplyBatch } from "@/lib/gbp/review-responder";
+import { ensureResendWebhookRegistered } from "@/lib/integrations/resend-setup";
 import { runGbpPostBatch } from "@/lib/gbp/post-publisher";
 import { runGbpPhotoUploadBatch } from "@/lib/gbp/photo-uploader";
 
@@ -568,6 +569,9 @@ async function tick() {
 
   console.info("[worker] tick done", { durationMs: Date.now() - new Date(startedAt).getTime() });
 }
+
+// One-time startup tasks
+void ensureResendWebhookRegistered().catch(() => null);
 
 void tick();
 setInterval(() => void tick(), WORKER_INTERVAL_MS);
