@@ -103,6 +103,102 @@ function AddressAutocomplete({
   );
 }
 
+// ── Region autocomplete (for countries without a built-in state list) ────────
+
+function RegionAutocomplete({
+  value,
+  country,
+  onChange,
+}: {
+  value: string;
+  country: string;
+  onChange: (region: string) => void;
+}) {
+  const [query, setQuery] = useState(value);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (value && value !== query) { setQuery(value); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const fetchRegions = useCallback(async (q: string) => {
+    if (q.length < 2) { setSuggestions([]); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/google/places/city-autocomplete?q=${encodeURIComponent(q + " " + country)}&type=region`);
+      const data = (await res.json()) as { results?: Array<{ city: string }> };
+      const regions = (data.results ?? []).map((r) => r.city.split(",")[0]?.trim() ?? r.city).filter(Boolean);
+      setSuggestions([...new Set(regions)].slice(0, 8));
+      setOpen(regions.length > 0);
+    } catch { setSuggestions([]); } finally { setLoading(false); }
+  }, [country]);
+
+  function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const q = e.target.value;
+    setQuery(q);
+    onChange(""); // clear until confirmed
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => void fetchRegions(q), 300);
+  }
+
+  function handleSelect(region: string) {
+    setQuery(region);
+    onChange(region);
+    setOpen(false);
+    setSuggestions([]);
+  }
+
+  const isConfirmed = Boolean(value && value === query);
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <div className="relative">
+        <input
+          type="text"
+          value={query}
+          onChange={handleInput}
+          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          placeholder="Type to search regions…"
+          autoComplete="off"
+          className={`w-full rounded-xl border px-3 py-2.5 text-sm bg-white focus:outline-none pr-8 transition-colors ${
+            isConfirmed ? "border-emerald-400" : query && !isConfirmed ? "border-amber-300" : "border-zinc-200"
+          }`}
+        />
+        {loading && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs animate-pulse">…</span>}
+        {isConfirmed && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500">✓</span>}
+      </div>
+      {open && suggestions.length > 0 && (
+        <ul className="absolute z-50 mt-1 w-full rounded-xl border border-zinc-200 bg-white shadow-lg overflow-hidden">
+          {suggestions.map((region) => (
+            <li key={region}>
+              <button type="button" onMouseDown={() => handleSelect(region)}
+                className="w-full px-3 py-2.5 text-left text-sm hover:bg-zinc-50 font-medium text-zinc-900">
+                📍 {region}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {query && !isConfirmed && !open && query.length > 2 && (
+        <p className="mt-1 text-xs text-amber-600">Select a region from the list to confirm it.</p>
+      )}
+    </div>
+  );
+}
+
 // ── Radius slider ─────────────────────────────────────────────────────────────
 
 function RadiusSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
@@ -139,18 +235,61 @@ function RadiusSlider({ value, onChange }: { value: number; onChange: (v: number
   );
 }
 
-// ── US States ─────────────────────────────────────────────────────────────────
+// ── Regions by country ────────────────────────────────────────────────────────
 
-const US_STATES = [
-  "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
-  "Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
-  "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
-  "Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire",
-  "New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio",
-  "Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota",
-  "Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia",
-  "Wisconsin","Wyoming","District of Columbia",
-];
+const REGIONS_BY_COUNTRY: Record<string, string[]> = {
+  "United States": [
+    "Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut",
+    "Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa",
+    "Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan",
+    "Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire",
+    "New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio",
+    "Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota",
+    "Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia",
+    "Wisconsin","Wyoming","District of Columbia",
+  ],
+  "Canada": [
+    "Alberta","British Columbia","Manitoba","New Brunswick",
+    "Newfoundland and Labrador","Northwest Territories","Nova Scotia","Nunavut",
+    "Ontario","Prince Edward Island","Quebec","Saskatchewan","Yukon",
+  ],
+  "United Kingdom": [
+    "England","Scotland","Wales","Northern Ireland",
+    "Greater London","South East","South West","East of England","West Midlands",
+    "East Midlands","Yorkshire and the Humber","North West","North East",
+  ],
+  "Australia": [
+    "New South Wales","Victoria","Queensland","Western Australia",
+    "South Australia","Tasmania","Australian Capital Territory","Northern Territory",
+  ],
+  "Germany": [
+    "Baden-Württemberg","Bavaria","Berlin","Brandenburg","Bremen","Hamburg",
+    "Hesse","Lower Saxony","Mecklenburg-Vorpommern","North Rhine-Westphalia",
+    "Rhineland-Palatinate","Saarland","Saxony","Saxony-Anhalt",
+    "Schleswig-Holstein","Thuringia",
+  ],
+  "Mexico": [
+    "Aguascalientes","Baja California","Baja California Sur","Campeche","Chiapas",
+    "Chihuahua","Coahuila","Colima","Durango","Guanajuato","Guerrero","Hidalgo",
+    "Jalisco","Mexico City","México","Michoacán","Morelos","Nayarit","Nuevo León",
+    "Oaxaca","Puebla","Querétaro","Quintana Roo","San Luis Potosí","Sinaloa",
+    "Sonora","Tabasco","Tamaulipas","Tlaxcala","Veracruz","Yucatán","Zacatecas",
+  ],
+  "India": [
+    "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa",
+    "Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala",
+    "Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland",
+    "Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura",
+    "Uttar Pradesh","Uttarakhand","West Bengal","Delhi",
+  ],
+  "Brazil": [
+    "Acre","Alagoas","Amapá","Amazonas","Bahia","Ceará","Distrito Federal",
+    "Espírito Santo","Goiás","Maranhão","Mato Grosso","Mato Grosso do Sul",
+    "Minas Gerais","Pará","Paraíba","Paraná","Pernambuco","Piauí",
+    "Rio de Janeiro","Rio Grande do Norte","Rio Grande do Sul","Rondônia",
+    "Roraima","Santa Catarina","São Paulo","Sergipe","Tocantins",
+  ],
+};
 
 const COUNTRIES = [
   "United States","Canada","United Kingdom","Australia","Germany","France",
@@ -164,7 +303,7 @@ type Scope = "global" | "national" | "regional" | "local";
 
 const SCOPE_OPTIONS: { value: Scope; label: string; icon: string; desc: string }[] = [
   { value: "global",   icon: "🌍", label: "Global",   desc: "Worldwide audience — no location in content" },
-  { value: "national", icon: "🇺🇸", label: "National", desc: "Country-level — e.g. 'across the US'" },
+  { value: "national", icon: "🗺️",  label: "National", desc: "Country-level — e.g. 'across the US'" },
   { value: "regional", icon: "📍", label: "Regional",  desc: "State or multi-city — e.g. 'across Texas'" },
   { value: "local",    icon: "🏪", label: "Local",     desc: "Single city or neighborhood — most specific" },
 ];
@@ -288,22 +427,25 @@ function LocationSection({
               <label className="block text-xs font-medium text-zinc-600 mb-1.5">
                 State / Province
               </label>
-              {country === "United States" ? (
+              {REGIONS_BY_COUNTRY[country] ? (
                 <select
                   value={state}
                   onChange={(e) => onStateChange(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400"
+                  className={`w-full rounded-xl border bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 ${
+                    state ? "border-emerald-400" : "border-zinc-200"
+                  }`}
                 >
-                  <option value="">Select state…</option>
-                  {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  <option value="">Select region…</option>
+                  {REGIONS_BY_COUNTRY[country]!.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
                 </select>
               ) : (
-                <input
-                  type="text"
+                // For countries without a built-in list, use Google Places region autocomplete
+                <RegionAutocomplete
                   value={state}
-                  onChange={(e) => onStateChange(e.target.value)}
-                  placeholder="e.g. Ontario"
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400"
+                  country={country}
+                  onChange={onStateChange}
                 />
               )}
             </div>
