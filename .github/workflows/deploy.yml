@@ -24,11 +24,11 @@ jobs:
             git pull origin main
             npm install --production=false
 
-            # Run DB migrations (idempotent — safe on every deploy)
-            npx drizzle-kit push --config=drizzle.config.ts || echo "Migration warning (non-fatal)"
+            # Run DB migrations — pipe yes to auto-accept any prompts (idempotent)
+            echo "y" | npx drizzle-kit push --config=drizzle.config.ts 2>&1 || echo "Migration warning (non-fatal)"
 
             # Create Stripe annual prices if they don't exist yet (idempotent)
-            node scripts/setup-annual-prices.mjs || echo "Annual price setup warning (non-fatal)"
+            node scripts/setup-annual-prices.mjs 2>&1 || echo "Annual price setup warning (non-fatal)"
 
             npm run build
             pm2 restart gravyblock gravyblock-worker
