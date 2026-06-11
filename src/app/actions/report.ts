@@ -36,6 +36,10 @@ export async function generateReportAction(
 
   const scanMode = field(formData, "scanMode") || "places";
 
+  // Auto-capture lead when the prospect arrived from an outreach email (email known)
+  const leadEmailRaw = field(formData, "leadEmail").trim().toLowerCase();
+  const leadEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leadEmailRaw) ? leadEmailRaw : null;
+
   const rawInput = scanMode === "website"
     ? {
         scanMode: "website" as const,
@@ -106,6 +110,9 @@ export async function generateReportAction(
         focusArea: parsed.data.focusArea,
         targetScope: parsed.data.targetScope,
         websiteUrl: parsed.data.websiteUrl,
+        ...(leadEmail
+          ? { leadCapture: { name: parsed.data.businessName, email: leadEmail, source: "scan_form" as const } }
+          : {}),
       });
     } else {
       await recordScanRun({
@@ -123,6 +130,9 @@ export async function generateReportAction(
         vertical: "other",
         focusArea: parsed.data.focusArea,
         targetScope: parsed.data.targetScope,
+        ...(leadEmail
+          ? { leadCapture: { name: parsed.data.query, email: leadEmail, source: "scan_form" as const } }
+          : {}),
       });
     }
   } catch (err) {

@@ -126,10 +126,11 @@ export async function runAbandonedCheckoutBatch(): Promise<{ sent: number; skipp
   // - Have a stripeCustomerId (Stripe customer was created = checkout was initiated)
   // - Still on free tier (payment never completed)
   // - Have a billingEmail (we can reach them)
-  // - Were created at least 24 hours ago (give them time to complete on their own)
+  // - Were created at least 1 hour ago — recover the impulse while it's still warm.
+  //   (Worker ticks every 15 min, so the first email lands ~1h after abandonment.)
   // - Not more than 14 days ago (don't spam cold old records)
   const windowStart = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-  const windowEnd = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const windowEnd = new Date(Date.now() - 60 * 60 * 1000);
 
   const candidates = await db
     .select({

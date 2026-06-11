@@ -63,7 +63,7 @@ export async function runOutreachBatch(params: {
       } catch { /* ignore */ }
     }
 
-    await recordOutreachSent(prospect.placeId, prospect.businessName, sentEmail);
+    await recordOutreachSent(prospect.placeId, prospect.businessName, sentEmail, prospect.city);
     console.info("[outreach-batch] Sent", { businessName: prospect.businessName, email: sentEmail, score: prospect.opportunityScore });
     sent++;
   }

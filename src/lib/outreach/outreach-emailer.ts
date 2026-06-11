@@ -14,12 +14,17 @@ function resendConfig() {
   };
 }
 
-function buildScanUrl(prospect: Prospect): string {
-  // Pre-fill the scan page with their business name + city so they land on results fast
+function buildScanUrl(prospect: Prospect & { emailTo?: string }): string {
+  // Pre-fill the scan page with their business name + city so they land on results fast.
+  // Include their email (base64url) so the scan auto-captures them as a lead — we
+  // already know it, no reason to make them type it again.
   const params = new URLSearchParams({
     q: prospect.businessName,
     city: prospect.city,
   });
+  if (prospect.emailTo) {
+    params.set("e", Buffer.from(prospect.emailTo.toLowerCase()).toString("base64url"));
+  }
   return `${SITE_URL}/scan?${params.toString()}`;
 }
 
@@ -255,6 +260,8 @@ export async function sendFollowupEmail(params: {
   }
 
   const scanUrlParams = new URLSearchParams({ q: params.businessName, ...(params.city ? { city: params.city } : {}) });
+  scanUrlParams.set("e", Buffer.from(params.email.toLowerCase()).toString("base64url"));
+  scanUrlParams.set("promo", "EMAILFREE");
   const scanUrl = `${SITE_URL}/scan?${scanUrlParams.toString()}`;
 
   const subject = buildFollowupSubject(params.businessName);

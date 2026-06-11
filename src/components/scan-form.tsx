@@ -2,7 +2,7 @@
 import type { PromoCode } from "@/lib/stripe/promo-codes";
 
 import Link from "next/link";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { generateReportAction, type ReportActionState } from "@/app/actions/report";
 import type { FocusArea } from "@/lib/validation/scan";
 
@@ -94,18 +94,26 @@ function ScopeInput({
 export function ScanForm({
   selectedPlan,
   promoCode,
+  initialQuery,
+  initialCity,
+  leadEmail,
 }: {
   selectedPlan?: "starter" | "growth" | "pro" | "agency" | null;
   promoCode?: PromoCode | null;
+  /** Pre-fill from outreach email links: /scan?q=Business&city=City */
+  initialQuery?: string;
+  initialCity?: string;
+  /** Known prospect email (decoded from outreach link) — auto-captures the lead on scan */
+  leadEmail?: string;
 }) {
   const [state, formAction, pending] = useActionState(generateReportAction, initialState);
 
   // Mode toggle
   const [scanMode, setScanMode] = useState<ScanMode>("places");
 
-  // Places mode state
-  const [query, setQuery] = useState("");
-  const [locationHint, setLocationHint] = useState("");
+  // Places mode state — pre-filled from URL params when arriving from an email
+  const [query, setQuery] = useState(initialQuery ?? "");
+  const [locationHint, setLocationHint] = useState(initialCity ?? "");
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<PlaceCandidate[]>([]);
@@ -158,6 +166,18 @@ export function ScanForm({
       setSearching(false);
     }
   }
+
+  // Auto-run the search when arriving from an email link with pre-filled params —
+  // the prospect lands with their business already found and selected, one click from results.
+  const autoSearched = useRef(false);
+  useEffect(() => {
+    if (autoSearched.current) return;
+    if (initialQuery && initialQuery.trim().length > 1) {
+      autoSearched.current = true;
+      void searchPlaces();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // When mode switches, reset focus area default
   function handleModeSwitch(mode: ScanMode) {
@@ -361,6 +381,7 @@ export function ScanForm({
       <input type="hidden" name="targetScope" value={targetScope} />
       <input type="hidden" name="planIntent" value={selectedPlan ?? ""} />
       <input type="hidden" name="promoCodeIntent" value={promoCode ?? ""} />
+      <input type="hidden" name="leadEmail" value={leadEmail ?? ""} />
 
       {state.status === "error" && state.formError ? (
         <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{state.formError}</p>

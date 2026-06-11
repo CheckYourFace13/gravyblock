@@ -162,7 +162,7 @@ export default function HomePage() {
               Get my free visibility score →
             </Link>
             <Link href="/pricing" className="rounded-full border border-zinc-300 bg-white px-7 py-3.5 text-sm font-semibold text-zinc-700 hover:border-zinc-400 shadow-sm">
-              See pricing
+              Plans from $39.99/mo
             </Link>
           </div>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 pt-1 text-xs text-zinc-500">

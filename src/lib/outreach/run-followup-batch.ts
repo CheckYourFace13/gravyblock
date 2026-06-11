@@ -28,6 +28,7 @@ export async function runFollowupOutreachBatch(
       const result = await sendFollowupEmail({
         businessName: c.businessName,
         email: c.email,
+        city: c.city || undefined,
       });
 
       if (result.skipped) {

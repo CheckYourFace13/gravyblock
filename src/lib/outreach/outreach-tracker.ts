@@ -32,6 +32,7 @@ export async function recordOutreachSent(
   placeId: string,
   businessName: string,
   email?: string,
+  city?: string,
 ): Promise<void> {
   const db = getDb();
   if (!db) {
@@ -45,6 +46,7 @@ export async function recordOutreachSent(
       placeId,
       businessName,
       ...(email ? { email } : {}),
+      ...(city ? { city } : {}),
     },
     status: "done",
   });
@@ -59,7 +61,7 @@ export async function getFollowupCandidates(
   minDaysAgo = 3,
   maxDaysAgo = 21,
   limit = 20,
-): Promise<Array<{ placeId: string; businessName: string; email: string }>> {
+): Promise<Array<{ placeId: string; businessName: string; email: string; city: string }>> {
   const db = getDb();
   if (!db) return [];
 
@@ -93,6 +95,7 @@ export async function getFollowupCandidates(
         placeId: (p?.placeId as string) ?? "",
         businessName: (p?.businessName as string) ?? "",
         email: (p?.email as string) ?? "",
+        city: (p?.city as string) ?? "",
       };
     })
     .filter((c) => c.placeId && c.email && !alreadyFollowedUp.has(c.placeId))

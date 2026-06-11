@@ -14,10 +14,24 @@ export const metadata: Metadata = {
 import { trackReferralEvent } from "@/lib/referrals/referral-tracker";
 import { normalizePromoCode } from "@/lib/stripe/promo-codes";
 
-type Props = { searchParams: Promise<{ plan?: string; promo?: string; ref?: string }> };
+type Props = { searchParams: Promise<{ plan?: string; promo?: string; ref?: string; q?: string; city?: string; e?: string }> };
+
+function decodeLeadEmail(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  try {
+    const decoded = Buffer.from(raw, "base64url").toString("utf8");
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(decoded) ? decoded : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export default async function ScanPage({ searchParams }: Props) {
   const query = await searchParams;
+  // Pre-fill from outreach email links (/scan?q=Business&city=City&e=base64email)
+  const initialQuery = query.q?.trim() || undefined;
+  const initialCity = query.city?.trim() || undefined;
+  const leadEmail = decodeLeadEmail(query.e);
 
   // Track referral clicks (fire-and-forget, non-blocking)
   if (query.ref) {
@@ -108,7 +122,7 @@ export default async function ScanPage({ searchParams }: Props) {
         </div>
       ) : null}
       <div className="mt-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-10">
-        <ScanForm selectedPlan={selectedPlan} promoCode={promoCode} />
+        <ScanForm selectedPlan={selectedPlan} promoCode={promoCode} initialQuery={initialQuery} initialCity={initialCity} leadEmail={leadEmail} />
       </div>
     </div>
     </>
