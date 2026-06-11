@@ -342,6 +342,8 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             entityGrade={entityResult.grade}
             scoreDelta={delta ?? null}
             hasContentPublishing={features.contentDraftsPerMonth > 0}
+            publishedCount={publishedContentCount}
+            probesRun={aiVisibility.total}
           />
           {tier === "agency" ? (
             <a
@@ -596,11 +598,12 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       {/* ─── Feature #8: GEO audit — AI search visibility ───────────────────── */}
       {geoAudit ? (
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          {/* Header + score */}
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold text-zinc-900">GEO: AI search visibility</h2>
               <p className="mt-1 text-sm text-zinc-500">
-                How visible is your business when people ask ChatGPT, Perplexity, and other AI assistants?
+                How often ChatGPT, Perplexity, and Copilot mention your business when people ask relevant questions.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -616,102 +619,200 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               </div>
             </div>
           </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+
+          {/* Stats */}
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-center">
               <p className="text-2xl font-semibold text-zinc-900">{geoAudit.totalMentions}</p>
               <p className="text-xs text-zinc-500 mt-0.5">times mentioned</p>
             </div>
-            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-center">
               <p className="text-2xl font-semibold text-zinc-900">{geoAudit.totalProbes}</p>
               <p className="text-xs text-zinc-500 mt-0.5">AI probes run</p>
             </div>
-            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-center">
+            <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-center">
               <p className="text-2xl font-semibold text-zinc-900">{geoAudit.mentionRate}%</p>
               <p className="text-xs text-zinc-500 mt-0.5">mention rate</p>
             </div>
           </div>
-          {geoAudit.byEngine.length > 0 ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+
+          {/* Per-engine breakdown */}
+          {geoAudit.byEngine.length > 0 && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {geoAudit.byEngine.map((e) => (
                 <div key={e.engine} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{e.engine}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 capitalize">{e.engine}</p>
                   <p className="mt-1 text-sm font-semibold text-zinc-800">{e.mentionRate}% mention rate</p>
                   <p className="text-xs text-zinc-500">{e.mentions}/{e.probes} probes · {e.sentiment}</p>
                 </div>
               ))}
             </div>
-          ) : null}
-          <div className="mt-4 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3">
-            <p className="text-sm font-semibold text-zinc-800">Recommendation</p>
-            <p className="mt-1 text-sm text-zinc-600">{geoAudit.topRecommendation}</p>
-          </div>
+          )}
 
-          {geoAudit.overallScore < 60 ? (() => {
-            const checks = [
-              {
-                label: "Google Business Profile connected",
-                done: Boolean(googleConn),
-                action: "Connect Google in the Integrations section below to enable AI probes.",
-              },
-              {
-                label: "4+ local articles published",
-                done: publishedContentCount >= 4,
-                action: `${publishedContentCount} published so far. GravyBlock is writing more — AI models cite businesses with frequent local content.`,
-              },
-              {
-                label: "Structured data (schema markup) on your website",
-                done: techPass("no-structured-data"),
-                action: "Add LocalBusiness schema to your site. Use the Schema Generator below to generate the code.",
-              },
-              {
-                label: "20+ Google reviews",
-                done: latestReviewCount >= 20,
-                action: `${latestReviewCount} reviews so far. AI assistants heavily favor businesses with strong review volume.`,
-              },
-              {
-                label: "Listed in 5+ local directories",
-                done: autopilot.citationIssues.length >= 5,
-                action: "Citations from Yelp, BBB, and local directories signal legitimacy to AI models.",
-              },
-            ];
-            const doneCount = checks.filter((c) => c.done).length;
-            return (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-semibold text-amber-900">AI visibility checklist</p>
-                  <span className="text-xs font-semibold text-amber-700 bg-amber-100 rounded-full px-2.5 py-0.5">{doneCount}/{checks.length} complete</span>
-                </div>
-                <ul className="space-y-2.5">
-                  {checks.map((c) => (
-                    <li key={c.label} className="flex items-start gap-2.5">
-                      <span className={`mt-0.5 flex-shrink-0 text-base leading-none ${c.done ? "text-green-600" : "text-amber-400"}`}>
-                        {c.done ? "✓" : "○"}
-                      </span>
-                      <div>
-                        <p className={`text-sm font-medium ${c.done ? "text-zinc-500 line-through" : "text-zinc-800"}`}>{c.label}</p>
-                        {!c.done ? <p className="text-xs text-zinc-500 mt-0.5">{c.action}</p> : null}
-                      </div>
+          {/* ── SCORE = 0: Full explanation + action plan ── */}
+          {geoAudit.overallScore === 0 ? (
+            <div className="mt-5 space-y-4">
+              {/* Why */}
+              <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-4">
+                <p className="text-sm font-semibold text-red-900 mb-1">Why your score is 0</p>
+                <p className="text-sm text-red-800 leading-relaxed">
+                  GravyBlock ran {geoAudit.totalProbes} AI probe{geoAudit.totalProbes !== 1 ? "s" : ""} this month asking ChatGPT, Perplexity, and Copilot
+                  questions about your business category. You weren&apos;t mentioned yet — this is
+                  normal for new profiles. <strong>AI assistants typically start citing a business after
+                  60–90 days of consistent, well-structured content.</strong>
+                </p>
+                {/* Show actual probe questions that were asked */}
+                {(aiVisibility.recentChecks?.length ?? 0) > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold text-red-800 mb-1.5">Questions that were asked:</p>
+                    <ul className="space-y-1">
+                      {(aiVisibility.recentChecks ?? []).slice(0, 3).map((c, i) => (
+                        <li key={i} className="text-xs text-red-700 flex items-start gap-1.5">
+                          <span className="capitalize font-medium shrink-0">{c.engine}:</span>
+                          <span className="italic">&ldquo;{c.prompt}&rdquo;</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* What GravyBlock is doing automatically */}
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-4">
+                <p className="text-sm font-semibold text-emerald-900 mb-2">✓ What GravyBlock is already doing for you</p>
+                <ul className="space-y-1.5">
+                  {[
+                    "Publishing articles in direct-answer format — the style AI engines prefer to cite",
+                    "Injecting LocalBusiness + Article schema markup into every article published",
+                    "Running monthly AI probes to track exactly when you first get mentioned",
+                    "Generating directory listing copy to build citation footprint AI engines index",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2 text-sm text-emerald-800">
+                      <span className="shrink-0 mt-0.5 text-emerald-600">✓</span>
+                      {item}
                     </li>
                   ))}
                 </ul>
               </div>
-            );
-          })() : null}
 
-          {geoAudit.recentMentions.length > 0 ? (
+              {/* Priority action checklist */}
+              {(() => {
+                const checks = [
+                  {
+                    priority: "high",
+                    label: "Publish 4+ articles",
+                    done: publishedContentCount >= 4,
+                    status: publishedContentCount >= 4
+                      ? `${publishedContentCount} published ✓`
+                      : `${publishedContentCount} published — GravyBlock is writing more each week`,
+                    why: "AI assistants won't cite a business with thin content. 4+ articles is the practical floor.",
+                  },
+                  {
+                    priority: "high",
+                    label: "Add schema markup to your website",
+                    done: techPass("no-structured-data"),
+                    status: techPass("no-structured-data")
+                      ? "Schema detected on your website ✓"
+                      : "Not detected — use the Schema Generator below to get the code",
+                    why: "JSON-LD schema tells AI crawlers exactly what your business does, in machine-readable format.",
+                  },
+                  {
+                    priority: "medium",
+                    label: "Reach 20+ Google reviews",
+                    done: latestReviewCount >= 20,
+                    status: latestReviewCount >= 20
+                      ? `${latestReviewCount} reviews ✓`
+                      : `${latestReviewCount} reviews so far — GravyBlock sends review requests weekly`,
+                    why: "AI assistants use review volume as a trust signal when deciding what to recommend.",
+                  },
+                  {
+                    priority: "medium",
+                    label: "Get listed in 5+ directories",
+                    done: autopilot.citationIssues.length >= 5,
+                    status: autopilot.citationIssues.length >= 5
+                      ? "5+ citations found ✓"
+                      : "GravyBlock is generating your directory profile copy — check Action Items below",
+                    why: "Citations on Yelp, BBB, Apple Maps, and industry directories are indexed by Perplexity directly.",
+                  },
+                ];
+                const doneCount = checks.filter((c) => c.done).length;
+                return (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-semibold text-amber-900">Your GEO improvement plan</p>
+                      <span className="text-xs font-semibold text-amber-700 bg-amber-100 rounded-full px-2.5 py-0.5">
+                        {doneCount}/{checks.length} complete
+                      </span>
+                    </div>
+                    <ul className="space-y-3">
+                      {checks.map((c) => (
+                        <li key={c.label} className="flex items-start gap-2.5">
+                          <span className={`mt-0.5 shrink-0 text-base leading-none ${c.done ? "text-green-600" : c.priority === "high" ? "text-red-500" : "text-amber-500"}`}>
+                            {c.done ? "✓" : c.priority === "high" ? "●" : "○"}
+                          </span>
+                          <div className="min-w-0">
+                            <p className={`text-sm font-medium ${c.done ? "text-zinc-400 line-through" : "text-zinc-800"}`}>
+                              {c.label}
+                            </p>
+                            <p className="text-xs text-zinc-500 mt-0.5">{c.status}</p>
+                            {!c.done && (
+                              <p className="text-xs text-zinc-400 mt-0.5 italic">{c.why}</p>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-3 text-xs text-amber-700 border-t border-amber-200 pt-3">
+                      ⏱ Next probe runs in ~{Math.max(1, 30 - (geoAudit.totalProbes > 0 ? 0 : 30))} days. AI mentions typically begin appearing 60–90 days after consistent content publication.
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+          ) : geoAudit.overallScore < 60 ? (
+            // Partial score — simpler checklist
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
+              <p className="text-sm font-semibold text-amber-900 mb-1">{geoAudit.topRecommendation}</p>
+              <ul className="mt-3 space-y-2">
+                {[
+                  { label: "4+ articles published", done: publishedContentCount >= 4, note: `${publishedContentCount} so far` },
+                  { label: "Schema markup on website", done: techPass("no-structured-data"), note: "Use Schema Generator below" },
+                  { label: "20+ Google reviews", done: latestReviewCount >= 20, note: `${latestReviewCount} so far` },
+                  { label: "5+ directory citations", done: autopilot.citationIssues.length >= 5, note: "Check Action Items below" },
+                ].map((c) => (
+                  <li key={c.label} className="flex items-start gap-2 text-sm">
+                    <span className={`shrink-0 ${c.done ? "text-green-600" : "text-amber-500"}`}>{c.done ? "✓" : "○"}</span>
+                    <span className={c.done ? "text-zinc-400 line-through" : "text-zinc-800"}>{c.label}</span>
+                    {!c.done && <span className="text-zinc-400 text-xs ml-auto shrink-0">{c.note}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            // Good score — just show recommendation
+            <div className="mt-4 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3">
+              <p className="text-sm text-zinc-700">{geoAudit.topRecommendation}</p>
+            </div>
+          )}
+
+          {/* Recent mentions (shown when score > 0) */}
+          {geoAudit.recentMentions.length > 0 && (
             <div className="mt-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">Recent AI mentions</p>
               <ul className="space-y-2">
                 {geoAudit.recentMentions.map((m, i) => (
-                  <li key={i} className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
-                    <span className="font-semibold text-zinc-900">{m.engine}</span>: {m.prompt}
+                  <li key={i} className="rounded-lg bg-zinc-50 border border-zinc-100 px-3 py-2 text-xs">
+                    <span className="font-semibold text-zinc-900 capitalize">{m.engine}</span>
+                    <span className="text-zinc-500 mx-1.5">·</span>
+                    <span className="text-zinc-600 italic">&ldquo;{m.prompt}&rdquo;</span>
                     <span className="ml-2 text-zinc-400">{m.date}</span>
                   </li>
                 ))}
               </ul>
             </div>
-          ) : null}
-          <p className="mt-3 text-xs text-zinc-400">Probes run monthly. GEO score = 60% mention rate + 40% avg confidence.</p>
+          )}
+
+          <p className="mt-4 text-xs text-zinc-400">GEO score = 60% mention rate + 40% avg confidence. Probes run monthly via ChatGPT + Perplexity.</p>
         </section>
       ) : aiVisibility.total > 0 ? (
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">

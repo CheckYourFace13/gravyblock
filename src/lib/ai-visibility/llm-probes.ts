@@ -13,7 +13,7 @@
  */
 
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
-import { getDb, businesses, aiVisibilityChecks, jobs } from "@/lib/db";
+import { getDb, businesses, businessConfigs, aiVisibilityChecks, jobs } from "@/lib/db";
 
 const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
 
@@ -30,8 +30,43 @@ function buildProbePrompts(biz: {
   primaryCategory: string | null;
   address: string | null;
   vertical: string | null;
+  focusArea?: string | null;
+  targetScope?: string | null;
 }): string[] {
   const category = biz.vertical ?? biz.primaryCategory ?? "local business";
+  const scope = biz.focusArea ?? "local";
+
+  // Prompts must match how real users actually search for this type of business.
+  // Wrong prompts (e.g. "best disease tracker in [city]") always return 0 — a false negative.
+
+  if (scope === "global" || scope === "online") {
+    // No location — ask about the service/product globally
+    return [
+      `What are the best ${category} services available? Give me your top recommendations.`,
+      `I'm looking for a reliable ${category} tool or service. What do you recommend?`,
+      `What are the most trusted ${category} platforms or providers people use?`,
+    ];
+  }
+
+  if (scope === "national") {
+    const country = biz.targetScope ?? "the United States";
+    return [
+      `What are the best ${category} services in ${country}?`,
+      `I'm looking for a highly-rated ${category} provider in ${country}. Who do you recommend?`,
+      `What are the most trusted ${category} companies serving customers across ${country}?`,
+    ];
+  }
+
+  if (scope === "regional") {
+    const region = biz.targetScope ?? extractCity(biz.address) ?? "the region";
+    return [
+      `What are the best ${category} options in ${region}?`,
+      `I'm looking for a highly-rated ${category} serving the ${region} area. Who do you recommend?`,
+      `Who is the most trusted ${category} in ${region}?`,
+    ];
+  }
+
+  // Default: local — use city
   const city = extractCity(biz.address);
   const location = city ? `in ${city}` : "nearby";
 
@@ -134,6 +169,8 @@ export async function runLlmProbesForBusiness(businessId: string): Promise<{
       primaryCategory: businesses.primaryCategory,
       address: businesses.address,
       vertical: businesses.vertical,
+      focusArea: businesses.focusArea,
+      targetScope: businesses.targetScope,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))
@@ -141,7 +178,18 @@ export async function runLlmProbesForBusiness(businessId: string): Promise<{
 
   if (!biz) return { probesRun: 0, mentions: 0 };
 
-  const prompts = buildProbePrompts(biz);
+  // Prefer config-level focusArea/targetScope for most accurate probe questions
+  const [cfg] = await db
+    .select({ focusArea: businessConfigs.focusArea, targetScope: businessConfigs.targetScope })
+    .from(businessConfigs)
+    .where(eq(businessConfigs.businessId, businessId))
+    .limit(1);
+
+  const prompts = buildProbePrompts({
+    ...biz,
+    focusArea: cfg?.focusArea ?? biz.focusArea,
+    targetScope: cfg?.targetScope ?? biz.targetScope,
+  });
   let probesRun = 0;
   let mentions = 0;
 
