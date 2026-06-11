@@ -21,7 +21,11 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             cd /home/deploy/gravyblock
-            git pull origin main
+            # VPS is a deploy mirror — force-sync to origin/main so local drift
+            # (e.g. npm rewriting package-lock.json) can never block a deploy.
+            # reset --hard does not touch untracked files like .env.
+            git fetch origin main
+            git reset --hard origin/main
             npm install --production=false
 
             # Run DB migrations — pipe yes to auto-accept any prompts (idempotent)
