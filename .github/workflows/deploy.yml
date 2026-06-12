@@ -1,9 +1,11 @@
 ﻿name: Deploy to VPS
 
+# Manual-trigger only. The VPS firewall blocks inbound SSH from GitHub's
+# runners, so push-deploys always fail. Deployment now happens via the
+# self-deploy cron on the VPS (scripts/self-deploy.sh, polls every 2 min).
+# This workflow is kept for manual use if the firewall is ever opened.
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
