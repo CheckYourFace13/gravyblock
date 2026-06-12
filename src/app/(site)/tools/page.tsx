@@ -8,6 +8,20 @@ export const metadata: Metadata = {
 
 const tools = [
   {
+    href: "/tools/review-link-generator",
+    title: "Google Review Link Generator",
+    description: "Get your direct 'leave us a review' link and a print-ready QR code in 10 seconds. Text it, print it, put it on receipts.",
+    cta: "Get my review link",
+    tag: "Free",
+  },
+  {
+    href: "/tools/local-seo-roi-calculator",
+    title: "Local SEO ROI Calculator",
+    description: "See what a top-3 Google ranking is worth for your business — monthly revenue at stake based on real local click data.",
+    cta: "Calculate my ROI",
+    tag: "Free",
+  },
+  {
     href: "/tools/google-business-profile-checker",
     title: "Google Business Profile Checker",
     description: "See how complete and trustworthy your Google Business Profile looks to potential customers. Checks photos, categories, hours, reviews, and more.",
@@ -39,7 +53,7 @@ export default function ToolsPage() {
         Run these checks on your business in under a minute. No account required for any of them.
       </p>
 
-      <div className="mt-10 grid gap-6 sm:grid-cols-3">
+      <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {tools.map((tool) => (
           <Link
             key={tool.href}

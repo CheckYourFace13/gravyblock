@@ -18,6 +18,8 @@ const staticRoutes: MetadataRoute.Sitemap = [
   { url: `${siteUrl}/tools`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
   { url: `${siteUrl}/tools/google-business-profile-checker`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.8 },
   { url: `${siteUrl}/tools/ai-visibility-test`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.8 },
+  { url: `${siteUrl}/tools/review-link-generator`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.9 },
+  { url: `${siteUrl}/tools/local-seo-roi-calculator`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.8 },
   { url: `${siteUrl}/compare`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.8 },
   ...COMPARE_SLUGS.map((slug) => ({
     url: `${siteUrl}/compare/${slug}`,

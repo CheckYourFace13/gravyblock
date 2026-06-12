@@ -171,6 +171,40 @@ export default function HomePage() {
             <span>✓ Cancel anytime</span>
             <span>✓ 30-day money-back on paid plans</span>
           </div>
+          <p className="pt-1 text-sm text-zinc-500">
+            Want to see what you get first?{" "}
+            <Link href="/examples/sample-local-growth-report" className="font-semibold text-zinc-700 underline underline-offset-2 hover:text-zinc-900">
+              View a sample report →
+            </Link>
+          </p>
+        </div>
+      </section>
+
+      {/* ── FREE TOOLS STRIP ───────────────────────────────── */}
+      <section className="px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-5xl">
+          <p className="mb-4 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">
+            Free tools — no account needed
+          </p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              { href: "/tools/review-link-generator", icon: "⭐", title: "Review Link Generator", desc: "Your direct Google review link + QR code in 10 seconds" },
+              { href: "/tools/local-seo-roi-calculator", icon: "💰", title: "Local SEO ROI Calculator", desc: "What's a top-3 ranking worth for your business?" },
+              { href: "/tools/google-business-profile-checker", icon: "📍", title: "GBP Checker", desc: "Grade your Google Business Profile in 30 seconds" },
+            ].map((tool) => (
+              <Link
+                key={tool.href}
+                href={tool.href}
+                className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-red-200 hover:shadow-md"
+              >
+                <span className="text-2xl">{tool.icon}</span>
+                <span>
+                  <span className="block text-sm font-semibold text-zinc-900">{tool.title}</span>
+                  <span className="block text-xs text-zinc-500 mt-0.5">{tool.desc}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
