@@ -37,7 +37,7 @@ export async function runFollowupOutreachBatch(
       }
 
       if (result.ok) {
-        await recordFollowupSent(c.placeId, c.businessName, c.email);
+        await recordFollowupSent(c.placeId, c.businessName, c.email, c.city || undefined);
         sent++;
         console.info("[followup-outreach] sent", { businessName: c.businessName, email: c.email });
       }

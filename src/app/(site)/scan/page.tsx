@@ -78,9 +78,19 @@ export default async function ScanPage({ searchParams }: Props) {
         <p className="mt-4 text-lg text-zinc-600">
           Find your business on Google, get a score across 6 ranking factors, and see exactly what's holding you back. Free, no credit card required. Works for restaurants, dentists, contractors, salons, lawyers, and any local business.
         </p>
-        <p className="mt-2 text-sm text-zinc-500">
-          Already know you want more? Use code <strong className="text-zinc-700">INTRO50</strong> at checkout for 50% off month one.
-        </p>
+        {promoCode === "EMAILFREE" || promoCode === "CONNECT" || promoCode === "ILoveYouFree" ? (
+          <p className="mt-2 text-sm font-medium text-emerald-700">
+            🎁 Your <strong>first month is FREE</strong> — code <strong>{promoCode}</strong> applies automatically at checkout.
+          </p>
+        ) : promoCode ? (
+          <p className="mt-2 text-sm font-medium text-emerald-700">
+            🎁 Your discount code <strong>{promoCode}</strong> applies automatically at checkout.
+          </p>
+        ) : (
+          <p className="mt-2 text-sm text-zinc-500">
+            Already know you want more? Use code <strong className="text-zinc-700">INTRO50</strong> at checkout for 50% off month one.
+          </p>
+        )}
       </div>
 
       <div className="mx-auto mt-6 flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4">

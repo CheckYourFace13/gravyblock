@@ -41,6 +41,7 @@ import { runLocalPackTrackingBatch } from "@/lib/seo/local-pack-tracker";
 import { runOutreachBatch } from "@/lib/outreach/run-outreach-batch";
 import { getTodaysOutreachTarget } from "@/lib/outreach/outreach-calendar";
 import { runFollowupOutreachBatch } from "@/lib/outreach/run-followup-batch";
+import { runBreakupOutreachBatch } from "@/lib/outreach/run-breakup-batch";
 import { runGbpReviewReplyBatch } from "@/lib/gbp/review-responder";
 import { ensureResendWebhookRegistered } from "@/lib/integrations/resend-setup";
 import { runGbpPostBatch } from "@/lib/gbp/post-publisher";
@@ -240,11 +241,12 @@ async function maybeCitationAudit() {
  * Settings (paused, emailsPerBatch, etc.) are read from the DB via admin UI.
  */
 
+// Weekend sends at 14:00/17:00 UTC = 10am/1pm ET — when restaurant owners check email
 const WEEKEND_RESTAURANT_TARGETS = [
-  { windowKey: "sat_morning",   day: 6, hour: 9,  city: "Houston",   state: "TX", industry: "restaurant", industryLabel: "restaurant" },
-  { windowKey: "sat_afternoon", day: 6, hour: 13, city: "Chicago",   state: "IL", industry: "restaurant", industryLabel: "restaurant" },
-  { windowKey: "sun_morning",   day: 0, hour: 9,  city: "Miami",     state: "FL", industry: "restaurant", industryLabel: "restaurant" },
-  { windowKey: "sun_afternoon", day: 0, hour: 13, city: "Nashville", state: "TN", industry: "restaurant", industryLabel: "restaurant" },
+  { windowKey: "sat_morning",   day: 6, hour: 14, city: "Houston",   state: "TX", industry: "restaurant", industryLabel: "restaurant" },
+  { windowKey: "sat_afternoon", day: 6, hour: 17, city: "Chicago",   state: "IL", industry: "restaurant", industryLabel: "restaurant" },
+  { windowKey: "sun_morning",   day: 0, hour: 14, city: "Miami",     state: "FL", industry: "restaurant", industryLabel: "restaurant" },
+  { windowKey: "sun_afternoon", day: 0, hour: 17, city: "Nashville", state: "TN", industry: "restaurant", industryLabel: "restaurant" },
 ];
 
 async function runColdOutreachWindow(
@@ -299,11 +301,14 @@ async function maybeSendColdOutreach() {
 
   // ── WEEKDAYS: 4 windows hitting different city+industry combos ──
   // 4 × 13 = ~52 emails/day on weekdays
+  // Windows in UTC chosen to land in US business hours:
+  // 13:00 UTC = 9am ET / 6am PT · 15:00 = 11am ET / 8am PT
+  // 17:00 = 1pm ET / 10am PT  · 19:00 = 3pm ET / 12pm PT
   if (settings.weekdayEnabled && day >= 1 && day <= 5) {
-    await runColdOutreachWindow("morning",   0,  9,  undefined, settings.emailsPerBatch);
-    await runColdOutreachWindow("midday",   10, 12,  undefined, settings.emailsPerBatch);
-    await runColdOutreachWindow("afternoon",20, 15,  undefined, settings.emailsPerBatch);
-    await runColdOutreachWindow("evening",   5, 17,  undefined, settings.emailsPerBatch);
+    await runColdOutreachWindow("morning",   0, 13,  undefined, settings.emailsPerBatch);
+    await runColdOutreachWindow("midday",   10, 15,  undefined, settings.emailsPerBatch);
+    await runColdOutreachWindow("afternoon",20, 17,  undefined, settings.emailsPerBatch);
+    await runColdOutreachWindow("evening",   5, 19,  undefined, settings.emailsPerBatch);
   }
 
   // ── WEEKENDS: restaurants only ──
@@ -400,16 +405,30 @@ async function tick() {
   await maybeSendColdOutreach();
 
   // Follow-up email (#2): free trial offer to prospects who got email #1 3-21 days ago
-  // Runs once per day at 10am UTC
-  if (new Date().getUTCHours() === 10 && !(await hasJobRunToday("followup_outreach_batch"))) {
+  // Runs once per day at 14:00 UTC (10am ET / 7am PT)
+  if (new Date().getUTCHours() === 14 && !(await hasJobRunToday("followup_outreach_batch"))) {
     try {
-      const followupResult = await runFollowupOutreachBatch(20);
+      const followupResult = await runFollowupOutreachBatch(40);
       if (followupResult.sent > 0) {
         await recordWorkerJob("followup_outreach_batch", followupResult);
         console.info("[worker] followup outreach emails sent", followupResult);
       }
     } catch (error) {
       console.error("[worker] followup outreach failed", { error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  // Breakup email (#3): final "closing your file" touch, 5-30 days after email #2
+  // Runs once per day at 16:00 UTC (12pm ET / 9am PT)
+  if (new Date().getUTCHours() === 16 && !(await hasJobRunToday("breakup_outreach_batch"))) {
+    try {
+      const breakupResult = await runBreakupOutreachBatch(40);
+      if (breakupResult.sent > 0) {
+        await recordWorkerJob("breakup_outreach_batch", breakupResult);
+        console.info("[worker] breakup outreach emails sent", breakupResult);
+      }
+    } catch (error) {
+      console.error("[worker] breakup outreach failed", { error: error instanceof Error ? error.message : String(error) });
     }
   }
 

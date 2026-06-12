@@ -106,11 +106,74 @@ export async function recordFollowupSent(
   placeId: string,
   businessName: string,
   email: string,
+  city?: string,
 ): Promise<void> {
   const db = getDb();
   if (!db) return;
   await db.insert(jobs).values({
     type: FOLLOWUP_JOB_TYPE,
+    payload: { placeId, businessName, email, ...(city ? { city } : {}) },
+    status: "done",
+  });
+}
+
+// ── Breakup (email #3) tracking ──────────────────────────────────────────────
+
+const BREAKUP_JOB_TYPE = "cold_outreach_breakup_sent";
+
+/** Prospects who got the follow-up (email #2) 5–30 days ago and no breakup yet. */
+export async function getBreakupCandidates(
+  minDaysAgo = 5,
+  maxDaysAgo = 30,
+  limit = 40,
+): Promise<Array<{ placeId: string; businessName: string; email: string; city: string }>> {
+  const db = getDb();
+  if (!db) return [];
+
+  const minDate = new Date(Date.now() - maxDaysAgo * 24 * 60 * 60 * 1000);
+  const maxDate = new Date(Date.now() - minDaysAgo * 24 * 60 * 60 * 1000);
+
+  const followupJobs = await db
+    .select({ payload: jobs.payload })
+    .from(jobs)
+    .where(and(eq(jobs.type, FOLLOWUP_JOB_TYPE), gte(jobs.createdAt, minDate), lte(jobs.createdAt, maxDate)))
+    .limit(limit * 10);
+
+  if (followupJobs.length === 0) return [];
+
+  const breakupJobs = await db
+    .select({ payload: jobs.payload })
+    .from(jobs)
+    .where(eq(jobs.type, BREAKUP_JOB_TYPE))
+    .limit(2000);
+
+  const alreadyBrokenUp = new Set(
+    breakupJobs.map((j) => (j.payload as Record<string, unknown>)?.placeId as string).filter(Boolean),
+  );
+
+  return followupJobs
+    .map((j) => {
+      const p = j.payload as Record<string, unknown>;
+      return {
+        placeId: (p?.placeId as string) ?? "",
+        businessName: (p?.businessName as string) ?? "",
+        email: (p?.email as string) ?? "",
+        city: (p?.city as string) ?? "",
+      };
+    })
+    .filter((c) => c.placeId && c.email && !alreadyBrokenUp.has(c.placeId))
+    .slice(0, limit);
+}
+
+export async function recordBreakupSent(
+  placeId: string,
+  businessName: string,
+  email: string,
+): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  await db.insert(jobs).values({
+    type: BREAKUP_JOB_TYPE,
     payload: { placeId, businessName, email },
     status: "done",
   });

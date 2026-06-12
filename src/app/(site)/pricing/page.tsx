@@ -137,6 +137,14 @@ export default function PricingPage() {
           <div className="inline-block rounded-full border border-red-200 bg-red-50 px-4 py-1 text-xs font-bold uppercase tracking-widest text-red-700">
             50% off month one — code INTRO50
           </div>
+          <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3">
+            <p className="text-sm font-semibold text-amber-900">
+              🏆 Founding member pricing — first 20 customers lock in today&apos;s rates for life
+            </p>
+            <p className="mt-0.5 text-xs text-amber-700">
+              Prices increase as we grow. Founding members keep their rate forever and get direct access to the founder.
+            </p>
+          </div>
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
             Simple, transparent pricing
           </h1>
@@ -213,6 +221,12 @@ export default function PricingPage() {
                   className={`mt-6 flex justify-center rounded-full px-4 py-2.5 text-sm font-bold transition ${plan.ctaStyle}`}
                 >
                   {plan.cta} — ${plan.intro}/mo
+                </Link>
+                <Link
+                  href={`${plan.href}&interval=annual`}
+                  className="mt-2 text-center text-xs font-semibold text-emerald-700 hover:text-emerald-800 underline underline-offset-2"
+                >
+                  or pay annually — save 25% (3 months free)
                 </Link>
               </article>
             ))}

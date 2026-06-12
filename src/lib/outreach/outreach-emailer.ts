@@ -294,6 +294,93 @@ export async function sendFollowupEmail(params: {
   return { ok: true };
 }
 
+// ── Breakup email (email #3 — final touch, highest reply rate) ──────────────
+
+export async function sendBreakupEmail(params: {
+  businessName: string;
+  email: string;
+  city?: string;
+}): Promise<SendEmailResult> {
+  const cfg = resendConfig();
+  if (!cfg.apiKey) return { ok: false, skipped: true, reason: "RESEND_API_KEY not set" };
+
+  if (await isOptedOut(params.email)) {
+    return { ok: false, skipped: true, reason: "opted out" };
+  }
+
+  const scanUrlParams = new URLSearchParams({ q: params.businessName, ...(params.city ? { city: params.city } : {}) });
+  scanUrlParams.set("e", Buffer.from(params.email.toLowerCase()).toString("base64url"));
+  scanUrlParams.set("promo", "EMAILFREE");
+  const scanUrl = `${SITE_URL}/scan?${scanUrlParams.toString()}`;
+
+  const subject = `${params.businessName} — closing your file`;
+
+  const text = `Hi,
+
+I've reached out a couple of times about ${params.businessName}'s Google visibility and haven't heard back — totally understand, you're running a business.
+
+This is my last email. I'll close your file after this.
+
+Before I do: the free month offer (code EMAILFREE) is still active if you ever want to see what automated local SEO looks like. The scan takes 60 seconds and the first month costs nothing:
+
+${scanUrl}
+
+If now's not the time, no hard feelings — I hope business is booming.
+
+${SENDER_NAME}
+${SENDER_TITLE} — https://gravyblock.com`;
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:#1a1a1a;max-width:560px;margin:0 auto;padding:32px 20px;background:#fff">
+  <p style="margin:0 0 18px">Hi,</p>
+  <p style="margin:0 0 18px">
+    I've reached out a couple of times about <strong>${params.businessName}</strong>'s Google visibility and haven't heard back — totally understand, you're running a business.
+  </p>
+  <p style="margin:0 0 18px"><strong>This is my last email.</strong> I'll close your file after this.</p>
+  <p style="margin:0 0 18px">
+    Before I do: the free month offer (code <strong>EMAILFREE</strong>) is still active if you ever want to see what automated local SEO looks like. The scan takes 60 seconds and the first month costs nothing.
+  </p>
+  <p style="margin:0 0 24px;text-align:center">
+    <a href="${scanUrl}" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">
+      Run my free scan →
+    </a>
+  </p>
+  <p style="margin:0 0 32px;font-size:14px;color:#555">If now's not the time, no hard feelings — I hope business is booming.</p>
+  <p style="margin:0 0 6px;font-size:14px">
+    ${SENDER_NAME}<br/>
+    <a href="https://gravyblock.com" style="color:#dc2626;text-decoration:none">${SENDER_TITLE}</a>
+  </p>
+  <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
+  ${coldOutreachFooter(params.email)}
+</body>
+</html>`;
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${cfg.apiKey}`,
+    },
+    body: JSON.stringify({
+      from: cfg.from,
+      to: [params.email],
+      subject,
+      html,
+      text,
+      tags: [{ name: "type", value: "cold_outreach_breakup" }],
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Resend API error: ${res.status} ${body}`);
+  }
+
+  return { ok: true };
+}
+
 /** Derives multiple candidate email addresses from a domain to try in order. */
 function deriveEmailCandidates(website: string): string[] {
   try {
