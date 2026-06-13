@@ -155,7 +155,7 @@ export default function HomePage() {
             Your local SEO.<br className="hidden sm:block" /> Running itself.
           </h1>
           <p className="mx-auto max-w-xl text-lg text-zinc-600">
-            GravyBlock publishes content, posts to Reddit, sends backlink outreach, monitors reviews, and tracks your Google rankings. <strong className="text-zinc-800">Every week, hands-free.</strong>
+            More calls from Google — without hiring an agency. GravyBlock publishes content, manages your Business Profile, monitors reviews, and tracks your rankings. <strong className="text-zinc-800">Every week, hands-free.</strong>
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Link href="/scan" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-semibold text-white hover:bg-red-500 shadow-sm">

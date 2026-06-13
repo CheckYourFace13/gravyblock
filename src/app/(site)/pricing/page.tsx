@@ -247,6 +247,53 @@ export default function PricingPage() {
               Get my free score →
             </Link>
           </div>
+
+          {/* Market alternatives comparison */}
+          <div className="mt-12">
+            <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">Your options for local SEO</p>
+            <h2 className="mb-6 text-center text-2xl font-bold text-zinc-900">How GravyBlock compares to the alternatives</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-separate border-spacing-0 rounded-2xl border border-zinc-200 overflow-hidden">
+                <thead>
+                  <tr className="bg-zinc-50">
+                    <th className="px-4 py-3 text-left font-semibold text-zinc-700">Option</th>
+                    <th className="px-4 py-3 text-left font-semibold text-zinc-700">Monthly cost</th>
+                    <th className="px-4 py-3 text-left font-semibold text-zinc-700">Your time</th>
+                    <th className="px-4 py-3 text-left font-semibold text-zinc-700">Who does the work</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-zinc-100">
+                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-zinc-100">Do it yourself</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">$0</td>
+                    <td className="px-4 py-3.5 text-red-600 font-medium border-t border-zinc-100">10+ hrs/week</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">You — content, citations, reviews, GBP, all of it</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-zinc-100">Local SEO agency</td>
+                    <td className="px-4 py-3.5 text-red-600 font-medium border-t border-zinc-100">$1,000–$3,000+</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Meetings + email</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">The agency — usually with contracts and slow turnaround</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-zinc-100">Reporting tools <span className="text-zinc-400 font-normal">(BrightLocal, Semrush)</span></td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">$29–$50</td>
+                    <td className="px-4 py-3.5 text-red-600 font-medium border-t border-zinc-100">5+ hrs/week</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Still you — they report problems, you fix them</td>
+                  </tr>
+                  <tr className="bg-red-50/60">
+                    <td className="px-4 py-3.5 font-bold text-zinc-900 border-t border-red-100">GravyBlock</td>
+                    <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">$39.99–$299</td>
+                    <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">~0 hrs/week</td>
+                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-red-100">GravyBlock — content published, GBP managed, reviews handled, automatically</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-3 text-center text-xs text-zinc-400">
+              Agency pricing from industry surveys of US local SEO retainers. Reporting-tool pricing from public rate cards, June 2026.
+            </p>
+          </div>
         </div>
       </section>
 
