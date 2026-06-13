@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 import { trackReferralEvent } from "@/lib/referrals/referral-tracker";
 import { normalizePromoCode } from "@/lib/stripe/promo-codes";
 
-type Props = { searchParams: Promise<{ plan?: string; promo?: string; ref?: string; q?: string; city?: string; e?: string }> };
+type Props = { searchParams: Promise<{ plan?: string; promo?: string; ref?: string; q?: string; city?: string; location?: string; e?: string }> };
 
 function decodeLeadEmail(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
@@ -30,7 +30,7 @@ export default async function ScanPage({ searchParams }: Props) {
   const query = await searchParams;
   // Pre-fill from outreach email links (/scan?q=Business&city=City&e=base64email)
   const initialQuery = query.q?.trim() || undefined;
-  const initialCity = query.city?.trim() || undefined;
+  const initialCity = query.city?.trim() || query.location?.trim() || undefined;
   const leadEmail = decodeLeadEmail(query.e);
 
   // Track referral clicks (fire-and-forget, non-blocking)

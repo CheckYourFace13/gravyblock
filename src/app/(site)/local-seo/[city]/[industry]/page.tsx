@@ -39,18 +39,54 @@ export default async function LocalSeoPage({ params }: Props) {
   const relatedCities = CITIES.filter((c) => c.slug !== citySlug).slice(0, 6);
   const relatedIndustries = INDUSTRIES.filter((i) => i.slug !== industrySlug).slice(0, 8);
 
+  const ind = industry.name.toLowerCase();
+  const indPlural = industry.plural.toLowerCase();
+
+  // FAQ content — also emitted as FAQPage schema for Google rich results
+  const faqs = [
+    {
+      q: `How do ${indPlural} in ${city.name} rank higher on Google Maps?`,
+      a: `${industry.plural} rank in the ${city.name} map pack by combining a complete Google Business Profile, a steady flow of recent reviews, consistent name/address/phone across directories, and regular local content. GravyBlock automates all four — content publishing, citation audits, review requests, and GBP posts — so your ${ind} climbs the rankings without you doing the work manually.`,
+    },
+    {
+      q: `How much does local SEO cost for a ${ind} in ${city.name}?`,
+      a: `A ${city.name} SEO agency typically charges $1,000–$3,000/month and you still attend meetings. GravyBlock runs the same work automatically from $39.99/month introductory — content, Google Business Profile management, review monitoring, and citation fixes included. You can start with a free scan, no credit card.`,
+    },
+    {
+      q: `How long until my ${ind} shows up in ${city.name} search results?`,
+      a: `Most ${indPlural} see movement within 30–60 days of consistent optimization, with top-3 map pack rankings typically taking 3–6 months in competitive ${city.name} markets. GravyBlock publishes content and builds signals every week, so improvement compounds over time rather than stalling after a one-time audit.`,
+    },
+    {
+      q: `Will my ${ind} show up when people ask ChatGPT for recommendations in ${city.name}?`,
+      a: `Increasingly, customers ask ChatGPT and Perplexity "who's the best ${ind} in ${city.name}?" AI assistants pull from your Google profile, reviews, and web content. GravyBlock probes these AI engines monthly to track whether you're mentioned, and publishes the structured, citation-friendly content that gets ${indPlural} recommended.`,
+    },
+  ];
+
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "WebPage",
-    name: `Local SEO for ${industry.plural} in ${city.name}, ${city.state}`,
-    description: `Automated local SEO and marketing for ${industry.plural} in ${city.name}.`,
-    url: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com"}/local-seo/${citySlug}/${industrySlug}`,
-    mainEntity: {
-      "@type": "Service",
-      name: "GravyBlock Local Growth Autopilot",
-      areaServed: { "@type": "City", name: city.name, containedInPlace: { "@type": "State", name: city.state } },
-      audience: { "@type": "Audience", audienceType: industry.plural },
-    },
+    "@graph": [
+      {
+        "@type": "WebPage",
+        name: `Local SEO for ${industry.plural} in ${city.name}, ${city.state}`,
+        description: `Automated local SEO and marketing for ${industry.plural} in ${city.name}.`,
+        url: `${baseUrl}/local-seo/${citySlug}/${industrySlug}`,
+        mainEntity: {
+          "@type": "Service",
+          name: "GravyBlock Local Growth Autopilot",
+          areaServed: { "@type": "City", name: city.name, containedInPlace: { "@type": "State", name: city.state } },
+          audience: { "@type": "Audience", audienceType: industry.plural },
+        },
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: faqs.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a },
+        })),
+      },
+    ],
   };
 
   return (
@@ -69,7 +105,7 @@ export default async function LocalSeoPage({ params }: Props) {
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
-              href={`/scan?vertical=${encodeURIComponent(industry.name)}&location=${encodeURIComponent(city.name + " " + city.state)}`}
+              href={`/scan?city=${encodeURIComponent(city.name + ", " + city.state)}`}
               className="inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500"
             >
               Free scan for my {industry.name.toLowerCase()}
@@ -153,6 +189,24 @@ export default async function LocalSeoPage({ params }: Props) {
           >
             Scan my {industry.name.toLowerCase()} free →
           </Link>
+        </div>
+
+        {/* FAQ — matches FAQPage schema above for Google rich results */}
+        <div>
+          <h2 className="text-2xl font-semibold text-zinc-900">
+            {industry.plural} in {city.name}: local SEO FAQ
+          </h2>
+          <div className="mt-5 space-y-3">
+            {faqs.map((f) => (
+              <details key={f.q} className="group rounded-2xl border border-zinc-200 bg-white p-5">
+                <summary className="cursor-pointer list-none font-semibold text-zinc-900 marker:hidden flex items-start justify-between gap-3">
+                  <span>{f.q}</span>
+                  <span className="shrink-0 text-zinc-400 transition group-open:rotate-45">+</span>
+                </summary>
+                <p className="mt-3 text-sm text-zinc-600 leading-relaxed">{f.a}</p>
+              </details>
+            ))}
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
