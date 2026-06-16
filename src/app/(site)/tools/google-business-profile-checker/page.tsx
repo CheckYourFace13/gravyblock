@@ -4,6 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Free Google Business Profile Checker | GravyBlock",
   description: "Check how complete and trustworthy your Google Business Profile looks to customers and to Google's ranking algorithm. Free, instant, no account needed.",
+  alternates: { canonical: "https://gravyblock.com/tools/google-business-profile-checker" },
 };
 
 const checks = [

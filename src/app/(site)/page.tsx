@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "https://gravyblock.com/" },
   title: "GravyBlock — Best Local SEO Services That Run Themselves | Automated Rankings",
   description:
     "GravyBlock is the best local SEO service for small businesses in the USA. AI writes content weekly, grows Google reviews, fixes citations, and tracks Map Pack rankings — automatically. From $39.99/mo. Free scan.",

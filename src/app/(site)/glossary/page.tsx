@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "Local SEO Glossary — Key Terms Defined | GravyBlock",
   description:
     "Clear definitions for the most important local SEO and AI search terms. Learn what NAP consistency, citations, GEO audits, and review signals actually mean for your business.",
+  alternates: { canonical: "https://gravyblock.com/glossary" },
 };
 
 const definedTermSetSchema = {

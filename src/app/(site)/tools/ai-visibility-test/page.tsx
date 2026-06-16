@@ -4,6 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Free AI Visibility Test for Local Businesses | GravyBlock",
   description: "Find out if your business shows up when people ask ChatGPT, Perplexity, or Google AI Overview for businesses like yours. Free test, instant results.",
+  alternates: { canonical: "https://gravyblock.com/tools/ai-visibility-test" },
 };
 
 const aiPlatforms = [

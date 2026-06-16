@@ -4,6 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Free Local SEO Tools | GravyBlock",
   description: "Free tools to check your Google Business Profile, test AI search visibility, and scan your local SEO health. No account required.",
+  alternates: { canonical: "https://gravyblock.com/tools" },
 };
 
 const tools = [

@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Local SEO by industry — restaurants, dentists, contractors, salons & more | GravyBlock",
   description:
     "GravyBlock industry guides for local businesses: restaurants, dentists, contractors, salons, lawyers, plumbers, real estate agents, and more. Free scan for any business type.",
+  alternates: { canonical: "https://gravyblock.com/industries" },
 };
 
 const cards = INDUSTRY_SLUGS.map((slug) => {

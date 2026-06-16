@@ -5,6 +5,7 @@ import { EXAMPLE_PAGES, EXAMPLE_SLUGS } from "@/lib/content/example-pages";
 export const metadata: Metadata = {
   title: "Local visibility examples and sample reports | GravyBlock",
   description: "Anonymized examples showing sample reports, recurring improvement patterns, and multi-location workflows.",
+  alternates: { canonical: "https://gravyblock.com/examples" },
 };
 
 export default function ExamplesIndexPage() {

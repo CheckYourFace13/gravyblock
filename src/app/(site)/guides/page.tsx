@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Local SEO guides — how to rank higher on Google Maps & AI search | GravyBlock",
   description:
     "Free local SEO guides for small business owners: how to rank on Google Maps, get more reviews, show up in AI search, build backlinks, and convert local visitors into customers.",
+  alternates: { canonical: "https://gravyblock.com/guides" },
 };
 
 const guides = [

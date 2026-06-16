@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "GravyBlock vs BrightLocal, Yext, Semrush, Whitespark, GMB Everywhere & More — 2026",
   description:
     "Compare GravyBlock to BrightLocal, Yext, Semrush, Whitespark, GMB Everywhere, Search Atlas, Reputation.com, Soro, RankScore, Adaptify, SimilarWeb, and more. See which local SEO tool actually runs the work for you.",
+  alternates: { canonical: "https://gravyblock.com/compare" },
 };
 
 const featuredComps = [

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "https://gravyblock.com/pricing" },
   title: "Pricing — GravyBlock Local SEO Automation",
   description:
     "GravyBlock pricing: Starter at $39.99/mo, Scale at $74.99/mo, Pro at $149.99/mo. No contracts, cancel anytime. Use code INTRO50 for 50% off your first month.",
