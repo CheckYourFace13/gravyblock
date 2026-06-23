@@ -452,6 +452,23 @@ export async function scheduleRecurringSnapshotJob(input: {
   if (!db) {
     throw new Error("DATABASE_URL is required for recurring automation scheduling");
   }
+  // Don't queue a second pending job if one already exists for this business.
+  // Without this check, any double-run (race, restart, test account churn) causes
+  // geometric job accumulation, sending multiple automation emails per cycle.
+  const [existing] = await db
+    .select({ id: jobs.id, runAfter: jobs.runAfter })
+    .from(jobs)
+    .where(
+      and(
+        eq(jobs.businessId, input.businessId),
+        inArray(jobs.type, ["entry_monthly_refresh", "pro_recurring_refresh", "recurring_snapshot_refresh"]),
+        eq(jobs.status, "pending"),
+      ),
+    )
+    .limit(1);
+  if (existing) {
+    return { jobId: existing.id, runAfter: existing.runAfter?.toISOString() ?? null, skipped: true };
+  }
   const runAfter = new Date(Date.now() + Math.max(0, input.runAfterMs ?? 0));
   const id = randomUUID();
   await db.insert(jobs).values({
@@ -462,7 +479,7 @@ export async function scheduleRecurringSnapshotJob(input: {
     status: "pending",
     runAfter,
   });
-  return { jobId: id, runAfter: runAfter.toISOString() };
+  return { jobId: id, runAfter: runAfter.toISOString(), skipped: false };
 }
 
 export async function schedulePlanRecurringSnapshotJob(input: { businessId: string; planTier: PlanTier }) {
@@ -484,7 +501,7 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
     throw new Error("DATABASE_URL is required for recurring job execution");
   }
 
-  const dueJobs = await db
+  const candidates = await db
     .select()
     .from(jobs)
     .where(
@@ -495,7 +512,15 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
       ),
     )
     .orderBy(jobs.createdAt)
-    .limit(limit);
+    .limit(limit * 5); // fetch extra so dedup doesn't starve the batch
+
+  // One job per business per tick — prevents burst-sending when backlog builds up
+  const seenBusinessIds = new Set<string>();
+  const dueJobs = candidates.filter((job) => {
+    if (!job.businessId || seenBusinessIds.has(job.businessId)) return false;
+    seenBusinessIds.add(job.businessId);
+    return true;
+  }).slice(0, limit);
 
   const results: Array<{ jobId: string; businessId: string; snapshotId?: string; status: "completed" | "failed" }> = [];
 
