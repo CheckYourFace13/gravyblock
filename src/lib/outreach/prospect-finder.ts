@@ -195,7 +195,7 @@ export async function findWeakBusinesses(params: {
         console.warn("[prospect-finder] pagination page failed, using partial results", { page, error: String(err) });
         break;
       }
-      throw;
+      throw err;
     }
   }
 

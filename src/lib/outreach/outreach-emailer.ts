@@ -71,7 +71,7 @@ I built a free tool called GravyBlock that shows you exactly where you stand and
 
 Here's your free score: ${scanUrl}
 
-If you want, GravyBlock can also handle the fixes automatically — weekly content, review monitoring, citation cleanup, backlink outreach. Most of our customers replace their local SEO agency for under $100/mo.
+If you want, GravyBlock can also handle the fixes automatically — weekly content, review monitoring, citation cleanup, backlink outreach. It does the work a $1,000/mo local SEO agency does, from under $100/mo.
 
 Either way, the scan is free and takes a minute.
 
@@ -135,7 +135,7 @@ function buildHtmlEmail(prospect: Prospect & { emailTo?: string }, industryLabel
   <p style="margin:0 0 18px;font-size:14px;color:#555">
     If you want, GravyBlock can also handle the fixes automatically — weekly content,
     review monitoring, citation cleanup, and backlink outreach.
-    Most customers replace their local SEO agency for under <strong>$100/mo</strong>.
+    It does the work a $1,000/mo local SEO agency does, from under <strong>$100/mo</strong>.
   </p>
 
   <p style="margin:0 0 32px;font-size:14px;color:#555">
@@ -174,7 +174,7 @@ Here's what happens during that month:
 - We find and fix citation issues that hurt your local rankings
 - We track where you rank vs. competitors
 
-Most customers see ranking movement within 30 days. After the free month, it's $79.99/mo — less than most SEO agencies charge for a single hour.
+Local rankings move when content, citations, and reviews stay consistent — that's exactly what GravyBlock runs for you every week. After the free month it's $79.99/mo, less than most SEO agencies charge for a single hour.
 
 Run your free visibility score first (takes 60 seconds):
 ${scanUrl}
@@ -215,7 +215,8 @@ function buildFollowupHtml(businessName: string, scanUrl: string, emailTo: strin
   </ul>
 
   <p style="margin:0 0 18px;font-size:14px;color:#555">
-    Most customers see ranking movement within 30 days. After the free month it's $79.99/mo —
+    Local rankings move when content, citations, and reviews stay consistent — that's exactly
+    what GravyBlock runs for you every week. After the free month it's $79.99/mo,
     less than most agencies charge for a single hour.
   </p>
 

@@ -4,7 +4,7 @@ import { getBusinessById, persistStripeCustomerId } from "@/lib/billing/reposito
 import { getAppBaseUrl, getPriceIdForPlan, getStripeServerClient, type CheckoutPlan, type BillingInterval } from "@/lib/stripe/server";
 import { canAccessBusiness } from "@/lib/auth/customer-auth";
 import { isAdminSession } from "@/lib/auth/admin-session";
-import { normalizePromoCode } from "@/lib/stripe/promo-codes";
+import { normalizePromoCode, resolveCouponId } from "@/lib/stripe/promo-codes";
 
 function requiredField(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -28,6 +28,7 @@ export async function createCheckoutSessionAction(formData: FormData) {
     const rawInterval = String(formData.get("interval") ?? "monthly");
     const interval: BillingInterval = rawInterval === "annual" ? "annual" : "monthly";
     const promoIntent = normalizePromoCodeIntent(String(formData.get("promoCode") ?? ""));
+    const couponId = resolveCouponId(promoIntent);
     const authorized = (await isAdminSession()) || (await canAccessBusiness(businessId));
     if (!authorized) throw new Error("Unauthorized business access");
 
@@ -68,9 +69,11 @@ export async function createCheckoutSessionAction(formData: FormData) {
       },
       success_url: `${baseUrl}/workspace/${businessId}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/workspace/${businessId}/billing/cancel`,
-      // Auto-apply known promo code if present; otherwise let the user enter one manually
-      ...(promoIntent
-        ? { discounts: [{ coupon: promoIntent }] }
+      // Auto-apply the resolved coupon ID if present; otherwise let the user enter
+      // a code manually. Never pass the raw advertised string as a coupon ID — most
+      // do not match their Stripe coupon ID and would throw the whole checkout.
+      ...(couponId
+        ? { discounts: [{ coupon: couponId }] }
         : { allow_promotion_codes: true }),
     });
 

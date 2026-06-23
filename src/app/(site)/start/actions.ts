@@ -5,7 +5,7 @@ import { eq, or } from "drizzle-orm";
 import { getDb, businesses } from "@/lib/db";
 import { getStripeServerClient, getPriceIdForPlan, getAppBaseUrl, type CheckoutPlan, type BillingInterval } from "@/lib/stripe/server";
 import { persistStripeCustomerId } from "@/lib/billing/repository";
-import { normalizePromoCode } from "@/lib/stripe/promo-codes";
+import { normalizePromoCode, resolveCouponId } from "@/lib/stripe/promo-codes";
 
 function normalizePlan(raw: string | null | undefined): CheckoutPlan {
   const p = (raw ?? "").toLowerCase();
@@ -49,6 +49,7 @@ export async function directSignupAction(
     const plan = normalizePlan(rawPlan);
     const interval: BillingInterval = rawInterval === "annual" ? "annual" : "monthly";
     const promoIntent = normalizePromoCode(rawPromo);
+    const couponId = resolveCouponId(promoIntent);
     const { url: website, normalized: websiteNormalized } = normalizeWebsite(rawWebsite);
 
     const db = getDb();
@@ -120,8 +121,11 @@ export async function directSignupAction(
       billing_address_collection: "auto",
       success_url: `${baseUrl}/workspace/${businessId}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/start?plan=${plan}`,
-      ...(promoIntent
-        ? { discounts: [{ coupon: promoIntent }] }
+      // Resolve the advertised code to its real Stripe coupon ID. Falling back to
+      // allow_promotion_codes (rather than passing an unknown coupon that throws)
+      // means an unmapped code degrades to a manual-entry field instead of a dead checkout.
+      ...(couponId
+        ? { discounts: [{ coupon: couponId }] }
         : { allow_promotion_codes: true }),
     });
 
