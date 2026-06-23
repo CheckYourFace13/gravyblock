@@ -177,16 +177,26 @@ export async function findWeakBusinesses(params: {
   let nextPageToken: string | undefined;
 
   for (let page = 0; page < 3; page++) {
-    // Google requires a short delay before using a next_page_token
     if (page > 0 && nextPageToken) {
-      await new Promise((r) => setTimeout(r, 2000));
+      // Google requires the token to activate server-side before it becomes valid.
+      // 2 s was marginal — bump to 3 s to avoid INVALID_REQUEST on the token fetch.
+      await new Promise((r) => setTimeout(r, 3000));
     }
 
-    const { results, nextPageToken: token } = await fetchPlacesPage(query, apiKey, nextPageToken);
-    allResults.push(...results);
-    nextPageToken = token;
-
-    if (!nextPageToken) break; // no more pages
+    try {
+      const { results, nextPageToken: token } = await fetchPlacesPage(query, apiKey, nextPageToken);
+      allResults.push(...results);
+      nextPageToken = token;
+      if (!nextPageToken) break;
+    } catch (err) {
+      if (page > 0) {
+        // Pagination failed (slow token activation) — use the results we already have.
+        // Page 1 alone gives 20 prospects, which exceeds any per-batch email cap.
+        console.warn("[prospect-finder] pagination page failed, using partial results", { page, error: String(err) });
+        break;
+      }
+      throw;
+    }
   }
 
   // Dedupe by place_id
