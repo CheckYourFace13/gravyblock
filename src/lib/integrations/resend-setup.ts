@@ -62,7 +62,7 @@ export async function ensureResendWebhookRegistered(): Promise<void> {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ url: targetUrl, events: EVENTS }),
+      body: JSON.stringify({ endpoint_url: targetUrl, events: EVENTS }),
     });
 
     if (createRes.ok) {

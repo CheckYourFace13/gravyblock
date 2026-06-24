@@ -21,43 +21,105 @@ export type Prospect = {
   weaknessReasons: string[];
 };
 
-type PlacesTextSearchResult = {
-  place_id: string;
-  name: string;
-  formatted_address: string;
+// Places API (New) — places.googleapis.com/v1/places:searchText.
+// The legacy maps.googleapis.com Text Search was sunset for new API keys
+// (returns INVALID_REQUEST). The new API returns website + phone + rating +
+// review count in ONE call, so we no longer need per-result Place Details
+// lookups (faster, far less quota).
+type NewPlace = {
+  id: string;
+  displayName?: { text?: string };
+  formattedAddress?: string;
   rating?: number;
-  user_ratings_total?: number;
+  userRatingCount?: number;
+  websiteUri?: string;
+  nationalPhoneNumber?: string;
 };
 
-type PlacesTextSearchResponse = {
-  status: string;
-  results: PlacesTextSearchResult[];
-  next_page_token?: string;
-  error_message?: string;
+type NewPlacesResponse = {
+  places?: NewPlace[];
+  nextPageToken?: string;
+  error?: { message?: string; status?: string };
 };
 
-type PlaceDetailsResponse = {
-  status: string;
-  result?: {
-    website?: string;
-    formatted_phone_number?: string;
-  };
-};
+/** One page of the new Places API searchText. Returns places + next page token. */
+async function searchPlacesNew(
+  textQuery: string,
+  apiKey: string,
+  pageToken?: string,
+): Promise<{ places: NewPlace[]; nextPageToken?: string }> {
+  const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      // Field mask is REQUIRED by the new API; request only what we use.
+      "X-Goog-FieldMask":
+        "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.websiteUri,places.nationalPhoneNumber,nextPageToken",
+    },
+    body: JSON.stringify({ textQuery, pageSize: 20, ...(pageToken ? { pageToken } : {}) }),
+    signal: AbortSignal.timeout(10000),
+  });
 
-async function fetchPlaceDetails(placeId: string, apiKey: string): Promise<{ website?: string; phone?: string }> {
-  const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
-  url.searchParams.set("place_id", placeId);
-  url.searchParams.set("fields", "website,formatted_phone_number");
-  url.searchParams.set("key", apiKey);
-  try {
-    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(6000) });
-    if (!res.ok) return {};
-    const data = (await res.json()) as PlaceDetailsResponse;
-    if (data.status !== "OK" || !data.result) return {};
-    return { website: data.result.website, phone: data.result.formatted_phone_number };
-  } catch {
-    return {};
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Places API (New) error: ${res.status} — ${body.slice(0, 160)}`);
   }
+
+  const data = (await res.json()) as NewPlacesResponse;
+  if (data.error) {
+    throw new Error(`Places API (New) error: ${data.error.status ?? ""} ${data.error.message ?? ""}`);
+  }
+  return { places: data.places ?? [], nextPageToken: data.nextPageToken };
+}
+
+// ── Legacy fallback (proven to work on the current key) ─────────────────────
+// Used only if the new Places API isn't enabled on the project. Legacy base
+// text search works; only its page-token pagination was failing, so we take
+// page 0 (20 results) and fetch website/phone per result.
+type LegacyResult = { place_id: string; name: string; formatted_address: string; rating?: number; user_ratings_total?: number };
+
+async function searchPlacesLegacy(query: string, apiKey: string): Promise<NewPlace[]> {
+  const url = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
+  url.searchParams.set("query", query);
+  url.searchParams.set("key", apiKey);
+  const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) });
+  if (!res.ok) throw new Error(`Legacy Places error: ${res.status}`);
+  const data = (await res.json()) as { status: string; results?: LegacyResult[]; error_message?: string };
+  if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+    throw new Error(`Legacy Places error: ${data.status} — ${data.error_message ?? "unknown"}`);
+  }
+  const results = data.results ?? [];
+
+  // Legacy text search omits website/phone — fetch per result (parallel).
+  const enriched = await Promise.all(
+    results.map(async (r): Promise<NewPlace> => {
+      let websiteUri: string | undefined;
+      let nationalPhoneNumber: string | undefined;
+      try {
+        const d = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+        d.searchParams.set("place_id", r.place_id);
+        d.searchParams.set("fields", "website,formatted_phone_number");
+        d.searchParams.set("key", apiKey);
+        const dr = await fetch(d.toString(), { signal: AbortSignal.timeout(6000) });
+        if (dr.ok) {
+          const dj = (await dr.json()) as { result?: { website?: string; formatted_phone_number?: string } };
+          websiteUri = dj.result?.website;
+          nationalPhoneNumber = dj.result?.formatted_phone_number;
+        }
+      } catch { /* leave undefined */ }
+      return {
+        id: r.place_id,
+        displayName: { text: r.name },
+        formattedAddress: r.formatted_address,
+        rating: r.rating,
+        userRatingCount: r.user_ratings_total,
+        websiteUri,
+        nationalPhoneNumber,
+      };
+    }),
+  );
+  return enriched;
 }
 
 function extractCity(formattedAddress: string): string {
@@ -138,28 +200,6 @@ function buildWeaknessReasons(
   return reasons;
 }
 
-/** Fetches one page of Places Text Search results, returning results + next page token. */
-async function fetchPlacesPage(
-  query: string,
-  apiKey: string,
-  pageToken?: string,
-): Promise<{ results: PlacesTextSearchResult[]; nextPageToken?: string }> {
-  const url = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
-  url.searchParams.set("query", query);
-  url.searchParams.set("key", apiKey);
-  if (pageToken) url.searchParams.set("pagetoken", pageToken);
-
-  const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) });
-  if (!res.ok) throw new Error(`Google Places Text Search failed: ${res.status}`);
-
-  const data = (await res.json()) as PlacesTextSearchResponse;
-  if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-    throw new Error(`Google Places API error: ${data.status} — ${data.error_message ?? "unknown"}`);
-  }
-
-  return { results: data.results ?? [], nextPageToken: data.next_page_token };
-}
-
 // National chains, franchises, and supply houses that will never buy a $40/mo
 // local SEO tool (they have corporate marketing) and that hurt deliverability
 // when cold-emailed. Matched as case-insensitive substrings of the business name.
@@ -207,72 +247,68 @@ export async function findWeakBusinesses(params: {
   if (!apiKey) throw new Error("GOOGLE_PLACES_API_KEY is not set");
 
   const { city, state, industry, maxResults = 50 } = params;
-  const query = `${industry} in ${city} ${state}`;
+  const textQuery = `${industry} in ${city} ${state}`;
 
-  // Paginate through up to 3 pages (Google Places max) — 20 results/page = up to 60 raw results
-  const allResults: PlacesTextSearchResult[] = [];
+  // Paginate up to 3 pages (20 each). The new API returns all fields we need
+  // per place, so no separate Place Details calls.
+  const allPlaces: NewPlace[] = [];
   let nextPageToken: string | undefined;
 
   for (let page = 0; page < 3; page++) {
-    if (page > 0 && nextPageToken) {
-      // Google requires the token to activate server-side before it becomes valid.
-      // 2 s was marginal — bump to 3 s to avoid INVALID_REQUEST on the token fetch.
-      await new Promise((r) => setTimeout(r, 3000));
-    }
-
     try {
-      const { results, nextPageToken: token } = await fetchPlacesPage(query, apiKey, nextPageToken);
-      allResults.push(...results);
+      const { places, nextPageToken: token } = await searchPlacesNew(textQuery, apiKey, nextPageToken);
+      allPlaces.push(...places);
       nextPageToken = token;
       if (!nextPageToken) break;
     } catch (err) {
       if (page > 0) {
-        // Pagination failed (slow token activation) — use the results we already have.
-        // Page 1 alone gives 20 prospects, which exceeds any per-batch email cap.
+        // Later page failed — use what we have.
         console.warn("[prospect-finder] pagination page failed, using partial results", { page, error: String(err) });
         break;
       }
-      throw err;
+      // Page 0 failed on the new API — most likely "Places API (New)" isn't
+      // enabled on this key. Fall back to the legacy search we know works.
+      console.warn("[prospect-finder] new Places API failed, falling back to legacy", { error: String(err) });
+      try {
+        const legacy = await searchPlacesLegacy(textQuery, apiKey);
+        allPlaces.push(...legacy);
+      } catch (legacyErr) {
+        console.error("[prospect-finder] both new and legacy Places failed", { error: String(legacyErr) });
+        throw legacyErr;
+      }
+      break;
     }
   }
 
-  // Dedupe by place_id
-  const unique = Array.from(new Map(allResults.map((r) => [r.place_id, r])).values());
-
-  // Fetch website + phone for all places in parallel
-  const detailsMap = new Map<string, { website?: string; phone?: string }>();
-  await Promise.all(
-    unique.map(async (place) => {
-      const details = await fetchPlaceDetails(place.place_id, apiKey);
-      detailsMap.set(place.place_id, details);
-    }),
-  );
+  // Dedupe by place id
+  const unique = Array.from(new Map(allPlaces.map((p) => [p.id, p])).values());
 
   const prospects: Prospect[] = [];
 
   for (const place of unique) {
-    const details = detailsMap.get(place.place_id) ?? {};
-    const hasWebsite = Boolean(details.website);
-    const opportunityScore = scoreOpportunity(place.rating, place.user_ratings_total, hasWebsite);
+    const name = place.displayName?.text ?? "";
+    const website = place.websiteUri;
+    const hasWebsite = Boolean(website);
+    const opportunityScore = scoreOpportunity(place.rating, place.userRatingCount, hasWebsite);
 
+    if (!name) continue;
     // Skip no-website businesses (can't email) and skip already-dominant ones
     if (!hasWebsite) continue;
     if (opportunityScore < 30) continue;
-    // Skip national chains, franchises, and aggregator/social domains — they
-    // never convert and they damage sender reputation
-    if (isChainOrIneligible(place.name, details.website)) continue;
+    // Skip national chains, franchises, and aggregator/social domains
+    if (isChainOrIneligible(name, website)) continue;
 
-    const weaknessReasons = buildWeaknessReasons(place.rating, place.user_ratings_total, hasWebsite);
+    const weaknessReasons = buildWeaknessReasons(place.rating, place.userRatingCount, hasWebsite);
 
     prospects.push({
-      placeId: place.place_id,
-      businessName: place.name,
-      address: place.formatted_address,
-      city: extractCity(place.formatted_address) || city,
-      phone: details.phone,
-      website: details.website,
+      placeId: place.id,
+      businessName: name,
+      address: place.formattedAddress ?? "",
+      city: extractCity(place.formattedAddress ?? "") || city,
+      phone: place.nationalPhoneNumber,
+      website,
       rating: place.rating,
-      reviewCount: place.user_ratings_total,
+      reviewCount: place.userRatingCount,
       opportunityScore,
       weaknessReasons,
     });
