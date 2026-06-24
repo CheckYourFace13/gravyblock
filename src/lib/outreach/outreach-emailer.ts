@@ -29,25 +29,24 @@ function buildScanUrl(prospect: Prospect & { emailTo?: string }): string {
 }
 
 function buildSubjectLine(prospect: Prospect): string {
-  const { businessName, rating, reviewCount, city } = prospect;
-  // Specific, observation-based subjects — avoid anything that sounds like mass email
-  if (reviewCount !== undefined && reviewCount < 10) {
-    return `${businessName} — not showing up in the ${city} top 3`;
-  }
-  if (reviewCount !== undefined && reviewCount < 25) {
-    return `${businessName} — competitors have 3x more reviews`;
-  }
-  if (rating !== undefined && rating < 4.0) {
-    return `saw ${businessName} on Google Maps — quick note`;
-  }
-  if (rating !== undefined && rating >= 4.5) {
-    return `${businessName} has great reviews — here's what's still holding it back`;
-  }
-  return `${businessName} — missing from the ${city} top 3`;
+  const { businessName, city } = prospect;
+  // Subjects must be TRUE for any recipient (we email 5-star businesses too).
+  // No unverifiable claims like "competitors have 3x more reviews" — those read
+  // as spam and destroy credibility the moment they're wrong. Curiosity + specific.
+  const options = [
+    `Does ChatGPT recommend ${businessName}?`,
+    `quick question about ${businessName} & Google`,
+    `${businessName} — found something on your Google listing`,
+    `is ${businessName} showing up in AI search?`,
+  ];
+  // Deterministic pick from the business name so the same business always gets
+  // the same subject (no flip-flop on retries), but variety across the list.
+  const idx = businessName.length % options.length;
+  return options[idx]!;
 }
 
 function buildTextEmail(prospect: Prospect, industryLabel: string): string {
-  const { businessName, city, rating, reviewCount, weaknessReasons } = prospect;
+  const { businessName, city, reviewCount } = prospect;
   const scanUrl = buildScanUrl(prospect);
 
   const reviewStr =
@@ -55,34 +54,35 @@ function buildTextEmail(prospect: Prospect, industryLabel: string): string {
       ? "no Google reviews yet"
       : `${reviewCount} Google review${reviewCount === 1 ? "" : "s"}`;
 
-  const ratingStr = rating !== undefined ? `${rating} stars` : "no rating yet";
-
-  const primaryGap = weaknessReasons[0] ?? "gaps in local SEO visibility";
+  // Honest, specific line about reviews only when it's genuinely a weakness.
+  // For strong businesses we skip it rather than invent a problem.
+  const reviewLine =
+    reviewCount !== undefined && reviewCount < 25
+      ? `You're at ${reviewStr}, which is below what it usually takes to hold a top-3 spot in ${city} — but that's fixable, and it's not even the main thing.\n\n`
+      : "";
 
   return `Hi,
 
-I was looking at ${industryLabel}s in ${city} on Google Maps and came across ${businessName}.
+I run a tool that checks how local businesses show up on Google and in AI search (ChatGPT, Perplexity, Google's AI answers), and I ran ${businessName} through it.
 
-You have ${reviewStr} and a ${ratingStr} average. That puts you behind most of the businesses ranking in the top 3 for your category — and those top 3 spots capture 70%+ of all the clicks.
+${reviewLine}Here's the part most ${industryLabel}s don't realize: when someone in ${city} asks an AI assistant "who's the best ${industryLabel}?", it names specific businesses now. Most ${industryLabel}s I check aren't mentioned at all. If that's you, you're invisible to a fast-growing slice of your customers.
 
-The main thing I noticed: ${primaryGap}.
+Rather than guess, I'd rather just show you. Free 60-second report, no account needed:
 
-I built a free tool called GravyBlock that shows you exactly where you stand and what to fix. It runs in 60 seconds and gives you a prioritized list — no account needed.
+${scanUrl}
 
-Here's your free score: ${scanUrl}
+It scores your Google profile, reviews, and whether AI actually recommends you in ${city}.
 
-If you want, GravyBlock can also handle the fixes automatically — weekly content, review monitoring, citation cleanup, backlink outreach. It does the work a $1,000/mo local SEO agency does, from under $100/mo.
-
-Either way, the scan is free and takes a minute.
+If it's useful and you'd want it handled automatically (content, reviews, citations, all of it), GravyBlock does that from under $100/mo. But the report's free either way.
 
 ${SENDER_NAME}
 ${SENDER_TITLE} — https://gravyblock.com
 
-P.S. — I send these personally when I notice a business that could be ranking higher. Reply to stop receiving these.`;
+P.S. I send these by hand when I spot a ${city} business that could rank higher. Reply "no thanks" and you won't hear from me again.`;
 }
 
 function buildHtmlEmail(prospect: Prospect & { emailTo?: string }, industryLabel: string): string {
-  const { businessName, city, rating, reviewCount, weaknessReasons, emailTo = "" } = prospect;
+  const { businessName, city, reviewCount, emailTo = "" } = prospect;
   const scanUrl = buildScanUrl(prospect);
 
   const reviewStr =
@@ -90,8 +90,10 @@ function buildHtmlEmail(prospect: Prospect & { emailTo?: string }, industryLabel
       ? "no Google reviews yet"
       : `${reviewCount} Google review${reviewCount === 1 ? "" : "s"}`;
 
-  const ratingStr = rating !== undefined ? `${rating} stars` : "no rating yet";
-  const primaryGap = weaknessReasons[0] ?? "gaps in local SEO visibility";
+  const reviewLine =
+    reviewCount !== undefined && reviewCount < 25
+      ? `<p style="margin:0 0 18px">You're at <strong>${reviewStr}</strong>, which is below what it usually takes to hold a top-3 spot in ${city}. That's fixable, and it's not even the main thing.</p>`
+      : "";
 
   return `<!DOCTYPE html>
 <html>
@@ -104,47 +106,45 @@ function buildHtmlEmail(prospect: Prospect & { emailTo?: string }, industryLabel
   <p style="margin:0 0 18px">Hi,</p>
 
   <p style="margin:0 0 18px">
-    I was looking at ${industryLabel}s in <strong>${city}</strong> on Google Maps and came across <strong>${businessName}</strong>.
+    I run a tool that checks how local businesses show up on Google and in AI search
+    (ChatGPT, Perplexity, Google's AI answers), and I ran <strong>${businessName}</strong> through it.
+  </p>
+
+  ${reviewLine}
+
+  <p style="margin:0 0 18px">
+    Here's the part most ${industryLabel}s don't realize: when someone in <strong>${city}</strong>
+    asks an AI assistant &ldquo;who's the best ${industryLabel}?&rdquo;, it names specific businesses now.
+    Most ${industryLabel}s I check aren't mentioned at all. If that's you, you're invisible to a
+    fast-growing slice of your customers.
   </p>
 
   <p style="margin:0 0 18px">
-    You have <strong>${reviewStr}</strong> and a <strong>${ratingStr}</strong> average.
-    That puts you behind most of the businesses ranking in the top&nbsp;3 for your category —
-    and those top&nbsp;3 spots capture <strong>70%+ of all the clicks</strong>.
-  </p>
-
-  <p style="margin:0 0 18px">
-    The main thing I noticed: <strong>${primaryGap}</strong>.
-  </p>
-
-  <p style="margin:0 0 18px">
-    I built a free tool called <strong>GravyBlock</strong> that shows you exactly where you stand
-    and what to fix. It runs in 60&nbsp;seconds and gives you a prioritized action list —
-    no account needed.
+    Rather than guess, I'd rather just show you. Free 60-second report, no account needed:
   </p>
 
   <p style="margin:0 0 24px;text-align:center">
     <a href="${scanUrl}"
        style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">
-      See your free score →
+      See my free report →
     </a>
     <br/>
     <span style="font-size:12px;color:#666;margin-top:6px;display:block">${scanUrl}</span>
   </p>
 
   <p style="margin:0 0 18px;font-size:14px;color:#555">
-    If you want, GravyBlock can also handle the fixes automatically — weekly content,
-    review monitoring, citation cleanup, and backlink outreach.
-    It does the work a $1,000/mo local SEO agency does, from under <strong>$100/mo</strong>.
-  </p>
-
-  <p style="margin:0 0 32px;font-size:14px;color:#555">
-    Either way, the scan is free and takes a minute.
+    It scores your Google profile, reviews, and whether AI actually recommends you in ${city}.
+    If you'd want it all handled automatically (content, reviews, citations), GravyBlock does that
+    from under <strong>$100/mo</strong> — but the report's free either way.
   </p>
 
   <p style="margin:0 0 6px;font-size:14px">
     ${SENDER_NAME}<br/>
     <a href="https://gravyblock.com" style="color:#dc2626;text-decoration:none">${SENDER_TITLE}</a>
+  </p>
+
+  <p style="margin:8px 0 0;font-size:13px;color:#888">
+    P.S. I send these by hand when I spot a ${city} business that could rank higher.
   </p>
 
   <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>

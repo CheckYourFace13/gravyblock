@@ -160,6 +160,43 @@ async function fetchPlacesPage(
   return { results: data.results ?? [], nextPageToken: data.next_page_token };
 }
 
+// National chains, franchises, and supply houses that will never buy a $40/mo
+// local SEO tool (they have corporate marketing) and that hurt deliverability
+// when cold-emailed. Matched as case-insensitive substrings of the business name.
+const CHAIN_NAME_PATTERNS = [
+  "aspen dental", "western dental", "bright now", "greenberg dental", "jefferson dental",
+  "midas", "aire serv", "mr. rooter", "mr rooter", "roto-rooter", "roto rooter",
+  "one hour heating", "benjamin franklin plumbing", "service experts", "ars/rescue",
+  "johnstone supply", "ferguson", "grainger", "home depot", "lowe's", "lowes",
+  "morton's", "mortons", "the capital grille", "ruth's chris", "hyatt", "marriott",
+  "hilton", "holiday inn", "temperaturepro", "aaa ", "jiffy lube", "valvoline",
+  "meineke", "pep boys", "firestone", "goodyear", "les schwab", "lifetime",
+  "lifeclinic", "the joint chiropractic", "massage envy", "european wax",
+  "great clips", "supercuts", "sport clips", "regis", "h&r block", "ups store",
+  "fedex office", "aspen", // catch Aspen Dental variants
+];
+
+// Domains that are aggregators, social pages, page builders, or national-chain
+// corporate sites — not a real local business website we can pitch.
+const BLOCKED_DOMAIN_PATTERNS = [
+  "facebook.com", "instagram.com", "twitter.com", "x.com", "yelp.com",
+  "linktr.ee", "linktree", "wix-vibe-site", "getbento.com", "google.com",
+  "godaddysites.com", "business.site", "wixsite.com/",
+  "aspendental.com", "westerndental.com", "brightnow.com", "midas.com",
+  "ferguson.com", "johnstonesupply.com", "hyatt.com", "marriott.com",
+  "mortons.com", "aireserv.com", "lifetime.life", "aspendental",
+];
+
+function isChainOrIneligible(name: string, website: string | undefined): boolean {
+  const n = name.toLowerCase();
+  if (CHAIN_NAME_PATTERNS.some((p) => n.includes(p))) return true;
+  if (website) {
+    const w = website.toLowerCase();
+    if (BLOCKED_DOMAIN_PATTERNS.some((d) => w.includes(d))) return true;
+  }
+  return false;
+}
+
 export async function findWeakBusinesses(params: {
   city: string;
   state: string;
@@ -221,6 +258,9 @@ export async function findWeakBusinesses(params: {
     // Skip no-website businesses (can't email) and skip already-dominant ones
     if (!hasWebsite) continue;
     if (opportunityScore < 30) continue;
+    // Skip national chains, franchises, and aggregator/social domains — they
+    // never convert and they damage sender reputation
+    if (isChainOrIneligible(place.name, details.website)) continue;
 
     const weaknessReasons = buildWeaknessReasons(place.rating, place.user_ratings_total, hasWebsite);
 
