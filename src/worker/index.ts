@@ -23,6 +23,7 @@ import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
 import { runLeadDripBatch } from "@/lib/email/lead-drip";
 import { runOnboardingBatch } from "@/lib/email/onboarding";
+import { runTestimonialRequestBatch } from "@/lib/email/testimonial-request";
 import { runReviewRequestBatch } from "@/lib/email/review-request";
 import { runAutoConfigBatch } from "@/lib/setup/auto-config";
 import { runMonthlyDigestBatch } from "@/lib/email/monthly-digest";
@@ -556,6 +557,19 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] onboarding batch failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  // Testimonial request — once/day, to paid customers ~3 weeks in
+  if (new Date().getUTCHours() === 17 && !(await hasJobRunToday("testimonial_request_batch"))) {
+    try {
+      const tResult = await runTestimonialRequestBatch(10);
+      if (tResult.sent > 0) {
+        await recordWorkerJob("testimonial_request_batch", tResult);
+        console.info("[worker] testimonial requests sent", tResult);
+      }
+    } catch (error) {
+      console.error("[worker] testimonial request failed", { error: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   try {

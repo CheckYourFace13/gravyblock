@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TestimonialsSection } from "./testimonials-section";
 
 export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/" },
@@ -247,6 +248,9 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* ── REAL TESTIMONIALS (renders only when approved ones exist) ─ */}
+      <TestimonialsSection />
 
       {/* ── PROOF (real artifacts, no fabricated testimonials) ─ */}
       <section className="px-4 py-14 sm:px-6">

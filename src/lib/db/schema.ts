@@ -532,6 +532,20 @@ export const emailEvents = pgTable("email_events", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/** Customer testimonials — submitted via /feedback, shown on the site once approved. */
+export const testimonials = pgTable("testimonials", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "set null" }),
+  authorName: text("author_name").notNull(),
+  businessName: text("business_name"),
+  role: text("role"),               // e.g. "Owner", "Marketing Manager"
+  city: text("city"),
+  quote: text("quote").notNull(),
+  rating: integer("rating"),        // 1-5
+  status: text("status").notNull().default("pending"), // 'pending' | 'approved' | 'hidden'
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 /**
  * Owner-supplied configuration for autopilot context.
  * Populated via /setup/[token] email link, or auto-scraped from website/social.
