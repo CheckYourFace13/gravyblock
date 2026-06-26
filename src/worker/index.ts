@@ -176,18 +176,34 @@ async function maybeSendDailyReport() {
   }
 }
 
-async function maybeSendWeeklyUpsell() {
+async function maybeSendQuarterlyUpsell() {
+  // Paid subscribers are NOT hard-sold. We nudge an upgrade at most once per
+  // quarter, and only to tiers below Pro (handled inside sendWeeklyUpsellEmails
+  // via NEXT_TIER, which is null for pro/agency). Non-subscribers are nurtured
+  // through the separate lead-drip / abandoned-checkout flows instead.
   const now = new Date();
   if (now.getUTCDay() !== 1) return; // Monday only
   const nowHour = now.getUTCHours();
   if (nowHour < 9 || nowHour > 10) return; // 9am UTC window
-  if (await hasJobRunThisWeek("weekly_upsell_batch")) return;
+
+  // Quarterly cadence: skip if we've run an upsell batch in the last 90 days.
+  const db = getDb();
+  if (db) {
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const [recent] = await db
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(and(eq(jobs.type, "quarterly_upsell_batch"), gte(jobs.createdAt, ninetyDaysAgo)))
+      .limit(1);
+    if (recent) return;
+  }
+
   try {
-    const result = await sendWeeklyUpsellEmails();
-    await recordWorkerJob("weekly_upsell_batch", result);
-    console.info("[worker] weekly upsell emails", result);
+    const result = await sendWeeklyUpsellEmails(); // targets below-Pro subscribers only
+    await recordWorkerJob("quarterly_upsell_batch", result);
+    console.info("[worker] quarterly upsell emails", result);
   } catch (error) {
-    console.error("[worker] weekly upsell failed", { error: error instanceof Error ? error.message : String(error) });
+    console.error("[worker] quarterly upsell failed", { error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -400,7 +416,7 @@ async function tick() {
 
   await maybeSendDailyReport();
   await maybeSendMonthlyDigest();
-  await maybeSendWeeklyUpsell();
+  await maybeSendQuarterlyUpsell();
   await maybeSendReviewRequests();
   await maybeSendColdOutreach();
 

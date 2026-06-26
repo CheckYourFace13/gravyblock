@@ -290,45 +290,47 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
-            {tier !== "starter" && tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
-              <CheckoutButton
-                businessId={businessId}
-                plan="starter"
-                requireGrowthUpsell
-                label={selectedPlan === "starter" ? "Continue to Starter checkout" : "Start Starter"}
-                promoCode={promoCode}
-                className={
-                  selectedPlan === "starter"
-                    ? "rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                    : "rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
-                }
-              />
-            ) : null}
-            {tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
-              <CheckoutButton
-                businessId={businessId}
-                plan="growth"
-                label={selectedPlan === "growth" ? "Continue to Scale checkout" : "Start Scale"}
-                promoCode={promoCode}
-                className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
-              />
-            ) : null}
-            {tier !== "pro" && tier !== "agency" ? (
-              <CheckoutButton
-                businessId={businessId}
-                plan="pro"
-                label={selectedPlan === "pro" ? "Continue to Pro checkout" : "Start Pro"}
-                promoCode={promoCode}
-                className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-              />
-            ) : null}
-            {hasBillingCustomer ? (
-              <PortalButton
-                businessId={businessId}
-                label="Manage billing"
-                className="rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
-              />
-            ) : null}
+            {tier === "free" ? (
+              <>
+                {/* Unpaid — sell. One clear primary action (Scale), quieter alternatives. */}
+                <CheckoutButton
+                  businessId={businessId}
+                  plan="growth"
+                  label={selectedPlan === "growth" ? "Continue to Scale checkout" : "Start Scale — $74.99/mo"}
+                  promoCode={promoCode}
+                  className="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-500"
+                />
+                <CheckoutButton
+                  businessId={businessId}
+                  plan="starter"
+                  requireGrowthUpsell
+                  label="or Starter — $39.99/mo"
+                  promoCode={promoCode}
+                  className="rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+                />
+              </>
+            ) : (
+              <>
+                {/* Paid subscriber — no hard sell. Manage billing, plus at most ONE
+                    subtle upgrade link if they're below Pro. */}
+                {hasBillingCustomer ? (
+                  <PortalButton
+                    businessId={businessId}
+                    label="Manage billing"
+                    className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+                  />
+                ) : null}
+                {(tier === "starter" || tier === "growth") ? (
+                  <CheckoutButton
+                    businessId={businessId}
+                    plan="pro"
+                    label="Upgrade to Pro"
+                    promoCode={promoCode}
+                    className="rounded-full bg-transparent px-3 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-800 underline underline-offset-2"
+                  />
+                ) : null}
+              </>
+            )}
           </div>
         </div>
         <div className="flex flex-col gap-3 lg:min-w-[520px]">
