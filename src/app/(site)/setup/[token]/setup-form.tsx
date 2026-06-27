@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { submitSetupAction, type SetupActionState } from "./actions";
+import { CityAutocomplete } from "@/components/city-autocomplete";
 
 const initialState: SetupActionState = { status: "idle" };
 
@@ -42,11 +43,9 @@ export function SetupForm({ token, businessName }: { token: string; businessName
           <span className="text-sm font-semibold text-zinc-900">Where do you serve customers?</span>
           <p className="text-xs text-zinc-500">Enter your main city and how far out you travel. We'll target all areas in that radius.</p>
           <div className="flex gap-2">
-            <input
-              name="serviceCity"
-              className="flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
-              placeholder="City, State (e.g. Austin, TX)"
-            />
+            <div className="flex-1">
+              <CityAutocomplete name="serviceCity" placeholder="City, State (e.g. Austin, TX)" />
+            </div>
             <select
               name="serviceRadius"
               defaultValue="25"
