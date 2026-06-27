@@ -532,6 +532,20 @@ async function tick() {
     console.error("[worker] directory profiles failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
+  // Customer indexing — submit Scale+ customers' sitemaps to Google (weekly, Wed)
+  if (new Date().getUTCDay() === 3 && new Date().getUTCHours() === 7 && !(await hasJobRunToday("customer_sitemap_batch"))) {
+    try {
+      const { runCustomerSitemapSubmissionBatch } = await import("@/lib/seo/customer-indexing");
+      const r = await runCustomerSitemapSubmissionBatch(15);
+      if (r.submitted > 0) {
+        await recordWorkerJob("customer_sitemap_batch", r);
+        console.info("[worker] customer sitemaps submitted", r);
+      }
+    } catch (error) {
+      console.error("[worker] customer sitemap submission failed", { error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
   // IndexNow — notify Bing/Yandex of GravyBlock's content once/day (helps AI search)
   if (new Date().getUTCHours() === 6 && !(await hasJobRunToday("indexnow_gravyblock"))) {
     try {
@@ -541,6 +555,7 @@ async function tick() {
       const urls = [
         `${site}/`, `${site}/pricing`, `${site}/scan`, `${site}/tools`,
         `${site}/blog`, `${site}/compare`, `${site}/glossary`, `${site}/guides`,
+        `${site}/local-seo-statistics`,
         ...getAllBlogPosts().map((p) => `${site}/blog/${p.slug}`),
       ];
       const ok = await pingIndexNowForGravyblock(urls);

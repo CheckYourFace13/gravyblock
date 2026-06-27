@@ -221,6 +221,7 @@ export default function HomePage() {
               { icon: "🤖", title: "AI search checked", desc: "We probe ChatGPT, Perplexity & Gemini to see if they mention your business" },
               { icon: "📊", title: "Competitors tracked", desc: "See who ranks above you and exactly how big their review lead is" },
               { icon: "📁", title: "Citations audited", desc: "Your NAP data checked across 40+ directories for inconsistencies" },
+              { icon: "⚡", title: "Search engines notified", desc: "Your pages auto-submitted to Google & Bing (IndexNow) so you get found faster" },
             ].map((item) => (
               <div key={item.title} className="rounded-xl border border-zinc-200 bg-white p-4">
                 <div className="text-xl mb-1">{item.icon}</div>

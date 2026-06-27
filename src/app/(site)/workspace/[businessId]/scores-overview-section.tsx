@@ -278,6 +278,10 @@ export function ScoresOverviewSection({
             <span className="mt-0.5 shrink-0 text-red-500">✓</span>
             Running monthly citation audit to protect Entity score
           </li>
+          <li className="flex items-start gap-2">
+            <span className="mt-0.5 shrink-0 text-red-500">✓</span>
+            Submitting your pages to search engines (IndexNow + Google) so you get found faster
+          </li>
           {(entityScore ?? 100) < 40 && (
             <li className="flex items-start gap-2">
               <span className="mt-0.5 shrink-0 text-amber-500">○</span>

@@ -15,6 +15,7 @@ const staticRoutes: MetadataRoute.Sitemap = [
   { url: `${siteUrl}/faq`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
   { url: `${siteUrl}/support`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
   { url: `${siteUrl}/local-seo`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
+  { url: `${siteUrl}/local-seo-statistics`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.9 },
   { url: `${siteUrl}/tools`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
   { url: `${siteUrl}/tools/google-business-profile-checker`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.8 },
   { url: `${siteUrl}/tools/ai-visibility-test`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.8 },
