@@ -532,6 +532,25 @@ async function tick() {
     console.error("[worker] directory profiles failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
+  // IndexNow — notify Bing/Yandex of GravyBlock's content once/day (helps AI search)
+  if (new Date().getUTCHours() === 6 && !(await hasJobRunToday("indexnow_gravyblock"))) {
+    try {
+      const { getAllBlogPosts } = await import("@/lib/blog/posts");
+      const { pingIndexNowForGravyblock } = await import("@/lib/integrations/indexnow");
+      const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
+      const urls = [
+        `${site}/`, `${site}/pricing`, `${site}/scan`, `${site}/tools`,
+        `${site}/blog`, `${site}/compare`, `${site}/glossary`, `${site}/guides`,
+        ...getAllBlogPosts().map((p) => `${site}/blog/${p.slug}`),
+      ];
+      const ok = await pingIndexNowForGravyblock(urls);
+      await recordWorkerJob("indexnow_gravyblock", { urls: urls.length, ok });
+      if (ok) console.info("[worker] IndexNow ping sent", { urls: urls.length });
+    } catch (error) {
+      console.error("[worker] IndexNow ping failed", { error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
   try {
     const dripResult = await runLeadDripBatch();
     if (dripResult.sent > 0) {
