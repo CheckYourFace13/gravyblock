@@ -29,6 +29,8 @@ type MemBusiness = {
   stripeSubscriptionId: string | null;
   subscriptionStatus: string | null;
   billingEmail: string | null;
+  accountEmail: string | null;
+  emailVerified: string;
   currentPeriodEnd: string | null;
 };
 
@@ -274,6 +276,8 @@ function upsertBusiness(profile: BusinessProfile, vertical: Vertical): MemBusine
       stripeSubscriptionId: null,
       subscriptionStatus: null,
       billingEmail: null,
+      accountEmail: null,
+      emailVerified: "false",
       currentPeriodEnd: null,
   };
   businesses.set(id, created);

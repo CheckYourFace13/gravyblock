@@ -55,10 +55,11 @@ export async function directSignupAction(
     const db = getDb();
     if (!db) return { ok: false, error: "Service temporarily unavailable. Please try again." };
 
-    // Check if a business with this email already exists — re-use it
+    // One account per email: match an existing business by account OR billing
+    // email (or same website). Reuse it rather than creating a duplicate.
     const whereClause = websiteNormalized
-      ? or(eq(businesses.billingEmail, email), eq(businesses.websiteNormalized, websiteNormalized))
-      : eq(businesses.billingEmail, email);
+      ? or(eq(businesses.accountEmail, email), eq(businesses.billingEmail, email), eq(businesses.websiteNormalized, websiteNormalized))
+      : or(eq(businesses.accountEmail, email), eq(businesses.billingEmail, email));
 
     const [existing] = await db
       .select({ id: businesses.id, stripeCustomerId: businesses.stripeCustomerId })
@@ -80,11 +81,15 @@ export async function directSignupAction(
         id: businessId,
         name: businessName,
         billingEmail: email,
+        accountEmail: email,
         website: website ?? null,
         websiteNormalized: websiteNormalized ?? null,
         address: city ?? null,
         planTier: "free",
       });
+      // Confirm the email is real (non-blocking — doesn't hold up checkout).
+      const { sendVerificationEmail } = await import("@/lib/email/send-verification");
+      void sendVerificationEmail(businessId, email, businessName).catch(() => {});
     }
 
     // Create or reuse Stripe customer

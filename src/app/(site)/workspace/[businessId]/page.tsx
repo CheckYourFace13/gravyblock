@@ -23,6 +23,7 @@ import { getAiVisibilityStats } from "@/lib/ai-visibility/llm-probes";
 import { getGoogleConnection } from "@/lib/integrations/google-oauth";
 import { GoogleIntegrationsSection } from "./google-integrations-section";
 import { BusinessProfileSection } from "./business-profile-section";
+import { AccountEmailSection } from "./account-email-section";
 import { getBusinessProfile } from "./business-profile-actions";
 import { getGeoAuditScore } from "@/lib/audit/geo-audit";
 import { getSiteTechAudit } from "@/lib/audit/tech-audit";
@@ -435,6 +436,15 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <h2 className="text-xl font-semibold text-zinc-900">Action items</h2>
             <p className="mt-1 text-sm text-zinc-500">Things that need your attention right now.</p>
           </div>
+
+          {/* Account email — separate from billing, editable + verifiable */}
+          {businessProfile ? (
+            <AccountEmailSection
+              businessId={businessId}
+              currentEmail={businessProfile.business.accountEmail}
+              verified={businessProfile.business.emailVerified}
+            />
+          ) : null}
 
           {/* Business profile — needed for content generation */}
           <BusinessProfileSection

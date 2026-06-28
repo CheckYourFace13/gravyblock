@@ -50,6 +50,8 @@ function memoryBusinessToRow(businessId: string): BusinessRow | null {
     stripeSubscriptionId: mem.stripeSubscriptionId,
     subscriptionStatus: mem.subscriptionStatus,
     billingEmail: mem.billingEmail,
+    accountEmail: mem.accountEmail ?? null,
+    emailVerified: mem.emailVerified ?? "false",
     currentPeriodEnd: mem.currentPeriodEnd ? new Date(mem.currentPeriodEnd) : null,
     yelpBusinessId: null,
     tripAdvisorLocationId: null,

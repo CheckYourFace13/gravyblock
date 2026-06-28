@@ -97,6 +97,9 @@ export const businesses = pgTable("businesses", {
   stripeSubscriptionId: text("stripe_subscription_id"),
   subscriptionStatus: text("subscription_status"),
   billingEmail: text("billing_email"),
+  /** Account login/contact email — separate from billing, editable in workspace. */
+  accountEmail: text("account_email"),
+  emailVerified: text("email_verified").notNull().default("false"),
   currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
   /** Yelp business alias/id — auto-discovered on first review sync */
   yelpBusinessId: text("yelp_business_id"),

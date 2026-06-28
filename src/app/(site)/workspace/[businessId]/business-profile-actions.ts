@@ -66,6 +66,8 @@ export async function getBusinessProfile(businessId: string): Promise<{
     rating: string | null;
     reviewCount: number | null;
     phone: string | null;
+    accountEmail: string | null;
+    emailVerified: boolean;
   };
   config: BusinessProfileData | null;
   profileExists: boolean;
@@ -85,6 +87,8 @@ export async function getBusinessProfile(businessId: string): Promise<{
       rating: businesses.rating,
       reviewCount: businesses.reviewCount,
       phone: businesses.phone,
+      accountEmail: businesses.accountEmail,
+      emailVerified: businesses.emailVerified,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))
@@ -119,7 +123,7 @@ export async function getBusinessProfile(businessId: string): Promise<{
   const discoveredSocials = [...bestByPlatform.values()];
 
   return {
-    business: biz,
+    business: { ...biz, emailVerified: biz.emailVerified === "true" },
     config: cfg
       ? {
           serviceDescription: cfg.serviceDescription ?? "",
