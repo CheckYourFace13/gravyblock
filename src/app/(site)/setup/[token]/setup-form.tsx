@@ -6,7 +6,29 @@ import { CityAutocomplete } from "@/components/city-autocomplete";
 
 const initialState: SetupActionState = { status: "idle" };
 
-export function SetupForm({ token, businessName }: { token: string; businessName: string }) {
+export type SetupDefaults = {
+  targetKeywords: string;
+  serviceCity: string;
+  serviceRadius: number;
+  competitorNames: string;
+  serviceDescription: string;
+  uniqueSellingPoints: string;
+  tone: string;
+  instagramHandle: string;
+  tiktokHandle: string;
+  facebookUrl: string;
+  additionalContext: string;
+};
+
+export function SetupForm({
+  token,
+  businessName,
+  defaults,
+}: {
+  token: string;
+  businessName: string;
+  defaults: SetupDefaults;
+}) {
   const [state, formAction, pending] = useActionState(submitSetupAction, initialState);
 
   if (state.status === "success") {
@@ -34,6 +56,7 @@ export function SetupForm({ token, businessName }: { token: string; businessName
           <textarea
             name="targetKeywords"
             rows={2}
+            defaultValue={defaults.targetKeywords}
             className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
             placeholder="e.g. emergency plumber Austin, water heater repair, drain cleaning"
           />
@@ -44,11 +67,11 @@ export function SetupForm({ token, businessName }: { token: string; businessName
           <p className="text-xs text-zinc-500">Enter your main city and how far out you travel. We'll target all areas in that radius.</p>
           <div className="flex gap-2">
             <div className="flex-1">
-              <CityAutocomplete name="serviceCity" placeholder="City, State (e.g. Austin, TX)" />
+              <CityAutocomplete name="serviceCity" placeholder="City, State (e.g. Austin, TX)" defaultValue={defaults.serviceCity} />
             </div>
             <select
               name="serviceRadius"
-              defaultValue="25"
+              defaultValue={String(defaults.serviceRadius)}
               className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
             >
               {[5, 10, 15, 25, 35, 50, 75, 100].map((r) => (
@@ -56,6 +79,9 @@ export function SetupForm({ token, businessName }: { token: string; businessName
               ))}
             </select>
           </div>
+          {defaults.serviceCity && (
+            <p className="text-xs text-emerald-600">Pre-filled from your scan — update if this isn&apos;t right.</p>
+          )}
         </div>
 
         <label className="space-y-1.5">
@@ -63,6 +89,7 @@ export function SetupForm({ token, businessName }: { token: string; businessName
           <textarea
             name="competitorNames"
             rows={2}
+            defaultValue={defaults.competitorNames}
             className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
             placeholder="e.g. ABC Plumbing, City Drain Co"
           />
@@ -74,6 +101,7 @@ export function SetupForm({ token, businessName }: { token: string; businessName
           <textarea
             name="serviceDescription"
             rows={3}
+            defaultValue={defaults.serviceDescription}
             className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
             placeholder="e.g. We're a family-owned plumbing company serving Austin since 2008. We specialize in residential emergencies and always offer same-day service."
           />
@@ -84,6 +112,7 @@ export function SetupForm({ token, businessName }: { token: string; businessName
           <textarea
             name="uniqueSellingPoints"
             rows={2}
+            defaultValue={defaults.uniqueSellingPoints}
             className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
             placeholder="e.g. 24/7 availability, upfront pricing, licensed master plumber on every job, 500+ 5-star reviews"
           />
@@ -93,7 +122,7 @@ export function SetupForm({ token, businessName }: { token: string; businessName
           <span className="text-sm font-semibold text-zinc-900">Writing tone</span>
           <select
             name="tone"
-            defaultValue="professional"
+            defaultValue={defaults.tone}
             className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none ring-red-500/30 focus:ring-4"
           >
             <option value="professional">Professional</option>
@@ -108,19 +137,25 @@ export function SetupForm({ token, businessName }: { token: string; businessName
           <span className="text-sm font-semibold text-zinc-900">Social handles (optional)</span>
           <input
             name="instagramHandle"
+            defaultValue={defaults.instagramHandle}
             className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
             placeholder="Instagram handle (e.g. @austinplumber)"
           />
           <input
             name="tiktokHandle"
+            defaultValue={defaults.tiktokHandle}
             className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
             placeholder="TikTok handle"
           />
           <input
             name="facebookUrl"
+            defaultValue={defaults.facebookUrl}
             className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
             placeholder="Facebook page URL"
           />
+          {(defaults.instagramHandle || defaults.tiktokHandle || defaults.facebookUrl) && (
+            <p className="mt-1 text-xs text-emerald-600">Found on your website during the scan — update if any are wrong.</p>
+          )}
         </div>
 
         <label className="space-y-1.5 sm:col-span-2">
@@ -128,6 +163,7 @@ export function SetupForm({ token, businessName }: { token: string; businessName
           <textarea
             name="additionalContext"
             rows={3}
+            defaultValue={defaults.additionalContext}
             className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
             placeholder="Seasonal patterns, local events you sponsor, awards, certifications, recent expansions, anything the AI should keep in mind..."
           />

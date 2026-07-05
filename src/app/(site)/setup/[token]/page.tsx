@@ -17,8 +17,26 @@ export default async function SetupPage({ params }: Props) {
   const resolved = await resolveSetupToken(token);
   if (!resolved) notFound();
 
-  const { business } = resolved;
+  const { business, config, discoveredSocials } = resolved;
   const businessName = business?.name ?? "your business";
+
+  // Pre-fill from whatever GravyBlock already knows: the city/service area
+  // captured at scan or signup, a prior setup submission (if this is a
+  // reissued link), and social handles discovered from the business's
+  // website during the scan — so the owner never re-types what we already have.
+  const defaults = {
+    targetKeywords: config?.targetKeywords ?? "",
+    serviceCity: business?.targetScope ?? "",
+    serviceRadius: config?.serviceRadius ?? 25,
+    competitorNames: config?.competitorNames ?? "",
+    serviceDescription: config?.serviceDescription ?? "",
+    uniqueSellingPoints: config?.uniqueSellingPoints ?? "",
+    tone: config?.tone ?? "professional",
+    instagramHandle: config?.instagramHandle ?? discoveredSocials.instagram,
+    tiktokHandle: config?.tiktokHandle ?? discoveredSocials.tiktok,
+    facebookUrl: config?.facebookUrl ?? discoveredSocials.facebook,
+    additionalContext: config?.additionalContext ?? "",
+  };
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
@@ -34,7 +52,7 @@ export default async function SetupPage({ params }: Props) {
       </div>
 
       <div className="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-        <SetupForm token={token} businessName={businessName} />
+        <SetupForm token={token} businessName={businessName} defaults={defaults} />
       </div>
 
       <p className="mt-6 text-center text-xs text-zinc-500">

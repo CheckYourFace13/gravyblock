@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { getDb, setupTokens, businessConfigs, businesses } from "@/lib/db";
+import { getDb, setupTokens, businessConfigs, businesses, socialProfiles } from "@/lib/db";
 
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -13,6 +13,20 @@ export async function createSetupToken(businessId: string, email: string): Promi
   return token;
 }
 
+/** Best (highest-confidence) discovered social URL per platform, from the scan. */
+async function getDiscoveredSocials(db: NonNullable<ReturnType<typeof getDb>>, businessId: string) {
+  const rows = await db
+    .select({ platform: socialProfiles.platform, url: socialProfiles.url, handle: socialProfiles.handle, confidence: socialProfiles.confidence })
+    .from(socialProfiles)
+    .where(eq(socialProfiles.businessId, businessId));
+  const bestByPlatform = new Map<string, (typeof rows)[number]>();
+  for (const r of rows) {
+    const prev = bestByPlatform.get(r.platform);
+    if (!prev || r.confidence > prev.confidence) bestByPlatform.set(r.platform, r);
+  }
+  return bestByPlatform;
+}
+
 export async function resolveSetupToken(token: string) {
   const db = getDb();
   if (!db) return null;
@@ -21,7 +35,18 @@ export async function resolveSetupToken(token: string) {
   if (row.usedAt) return null;
   if (new Date() > row.expiresAt) return null;
   const [biz] = await db.select().from(businesses).where(eq(businesses.id, row.businessId)).limit(1);
-  return { token: row, business: biz ?? null };
+  const [config] = await db.select().from(businessConfigs).where(eq(businessConfigs.businessId, row.businessId)).limit(1);
+  const socials = await getDiscoveredSocials(db, row.businessId);
+  return {
+    token: row,
+    business: biz ?? null,
+    config: config ?? null,
+    discoveredSocials: {
+      instagram: socials.get("instagram")?.handle ?? socials.get("instagram")?.url ?? "",
+      tiktok: socials.get("tiktok")?.handle ?? socials.get("tiktok")?.url ?? "",
+      facebook: socials.get("facebook")?.url ?? "",
+    },
+  };
 }
 
 export type SetupFormData = {
