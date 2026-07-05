@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "Local SEO for real estate agents — rank for neighborhood searches on Google | GravyBlock",
-  description: "GravyBlock automates local SEO for real estate agents: publishes neighborhood content weekly, tracks Google rankings, manages reviews, and monitors AI search visibility. Free scan.",
+  title: "Local SEO for real estate agents — get found on Google Maps & Search | GravyBlock",
+  description: "GravyBlock automates local SEO for agents: publishes neighborhood content, gathers reviews, monitors your visibility, audits citations. Help buyers find you. Free scan.",
 };
 
 export default function ForRealEstateAgentsPage() {

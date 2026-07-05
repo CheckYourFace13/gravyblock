@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "Local SEO for dentists & dental practices — rank on Google Maps | GravyBlock",
-  description: "GravyBlock automates local SEO for dentists: publishes patient content weekly, tracks 'dentist near me' rankings, manages reviews, and monitors AI health search visibility. Free scan.",
+  title: "Local SEO for dentists & dental practices — get discovered on Google | GravyBlock",
+  description: "GravyBlock automates local SEO for dentists: publishes patient content weekly, gathers reviews, keeps your Google Business Profile fresh, audits citations. Help patients find you. Free scan.",
 };
 
 export default function ForDentistsPage() {
@@ -11,7 +11,7 @@ export default function ForDentistsPage() {
     <VerticalLanding
       eyebrow="Dentists"
       title="New patients search for a dentist on Google before they ever call. Win that first click."
-      body="Dental practices that rank at the top of Google Maps have more reviews, more content, and more active profiles than their competition. GravyBlock automates all of it, so your practice keeps climbing the rankings while you focus on patients."
+      body="Successful dental practices on Google Maps have strong profiles, active reviews, and fresh content. GravyBlock automates all of it—building your profile strength and credibility signals—so you can focus on patients instead of chasing visibility."
       bullets={[
         "Optimize your Google Business Profile for 'dentist near me,' cosmetic, emergency, and pediatric searches.",
         "Publish weekly content: patient FAQs, procedure guides, oral health tips, and local health resources.",

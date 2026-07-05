@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "Local SEO for plumbers — rank for emergency & local searches on Google | GravyBlock",
-  description: "GravyBlock automates local SEO for plumbers: tracks 'plumber near me' rankings, publishes content, manages Google reviews, and sends backlink outreach. Free scan.",
+  title: "Local SEO for plumbers — get found on Google Maps & Search | GravyBlock",
+  description: "GravyBlock automates local SEO for plumbers: publishes content, gathers reviews, keeps your profile fresh, audits citations. Help homeowners find you fast. Free scan.",
 };
 
 export default function ForPlumbersPage() {
@@ -11,7 +11,7 @@ export default function ForPlumbersPage() {
     <VerticalLanding
       eyebrow="Plumbers"
       title="When a pipe bursts at midnight, homeowners call the first plumber they trust on Google. Be that plumber."
-      body="Emergency plumbing searches are immediate and high-value. The homeowner picks the first result with strong reviews and a working phone number. GravyBlock keeps your Google profile optimized, your reviews building, and your ranking strong, so you win the emergency calls and the planned jobs alike."
+      body="Emergency plumbing searches are immediate and high-value. Homeowners pick businesses with strong reviews and easy phone numbers. GravyBlock keeps your Google profile complete and up-to-date, helps you gather reviews, and fixes your citations—so you're more discoverable for emergency and planned jobs alike."
       bullets={[
         "Optimize your GBP for emergency plumbing, drain cleaning, water heater repair, and city-specific searches.",
         "Publish weekly content: DIY guides, prevention tips, city-specific plumbing guides that rank long-term.",

@@ -25,7 +25,7 @@ const PLAN_INFO = {
     monthly: 149.99,
     intro: 74.99,
     tagline: "Full autopilot — content, GBP posts, review replies, and social running every week.",
-    bullets: ["Weekly AI articles published to your site", "Auto Google Business Profile posts", "AI review replies", "Facebook + Instagram posting", "Review gating link"],
+    bullets: ["Weekly AI articles published to your site", "Auto Google Business Profile posts", "AI review reply drafts", "Facebook + Instagram posting", "Review request automation"],
     highlight: true,
   },
   pro: {
@@ -48,6 +48,10 @@ const PLAN_INFO = {
 
 type PlanKey = keyof typeof PLAN_INFO;
 
+// Public, self-serve plans. Agency is a "contact us" upsell for Pro customers
+// needing more than 3 locations — not offered in the self-serve switcher.
+const PUBLIC_PLANS: PlanKey[] = ["starter", "growth", "pro"];
+
 function normalizePlan(raw: string | null | undefined): PlanKey {
   const p = (raw ?? "").toLowerCase();
   if (p === "entry" || p === "base") return "starter";
@@ -55,24 +59,69 @@ function normalizePlan(raw: string | null | undefined): PlanKey {
   return "growth"; // default to Scale
 }
 
+function buildStartUrl(params: { plan: PlanKey; promo: string | undefined; annual: boolean }): string {
+  const search = new URLSearchParams();
+  search.set("plan", params.plan);
+  // Preserve an explicit empty promo (opted out of the default discount) —
+  // only omit the param entirely when the visitor never had one to begin with.
+  if (params.promo !== undefined) search.set("promo", params.promo);
+  if (params.annual) search.set("interval", "annual");
+  return `/start?${search.toString()}`;
+}
+
 export default async function StartPage({ searchParams }: Props) {
   const query = await searchParams;
   const plan = normalizePlan(query.plan);
   const info = PLAN_INFO[plan];
-  const promoCode = normalizePromoCode(query.promo) ?? "INTRO50";
+  // No `promo` param at all → arrived via an existing marketing link that
+  // relies on the default intro offer. An explicit `promo` param (even an
+  // empty string, e.g. from the homepage "Sign up now" link) means the visitor
+  // opted out of the default discount — respect that exactly, don't inject one.
+  const promoCode = query.promo === undefined ? "INTRO50" : normalizePromoCode(query.promo);
   const isAnnual = query.interval === "annual";
   const annualSavings = ANNUAL_SAVINGS[plan === "growth" ? "growth" : plan];
-  const displayPrice = isAnnual ? annualSavings.monthlyEquiv : info.intro;
-  const billingLabel = isAnnual ? `/mo billed annually` : `/mo · first month`;
+  const displayPrice = isAnnual ? annualSavings.monthlyEquiv : promoCode ? info.intro : info.monthly;
+  const billingLabel = isAnnual ? `/mo billed annually` : promoCode ? `/mo · first month` : `/mo`;
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-zinc-50 to-white px-4 py-12 sm:px-6">
       <div className="mx-auto max-w-lg">
 
         {/* Back link */}
-        <a href="/pricing" className="mb-8 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
+        <a href="/pricing" className="mb-6 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
           ← Back to pricing
         </a>
+
+        {/* Plan switcher — pick a different plan without leaving checkout */}
+        <div className="mb-3 flex justify-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-100 p-1">
+          {PUBLIC_PLANS.map((key) => (
+            <a
+              key={key}
+              href={buildStartUrl({ plan: key, promo: query.promo, annual: isAnnual })}
+              className={`flex-1 rounded-full py-1.5 text-center text-xs font-semibold transition ${
+                plan === key ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              {PLAN_INFO[key].label}
+            </a>
+          ))}
+        </div>
+
+        {/* Billing interval toggle */}
+        <div className="mb-8 flex justify-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-100 p-1 text-xs font-semibold">
+          <a
+            href={buildStartUrl({ plan, promo: query.promo, annual: false })}
+            className={`rounded-full px-4 py-1.5 transition ${!isAnnual ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"}`}
+          >
+            Monthly
+          </a>
+          <a
+            href={buildStartUrl({ plan, promo: query.promo, annual: true })}
+            className={`rounded-full px-4 py-1.5 transition ${isAnnual ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"}`}
+          >
+            Annual · save 25%
+          </a>
+        </div>
 
         <div className="rounded-3xl border border-zinc-200 bg-white shadow-xl shadow-zinc-100 overflow-hidden">
 
@@ -89,12 +138,12 @@ export default async function StartPage({ searchParams }: Props) {
                 </div>
                 {!isAnnual && (
                   <p className={`mt-0.5 text-xs font-semibold ${info.highlight ? "text-red-200" : "text-zinc-500"}`}>
-                    Then ${info.monthly}/mo · cancel anytime
+                    {promoCode ? `Then $${info.monthly}/mo · cancel anytime` : "Cancel anytime"}
                   </p>
                 )}
               </div>
               <div className={`rounded-full px-3 py-1.5 text-xs font-bold ${info.highlight ? "bg-red-500/40 text-white" : "bg-zinc-700 text-zinc-300"}`}>
-                {isAnnual ? "Annual · save 25%" : "50% off · code INTRO50"}
+                {isAnnual ? "Annual · save 25%" : promoCode ? `Code ${promoCode} applied` : "Standard pricing"}
               </div>
             </div>
 
@@ -123,7 +172,10 @@ export default async function StartPage({ searchParams }: Props) {
           <a href="/scan" className="font-semibold text-zinc-700 hover:text-zinc-900 underline underline-offset-2">
             Run a free scan first
           </a>{" "}
-          — no account needed.
+          — no account needed. Or{" "}
+          <a href="/pricing#comparison" className="font-semibold text-zinc-700 hover:text-zinc-900 underline underline-offset-2">
+            compare full plan features
+          </a>.
         </p>
 
         {/* Trust signals */}

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "Local SEO for law firms & attorneys — rank on Google Maps | GravyBlock",
-  description: "GravyBlock automates local SEO for law firms: publishes practice area content weekly, tracks Google rankings, monitors Avvo and Google reviews, and builds backlinks. Free scan.",
+  title: "Local SEO for law firms & attorneys — get discovered on Google | GravyBlock",
+  description: "GravyBlock automates local SEO for law firms: publishes practice area content weekly, gathers reviews, keeps citations consistent, monitors Avvo and Google. Help clients find you. Free scan.",
 };
 
 export default function ForLawyersPage() {

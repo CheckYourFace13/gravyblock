@@ -109,7 +109,7 @@ const faqs = [
       },
       {
         q: "Does GravyBlock fake reviews?",
-        a: "No. Never. Fake reviews violate Google's terms of service and can get your Business Profile suspended. GravyBlock helps you collect more genuine reviews from real customers through a gating link that routes happy customers to Google and unhappy ones to a private feedback form.",
+        a: "No. Never. Fake reviews violate Google's terms of service and can get your Business Profile suspended. GravyBlock helps you send review requests to real customers and manage replies to reviews. All reviews should be genuine, public, and unselected by you.",
       },
     ],
   },

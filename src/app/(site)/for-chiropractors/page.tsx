@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "Local SEO for chiropractors & chiropractic practices — rank on Google | GravyBlock",
-  description: "GravyBlock automates local SEO for chiropractors: publishes patient content weekly, tracks 'chiropractor near me' rankings, manages Google reviews, and monitors AI health search. Free scan.",
+  title: "Local SEO for chiropractors & chiropractic practices — get discovered on Google | GravyBlock",
+  description: "GravyBlock automates local SEO for chiropractors: publishes patient content, gathers reviews, keeps your profile fresh, audits citations. Help patients find you. Free scan.",
 };
 
 export default function ForChiropractorsPage() {

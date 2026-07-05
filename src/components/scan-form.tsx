@@ -21,6 +21,12 @@ type PlaceCandidate = {
 
 type ScanMode = "places" | "website";
 
+const PLAN_SWITCHER_OPTIONS: { value: "starter" | "growth" | "pro"; label: string }[] = [
+  { value: "starter", label: "Starter — $39.99/mo" },
+  { value: "growth", label: "Scale — $74.99/mo" },
+  { value: "pro", label: "Pro — $149.99/mo" },
+];
+
 const FOCUS_AREA_OPTIONS: { value: FocusArea; label: string; sublabel: string }[] = [
   { value: "local", label: "Local", sublabel: "My city or area" },
   { value: "regional", label: "Regional", sublabel: "My state or region" },
@@ -400,36 +406,19 @@ export function ScanForm({
               : "Get free score preview"}
         </button>
         <div className="flex flex-wrap gap-2 text-xs font-semibold">
-          {!selectedPlan ? (
-            <>
-              <Link
-                href={promoCode ? `/scan?plan=starter&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=starter"}
-                className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-zinc-900 hover:border-zinc-400"
-              >
-                Start Starter
-              </Link>
-              <Link
-                href={promoCode ? `/scan?plan=growth&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=growth"}
-                className="rounded-full bg-red-600 px-3 py-2 text-white hover:bg-red-500"
-              >
-                Start Scale
-              </Link>
-            </>
-          ) : selectedPlan === "starter" ? (
+          {PLAN_SWITCHER_OPTIONS.filter((opt) => opt.value !== selectedPlan).map((opt) => (
             <Link
-              href={promoCode ? `/scan?plan=growth&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=growth"}
-              className="rounded-full bg-red-600 px-3 py-2 text-white hover:bg-red-500"
+              key={opt.value}
+              href={promoCode ? `/scan?plan=${opt.value}&promo=${encodeURIComponent(promoCode)}` : `/scan?plan=${opt.value}`}
+              className={
+                opt.value === "growth"
+                  ? "rounded-full bg-red-600 px-3 py-2 text-white hover:bg-red-500"
+                  : "rounded-full border border-zinc-300 bg-white px-3 py-2 text-zinc-900 hover:border-zinc-400"
+              }
             >
-              Prefer Growth instead?
+              {selectedPlan ? `Switch to ${opt.label}` : `Start ${opt.label}`}
             </Link>
-          ) : (
-            <Link
-              href={promoCode ? `/scan?plan=starter&promo=${encodeURIComponent(promoCode)}` : "/scan?plan=starter"}
-              className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-zinc-900 hover:border-zinc-400"
-            >
-              Choose Starter instead
-            </Link>
-          )}
+          ))}
         </div>
       </div>
 

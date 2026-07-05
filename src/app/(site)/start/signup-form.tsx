@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { directSignupAction, type DirectSignupResult } from "./actions";
 
 type Props = {
@@ -14,6 +14,8 @@ const initialState: DirectSignupResult | null = null;
 export function SignupForm({ plan, promoCode, isAnnual }: Props) {
   const [state, formAction, pending] = useActionState(directSignupAction, initialState);
   const redirected = useRef(false);
+  const [code, setCode] = useState(promoCode ?? "");
+  const [editingCode, setEditingCode] = useState(false);
 
   useEffect(() => {
     if (state?.ok && state.checkoutUrl && !redirected.current) {
@@ -28,7 +30,54 @@ export function SignupForm({ plan, promoCode, isAnnual }: Props) {
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="plan" value={plan} />
       <input type="hidden" name="interval" value={isAnnual ? "annual" : "monthly"} />
-      {promoCode && <input type="hidden" name="promoCode" value={promoCode} />}
+
+      {/* Promo code — editable and removable, not forced */}
+      <div>
+        <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-1.5">
+          Promo code
+        </label>
+        {editingCode || !code ? (
+          <input
+            type="text"
+            name="promoCode"
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="e.g. INTRO50"
+            autoComplete="off"
+            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/10 transition"
+          />
+        ) : (
+          <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <input type="hidden" name="promoCode" value={code} />
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-emerald-800">{code}</span>
+              <span className="text-xs text-emerald-600">applied</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setEditingCode(true)}
+                className="text-zinc-500 hover:text-zinc-800"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCode("");
+                  setEditingCode(true);
+                }}
+                className="text-red-600 hover:text-red-700"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        )}
+        <p className="mt-1 text-xs text-zinc-400">
+          Leave blank to enter a code at checkout instead, or pay full price.
+        </p>
+      </div>
 
       {/* Business name */}
       <div>

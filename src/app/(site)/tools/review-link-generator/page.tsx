@@ -77,12 +77,10 @@ export default function ReviewLinkGeneratorPage() {
 
         {/* Why it matters */}
         <section className="mt-14 rounded-2xl border border-zinc-200 bg-zinc-50 p-8">
-          <h2 className="text-xl font-semibold text-zinc-900">Why a direct review link gets you 4× more reviews</h2>
+          <h2 className="text-xl font-semibold text-zinc-900">Why a direct review link works better</h2>
           <p className="mt-3 text-zinc-600 leading-relaxed">
             When you ask a customer for a review and they have to find your business on Google themselves,
-            most give up. A direct link opens the review form instantly — stars ready to tap. Businesses
-            that text a direct link right after service collect reviews at roughly 4× the rate of businesses
-            that just ask verbally.
+            friction drops conversion rates. A direct link opens the review form instantly — no searching, just stars ready to tap. Research shows businesses that use direct links collect more reviews than those asking without one.
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             {[
@@ -119,7 +117,7 @@ export default function ReviewLinkGeneratorPage() {
             GravyBlock asks your customers for reviews automatically
           </h2>
           <p className="mt-2 text-sm text-zinc-600 max-w-lg mx-auto">
-            Weekly review requests, AI-drafted reply suggestions, unhappy-customer catching, and your full
+            Weekly review requests, review monitoring, AI-drafted reply suggestions, and your full
             local SEO running on autopilot — from $39.99/mo.
           </p>
           <Link

@@ -4,9 +4,9 @@ import { TestimonialsSection } from "./testimonials-section";
 
 export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/" },
-  title: "GravyBlock — Best Local SEO Services That Run Themselves | Automated Rankings",
+  title: "GravyBlock — Automated Local SEO for Small Businesses | Free Scan",
   description:
-    "GravyBlock is the best local SEO service for small businesses in the USA. AI writes content weekly, grows Google reviews, fixes citations, and tracks Map Pack rankings — automatically. From $39.99/mo. Free scan.",
+    "GravyBlock automates local SEO for small businesses: publishes content, manages reviews, fixes citations, and tracks visibility — so you get discovered on Google Maps and Google Search. No manual weekly work. From $39.99/mo intro. Free scan.",
 };
 
 const siteUrl = "https://gravyblock.com";
@@ -151,10 +151,10 @@ export default function HomePage() {
             50% off month one — code INTRO50
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl leading-[1.08]">
-            Your local SEO.<br className="hidden sm:block" /> Running itself.
+            Turn local visibility into<br className="hidden sm:block" /> customer actions.
           </h1>
           <p className="mx-auto max-w-xl text-lg text-zinc-600">
-            More calls from Google — without hiring an agency. GravyBlock publishes content, manages your Business Profile, monitors reviews, and tracks your rankings. <strong className="text-zinc-800">Every week, hands-free.</strong>
+            Get discovered on Google Maps and search results. GravyBlock publishes content, manages your Business Profile, gathers reviews, and fixes citations — automatically every week, with no manual work from you.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Link href="/scan" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-semibold text-white hover:bg-red-500 shadow-sm">
@@ -162,6 +162,9 @@ export default function HomePage() {
             </Link>
             <Link href="/pricing" className="rounded-full border border-zinc-300 bg-white px-7 py-3.5 text-sm font-semibold text-zinc-700 hover:border-zinc-400 shadow-sm">
               Plans from $39.99/mo
+            </Link>
+            <Link href="/start?promo=" className="rounded-full px-7 py-3.5 text-sm font-semibold text-zinc-500 hover:text-zinc-800 underline underline-offset-2">
+              Sign up now →
             </Link>
           </div>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 pt-1 text-xs text-zinc-500">
@@ -216,7 +219,7 @@ export default function HomePage() {
               { icon: "✍️", title: "Content published", desc: "AI-written local SEO articles go live on your website automatically" },
               { icon: "📣", title: "Reddit posted", desc: "Helpful posts submitted to your city's subreddit and industry communities" },
               { icon: "🔗", title: "Backlinks outreached", desc: "Personalized emails sent to local sites asking for links, every month" },
-              { icon: "⭐", title: "Reviews managed", desc: "New reviews flagged, AI reply drafts ready, unhappy customers caught privately" },
+              { icon: "⭐", title: "Reviews managed", desc: "New reviews flagged and monitored, AI reply suggestions ready to personalize and send" },
               { icon: "📍", title: "GBP monitored", desc: "Your Google Business Profile scored and flagged for any drops" },
               { icon: "🤖", title: "AI search checked", desc: "We probe ChatGPT, Perplexity & Gemini to see if they mention your business" },
               { icon: "📊", title: "Competitors tracked", desc: "See who ranks above you and exactly how big their review lead is" },
@@ -235,18 +238,21 @@ export default function HomePage() {
 
       {/* ── SOCIAL PROOF STATS ─────────────────────────────── */}
       <section className="px-4 py-10 sm:px-6">
-        <div className="mx-auto max-w-4xl grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[
-            { stat: "76%", label: "of nearby searchers visit a business within 24 hours" },
-            { stat: "90%+", label: "of customers read reviews before choosing a local business" },
-            { stat: "46%", label: "of all Google searches have local intent" },
-            { stat: "3×", label: "more calls from a complete, active Google Business Profile" },
-          ].map((s) => (
-            <div key={s.stat} className="rounded-2xl border border-zinc-100 bg-zinc-50 p-5 text-center">
-              <p className="text-3xl font-bold text-red-700">{s.stat}</p>
-              <p className="mt-1 text-xs text-zinc-500 leading-relaxed">{s.label}</p>
-            </div>
-          ))}
+        <div className="mx-auto max-w-4xl space-y-6">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {[
+              { stat: "76%", label: "of nearby searchers visit a business within 24 hours" },
+              { stat: "90%+", label: "of customers read reviews before choosing a local business" },
+              { stat: "46%", label: "of all Google searches have local intent" },
+              { stat: "3×", label: "more calls from a complete, active Google Business Profile" },
+            ].map((s) => (
+              <div key={s.stat} className="rounded-2xl border border-zinc-100 bg-zinc-50 p-5 text-center">
+                <p className="text-3xl font-bold text-red-700">{s.stat}</p>
+                <p className="mt-1 text-xs text-zinc-500 leading-relaxed">{s.label}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-xs text-zinc-400">Sources: Google Local Services Research, BrightLocal, HubSpot, Google Trends. Statistics reflect industry research, not guarantees of results for your specific business.</p>
         </div>
       </section>
 
@@ -376,10 +382,10 @@ export default function HomePage() {
       <section className="border-t border-zinc-200 bg-zinc-900 px-4 py-16 sm:px-6 text-center">
         <div className="mx-auto max-w-2xl space-y-5">
           <h2 className="text-3xl font-bold text-white sm:text-4xl">
-            Your competitors are ranking higher right now.
+            See where you stand on Google.
           </h2>
           <p className="text-zinc-400">
-            Find out exactly why. Free, in 60 seconds. Then let GravyBlock fix it automatically.
+            Find out your visibility score and what's holding you back. Free, in 60 seconds. Then let GravyBlock help you improve.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Link href="/scan" className="rounded-full bg-white px-7 py-3 text-sm font-bold text-zinc-900 hover:bg-zinc-100">

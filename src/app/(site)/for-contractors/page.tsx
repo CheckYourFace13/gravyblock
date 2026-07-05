@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "Local SEO for contractors & home service businesses — rank on Google | GravyBlock",
-  description: "GravyBlock automates local SEO for contractors: publishes service-area content weekly, tracks Google rankings, manages reviews, and sends backlink outreach. Free scan.",
+  title: "Local SEO for contractors & home service businesses — get discovered on Google | GravyBlock",
+  description: "GravyBlock automates local SEO for contractors: publishes content, gathers reviews, keeps citations consistent, monitors your visibility. Help homeowners find you. Free scan.",
 };
 
 export default function ForContractorsPage() {

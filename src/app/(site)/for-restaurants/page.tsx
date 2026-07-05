@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "Local SEO for restaurants — rank higher on Google Maps | GravyBlock",
+  title: "Local SEO for restaurants — get discovered on Google Maps | GravyBlock",
   description:
-    "GravyBlock automates local SEO for restaurants: publishes content weekly, tracks Google rankings, manages reviews, and keeps your Google Business Profile optimized. Free scan.",
+    "GravyBlock automates local SEO for restaurants: publishes content weekly, gathers reviews, keeps your Google Business Profile fresh, and audits citations. Help customers find you on Google Maps and Search. Free scan.",
 };
 
 export default function ForRestaurantsPage() {

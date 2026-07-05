@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
-import { getBuildVersion } from "@/lib/build-metadata";
 
 export function SiteFooter() {
   return (
@@ -142,19 +141,8 @@ export function SiteFooter() {
               <Link href="/compare" className="font-medium text-zinc-900 hover:underline">All comparisons</Link>
             </div>
           </div>
-          <div className="flex flex-col justify-end">
-            <Link
-              href="/admin/login"
-              className="text-xs font-medium text-zinc-400 hover:text-zinc-600 hover:underline"
-            >
-              Admin
-            </Link>
-          </div>
         </div>
       </div>
-      <p className="border-t border-zinc-100 bg-zinc-50 py-2 text-center text-[10px] leading-tight text-zinc-400">
-        Build: {getBuildVersion()}
-      </p>
     </footer>
   );
 }

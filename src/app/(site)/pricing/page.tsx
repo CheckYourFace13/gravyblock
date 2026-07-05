@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/pricing" },
   title: "Pricing — GravyBlock Local SEO Automation",
   description:
-    "GravyBlock pricing: Starter at $39.99/mo, Scale at $74.99/mo, Pro at $149.99/mo. No contracts, cancel anytime. Use code INTRO50 for 50% off your first month.",
+    "GravyBlock pricing: Starter $79.99/mo (intro $39.99), Scale $149.99/mo (intro $74.99), Pro $299.99/mo (intro $149.99). No contracts, cancel anytime. Use code INTRO50 for 50% off your first month.",
 };
 
 const plans = [
@@ -49,7 +49,6 @@ const plans = [
       "8 backlink outreach emails sent to local sites/month",
       "Facebook + Instagram auto-posting",
       "Review inbox with AI reply drafts — copy and paste in 10 seconds",
-      "Review gating link — routes happy customers to Google, catches unhappy ones privately",
       "Weekly visibility refreshes (vs. monthly on Starter)",
       "AEO, GEO, and Entity scores alongside your SEO score",
       "Schema markup generator (LocalBusiness, FAQ, Service JSON-LD)",
@@ -299,7 +298,7 @@ export default function PricingPage() {
       </section>
 
       {/* ── COMPARISON TABLE ─────────────────────────────── */}
-      <section className="border-t border-zinc-100 bg-zinc-50 px-4 py-12 sm:px-6">
+      <section id="comparison" className="border-t border-zinc-100 bg-zinc-50 px-4 py-12 sm:px-6 scroll-mt-20">
         <div className="mx-auto max-w-4xl">
           <p className="mb-6 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">Plan comparison</p>
           <div className="overflow-x-auto">
@@ -321,7 +320,7 @@ export default function PricingPage() {
                   ["Backlink outreach emails/mo", "—", "8", "16"],
                   ["Facebook + Instagram auto-posting", "—", "✓", "✓"],
                   ["Review inbox + AI reply drafts", "—", "✓", "✓"],
-                  ["Review gating link", "—", "✓", "✓"],
+                  ["Review request automation", "—", "✓", "✓"],
                   ["Citation audit (40+ directories)", "Monthly", "Weekly", "Weekly"],
                   ["AI Citation Monitor (ChatGPT etc.)", "Basic", "Full", "Full"],
                   ["AEO / GEO / Entity scores", "—", "✓", "✓"],
@@ -341,6 +340,22 @@ export default function PricingPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      </section>
+
+      {/* ── AGENCY / MULTI-LOCATION ─────────────────────── */}
+      <section className="px-4 pb-4 sm:px-6">
+        <div className="mx-auto max-w-4xl rounded-2xl border border-zinc-200 bg-zinc-50 p-6 text-center sm:text-left sm:flex sm:items-center sm:justify-between sm:gap-4">
+          <div>
+            <p className="font-semibold text-zinc-900">Managing 4+ locations, or need a white-label option?</p>
+            <p className="mt-1 text-sm text-zinc-500">Talk to us about Agency pricing — daily content generation, multi-location support, and priority support.</p>
+          </div>
+          <a
+            href="mailto:chris@gravyblock.com?subject=Agency%20plan%20inquiry"
+            className="mt-4 inline-block shrink-0 rounded-full border border-zinc-300 bg-white px-6 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-100 sm:mt-0"
+          >
+            Contact us about Agency →
+          </a>
         </div>
       </section>
 

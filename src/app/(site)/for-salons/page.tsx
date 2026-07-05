@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "Local SEO for hair salons, nail salons & spas — rank on Google | GravyBlock",
-  description: "GravyBlock automates local SEO for salons and spas: publishes content, tracks Google rankings, manages reviews, and monitors AI search mentions. Free scan in 60 seconds.",
+  title: "Local SEO for hair salons, nail salons & spas — get discovered on Google | GravyBlock",
+  description: "GravyBlock automates local SEO for salons and spas: publishes content, gathers reviews, keeps your profile fresh, audits citations. Help clients find you. Free scan.",
 };
 
 export default function ForSalonsPage() {

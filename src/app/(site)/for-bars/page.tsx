@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "Local SEO for bars & nightlife venues — rank on Google Maps | GravyBlock",
+  title: "Local SEO for bars & nightlife venues — get discovered on Google | GravyBlock",
   description:
-    "GravyBlock automates local SEO for bars: optimizes your Google Business Profile, tracks 'bars near me' rankings, publishes content, and monitors AI search mentions. Free scan.",
+    "GravyBlock automates local SEO for bars: keeps your profile fresh, gathers reviews, publishes content, audits citations. Help patrons find you. Free scan.",
 };
 
 export default function ForBarsPage() {
