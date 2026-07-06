@@ -31,26 +31,35 @@ type GenerateParams = {
   brandVoice?: string | null;
   /** One-paragraph description of what this business does and who it serves */
   serviceDescription?: string | null;
+  /** Concrete differentiators the owner gave at signup — use these instead of generic claims */
+  uniqueSellingPoints?: string | null;
   /** Writing tone: professional, friendly, authoritative, casual */
   tone?: string | null;
   /** Geographic focus — changes how city/location are used in content */
   focusArea?: "local" | "regional" | "national" | "online" | string | null;
 };
 
+/** True when no real city is known — write without naming a specific place instead of injecting a fake-sounding fallback like "your city". */
+function hasKnownCity(params: Pick<GenerateParams, "city" | "focusArea">): boolean {
+  if (params.focusArea === "national" || params.focusArea === "online") return false;
+  return Boolean(params.city && params.city.trim());
+}
+
 export async function generateArticleBody(params: GenerateParams): Promise<string | null> {
+  const cityKnown = hasKnownCity(params);
   return openRouterChat({
     model: MODELS.content,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       {
         role: "user",
-        content: `Write a ${params.focusArea === "national" || params.focusArea === "online" ? "broad-reach" : "local SEO"} article for this business:
+        content: `Write a ${cityKnown ? "local SEO" : "broad-reach"} article for this business:
 
 Business name: ${params.businessName}
-${params.focusArea === "national" || params.focusArea === "online"
-  ? `Geographic focus: ${params.focusArea} (do NOT add a specific city — write for a national/online audience)`
-  : `City: ${params.city}`}
-Industry: ${params.vertical ?? "local business"}${params.serviceDescription ? `\nAbout this business: ${params.serviceDescription}` : ""}
+${cityKnown
+  ? `City: ${params.city}`
+  : `Geographic focus: no specific city on file — write for a general local/regional audience without naming a specific city`}
+Industry: ${params.vertical ?? "local business"}${params.serviceDescription ? `\nAbout this business: ${params.serviceDescription}` : ""}${params.uniqueSellingPoints ? `\nWhat makes them different (use these specifics, don't invent your own): ${params.uniqueSellingPoints}` : ""}
 Article title: ${params.title}
 Target keyword: ${params.targetKeyword ?? "local services"}
 Angle / outline: ${params.outline}${params.changeSummary ? `\nRecent context: ${params.changeSummary}` : ""}${params.tone ? `\nTone: ${params.tone}` : ""}${params.brandVoice ? `\nBrand voice: ${params.brandVoice}` : ""}
@@ -61,7 +70,9 @@ Required structure (in order):
 3. 2-3 H2 sections each phrased as a question, each with body text and at least one numbered list or bullets
 4. One blockquote (> ...) with the most quotable sentence
 5. "Bottom line:" sentence
-6. CTA${params.focusArea === "national" || params.focusArea === "online" ? "" : ` naming ${params.city}`}
+6. CTA${cityKnown ? ` naming ${params.city}` : ""}
+
+Never write a placeholder like [City] or [Business Name] — if a detail isn't given above, write around it instead of guessing or inserting a bracketed stand-in.
 
 Write the full article in markdown now.`,
       },
@@ -70,6 +81,7 @@ Write the full article in markdown now.`,
 }
 
 export async function generateLocalPageBody(params: GenerateParams): Promise<string | null> {
+  const cityKnown = hasKnownCity(params);
   return openRouterChat({
     model: MODELS.content,
     messages: [
@@ -79,18 +91,20 @@ export async function generateLocalPageBody(params: GenerateParams): Promise<str
         content: `Write a service-area location page for this business:
 
 Business name: ${params.businessName}
-City: ${params.city}${params.address ? `\nAddress: ${params.address}` : ""}
-Industry: ${params.vertical ?? "local business"}${params.serviceDescription ? `\nAbout this business: ${params.serviceDescription}` : ""}
+${cityKnown ? `City: ${params.city}` : `Geographic focus: no specific city on file — write for the general service area without naming a specific city`}${params.address ? `\nAddress: ${params.address}` : ""}
+Industry: ${params.vertical ?? "local business"}${params.serviceDescription ? `\nAbout this business: ${params.serviceDescription}` : ""}${params.uniqueSellingPoints ? `\nWhat makes them different (use these specifics, don't invent your own): ${params.uniqueSellingPoints}` : ""}
 Page title: ${params.title}
 Angle / outline: ${params.outline}${params.tone ? `\nTone: ${params.tone}` : ""}${params.brandVoice ? `\nBrand voice: ${params.brandVoice}` : ""}
 
 Required structure (in order):
 1. H1 title
-2. Direct answer paragraph: 1-2 sentences stating exactly what this business does in ${params.city} and who it serves — written so an AI assistant could quote it as a recommendation
+2. Direct answer paragraph: 1-2 sentences stating exactly what this business does${cityKnown ? ` in ${params.city}` : ""} and who it serves — written so an AI assistant could quote it as a recommendation
 3. 2-3 H2 sections each phrased as a question about the service area or business
-4. One blockquote (> ...) with the strongest trust or proof statement
+4. One blockquote (> ...) with the strongest trust or proof statement, drawn from what makes them different if given above
 5. "Bottom line:" sentence
-6. Local CTA naming ${params.city}
+6. ${cityKnown ? `Local CTA naming ${params.city}` : "CTA that doesn't name a specific city"}
+
+Never write a placeholder like [City] or [Business Name] — if a detail isn't given above, write around it instead of guessing or inserting a bracketed stand-in.
 
 Focus on local trust, service-area coverage, and neighborhood proof. Write the full page in markdown now.`,
       },

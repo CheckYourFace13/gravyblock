@@ -1,9 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { desc, eq, or } from "drizzle-orm";
 import {
-  aiVisibilityChecks,
   auditFindings,
-  backlinkOpportunities,
   businesses,
   citationMonitors,
   competitorSnapshots,
@@ -573,35 +571,16 @@ export async function recordScanRun(input: {
       );
     }
 
-    await tx.insert(backlinkOpportunities).values([
-      {
-        businessId,
-        sourceName: "Local business association",
-        sourceType: "directory",
-        targetUrl: input.profile.website ?? null,
-        relevanceNote: "High local relevance and trust signals.",
-        qualityScore: 74,
-        status: "prospecting",
-      },
-      {
-        businessId,
-        sourceName: "Regional partner roundup",
-        sourceType: "partner",
-        targetUrl: input.profile.website ?? null,
-        relevanceNote: "Contextual referral potential for nearby intent.",
-        qualityScore: 66,
-        status: "outreach_queued",
-      },
-    ]);
-
-    await tx.insert(aiVisibilityChecks).values({
-      businessId,
-      prompt: `${input.query} best option in ${input.locationHint}`,
-      engine: "synthetic",
-      mentionFound: "false",
-      sentiment: "neutral",
-      confidence: 42,
-    });
+    // Intentionally no seeded backlinkOpportunities or aiVisibilityChecks rows here.
+    // Both used to be pre-filled with fabricated placeholder data (fake source
+    // names + made-up quality scores; a fake "not mentioned" AI probe) so a
+    // brand-new report didn't look empty. That data was indistinguishable from
+    // real results once inserted — it inflated nobody's score honestly, and the
+    // fake "not mentioned" row permanently dragged down every new business's
+    // GEO score before a single real AI probe had run. Real backlink prospecting
+    // (src/lib/backlinks/prospect-finder.ts) and real AI visibility checks
+    // (checkBusinessVisibilityInAI, run on schedule) populate these tables
+    // honestly. The UI already renders a correct empty state until they do.
 
     await tx.insert(citationMonitors).values({
       businessId,

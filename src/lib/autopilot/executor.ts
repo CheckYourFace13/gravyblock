@@ -29,6 +29,8 @@ import { getArticlePhoto } from "@/lib/integrations/unsplash";
 import { businessConfigs } from "@/lib/db";
 import { buildSchemaScriptBlock, injectSchemaIntoHtml } from "@/lib/publishing/inject-schema";
 import { checkBusinessVisibilityInAI } from "@/lib/integrations/perplexity";
+import { containsPlaceholderArtifact } from "@/lib/content-gen/quality-guard";
+import { pingIndexNowForGravyblock } from "@/lib/integrations/indexnow";
 
 type AutomationRunProfile = {
   aiChecks: number;
@@ -300,6 +302,7 @@ export async function executeContentPublishPath(businessId: string) {
       .select({
         brandVoice: businessConfigs.brandVoice,
         serviceDescription: businessConfigs.serviceDescription,
+        uniqueSellingPoints: businessConfigs.uniqueSellingPoints,
         tone: businessConfigs.tone,
         targetScope: businessConfigs.targetScope,
         focusArea: businessConfigs.focusArea,
@@ -309,9 +312,13 @@ export async function executeContentPublishPath(businessId: string) {
       .limit(1);
 
     const configuredCity = bizConfig?.targetScope?.split(",")[0]?.trim();
+    // Empty string (not a fallback word like "your area") signals "no real city
+    // known" to the prompt builder, which then writes without naming a place
+    // instead of injecting a fake-sounding location.
+    const resolvedCity = configuredCity || cityFromAddress(biz?.address);
     const generatorParams = {
       businessName: biz?.name ?? "Local business",
-      city: configuredCity || cityFromAddress(biz?.address),
+      city: resolvedCity === "your area" ? "" : resolvedCity,
       vertical: biz?.vertical ?? null,
       title: queuedItem.title,
       outline: queuedItem.outline ?? "",
@@ -319,15 +326,20 @@ export async function executeContentPublishPath(businessId: string) {
       address: biz?.address ?? null,
       brandVoice: bizConfig?.brandVoice ?? null,
       serviceDescription: bizConfig?.serviceDescription ?? null,
+      uniqueSellingPoints: bizConfig?.uniqueSellingPoints ?? null,
       tone: bizConfig?.tone ?? null,
       focusArea: bizConfig?.focusArea ?? "local",
     };
     const aiBody = queuedItem.kind === "location_page"
       ? await generateLocalPageBody(generatorParams)
       : await generateArticleBody(generatorParams);
-    // Never publish hollow placeholder content — skip and retry on next tick
+    // Never publish hollow or unfilled-placeholder content — skip and retry on next tick
     if (!aiBody) {
       console.warn("[executeContentPublishPath] AI generation returned null — skipping", { businessId, itemId: queuedItem.id });
+      return { ok: false, reason: "ai_generation_failed" };
+    }
+    if (containsPlaceholderArtifact(aiBody)) {
+      console.warn("[executeContentPublishPath] AI output contained an unfilled placeholder — skipping", { businessId, itemId: queuedItem.id });
       return { ok: false, reason: "ai_generation_failed" };
     }
     let body = aiBody;
@@ -430,6 +442,16 @@ export async function executeContentPublishPath(businessId: string) {
       .update(publishingJobs)
       .set({ status: "published", responseLog: `Published to ${publicUrl}` })
       .where(eq(publishingJobs.id, publishJobId));
+
+    // Notify Bing/Yandex via IndexNow. Only for internal_site pages — those live
+    // on gravyblock.com, the one domain we hold a verified IndexNow key for.
+    // WordPress/Webflow/Shopify pages live on the customer's own domain, which
+    // would need its own verified key before it could be pinged honestly.
+    if (channel === "internal_site") {
+      const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+      const absoluteUrl = `${base.replace(/\/$/, "")}${publicUrl}`;
+      await pingIndexNowForGravyblock([absoluteUrl]);
+    }
 
     return { ok: true, publishJobId, contentQueueId: queuedItem.id, artifactId, publicUrl };
   } catch (error) {
@@ -582,8 +604,15 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
           city,
           vertical: business?.vertical ?? null,
         });
-        const checksToInsert = realChecks.length > 0
-          ? realChecks.slice(0, runProfile.aiChecks).map((check) => ({
+        // No fabricated fallback: a customer-facing GEO score built on made-up
+        // "mentioned"/confidence values derived from the unrelated visibility
+        // score is not a real measurement of AI mentions. If the real probe
+        // comes back empty (API unavailable or a transient failure), skip this
+        // cycle and let the next recurring run try again — the same
+        // "skip and retry" pattern already used for failed content generation.
+        if (realChecks.length > 0) {
+          await db.insert(aiVisibilityChecks).values(
+            realChecks.slice(0, runProfile.aiChecks).map((check) => ({
               businessId,
               locationId: null as string | null,
               prompt: check.query,
@@ -591,17 +620,11 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
               mentionFound: check.mentioned ? "true" : "false",
               sentiment: check.sentiment,
               confidence: check.confidence,
-            }))
-          : Array.from({ length: runProfile.aiChecks }).map((_, idx) => ({
-              businessId,
-              locationId: null as string | null,
-              prompt: `recurring local-intent autopilot probe ${idx + 1} (${job.type})`,
-              engine: "synthetic",
-              mentionFound: nextScore >= 65 ? "true" : "false",
-              sentiment: nextScore >= 70 ? "positive" : "neutral",
-              confidence: Math.min(95, nextScore - idx),
-            }));
-        await db.insert(aiVisibilityChecks).values(checksToInsert);
+            })),
+          );
+        } else {
+          console.warn("[executor] AI visibility probe returned no results — skipping this cycle", { businessId });
+        }
       }
 
       const queuedContentIds: string[] = [];
@@ -690,16 +713,20 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
               targetScope: businessConfigs.targetScope,
               focusArea: businessConfigs.focusArea,
               serviceDescription: businessConfigs.serviceDescription,
+              uniqueSellingPoints: businessConfigs.uniqueSellingPoints,
               tone: businessConfigs.tone,
             })
             .from(businessConfigs)
             .where(eq(businessConfigs.businessId, businessId))
             .limit(1);
-          // Use the customer's configured service area city, fall back to Google address
+          // Use the customer's configured service area city, fall back to Google address.
+          // Empty string (not "your area") tells the prompt builder to write
+          // without naming a specific place instead of injecting a fake-sounding one.
           const configuredCity = recurringBizConfig?.targetScope?.split(",")[0]?.trim();
+          const resolvedRecurringCity = configuredCity || cityFromAddress(business?.address);
           const generatorParams = {
             businessName: business?.name ?? "Local business",
-            city: configuredCity || cityFromAddress(business?.address),
+            city: resolvedRecurringCity === "your area" ? "" : resolvedRecurringCity,
             vertical: business?.vertical ?? null,
             title: queueRow.title,
             outline: queueRow.outline ?? "",
@@ -709,16 +736,22 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
             brandVoice: recurringBizConfig?.brandVoice ?? null,
             focusArea: recurringBizConfig?.focusArea ?? "local",
             serviceDescription: recurringBizConfig?.serviceDescription ?? null,
+            uniqueSellingPoints: recurringBizConfig?.uniqueSellingPoints ?? null,
             tone: recurringBizConfig?.tone ?? null,
           };
           const aiBody = queueRow.kind === "location_page"
             ? await generateLocalPageBody(generatorParams)
             : await generateArticleBody(generatorParams);
-          // If AI generation failed, skip this item rather than publish hollow content.
-          // It will be retried on the next worker tick.
+          // If AI generation failed or left an unfilled placeholder, skip this item
+          // rather than publish broken content. It will be retried on the next worker tick.
           if (!aiBody) {
             console.warn("[executor] AI generation returned null — skipping publish", { businessId, queueId: queueRow.id, title: queueRow.title });
             publishedUrls.push(`[skipped — AI unavailable]`);
+            continue;
+          }
+          if (containsPlaceholderArtifact(aiBody)) {
+            console.warn("[executor] AI output contained an unfilled placeholder — skipping publish", { businessId, queueId: queueRow.id, title: queueRow.title });
+            publishedUrls.push(`[skipped — unfilled placeholder]`);
             continue;
           }
           let body = aiBody;
@@ -760,6 +793,9 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
             .update(publishingJobs)
             .set({ status: "published", responseLog: `Published automatically to ${publicUrl}` })
             .where(eq(publishingJobs.id, publishJobId));
+          // publicUrl here is already absolute and always on gravyblock.com for
+          // this recurring path — safe to notify Bing/Yandex via IndexNow.
+          await pingIndexNowForGravyblock([publicUrl]);
           publishedThisRun += 1;
         }
       }

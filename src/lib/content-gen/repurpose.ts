@@ -2,6 +2,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { getDb, publishedContent, businesses, businessConfigs, contentQueue } from "@/lib/db";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
 import { normalizePlanTierFromDb } from "@/lib/plans";
+import { containsPlaceholderArtifact } from "./quality-guard";
 
 const STYLE_RULES = `Writing rules:
 - No em dashes. Use commas or periods instead.
@@ -9,7 +10,7 @@ const STYLE_RULES = `Writing rules:
 - Write like a knowledgeable local, specific and direct.
 - Do not pad with filler phrases or generic openers.`;
 
-type SocialVariant = "instagram_caption" | "facebook_post" | "linkedin_post";
+type SocialVariant = "instagram_caption" | "facebook_post";
 
 async function repurposeToInstagram(article: string, businessName: string, city: string): Promise<string | null> {
   return openRouterChat({
@@ -65,45 +66,17 @@ Write the post now.`,
   });
 }
 
-async function repurposeToLinkedIn(article: string, businessName: string, city: string): Promise<string | null> {
-  return openRouterChat({
-    model: MODELS.content,
-    messages: [{
-      role: "user",
-      content: `Repurpose this article into a LinkedIn post for the owner of ${businessName} in ${city}.
-
-Article:
-${article.slice(0, 2000)}
-
-${STYLE_RULES}
-
-Requirements:
-- 150-250 words
-- Professional but not stiff
-- Position the writer as a local expert
-- Short paragraphs (2-3 sentences max each)
-- End with a thought-provoking question or CTA
-- No markdown headers
-
-Write the post now.`,
-    }],
-    maxTokens: 400,
-    temperature: 0.7,
-  });
-}
-
 const VARIANT_GENERATORS: Record<SocialVariant, (article: string, biz: string, city: string) => Promise<string | null>> = {
   instagram_caption: repurposeToInstagram,
   facebook_post: repurposeToFacebook,
-  linkedin_post: repurposeToLinkedIn,
 };
 
 const VARIANTS_BY_PLAN: Record<string, SocialVariant[]> = {
   free: [],
   starter: [],
-  growth: ["instagram_caption", "facebook_post", "linkedin_post"],
-  pro: ["instagram_caption", "facebook_post", "linkedin_post"],
-  agency: ["instagram_caption", "facebook_post", "linkedin_post"],
+  growth: ["instagram_caption", "facebook_post"],
+  pro: ["instagram_caption", "facebook_post"],
+  agency: ["instagram_caption", "facebook_post"],
 };
 
 function cityFromAddress(address: string | null | undefined): string {
@@ -144,6 +117,13 @@ export async function repurposePublishedArticle(publishedContentId: string): Pro
     const generator = VARIANT_GENERATORS[variant];
     const body = await generator(article.body, biz.name, city);
     if (!body) continue;
+    if (containsPlaceholderArtifact(body)) {
+      console.warn("[content-gen] discarded repurposed post with unfilled placeholder", {
+        variant,
+        businessId: article.businessId,
+      });
+      continue;
+    }
     rows.push({
       businessId: article.businessId,
       kind: variant,

@@ -10,16 +10,14 @@ const KIND_LABELS: Record<string, string> = {
   location_page: "Location Page",
   facebook_post: "Facebook Post",
   instagram_caption: "Instagram Caption",
-  linkedin_post: "LinkedIn Post",
 };
 
 const PLATFORM_STYLES: Record<string, { badge: string; dot: string }> = {
   facebook_post:     { badge: "bg-blue-100 text-blue-800",   dot: "bg-blue-500" },
   instagram_caption: { badge: "bg-pink-100 text-pink-800",   dot: "bg-pink-500" },
-  linkedin_post:     { badge: "bg-sky-100 text-sky-800",     dot: "bg-sky-600" },
 };
 
-const SOCIAL_KINDS = new Set(["facebook_post", "instagram_caption", "linkedin_post"]);
+const SOCIAL_KINDS = new Set(["facebook_post", "instagram_caption"]);
 
 type Props = {
   businessId: string;
@@ -52,8 +50,6 @@ export function ContentApprovalSection({ businessId, initialDrafts }: Props) {
 
   // Social posts needing approval
   const pendingSocial = pending.filter((d) => SOCIAL_KINDS.has(d.kind));
-  // Article drafts
-  const pendingArticles = pending.filter((d) => !SOCIAL_KINDS.has(d.kind));
 
   const allVisible = [...pending, ...approved];
 

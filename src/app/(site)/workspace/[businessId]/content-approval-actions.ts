@@ -4,7 +4,9 @@ import { and, eq, or } from "drizzle-orm";
 import { getDb, contentQueue, businesses } from "@/lib/db";
 import { requireBusinessAccess } from "@/lib/auth/customer-guards";
 
-const SOCIAL_KINDS = ["facebook_post", "instagram_caption", "linkedin_post"] as const;
+// Facebook and Instagram have a real posting integration (facebook-poster
+// worker, Graph API) — approving them queues them for auto-posting.
+const SOCIAL_KINDS = ["facebook_post", "instagram_caption"] as const;
 
 export type QueuedDraft = {
   id: string;
@@ -52,7 +54,7 @@ export async function getQueuedDrafts(businessId: string): Promise<QueuedDraft[]
 }
 
 /** Mark a queued item as approved.
- *  - Social posts (facebook_post, instagram_caption, linkedin_post) → "queued"
+ *  - Social posts (facebook_post, instagram_caption) → "queued"
  *    so the facebook-poster worker picks them up immediately.
  *  - Everything else → "approved" (autopilot priority flag).
  */

@@ -130,6 +130,7 @@ export async function queueContentForBusiness(
     keywords: keywords.length > 0 ? keywords : [defaultKeyword],
     tone: config?.tone ?? "professional",
     serviceDescription: config?.serviceDescription ?? `${biz.name} serves customers in ${targetScope ?? city}.`,
+    uniqueSellingPoints: config?.uniqueSellingPoints ?? undefined,
     focusArea,
     targetScope,
     ...(crossLinkPartner ? { crossLinkPartner } : {}),

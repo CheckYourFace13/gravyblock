@@ -31,8 +31,8 @@ export default function AiSearchLocalBusinessesGuidePage() {
       </p>
       <h2>Monitoring without magic</h2>
       <p>
-        GravyBlock Pro runs scheduled automation that records synthetic AI visibility checks alongside visibility
-        snapshots, useful for trend watching, not a promise of rank position in any specific engine.
+        GravyBlock runs real, scheduled probes against AI assistants and records whether your business gets mentioned,
+        useful for trend watching over months, not a promise of rank position in any specific engine.
       </p>
       <p>
         Start with a free scan to see how your listing and site line up today:{" "}

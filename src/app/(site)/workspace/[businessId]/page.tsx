@@ -163,8 +163,11 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
   const aeoResult = computeAeoScore({
     websiteAudit: syntheticWebsiteAudit,
     publishedContentCount,
-    // techPass returns true when there is NO problem found — meaning structured data IS present
-    hasSchemaMarkup: techPass("no-structured-data"),
+    // Distinct from websiteAudit.signals.hasStructuredData (crawl-detected, may
+    // predate GravyBlock entirely) — this specifically credits schema GravyBlock
+    // itself injected via published articles/location pages. Using the same
+    // techPass() check for both double-counted one signal as 40 points.
+    hasSchemaMarkup: publishedContentCount > 0,
     reviewCount: latestReviewCount,
   });
 
@@ -184,10 +187,12 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
     aiMentionRate,
   });
 
-  const geoScore =
-    aiVisibility.total > 0
-      ? Math.round((aiVisibility.mentioned / aiVisibility.total) * 100)
-      : null;
+  // Score and grade must come from the same calculation — geoAudit.overallScore
+  // (60% mention rate + 40% confidence) is the source of truth for both. A prior
+  // version computed the displayed score from a plain mention-rate ratio while
+  // deriving the grade from this weighted score, so the two numbers could
+  // visibly disagree on screen.
+  const geoScore = geoAudit?.overallScore ?? null;
   const geoGrade = geoAudit?.grade ?? null;
 
   // Review gating data (shareable link + private feedback)

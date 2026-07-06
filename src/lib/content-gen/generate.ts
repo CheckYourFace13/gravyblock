@@ -1,4 +1,5 @@
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
+import { containsPlaceholderArtifact } from "./quality-guard";
 
 export type ContentType =
   | "article"
@@ -6,7 +7,6 @@ export type ContentType =
   | "reddit_post"
   | "instagram_caption"
   | "facebook_post"
-  | "linkedin_post"
   | "video_script"
   | "email_newsletter"
   | "press_release";
@@ -34,6 +34,8 @@ export type GenerateLocalContentParams = {
   keywords: string[];
   tone: string;
   serviceDescription: string;
+  /** Concrete differentiators the owner gave at signup — use these instead of generic claims */
+  uniqueSellingPoints?: string;
   crossLinkPartner?: CrossLinkPartner;
   focusArea?: FocusArea;
   /** Human-readable scope: city name, state, country, or "worldwide" */
@@ -48,6 +50,13 @@ function scopePhrase(params: GenerateLocalContentParams): string {
   if (params.focusArea === "online") return "their online audience";
   if (params.focusArea === "regional") return params.state || params.city;
   return params.city;
+}
+
+/** Line to splice into a prompt when the owner gave concrete differentiators at signup. */
+function uspLine(params: GenerateLocalContentParams): string {
+  return params.uniqueSellingPoints
+    ? `\nWhat makes them different (use these specifics, don't invent your own): ${params.uniqueSellingPoints}`
+    : "";
 }
 
 /** Returns a location label appropriate for the focus area. */
@@ -90,7 +99,7 @@ Business: ${params.businessName}
 Industry: ${params.industry}
 Target audience: ${scope}
 Target keywords: ${params.keywords.join(", ")}
-Services: ${params.serviceDescription}
+Services: ${params.serviceDescription}${uspLine(params)}
 Tone: ${params.tone}
 
 Article title: ${title}
@@ -135,7 +144,7 @@ async function generateGbpPost(params: GenerateLocalContentParams): Promise<Gene
 Business: ${params.businessName}
 Industry: ${params.industry}
 Location: ${loc}
-Services: ${params.serviceDescription}
+Services: ${params.serviceDescription}${uspLine(params)}
 Tone: ${params.tone}
 
 ${STYLE_RULES}
@@ -182,7 +191,7 @@ async function generateRedditPost(params: GenerateLocalContentParams): Promise<G
 Business to mention naturally: ${params.businessName}
 Industry: ${params.industry}
 Audience: ${scope}
-Services: ${params.serviceDescription}
+Services: ${params.serviceDescription}${uspLine(params)}
 
 ${STYLE_RULES}
 
@@ -190,7 +199,7 @@ Requirements:
 - 200-300 words
 - First-person, conversational, community-helpful tone
 - Answer the implicit question: "What should I look for in a ${params.industry}?"
-- Give 3-4 genuine practical tips based on the service description
+- Give 3-4 genuine practical tips based on the service description and differentiators above
 - Mention ${params.businessName} once near the end as a place the poster has used, naturally
 - No hard sell, no marketing language
 - Plain paragraphs, no markdown headers
@@ -219,7 +228,7 @@ async function generateInstagramCaption(params: GenerateLocalContentParams): Pro
   const prompt = `Write an Instagram caption for a local ${params.industry} business in ${params.city}.
 
 Business: ${params.businessName}
-Services: ${params.serviceDescription}
+Services: ${params.serviceDescription}${uspLine(params)}
 Tone: ${params.tone}
 
 ${STYLE_RULES}
@@ -245,7 +254,7 @@ async function generateFacebookPost(params: GenerateLocalContentParams): Promise
   const prompt = `Write a Facebook business page post for a local ${params.industry} in ${params.city}.
 
 Business: ${params.businessName}
-Services: ${params.serviceDescription}
+Services: ${params.serviceDescription}${uspLine(params)}
 Tone: ${params.tone}
 
 ${STYLE_RULES}
@@ -265,38 +274,13 @@ Write the post now.`;
   return { type: "facebook_post", title: `Facebook: ${params.businessName}`, body, targetKeyword: primaryKeyword };
 }
 
-async function generateLinkedInPost(params: GenerateLocalContentParams): Promise<GeneratedContent | null> {
-  const primaryKeyword = params.keywords[0] ?? `${params.industry} ${params.city}`;
-  const prompt = `Write a LinkedIn post for a local ${params.industry} business owner in ${params.city}.
-
-Business: ${params.businessName}
-Services: ${params.serviceDescription}
-
-${STYLE_RULES}
-
-Requirements:
-- 150-250 words
-- Professional but not stiff
-- Share a practical insight, tip, or behind-the-scenes from running a ${params.industry} business in ${params.city}
-- Position the owner as a local expert
-- End with a professional CTA or thought-provoking question
-- Short paragraphs (2-3 sentences max each)
-- No markdown headers
-
-Write the post now.`;
-
-  const body = await openRouterChat({ model: MODELS.content, messages: [{ role: "user", content: prompt }], maxTokens: 400, temperature: 0.7 });
-  if (!body) return null;
-  return { type: "linkedin_post", title: `LinkedIn: ${params.businessName}`, body, targetKeyword: primaryKeyword };
-}
-
 async function generateVideoScript(params: GenerateLocalContentParams): Promise<GeneratedContent | null> {
   const primaryKeyword = params.keywords[0] ?? `${params.industry} ${params.city}`;
   const title = `${params.businessName} — ${params.city} ${params.industry} (60-second video)`;
   const prompt = `Write a 60-second video script for a local ${params.industry} in ${params.city}.
 
 Business: ${params.businessName}
-Services: ${params.serviceDescription}
+Services: ${params.serviceDescription}${uspLine(params)}
 Tone: ${params.tone}
 
 ${STYLE_RULES}
@@ -324,7 +308,7 @@ async function generateEmailNewsletter(params: GenerateLocalContentParams): Prom
 
 Business: ${params.businessName}
 City: ${params.city}, ${params.state}
-Services: ${params.serviceDescription}
+Services: ${params.serviceDescription}${uspLine(params)}
 Tone: ${params.tone}
 
 ${STYLE_RULES}
@@ -353,7 +337,7 @@ async function generatePressRelease(params: GenerateLocalContentParams): Promise
 
 Business: ${params.businessName}
 City: ${params.city}, ${params.state}
-Services: ${params.serviceDescription}
+Services: ${params.serviceDescription}${uspLine(params)}
 
 ${STYLE_RULES}
 
@@ -391,7 +375,6 @@ export async function generateLocalContent(
     reddit_post: generateRedditPost,
     instagram_caption: generateInstagramCaption,
     facebook_post: generateFacebookPost,
-    linkedin_post: generateLinkedInPost,
     video_script: generateVideoScript,
     email_newsletter: generateEmailNewsletter,
     press_release: generatePressRelease,
@@ -404,6 +387,13 @@ export async function generateLocalContent(
 
   for (const result of results) {
     if (result.status === "fulfilled" && result.value !== null) {
+      if (containsPlaceholderArtifact(result.value.body) || containsPlaceholderArtifact(result.value.title)) {
+        console.warn("[content-gen] discarded output with unfilled placeholder", {
+          type: result.value.type,
+          businessName: params.businessName,
+        });
+        continue;
+      }
       generated.push(result.value);
     } else if (result.status === "rejected") {
       console.error("[content-gen] generation failed for one content type", {
@@ -421,7 +411,6 @@ export const ALL_CONTENT_TYPES: ContentType[] = [
   "reddit_post",
   "instagram_caption",
   "facebook_post",
-  "linkedin_post",
   "video_script",
   "email_newsletter",
   "press_release",
@@ -430,7 +419,7 @@ export const ALL_CONTENT_TYPES: ContentType[] = [
 export const CONTENT_TYPES_BY_PLAN: Record<string, ContentType[]> = {
   free: ["article", "gbp_post"],
   starter: ["article", "gbp_post", "reddit_post"],
-  growth: ["article", "gbp_post", "reddit_post", "instagram_caption", "facebook_post", "linkedin_post"],
+  growth: ["article", "gbp_post", "reddit_post", "instagram_caption", "facebook_post"],
   pro: ALL_CONTENT_TYPES,
   agency: ALL_CONTENT_TYPES,
 };
