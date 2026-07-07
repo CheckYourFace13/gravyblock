@@ -43,7 +43,8 @@ export default async function AdminBusinessesPage() {
   const paidCount = businesses.filter((b) =>
     b.accountType !== "house" && (b.subscriptionStatus === "active" || b.subscriptionStatus === "trialing")
   ).length;
-  const houseCount = businesses.filter((b) => b.accountType === "house").length;
+  const houseAccounts = businesses.filter((b) => b.accountType === "house");
+  const houseCount = houseAccounts.length;
   const pastDueCount = businesses.filter((b) => b.subscriptionStatus === "past_due").length;
   const freeCount = businesses.filter((b) => !b.subscriptionStatus || b.subscriptionStatus === "none").length;
 
@@ -78,6 +79,32 @@ export default async function AdminBusinessesPage() {
           <p className="mt-1 text-2xl font-semibold text-zinc-900">{houseCount}</p>
         </div>
       </div>
+
+      {houseCount > 0 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-800">
+            House accounts — quick access ({houseCount})
+          </h2>
+          <ul className="mt-3 divide-y divide-amber-100">
+            {houseAccounts.map((b) => (
+              <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5 text-sm">
+                <div>
+                  <span className="font-medium text-zinc-900">{b.name}</span>
+                  <span className="ml-2 text-xs text-zinc-500">{b.vertical ?? ""}</span>
+                </div>
+                <div className="flex gap-3 text-xs font-semibold">
+                  <Link href={`/workspace/${b.id}`} className="text-red-700 hover:text-red-800">
+                    Open workspace
+                  </Link>
+                  <Link href={`/admin/businesses/${b.id}`} className="text-zinc-700 hover:text-zinc-900">
+                    Manage
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-zinc-100 text-sm">

@@ -205,9 +205,14 @@ export default async function AdminHomePage() {
                       Public report
                     </Link>
                     {r.businessId ? (
-                      <Link href={`/workspace/${r.businessId}`} className="font-semibold text-zinc-600 hover:underline">
-                        Workspace
-                      </Link>
+                      <>
+                        <Link href={`/workspace/${r.businessId}`} className="font-semibold text-zinc-600 hover:underline">
+                          Workspace
+                        </Link>
+                        <Link href={`/admin/businesses/${r.businessId}`} className="font-semibold text-amber-700 hover:underline">
+                          Manage / house account
+                        </Link>
+                      </>
                     ) : null}
                   </div>
                 </div>
