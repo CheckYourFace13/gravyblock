@@ -21,8 +21,8 @@ const aiPlatforms = [
     description: "Perplexity is one of the fastest-growing AI search engines. It cites sources directly, so being mentioned in authoritative local content matters.",
   },
   {
-    name: "Bing Copilot",
-    description: "Microsoft Bing's AI assistant answers local search queries with business recommendations, pulling from the web and Bing's index.",
+    name: "Gemini",
+    description: "Google's own AI model, which also powers AI Overviews in search results — a separate, direct check on top of the SERP-level summary above.",
   },
 ];
 

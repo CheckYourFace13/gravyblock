@@ -620,7 +620,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <div>
               <h2 className="text-lg font-semibold text-zinc-900">GEO: AI search visibility</h2>
               <p className="mt-1 text-sm text-zinc-500">
-                How often ChatGPT, Perplexity, and Copilot mention your business when people ask relevant questions.
+                How often ChatGPT, Perplexity, and Gemini mention your business when people ask relevant questions.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -673,7 +673,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-4">
                 <p className="text-sm font-semibold text-red-900 mb-1">Why your score is 0</p>
                 <p className="text-sm text-red-800 leading-relaxed">
-                  GravyBlock ran {geoAudit.totalProbes} AI probe{geoAudit.totalProbes !== 1 ? "s" : ""} this month asking ChatGPT, Perplexity, and Copilot
+                  GravyBlock ran {geoAudit.totalProbes} AI probe{geoAudit.totalProbes !== 1 ? "s" : ""} this month asking ChatGPT, Perplexity, and Gemini
                   questions about your business category. You weren&apos;t mentioned yet — this is
                   normal for new profiles. <strong>AI assistants typically start citing a business after
                   60–90 days of consistent, well-structured content.</strong>

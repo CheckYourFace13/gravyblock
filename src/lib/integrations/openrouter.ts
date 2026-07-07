@@ -15,7 +15,8 @@ type CallResult = { text: string | null; rateLimited: boolean; modelNotFound: bo
 export const MODELS = {
   content: "meta-llama/llama-3.1-8b-instruct",    // batch: content generation (~$0.04/M tokens)
   outreach: "meta-llama/llama-3.1-8b-instruct",   // interactive: profile pull, copy
-  visibility: "meta-llama/llama-3.1-8b-instruct", // batch: AI visibility probes
+  // AI visibility probes use real, web-grounded engines directly — see
+  // src/lib/integrations/perplexity.ts — not this cheap batch model.
 } as const;
 
 // Fallback chain — tried in order if primary model rate-limits or has no endpoints

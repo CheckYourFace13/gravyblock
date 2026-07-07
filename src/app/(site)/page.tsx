@@ -18,7 +18,7 @@ const plans = [
     monthly: 79.99,
     intro: 39.99,
     highlight: false,
-    bullets: ["Monthly visibility score + trend history", "4 AI content ideas/mo", "Citation & review fix queue", "AI search check (ChatGPT, Perplexity)", "Monthly progress email"],
+    bullets: ["Monthly visibility score + trend history", "4 AI content ideas/mo", "Citation & review fix queue", "AI search check (ChatGPT, Perplexity, Google AI)", "Monthly progress email"],
     cta: "Start Starter",
     href: "/scan?plan=starter",
     ctaStyle: "bg-zinc-900 hover:bg-zinc-800 text-white",

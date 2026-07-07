@@ -1,7 +1,22 @@
-import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
+import { openRouterChat } from "@/lib/integrations/openrouter";
+
+// Real, distinct engines — each genuinely queried, not one model relabeled three ways.
+// - perplexity/sonar: Perplexity's actual production model, natively web-grounded.
+// - openai/gpt-5-mini:online: real OpenAI model + OpenRouter's web-search plugin
+//   (native grounding for OpenAI on OpenRouter), the closest feasible proxy for
+//   ChatGPT's own web-search behavior available outside OpenAI's own product.
+// - google/gemini-3.1-flash-lite:online: real Gemini model + native web grounding,
+//   a reasonable proxy for Google AI Overviews.
+// All three have live web access, unlike a bare model completion — without that,
+// no amount of new content GravyBlock publishes could ever be "discovered".
+const ENGINES: { platform: "perplexity" | "chatgpt" | "gemini"; model: string }[] = [
+  { platform: "perplexity", model: "perplexity/sonar" },
+  { platform: "chatgpt", model: "openai/gpt-5-mini:online" },
+  { platform: "gemini", model: "google/gemini-3.1-flash-lite:online" },
+];
 
 export type AIVisibilityResult = {
-  platform: "perplexity" | "openrouter";
+  platform: "perplexity" | "chatgpt" | "gemini";
   query: string;
   mentioned: boolean;
   sentiment: "positive" | "neutral" | "negative";
@@ -34,6 +49,13 @@ function extractSnippet(text: string, businessName: string, maxLen = 200): strin
   return snippet.length > maxLen ? snippet.slice(0, maxLen) + "…" : snippet;
 }
 
+/**
+ * Probes real AI engines for whether they mention this business. One query per
+ * engine (not per engine per query) to keep cost predictable — these are paid
+ * models, not the near-free batch model used for content generation.
+ * Engines that fail individually (rate limit, API error) are skipped rather
+ * than discarding the whole batch — partial real results beat none.
+ */
 export async function checkBusinessVisibilityInAI(input: {
   businessName: string;
   city: string;
@@ -41,7 +63,6 @@ export async function checkBusinessVisibilityInAI(input: {
 }): Promise<AIVisibilityResult[]> {
   const { businessName, city, vertical } = input;
   const category = vertical ?? "local business";
-  const results: AIVisibilityResult[] = [];
 
   const queries = [
     `Best ${category} in ${city}`,
@@ -49,34 +70,40 @@ export async function checkBusinessVisibilityInAI(input: {
     `Who are the leading ${category} providers in ${city}?`,
   ];
 
-  for (const query of queries) {
-    const responseText = await openRouterChat({
-      model: MODELS.visibility,
-      maxTokens: 512,
-      temperature: 0.2,
-      messages: [
-        {
-          role: "user",
-          content: `${query} Give a short answer with specific business names if you know them.`,
-        },
-      ],
-    });
+  const attempts = await Promise.allSettled(
+    ENGINES.map(async (engine, idx) => {
+      const query = queries[idx % queries.length];
+      const responseText = await openRouterChat({
+        model: engine.model,
+        maxTokens: 512,
+        temperature: 0.2,
+        messages: [
+          {
+            role: "user",
+            content: `${query} Give a short answer with specific business names if you know them.`,
+          },
+        ],
+      });
+      if (responseText === null) return null;
 
-    if (responseText === null) {
-      // API key not configured — return empty so caller uses synthetic fallback
-      return [];
+      const mentioned = detectMention(responseText, businessName);
+      const result: AIVisibilityResult = {
+        platform: engine.platform,
+        query,
+        mentioned,
+        sentiment: mentioned ? detectSentiment(responseText, businessName) : "neutral",
+        snippet: mentioned ? extractSnippet(responseText, businessName) : null,
+        confidence: mentioned ? 90 : 70,
+      };
+      return result;
+    }),
+  );
+
+  const results: AIVisibilityResult[] = [];
+  for (const attempt of attempts) {
+    if (attempt.status === "fulfilled" && attempt.value !== null) {
+      results.push(attempt.value);
     }
-
-    const mentioned = detectMention(responseText, businessName);
-    results.push({
-      platform: "perplexity",
-      query,
-      mentioned,
-      sentiment: mentioned ? detectSentiment(responseText, businessName) : "neutral",
-      snippet: mentioned ? extractSnippet(responseText, businessName) : null,
-      confidence: mentioned ? 90 : 70,
-    });
   }
-
   return results;
 }

@@ -136,7 +136,7 @@ function getAeoTips(score: number | null): ImprovementTip[] {
 function getGeoTips(score: number | null): ImprovementTip[] {
   if (score === null) return [];
   const tips: ImprovementTip[] = [];
-  tips.push({ text: "GravyBlock runs monthly AI probes across ChatGPT, Perplexity, and Copilot — your score updates automatically each month", automated: true, priority: "high" });
+  tips.push({ text: "GravyBlock runs monthly AI probes across ChatGPT, Perplexity, and Gemini — your score updates automatically each month", automated: true, priority: "high" });
   if (score < 20) tips.push({ text: "Verify your Market Scope is set correctly in Business Profile — wrong scope = wrong AI probe questions = false zero", automated: false, priority: "high" });
   if (score < 30) tips.push({ text: "GravyBlock publishes articles in AI-citation format (direct answer first, Q&A headings) — typically needs 4+ articles before AI starts mentioning you", automated: true, priority: "high" });
   if (score < 40) tips.push({ text: "Get listed on 10+ directories — AI assistants cross-reference multiple sources to verify a business exists", automated: false, priority: "medium" });
@@ -228,7 +228,7 @@ export function ScoresOverviewSection({
           subtitle="Generative Engine Optimization"
           score={geoScore}
           grade={geoGrade}
-          tooltip="How often ChatGPT, Perplexity, and Copilot mention your business when users ask relevant questions. Tracked via live AI probes that run monthly. Score = 60% mention rate + 40% confidence."
+          tooltip="How often ChatGPT, Perplexity, and Gemini mention your business when users ask relevant questions. Tracked via live AI probes that run monthly. Score = 60% mention rate + 40% confidence."
           improvementTips={getGeoTips(geoScore)}
           automatedActions={["Monthly AI probes", "Citation-format articles"]}
         />
@@ -267,7 +267,7 @@ export function ScoresOverviewSection({
           <li className="flex items-start gap-2">
             <span className="mt-0.5 shrink-0 text-red-500">✓</span>
             {probesRun > 0
-              ? `Running monthly AI probes — ${probesRun} probes completed across ChatGPT, Perplexity, and Copilot`
+              ? `Running monthly AI probes — ${probesRun} probes completed across ChatGPT, Perplexity, and Gemini`
               : "Monthly AI probes scheduled — first run next cycle"}
           </li>
           <li className="flex items-start gap-2">
