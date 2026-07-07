@@ -38,8 +38,17 @@ function PlanBadge({ planTier }: { planTier: string | null | undefined }) {
   );
 }
 
-export default async function AdminBusinessesPage() {
-  const businesses = await listBusinessSummaries();
+type Props = { searchParams: Promise<{ q?: string }> };
+
+export default async function AdminBusinessesPage({ searchParams }: Props) {
+  const { q } = await searchParams;
+  const query = q?.trim().toLowerCase() ?? "";
+  const allBusinesses = await listBusinessSummaries();
+  const businesses = query
+    ? allBusinesses.filter((b) =>
+        b.name.toLowerCase().includes(query) || (b.billingEmail ?? "").toLowerCase().includes(query),
+      )
+    : allBusinesses;
   const paidCount = businesses.filter((b) =>
     b.accountType !== "house" && (b.subscriptionStatus === "active" || b.subscriptionStatus === "trialing")
   ).length;
@@ -50,11 +59,30 @@ export default async function AdminBusinessesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Businesses</h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          All business profiles with billing status, plan, and workspace access.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Businesses</h1>
+          <p className="mt-2 text-sm text-zinc-600">
+            All business profiles with billing status, plan, and workspace access.
+          </p>
+        </div>
+        <form className="flex gap-2">
+          <input
+            type="text"
+            name="q"
+            defaultValue={q ?? ""}
+            placeholder="Search by name or billing email…"
+            className="w-64 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+          />
+          <button type="submit" className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800">
+            Search
+          </button>
+          {query ? (
+            <Link href="/admin/businesses" className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
+              Clear
+            </Link>
+          ) : null}
+        </form>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
