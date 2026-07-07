@@ -39,13 +39,6 @@ ${footer}
 </div></body></html>`;
 }
 
-function proof() {
-  return `<div style="margin:20px 0;padding:14px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px">
-    <p style="margin:0;font-size:12px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.08em">Early access result</p>
-    <p style="margin:6px 0 0;font-size:13px;color:#3f3f46;line-height:1.6">"We went from barely showing up in the map pack to ranking in the top 3 for our main keyword in about 8 weeks. The weekly articles and citation cleanup made the biggest difference." — Local service business, Chicago area</p>
-  </div>`;
-}
-
 const DRIP_SEQUENCE: DripEmail[] = [
   {
     day: 1,
@@ -77,7 +70,6 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         GravyBlock fixes all of that automatically. Every week it publishes content, refreshes your listing signals, and queues citation and review tasks so you're always the freshest result on the page.
       </p>
-      ${proof()}
       ${btn(`${siteUrl}/scan?plan=growth`, "Start Scale — $74.99 first month →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> at checkout for 50% off. No contract.</p>
     `, email, leadId),
@@ -118,7 +110,6 @@ const DRIP_SEQUENCE: DripEmail[] = [
         <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 4</p>
         <p style="margin:6px 0 0;font-size:13px;color:#52525b">Monthly visibility refresh. Score updates. You get a full summary of everything that ran and what's queued next month.</p>
       </div>
-      ${proof()}
       ${btn(`${siteUrl}/scan?plan=growth`, "Start Scale — $74.99 first month →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Code <strong>INTRO50</strong> at checkout. 50% off first month.</p>
     `, email, leadId),
@@ -164,7 +155,6 @@ const DRIP_SEQUENCE: DripEmail[] = [
           <li>AI search visibility monitoring (ChatGPT, Perplexity, Google AI)</li>
         </ul>
       </div>
-      ${proof()}
       ${btn(`${siteUrl}/scan?plan=growth`, "Claim 50% off Scale — code INTRO50 →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">First month only. Renews at $149.99/month. Cancel any time.</p>
     `, email, leadId),
@@ -262,7 +252,6 @@ const DRIP_SEQUENCE: DripEmail[] = [
         <li>Every week: visibility score refreshes, new content queues, outreach sends. Monthly digest shows everything that ran.</li>
       </ol>
       <p style="color:#52525b;font-size:14px;margin:12px 0">You don't need to learn SEO. It runs without you.</p>
-      ${proof()}
       ${btn(`${siteUrl}/scan?plan=growth`, "Start full autopilot — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Code <strong>INTRO50</strong> at checkout = 50% off first month.</p>
     `, email, leadId),
