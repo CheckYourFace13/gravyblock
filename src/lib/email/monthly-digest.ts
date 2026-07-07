@@ -4,7 +4,7 @@
  * Tracked via jobs table: type = "monthly_digest_sent", payload = { businessId }.
  */
 
-import { and, count, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, count, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { getDb, businesses, contentQueue, publishedContent, visibilitySnapshots, operatorTasks, jobs, aiVisibilityChecks, auditFindings, citationMonitors, socialProfiles } from "@/lib/db";
 import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { computeAeoScore, getGrade } from "@/lib/scoring/aeo-score";
@@ -192,7 +192,7 @@ export async function runMonthlyDigestBatch(): Promise<{ sent: number; skipped: 
       planTier: businesses.planTier,
     })
     .from(businesses)
-    .where(inArray(businesses.planTier, PAID_TIERS))
+    .where(and(inArray(businesses.planTier, PAID_TIERS), ne(businesses.accountType, "house")))
     .limit(100);
 
   let sent = 0;

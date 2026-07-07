@@ -212,7 +212,11 @@ export async function sendWeeklyUpsellEmails(): Promise<{ sent: number; skipped:
   const paidBusinesses = await db
     .select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier, billingEmail: businesses.billingEmail })
     .from(businesses)
-    .where(and(ne(businesses.planTier, "free"), eq(businesses.subscriptionStatus, "active")));
+    .where(and(
+      ne(businesses.planTier, "free"),
+      eq(businesses.subscriptionStatus, "active"),
+      ne(businesses.accountType, "house"),
+    ));
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
   let sent = 0;

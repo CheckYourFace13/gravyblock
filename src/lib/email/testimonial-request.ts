@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { and, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, ne } from "drizzle-orm";
 import { getDb, businesses, jobs } from "@/lib/db";
 
 const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
@@ -69,6 +69,7 @@ export async function runTestimonialRequestBatch(batchSize = 10): Promise<{ sent
         inArray(businesses.planTier, PAID_TIERS),
         gte(businesses.createdAt, windowStart),
         lte(businesses.createdAt, windowEnd),
+        ne(businesses.accountType, "house"),
       ),
     )
     .limit(batchSize * 3);

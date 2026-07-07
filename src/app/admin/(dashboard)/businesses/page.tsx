@@ -41,8 +41,9 @@ function PlanBadge({ planTier }: { planTier: string | null | undefined }) {
 export default async function AdminBusinessesPage() {
   const businesses = await listBusinessSummaries();
   const paidCount = businesses.filter((b) =>
-    b.subscriptionStatus === "active" || b.subscriptionStatus === "trialing"
+    b.accountType !== "house" && (b.subscriptionStatus === "active" || b.subscriptionStatus === "trialing")
   ).length;
+  const houseCount = businesses.filter((b) => b.accountType === "house").length;
   const pastDueCount = businesses.filter((b) => b.subscriptionStatus === "past_due").length;
   const freeCount = businesses.filter((b) => !b.subscriptionStatus || b.subscriptionStatus === "none").length;
 
@@ -55,7 +56,7 @@ export default async function AdminBusinessesPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Total</p>
           <p className="mt-1 text-2xl font-semibold text-zinc-900">{businesses.length}</p>
@@ -71,6 +72,10 @@ export default async function AdminBusinessesPage() {
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Free / no billing</p>
           <p className="mt-1 text-2xl font-semibold text-zinc-900">{freeCount}</p>
+        </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">House accounts</p>
+          <p className="mt-1 text-2xl font-semibold text-zinc-900">{houseCount}</p>
         </div>
       </div>
 
@@ -98,6 +103,11 @@ export default async function AdminBusinessesPage() {
                     {b.name}
                     {b.vertical ? (
                       <span className="ml-2 text-xs text-zinc-400">{b.vertical}</span>
+                    ) : null}
+                    {b.accountType === "house" ? (
+                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                        House
+                      </span>
                     ) : null}
                   </td>
                   <td className="px-4 py-3">

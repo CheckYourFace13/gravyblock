@@ -93,6 +93,12 @@ export const businesses = pgTable("businesses", {
    */
   targetScope: text("target_scope"),
   planTier: text("plan_tier").notNull().default("free"),
+  /**
+   * "customer" (real, billed) or "house" (owner-run demo/marketing account —
+   * full plan features granted directly via planTier, no Stripe subscription
+   * needed. Excluded from MRR/revenue reporting and automated customer emails).
+   */
+  accountType: text("account_type").notNull().default("customer"),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   subscriptionStatus: text("subscription_status"),

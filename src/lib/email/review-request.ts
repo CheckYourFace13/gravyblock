@@ -6,7 +6,7 @@
  * per campaign cycle (type = "review_request_sent").
  */
 
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, ne, sql } from "drizzle-orm";
 import { getDb, businesses, jobs } from "@/lib/db";
 import { normalizePlanTierFromDb } from "@/lib/plans";
 
@@ -102,7 +102,7 @@ export async function runReviewRequestBatch(): Promise<{ sent: number; skipped: 
       planTier: businesses.planTier,
     })
     .from(businesses)
-    .where(inArray(businesses.planTier, PAID_TIERS))
+    .where(and(inArray(businesses.planTier, PAID_TIERS), ne(businesses.accountType, "house")))
     .limit(50);
 
   let sent = 0;

@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, ne, sql } from "drizzle-orm";
 import { getDb, businesses, leads, jobs, visibilitySnapshots } from "@/lib/db";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
@@ -195,6 +195,7 @@ export async function runOnboardingBatch(): Promise<{ sent: number; skipped: num
       and(
         inArray(businesses.planTier, paidTiers),
         gte(businesses.createdAt, windowStart),
+        ne(businesses.accountType, "house"),
       ),
     )
     .limit(200);

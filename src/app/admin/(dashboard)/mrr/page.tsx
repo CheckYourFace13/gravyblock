@@ -31,6 +31,7 @@ async function getMrrData() {
       id: businesses.id,
       name: businesses.name,
       planTier: businesses.planTier,
+      accountType: businesses.accountType,
       subscriptionStatus: businesses.subscriptionStatus,
       billingEmail: businesses.billingEmail,
       currentPeriodEnd: businesses.currentPeriodEnd,
@@ -39,14 +40,19 @@ async function getMrrData() {
     db.select({ id: businesses.id }).from(businesses).where(
       and(
         gte(businesses.createdAt, monthAgo),
+        ne(businesses.accountType, "house"),
         or(...PAID_TIERS.map(t => eq(businesses.planTier, t))),
       )
     ),
   ]);
 
+  // House accounts (owner-run demo/marketing accounts, comped via planTier
+  // directly rather than a real Stripe subscription) never counted as revenue.
   const active = allBiz.filter(b => {
     const tier = normalizePlanTierFromDb(b.planTier);
-    return PAID_TIERS.includes(tier) && (b.subscriptionStatus === "active" || b.subscriptionStatus === "trialing");
+    return b.accountType !== "house"
+      && PAID_TIERS.includes(tier)
+      && (b.subscriptionStatus === "active" || b.subscriptionStatus === "trialing");
   });
 
   const churned = allBiz.filter(b =>

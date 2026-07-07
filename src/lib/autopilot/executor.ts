@@ -63,7 +63,9 @@ function recurringJobTypeForPlan(tier: PlanTier) {
 function profileForJobType(jobType: string): AutomationRunProfile {
   if (jobType === "pro_recurring_refresh") {
     return {
-      aiChecks: 1,
+      // 3 real engines are queried per monthly probe cycle (see
+      // checkBusinessVisibilityInAI) — keep all 3 results, not just one.
+      aiChecks: 3,
       contentIdeas: 3,
       actionItems: 3,
       citationTasks: 4,
@@ -76,7 +78,9 @@ function profileForJobType(jobType: string): AutomationRunProfile {
     };
   }
   return {
-    aiChecks: 1,
+    // 3 real engines are queried per monthly probe cycle (see
+    // checkBusinessVisibilityInAI) — keep all 3 results, not just one.
+    aiChecks: 3,
     contentIdeas: 4,
     actionItems: 3,
     citationTasks: 4,
@@ -569,7 +573,7 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
       let publishedThisRun = 0;
       let outreachSentThisRun = 0;
       const [business] = await db
-        .select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier, vertical: businesses.vertical, address: businesses.address })
+        .select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier, accountType: businesses.accountType, vertical: businesses.vertical, address: businesses.address })
         .from(businesses)
         .where(eq(businesses.id, businessId))
         .limit(1);
@@ -598,32 +602,51 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
       });
 
       {
-        const city = cityFromAddress(business?.address);
-        const realChecks = await checkBusinessVisibilityInAI({
-          businessName: business?.name ?? "Local business",
-          city,
-          vertical: business?.vertical ?? null,
-        });
-        // No fabricated fallback: a customer-facing GEO score built on made-up
-        // "mentioned"/confidence values derived from the unrelated visibility
-        // score is not a real measurement of AI mentions. If the real probe
-        // comes back empty (API unavailable or a transient failure), skip this
-        // cycle and let the next recurring run try again — the same
-        // "skip and retry" pattern already used for failed content generation.
-        if (realChecks.length > 0) {
-          await db.insert(aiVisibilityChecks).values(
-            realChecks.slice(0, runProfile.aiChecks).map((check) => ({
-              businessId,
-              locationId: null as string | null,
-              prompt: check.query,
-              engine: check.platform,
-              mentionFound: check.mentioned ? "true" : "false",
-              sentiment: check.sentiment,
-              confidence: check.confidence,
-            })),
-          );
-        } else {
-          console.warn("[executor] AI visibility probe returned no results — skipping this cycle", { businessId });
+        // AI probes are marketed as monthly for every plan ("runs monthly AI
+        // probes... your score updates automatically each month"), but the
+        // overall recurring refresh this block lives inside runs far more
+        // often on higher tiers (every 7/3/1 days for Growth/Pro/Agency).
+        // These are now real, paid model calls (see perplexity.ts) — gate on
+        // the last probe's age so it truly runs once a month regardless of
+        // how often the surrounding visibility refresh fires.
+        const AI_PROBE_INTERVAL_DAYS = 30;
+        const [lastProbe] = await db
+          .select({ createdAt: aiVisibilityChecks.createdAt })
+          .from(aiVisibilityChecks)
+          .where(eq(aiVisibilityChecks.businessId, businessId))
+          .orderBy(desc(aiVisibilityChecks.createdAt))
+          .limit(1);
+        const dueForProbe =
+          !lastProbe || Date.now() - lastProbe.createdAt.getTime() >= AI_PROBE_INTERVAL_DAYS * 24 * 60 * 60 * 1000;
+
+        if (dueForProbe) {
+          const city = cityFromAddress(business?.address);
+          const realChecks = await checkBusinessVisibilityInAI({
+            businessName: business?.name ?? "Local business",
+            city,
+            vertical: business?.vertical ?? null,
+          });
+          // No fabricated fallback: a customer-facing GEO score built on made-up
+          // "mentioned"/confidence values derived from the unrelated visibility
+          // score is not a real measurement of AI mentions. If the real probe
+          // comes back empty (API unavailable or a transient failure), skip this
+          // cycle and let the next recurring run try again — the same
+          // "skip and retry" pattern already used for failed content generation.
+          if (realChecks.length > 0) {
+            await db.insert(aiVisibilityChecks).values(
+              realChecks.slice(0, runProfile.aiChecks).map((check) => ({
+                businessId,
+                locationId: null as string | null,
+                prompt: check.query,
+                engine: check.platform,
+                mentionFound: check.mentioned ? "true" : "false",
+                sentiment: check.sentiment,
+                confidence: check.confidence,
+              })),
+            );
+          } else {
+            console.warn("[executor] AI visibility probe returned no results — skipping this cycle", { businessId });
+          }
         }
       }
 
@@ -984,7 +1007,7 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         .where(eq(leads.businessId, businessId))
         .orderBy(desc(leads.lastSeenAt))
         .limit(1);
-      if (lead?.email && features.monthlySummaryEmail) {
+      if (lead?.email && features.monthlySummaryEmail && business?.accountType !== "house") {
         const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
         const workspaceUrl = `${base.replace(/\/$/, "")}/workspace/${businessId}`;
         void sendAutomationSummaryEmail({

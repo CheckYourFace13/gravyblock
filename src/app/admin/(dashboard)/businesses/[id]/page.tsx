@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { getAutopilotWorkspace } from "@/lib/autopilot/repository";
-import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
+import { normalizePlanTierFromDb, planFeatures, PLAN_TIERS } from "@/lib/plans";
 import { notFound } from "next/navigation";
 import { getWorkspaceBundle, listLeadsForBusiness } from "@/lib/report/repository";
+import { setHouseAccount, revertToCustomerAccount } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,50 @@ export default async function AdminBusinessDetailPage({ params }: Props) {
           </Link>
         </div>
       </div>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-900">Account type</h2>
+        <p className="mt-1 text-sm text-zinc-600">
+          House accounts get full plan features directly (no Stripe subscription needed) and are excluded from
+          MRR/revenue reporting and automated customer emails (weekly upsell, monthly digest, automation summaries).
+        </p>
+        {bundle.business.accountType === "house" ? (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+              House account
+            </span>
+            <form action={revertToCustomerAccount.bind(null, id)}>
+              <button
+                type="submit"
+                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+              >
+                Revert to billed customer account
+              </button>
+            </form>
+          </div>
+        ) : (
+          <form action={setHouseAccount.bind(null, id)} className="mt-4 flex flex-wrap items-center gap-3">
+            <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
+              Customer account
+            </span>
+            <select
+              name="planTier"
+              defaultValue="pro"
+              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            >
+              {PLAN_TIERS.filter((t) => t !== "free").map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+            >
+              Make house account
+            </button>
+          </form>
+        )}
+      </section>
 
       <div className="grid gap-4 md:grid-cols-4">
         <Stat label="Snapshots" value={String(bundle.snapshots.length)} />

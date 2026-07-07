@@ -869,6 +869,7 @@ export async function listBusinessSummaries() {
       name: b.name,
       vertical: b.vertical,
       planTier: b.planTier,
+      accountType: b.accountType,
       website: b.website,
       updatedAt: b.updatedAt,
       billingEmail: null as string | null,
@@ -883,6 +884,7 @@ export async function listBusinessSummaries() {
       name: businesses.name,
       vertical: businesses.vertical,
       planTier: businesses.planTier,
+      accountType: businesses.accountType,
       website: businesses.website,
       updatedAt: businesses.updatedAt,
       billingEmail: businesses.billingEmail,
@@ -898,6 +900,7 @@ export async function listBusinessSummaries() {
     name: b.name,
     vertical: b.vertical,
     planTier: b.planTier,
+    accountType: b.accountType,
     website: b.website,
     updatedAt: b.updatedAt.toISOString(),
     billingEmail: b.billingEmail,
@@ -929,7 +932,7 @@ export async function getWorkspaceBundle(businessId: string) {
   if (sql && !safeBusinessId) return null;
   const businessRows = sql
     ? await sql.unsafe(
-        `select id,name,vertical,plan_tier as "planTier",website,phone,address,google_maps_uri as "googleMapsUri",brand_notes as "brandNotes",stripe_customer_id as "stripeCustomerId",stripe_subscription_id as "stripeSubscriptionId",subscription_status as "subscriptionStatus",billing_email as "billingEmail",current_period_end as "currentPeriodEnd",created_at as "createdAt",updated_at as "updatedAt" from businesses where id='${safeBusinessId}' limit 1`,
+        `select id,name,vertical,plan_tier as "planTier",account_type as "accountType",website,phone,address,google_maps_uri as "googleMapsUri",brand_notes as "brandNotes",stripe_customer_id as "stripeCustomerId",stripe_subscription_id as "stripeSubscriptionId",subscription_status as "subscriptionStatus",billing_email as "billingEmail",current_period_end as "currentPeriodEnd",created_at as "createdAt",updated_at as "updatedAt" from businesses where id='${safeBusinessId}' limit 1`,
       )
     : await db.select().from(businesses).where(eq(businesses.id, businessId)).limit(1);
   const business = businessRows[0] as
@@ -938,6 +941,7 @@ export async function getWorkspaceBundle(businessId: string) {
         name: string;
         vertical?: string | null;
         planTier?: string | null;
+        accountType?: string | null;
         website?: string | null;
         phone?: string | null;
         address?: string | null;
@@ -1073,6 +1077,7 @@ export async function getWorkspaceBundle(businessId: string) {
       name: business.name,
       vertical: business.vertical ?? null,
       planTier: business.planTier ?? "free",
+      accountType: business.accountType ?? "customer",
       website: business.website ?? null,
       phone: business.phone ?? null,
       address: business.address ?? null,

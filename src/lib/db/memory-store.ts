@@ -25,6 +25,7 @@ type MemBusiness = {
   businessStatus: string | null;
   brandNotes: string | null;
   planTier: string;
+  accountType: string;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   subscriptionStatus: string | null;
@@ -272,6 +273,7 @@ function upsertBusiness(profile: BusinessProfile, vertical: Vertical): MemBusine
     businessStatus: profile.businessStatus ?? null,
     brandNotes: null,
     planTier: "free",
+      accountType: "customer",
       stripeCustomerId: null,
       stripeSubscriptionId: null,
       subscriptionStatus: null,
