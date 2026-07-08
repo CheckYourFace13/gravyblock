@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { listReportSummaries } from "@/lib/report/repository";
+import { setHouseAccount, revertToCustomerAccount } from "../businesses/[id]/actions";
+import { PLAN_TIERS } from "@/lib/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,7 @@ export default async function AdminReportsPage() {
               <th className="px-4 py-3">Score</th>
               <th className="px-4 py-3">Opportunity</th>
               <th className="px-4 py-3">Created</th>
+              <th className="px-4 py-3">Account</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -30,16 +33,50 @@ export default async function AdminReportsPage() {
                 <td className="px-4 py-3 text-zinc-700">{r.score}</td>
                 <td className="px-4 py-3 text-zinc-700">{r.opportunityLevel}</td>
                 <td className="px-4 py-3 text-zinc-500">{new Date(r.createdAt).toLocaleString()}</td>
+                <td className="px-4 py-3">
+                  {!r.businessId ? (
+                    <span className="text-zinc-400">—</span>
+                  ) : r.accountType === "house" ? (
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                        House
+                      </span>
+                      <form action={revertToCustomerAccount.bind(null, r.businessId)}>
+                        <button type="submit" className="text-xs font-semibold text-zinc-500 hover:text-zinc-800">
+                          Revert
+                        </button>
+                      </form>
+                    </div>
+                  ) : (
+                    <form action={setHouseAccount.bind(null, r.businessId)} className="flex items-center gap-1.5">
+                      <select name="planTier" defaultValue="pro" className="rounded-lg border border-zinc-300 px-1.5 py-1 text-xs">
+                        {PLAN_TIERS.filter((t) => t !== "free").map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                      <button type="submit" className="rounded-full bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-500">
+                        Make house
+                      </button>
+                    </form>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-right">
-                  <Link href={`/admin/reports/${r.publicId}`} className="font-semibold text-red-700 hover:text-red-800">
-                    Open
-                  </Link>
+                  <div className="flex justify-end gap-3">
+                    <Link href={`/admin/reports/${r.publicId}`} className="font-semibold text-red-700 hover:text-red-800">
+                      Open
+                    </Link>
+                    {r.businessId ? (
+                      <Link href={`/admin/businesses/${r.businessId}`} className="font-semibold text-zinc-600 hover:text-zinc-900">
+                        Manage
+                      </Link>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             ))}
             {!reports.length ? (
               <tr>
-                <td className="px-4 py-6 text-zinc-500" colSpan={5}>
+                <td className="px-4 py-6 text-zinc-500" colSpan={6}>
                   No reports yet. Run a scan from the marketing site.
                 </td>
               </tr>

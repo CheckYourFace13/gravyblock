@@ -7,6 +7,7 @@ export const ADMIN_NAV_ITEMS: { href: string; label: string }[] = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/leads", label: "Leads" },
   { href: "/admin/businesses", label: "Businesses" },
+  { href: "/admin/businesses#house-accounts", label: "🏠 House accounts" },
   { href: "/admin/brands", label: "Brands" },
   { href: "/admin/locations", label: "Locations" },
   { href: "/admin/reports", label: "Reports" },

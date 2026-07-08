@@ -108,11 +108,11 @@ export default async function AdminBusinessesPage({ searchParams }: Props) {
         </div>
       </div>
 
-      {houseCount > 0 ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-800">
-            House accounts — quick access ({houseCount})
-          </h2>
+      <div id="house-accounts" className="scroll-mt-6 rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-800">
+          House accounts — quick access ({houseCount})
+        </h2>
+        {houseCount > 0 ? (
           <ul className="mt-3 divide-y divide-amber-100">
             {houseAccounts.map((b) => (
               <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5 text-sm">
@@ -131,8 +131,12 @@ export default async function AdminBusinessesPage({ searchParams }: Props) {
               </li>
             ))}
           </ul>
-        </div>
-      ) : null}
+        ) : (
+          <p className="mt-2 text-sm text-amber-700">
+            None yet. Convert a business below or from its detail page, or from the Reports list.
+          </p>
+        )}
+      </div>
 
       <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-zinc-100 text-sm">

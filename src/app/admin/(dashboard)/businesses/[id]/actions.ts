@@ -29,6 +29,9 @@ export async function setHouseAccount(businessId: string, formData: FormData): P
     .where(eq(businesses.id, businessId));
 
   revalidatePath(`/admin/businesses/${businessId}`);
+  revalidatePath("/admin/businesses");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin");
 }
 
 /** Reverts a business back to a normal, billed customer account. */
@@ -41,4 +44,7 @@ export async function revertToCustomerAccount(businessId: string, _formData: For
   await db.update(businesses).set({ accountType: "customer" }).where(eq(businesses.id, businessId));
 
   revalidatePath(`/admin/businesses/${businessId}`);
+  revalidatePath("/admin/businesses");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin");
 }

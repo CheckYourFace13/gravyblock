@@ -826,14 +826,19 @@ export async function listReportSummaries() {
   const db = getDb();
   if (!db) {
     assertMemoryFallbackAllowed();
-    return memoryStore.listReports().map((r) => ({
-      publicId: r.publicId,
-      businessName: r.payload.business.name,
-      score: r.overallScore,
-      opportunityLevel: r.opportunityLevel,
-      createdAt: r.createdAt,
-      businessId: r.businessId,
-    }));
+    return memoryStore.listReports().map((r) => {
+      const biz = memoryStore.getBusiness(r.businessId);
+      return {
+        publicId: r.publicId,
+        businessName: r.payload.business.name,
+        score: r.overallScore,
+        opportunityLevel: r.opportunityLevel,
+        createdAt: r.createdAt,
+        businessId: r.businessId,
+        accountType: biz?.accountType ?? "customer",
+        planTier: biz?.planTier ?? "free",
+      };
+    });
   }
 
   const rows = await db
@@ -844,9 +849,12 @@ export async function listReportSummaries() {
       opportunityLevel: reports.opportunityLevel,
       createdAt: reports.createdAt,
       businessId: scans.businessId,
+      accountType: businesses.accountType,
+      planTier: businesses.planTier,
     })
     .from(reports)
     .innerJoin(scans, eq(reports.scanId, scans.id))
+    .leftJoin(businesses, eq(scans.businessId, businesses.id))
     .orderBy(desc(reports.createdAt))
     .limit(200);
 
@@ -857,6 +865,8 @@ export async function listReportSummaries() {
     opportunityLevel: r.opportunityLevel,
     createdAt: r.createdAt.toISOString(),
     businessId: r.businessId,
+    accountType: r.accountType ?? "customer",
+    planTier: r.planTier ?? "free",
   }));
 }
 
