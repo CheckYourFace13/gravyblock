@@ -47,6 +47,8 @@ import { runGbpReviewReplyBatch } from "@/lib/gbp/review-responder";
 import { ensureResendWebhookRegistered } from "@/lib/integrations/resend-setup";
 import { runGbpPostBatch } from "@/lib/gbp/post-publisher";
 import { runGbpPhotoUploadBatch } from "@/lib/gbp/photo-uploader";
+import { runListingWatchdogBatch } from "@/lib/gbp/listing-watchdog";
+import { runReviewSpotlightBatch } from "@/lib/social/review-spotlight";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -521,6 +523,28 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] gbp photo upload failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  // Listing watchdog — weekly per business (internally deduped), diffs the
+  // Google listing and alerts owners when Google silently applied edits
+  try {
+    const watchdogResult = await runListingWatchdogBatch(5);
+    if (watchdogResult.changed > 0 || watchdogResult.checked > 0) {
+      console.info("[worker] listing watchdog", watchdogResult);
+    }
+  } catch (error) {
+    console.error("[worker] listing watchdog failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  // Review spotlight — weekly per business (internally deduped), turns real
+  // 4-5 star reviews into FB/IG posts queued for owner approval
+  try {
+    const spotlightResult = await runReviewSpotlightBatch(3);
+    if (spotlightResult.spotlightsQueued > 0) {
+      console.info("[worker] review spotlights queued", spotlightResult);
+    }
+  } catch (error) {
+    console.error("[worker] review spotlight failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   try {

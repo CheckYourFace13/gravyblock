@@ -247,7 +247,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <ol style="margin:12px 0;padding-left:22px;color:#3f3f46;font-size:14px;line-height:2.2">
         <li>Scans your Google listing, website, and nearby competitors. Scores all visibility signals.</li>
         <li>Writes the first ${vertical ? vertical.toLowerCase() : "local"} article targeting your city and publishes it to your site.</li>
-        <li>Audits your business name, address, and phone across 40+ directories for inconsistencies.</li>
+        <li>Builds a citation checklist for the directories that matter in your industry, with your exact business data ready to copy, and flags inconsistencies.</li>
         <li>New reviews get an AI-drafted reply in your inbox. You copy and post in 10 seconds.</li>
         <li>Every week: visibility score refreshes, new content queues, outreach sends. Monthly digest shows everything that ran.</li>
       </ol>

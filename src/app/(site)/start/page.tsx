@@ -17,7 +17,7 @@ const PLAN_INFO = {
     monthly: 79.99,
     intro: 39.99,
     tagline: "Monthly visibility monitoring, citation audits, and a prioritized fix list.",
-    bullets: ["Monthly visibility score", "Citation audit across 40+ directories", "AI search check", "Full workspace dashboard"],
+    bullets: ["Monthly visibility score", "Monthly citation checklist for your industry's directories", "AI search check", "Full workspace dashboard"],
     highlight: false,
   },
   growth: {

@@ -216,14 +216,17 @@ export default function HomePage() {
           <p className="mb-6 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">What runs automatically, every single week</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { icon: "✍️", title: "Content published", desc: "AI-written local SEO articles go live on your website automatically" },
+              { icon: "✍️", title: "Content published", desc: "AI-written local SEO articles go live on your website automatically, with schema markup injected into every one" },
+              { icon: "📍", title: "GBP posts published", desc: "Weekly Google Business Profile posts, photo uploads, and Q&A seeding — with your Google account connected" },
+              { icon: "⭐", title: "Reviews answered", desc: "New reviews synced from Google, Yelp & TripAdvisor with AI replies — posted automatically to Google or ready to paste" },
+              { icon: "📈", title: "Rankings checked", desc: "Real Google Maps pack positions checked weekly, plus daily keyword data when Search Console is connected" },
               { icon: "📣", title: "Reddit posted", desc: "Helpful posts submitted to your city's subreddit and industry communities" },
-              { icon: "🔗", title: "Backlinks outreached", desc: "Personalized emails sent to local sites asking for links, every month" },
-              { icon: "⭐", title: "Reviews managed", desc: "New reviews flagged and monitored, AI reply suggestions ready to personalize and send" },
-              { icon: "📍", title: "GBP monitored", desc: "Your Google Business Profile scored and flagged for any drops" },
-              { icon: "🤖", title: "AI search checked", desc: "We probe ChatGPT, Perplexity & Gemini to see if they mention your business" },
-              { icon: "📊", title: "Competitors tracked", desc: "See who ranks above you and exactly how big their review lead is" },
-              { icon: "📁", title: "Citations audited", desc: "Your NAP data checked across 40+ directories for inconsistencies" },
+              { icon: "🔗", title: "Backlinks outreached", desc: "Local link prospects found and personalized outreach emails sent, every month" },
+              { icon: "🤖", title: "AI search checked", desc: "We probe ChatGPT, Perplexity & Gemini monthly to see if they mention your business" },
+              { icon: "📊", title: "Social posts drafted", desc: "Every article repurposed into Facebook & Instagram posts — approve once, we publish them" },
+              { icon: "📁", title: "Citations organized", desc: "A monthly directory checklist matched to your industry, with your exact business data ready to copy and consistency gaps flagged" },
+              { icon: "🛡️", title: "Listing protected", desc: "Weekly watchdog catches Google's silent edits to your hours, phone, or name — and alerts you with exactly what changed" },
+              { icon: "💬", title: "Reviews spotlighted", desc: "Your best 5-star reviews turned into ready-to-approve social posts that thank the customer and invite the next one" },
               { icon: "⚡", title: "Search engines notified", desc: "New pages pinged to Bing via IndexNow; Google sitemap resubmitted on Scale+ plans with Search Console connected" },
             ].map((item) => (
               <div key={item.title} className="rounded-xl border border-zinc-200 bg-white p-4">

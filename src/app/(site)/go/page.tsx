@@ -14,7 +14,7 @@ const wins = [
   { icon: "⭐", text: "Reviews monitored, AI reply drafts ready in your inbox" },
   { icon: "📍", text: "Google Business Profile scored and fix queue updated" },
   { icon: "🤖", text: "ChatGPT, Perplexity, Gemini checked for your business" },
-  { icon: "📊", text: "Competitor review gap tracked week over week" },
+  { icon: "📊", text: "Competitor comparison with review gap in every scan report" },
 ];
 
 export default function GoPage() {
