@@ -247,36 +247,48 @@ export async function findWeakBusinesses(params: {
   if (!apiKey) throw new Error("GOOGLE_PLACES_API_KEY is not set");
 
   const { city, state, industry, maxResults = 50 } = params;
-  const textQuery = `${industry} in ${city} ${state}`;
 
-  // Paginate up to 3 pages (20 each). The new API returns all fields we need
-  // per place, so no separate Place Details calls.
+  // Different phrasings return meaningfully different result sets from Places,
+  // so a few variants roughly triple the prospect pool per city+industry. The
+  // pool size (not the send cap) was the binding constraint on outreach volume:
+  // one query yielded ~60 raw places that filtered down to single-digit
+  // emailable prospects after dedup against already-contacted businesses.
+  const queryVariants = [
+    `${industry} in ${city} ${state}`,
+    `${industry} near ${city} ${state}`,
+    `best ${industry} ${city} ${state}`,
+  ];
+
+  // Paginate up to 3 pages (20 each) per variant. The new API returns all
+  // fields we need per place, so no separate Place Details calls.
   const allPlaces: NewPlace[] = [];
-  let nextPageToken: string | undefined;
 
-  for (let page = 0; page < 3; page++) {
-    try {
-      const { places, nextPageToken: token } = await searchPlacesNew(textQuery, apiKey, nextPageToken);
-      allPlaces.push(...places);
-      nextPageToken = token;
-      if (!nextPageToken) break;
-    } catch (err) {
-      if (page > 0) {
-        // Later page failed — use what we have.
-        console.warn("[prospect-finder] pagination page failed, using partial results", { page, error: String(err) });
+  for (const textQuery of queryVariants) {
+    let nextPageToken: string | undefined;
+    for (let page = 0; page < 3; page++) {
+      try {
+        const { places, nextPageToken: token } = await searchPlacesNew(textQuery, apiKey, nextPageToken);
+        allPlaces.push(...places);
+        nextPageToken = token;
+        if (!nextPageToken) break;
+      } catch (err) {
+        if (page > 0 || allPlaces.length > 0) {
+          // Later page or later variant failed — use what we have.
+          console.warn("[prospect-finder] page failed, using partial results", { textQuery, page, error: String(err) });
+          break;
+        }
+        // Very first request failed on the new API — most likely "Places API
+        // (New)" isn't enabled on this key. Fall back to the legacy search.
+        console.warn("[prospect-finder] new Places API failed, falling back to legacy", { error: String(err) });
+        try {
+          const legacy = await searchPlacesLegacy(textQuery, apiKey);
+          allPlaces.push(...legacy);
+        } catch (legacyErr) {
+          console.error("[prospect-finder] both new and legacy Places failed", { error: String(legacyErr) });
+          throw legacyErr;
+        }
         break;
       }
-      // Page 0 failed on the new API — most likely "Places API (New)" isn't
-      // enabled on this key. Fall back to the legacy search we know works.
-      console.warn("[prospect-finder] new Places API failed, falling back to legacy", { error: String(err) });
-      try {
-        const legacy = await searchPlacesLegacy(textQuery, apiKey);
-        allPlaces.push(...legacy);
-      } catch (legacyErr) {
-        console.error("[prospect-finder] both new and legacy Places failed", { error: String(legacyErr) });
-        throw legacyErr;
-      }
-      break;
     }
   }
 

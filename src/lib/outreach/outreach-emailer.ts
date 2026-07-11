@@ -78,7 +78,7 @@ If it's useful and you'd want it handled automatically (content, reviews, citati
 ${SENDER_NAME}
 ${SENDER_TITLE} — https://gravyblock.com
 
-P.S. I send these by hand when I spot a ${city} business that could rank higher. Reply "no thanks" and you won't hear from me again.`;
+P.S. My tool flagged ${businessName} because the listing has room to rank higher in ${city}. Reply "no thanks" and you won't hear from me again.`;
 }
 
 function buildHtmlEmail(prospect: Prospect & { emailTo?: string }, industryLabel: string): string {
@@ -144,7 +144,7 @@ function buildHtmlEmail(prospect: Prospect & { emailTo?: string }, industryLabel
   </p>
 
   <p style="margin:8px 0 0;font-size:13px;color:#888">
-    P.S. I send these by hand when I spot a ${city} business that could rank higher.
+    P.S. My tool flagged ${businessName} because the listing has room to rank higher in ${city}.
   </p>
 
   <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
