@@ -8,7 +8,6 @@
  *
  * Once seeded, the worker treats GravyBlock like any other Agency business:
  * - Generates and publishes local SEO content about its own industry
- * - Posts to Reddit from the GravyBlock account
  * - Sends backlink outreach on its own behalf
  * - Tracks its own GSC keyword rankings
  */
@@ -70,8 +69,8 @@ export async function POST(req: Request) {
   await db.insert(businessConfigs).values({
     businessId,
     source: "owner_form",
-    serviceDescription: "GravyBlock is an automated local SEO platform for small businesses. We write and publish AI content, track keyword rankings, manage reviews, run Reddit outreach, build backlinks, and monitor AI search visibility — all on autopilot. Plans start free.",
-    uniqueSellingPoints: "Fully automated — no manual work required after setup. Combines content publishing, Reddit posting, backlink outreach, review management, and AI visibility tracking in one platform. Fraction of the cost of a marketing agency.",
+    serviceDescription: "GravyBlock is an automated local SEO platform for small businesses. We write and publish AI content, track keyword rankings, manage reviews, keep Google Business Profiles active, build backlinks, and monitor AI search visibility — all on autopilot. Plans start free.",
+    uniqueSellingPoints: "Fully automated — no manual work required after setup. Combines content publishing, Google Business Profile posting, backlink outreach, review management, and AI visibility tracking in one platform. Fraction of the cost of a marketing agency.",
     tone: "friendly",
     brandVoice: "Direct and confident, like a knowledgeable friend who actually works in local SEO. No corporate speak. Uses plain English, specific examples, and always ties advice back to something actionable for a local business owner.",
     targetKeywords: "local SEO autopilot, local SEO tool for small business, automated local SEO, google business profile automation, local SEO software, BrightLocal alternative, Yext alternative",

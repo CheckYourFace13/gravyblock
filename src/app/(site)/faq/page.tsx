@@ -13,7 +13,7 @@ const faqs = [
     items: [
       {
         q: "What is GravyBlock?",
-        a: "GravyBlock is an automated local SEO platform for small and local businesses. It publishes AI-written content to your website, posts to Reddit, sends backlink outreach emails, monitors your reviews, tracks your Google rankings, and audits your Google Business Profile. All on autopilot, every week.",
+        a: "GravyBlock is an automated local SEO platform for small and local businesses. It publishes AI-written content to your website, keeps your Google Business Profile active with posts and photos, sends backlink outreach emails, monitors your reviews, and tracks your Google rankings. All on autopilot, every week.",
       },
       {
         q: "How does the free scan work?",
@@ -34,7 +34,7 @@ const faqs = [
     items: [
       {
         q: "What's the difference between Starter, Scale, and Pro?",
-        a: "Starter monitors your visibility and gives you a prioritized fix list each month. Scale adds full automation: weekly AI articles published, Reddit posts, backlink outreach, and social auto-posting. Pro doubles the volume and adds programmatic city pages and a competitor lead pipeline.",
+        a: "Starter monitors your visibility and gives you a prioritized fix list each month. Scale adds full automation: weekly AI articles published, Google Business Profile posts, backlink outreach, and social auto-posting. Pro doubles the volume and adds programmatic city pages and a competitor lead pipeline.",
       },
       {
         q: "What is the INTRO50 discount?",
@@ -42,7 +42,7 @@ const faqs = [
       },
       {
         q: "Is there a free plan?",
-        a: "Yes. The free tier gives you a full visibility score, a prioritized fix list, and one-time competitor snapshot. No credit card needed. To get the automations running (publishing, Reddit, outreach), you'll need a paid plan.",
+        a: "Yes. The free tier gives you a full visibility score, a prioritized fix list, and one-time competitor snapshot. No credit card needed. To get the automations running (publishing, GBP posts, outreach), you'll need a paid plan.",
       },
       {
         q: "Can I change plans later?",
@@ -89,10 +89,6 @@ const faqs = [
       {
         q: "What does 'backlink outreach' mean?",
         a: "Each month GravyBlock finds relevant local websites, blogs, and directories and sends personalized emails on your behalf asking for a link mention. You see every email sent in your dashboard. Scale includes 8 outreach emails/month; Pro includes 16.",
-      },
-      {
-        q: "How does Reddit posting work?",
-        a: "GravyBlock submits helpful, non-promotional posts to your city's subreddit (e.g. r/Austin) and relevant industry subreddits. Posts follow Reddit's community rules. No spam. The goal is brand awareness and referral traffic, not self-promotion.",
       },
       {
         q: "What is the AI search check?",

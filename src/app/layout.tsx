@@ -26,10 +26,10 @@ export const metadata: Metadata = {
     template: "%s | GravyBlock",
   },
   description:
-    "GravyBlock automates local SEO for small businesses. Publish content, build backlinks, manage reviews, run Reddit outreach, and monitor AI search visibility. Start with a free business scan.",
+    "GravyBlock automates local SEO for small businesses. Publish content, build backlinks, manage reviews, keep your Google Business Profile active, and monitor AI search visibility. Start with a free business scan.",
   openGraph: {
     title: "GravyBlock: Local SEO Autopilot",
-    description: "Automated local SEO for small businesses. Content, reviews, backlinks, Reddit outreach, and AI search monitoring on autopilot.",
+    description: "Automated local SEO for small businesses. Content, reviews, backlinks, Google Business Profile posts, and AI search monitoring on autopilot.",
     url: siteUrl,
     siteName: "GravyBlock",
     locale: "en_US",
@@ -66,7 +66,7 @@ const schemaOrg = {
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       description:
-        "GravyBlock automates local SEO for small businesses. Publish AI-written content, build backlinks, manage reviews, monitor AI search visibility, and run Reddit outreach. All on autopilot.",
+        "GravyBlock automates local SEO for small businesses. Publish AI-written content, build backlinks, manage reviews, keep your Google Business Profile active, and monitor AI search visibility. All on autopilot.",
       offers: {
         "@type": "AggregateOffer",
         priceCurrency: "USD",
@@ -77,7 +77,7 @@ const schemaOrg = {
       featureList: [
         "AI content writing and publishing",
         "Google Search Console rank tracking",
-        "Reddit auto-posting",
+        "Google Business Profile posts, photos, and Q&A",
         "Facebook and Instagram auto-posting",
         "Backlink outreach automation",
         "Review monitoring and AI reply drafts",
@@ -103,7 +103,6 @@ const schemaOrg = {
       sameAs: [
         "https://twitter.com/gravyblock",
         "https://www.linkedin.com/company/gravyblock",
-        "https://www.reddit.com/user/GravyBlock",
       ],
       contactPoint: {
         "@type": "ContactPoint",

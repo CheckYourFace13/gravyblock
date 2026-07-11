@@ -19,7 +19,7 @@ export default function ForBarsPage() {
         "Publish local content: best happy hours, weekend events, drink specials. Drives discovery.",
         "Monitor reviews on Google and Yelp and flag anything that needs a response.",
         "Check AI search mentions. ChatGPT and Perplexity increasingly answer nightlife questions.",
-        "Post to local subreddits and community boards to drive foot traffic and backlinks.",
+        "Turn your best reviews into ready-to-approve social posts that drive foot traffic.",
       ]}
       ctaHref="/scan"
       ctaLabel="Run a free bar scan"

@@ -17,7 +17,7 @@ export default function ForSalonsPage() {
         "Publish weekly local content: seasonal hair trends, nail looks, before-and-afters, and style guides.",
         "Track your Google Map ranking for 'hair salon near me' and specific service searches.",
         "Monitor review count and recency on Google and Yelp, the top trust signals for new salon clients.",
-        "Post seasonal content to local community boards and subreddits to drive bookings.",
+        "Turn glowing client reviews into social posts and keep your profile fresh with weekly GBP posts.",
         "Check AI search mentions for beauty recommendations in your city.",
       ]}
       ctaHref="/scan"

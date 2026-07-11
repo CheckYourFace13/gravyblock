@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GravyBlock on Product Hunt — Local SEO That Runs Itself",
   description:
-    "GravyBlock automates local SEO for small businesses. Weekly AI content, Reddit posts, backlink outreach, review monitoring, and Google ranking tracking. Free scan. Product Hunt exclusive: 50% off your first 2 months.",
+    "GravyBlock automates local SEO for small businesses. Weekly AI content, Google Business Profile posts, backlink outreach, review monitoring, and Google ranking tracking. Free scan. Product Hunt exclusive: 50% off your first 2 months.",
   robots: { index: false }, // PH page shouldn't compete with homepage in search
 };
 
@@ -16,8 +16,8 @@ const features = [
   },
   {
     icon: "📣",
-    title: "Reddit posts every week",
-    desc: "Helpful posts submitted to your city's subreddit and industry communities. Builds brand awareness and backlinks.",
+    title: "Google Business Profile on autopilot",
+    desc: "Weekly GBP posts, photo uploads, and Q&A seeding keep your listing active — the strongest freshness signal for Maps rankings.",
   },
   {
     icon: "🔗",
@@ -83,7 +83,7 @@ export default function LaunchPage() {
             Local SEO that runs<br className="hidden sm:block" /> itself, every week.
           </h1>
           <p className="mx-auto max-w-xl text-lg text-zinc-600">
-            GravyBlock publishes content, posts to Reddit, sends backlink outreach, monitors reviews, and tracks your Google rankings. <strong className="text-zinc-800">Hands-free, forever.</strong>
+            GravyBlock publishes content, keeps your Google Business Profile active, sends backlink outreach, monitors reviews, and tracks your Google rankings. <strong className="text-zinc-800">Hands-free, forever.</strong>
           </p>
           <p className="text-sm text-zinc-500">
             Built for restaurants, dentists, contractors, salons, lawyers, and any local business that gets customers through Google.
@@ -159,7 +159,7 @@ export default function LaunchPage() {
                 label: "Scale",
                 regular: "$149.99",
                 ph: "$74.99",
-                desc: "Full automation: weekly content, Reddit, backlink outreach, review inbox, social posting.",
+                desc: "Full automation: weekly content, GBP posts, backlink outreach, review inbox, social posting.",
                 href: "/scan?plan=growth&promo=PRODUCTHUNT",
                 highlight: true,
               },

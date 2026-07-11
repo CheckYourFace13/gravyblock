@@ -160,7 +160,7 @@ export default async function LocalSeoPage({ params }: Props) {
             {[
               `Scans your Google Business Profile listing for gaps and mismatches specific to ${industry.name.toLowerCase()} categories`,
               `Generates and publishes local SEO articles targeting "${industry.name.toLowerCase()} in ${city.name}" and nearby neighborhoods`,
-              `Posts on Reddit, community forums, and niche blogs where ${city.name} locals ask for ${industry.category} recommendations`,
+              `Publishes weekly Google Business Profile posts and photos so your listing stays active when ${city.name} locals search for ${industry.plural.toLowerCase()}`,
               `Monitors your AI search visibility: whether Perplexity or ChatGPT mentions your business when asked about ${industry.plural.toLowerCase()} in ${city.name}`,
               `Runs review request campaigns and drafts AI responses to new reviews to improve reply rate`,
               `Builds a backlink queue from local ${city.name} directories, community sites, and industry publications`,

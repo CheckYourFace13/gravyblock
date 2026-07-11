@@ -28,7 +28,6 @@ const plans = [
     ],
     notIncluded: [
       "Auto-publishing content to your site",
-      "Reddit and community posting",
       "Backlink outreach emails",
       "Social media posting",
     ],
@@ -50,7 +49,6 @@ const plans = [
       "Review replies posted to Google automatically (or ready to paste for Yelp & TripAdvisor)",
       "Real Google Maps ranking checks every week",
       "Review spotlights — your best reviews turned into ready-to-approve social posts",
-      "Reddit posts to your city's communities every month",
       "8 backlink outreach emails sent to local sites/month",
       "Facebook + Instagram auto-posting",
       "Weekly visibility refreshes (vs. monthly on Starter)",
@@ -92,7 +90,7 @@ const plans = [
 const faqs = [
   {
     q: "What does 'automated' actually mean?",
-    a: "GravyBlock runs on a schedule — you do not have to log in each week. Articles are written and published to your site automatically. Reddit posts go out. Backlink outreach emails are sent. Review alerts surface in your inbox. Your visibility score refreshes. All without you initiating anything.",
+    a: "GravyBlock runs on a schedule — you do not have to log in each week. Articles are written and published to your site automatically. Google Business Profile posts go out. Backlink outreach emails are sent. Review alerts surface in your inbox. Your visibility score refreshes. All without you initiating anything.",
   },
   {
     q: "Do I need to know anything about SEO?",
@@ -325,7 +323,6 @@ export default function PricingPage() {
                   ["Real Google Maps ranking checks", "—", "Weekly", "Weekly"],
                   ["Listing watchdog (Google edit alerts)", "Weekly", "Weekly", "Weekly"],
                   ["Review spotlight social posts", "—", "✓", "✓"],
-                  ["Reddit community posting", "—", "✓", "✓"],
                   ["Backlink outreach emails/mo", "—", "8", "16"],
                   ["Facebook + Instagram auto-posting", "—", "✓", "✓"],
                   ["Review inbox + AI reply drafts", "—", "✓", "✓"],

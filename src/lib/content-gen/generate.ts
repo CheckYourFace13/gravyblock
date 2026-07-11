@@ -380,7 +380,7 @@ export async function generateLocalContent(
     press_release: generatePressRelease,
   };
 
-  const requested = types ?? ["article", "gbp_post", "reddit_post"];
+  const requested = types ?? ["article", "gbp_post"];
   const results = await Promise.allSettled(requested.map((t) => generatorMap[t](params)));
 
   const generated: GeneratedContent[] = [];
@@ -405,10 +405,14 @@ export async function generateLocalContent(
   return generated;
 }
 
+// reddit_post is intentionally absent everywhere below: Reddit credentials
+// aren't configured in production and the claim was pulled from the site, so
+// generating reddit_post items would burn LLM spend on content with no
+// consumer. The generator stays in the map above — re-add "reddit_post" to
+// these lists (and restore the site copy) when Reddit is re-enabled.
 export const ALL_CONTENT_TYPES: ContentType[] = [
   "article",
   "gbp_post",
-  "reddit_post",
   "instagram_caption",
   "facebook_post",
   "video_script",
@@ -418,8 +422,8 @@ export const ALL_CONTENT_TYPES: ContentType[] = [
 
 export const CONTENT_TYPES_BY_PLAN: Record<string, ContentType[]> = {
   free: ["article", "gbp_post"],
-  starter: ["article", "gbp_post", "reddit_post"],
-  growth: ["article", "gbp_post", "reddit_post", "instagram_caption", "facebook_post"],
+  starter: ["article", "gbp_post"],
+  growth: ["article", "gbp_post", "instagram_caption", "facebook_post"],
   pro: ALL_CONTENT_TYPES,
   agency: ALL_CONTENT_TYPES,
 };

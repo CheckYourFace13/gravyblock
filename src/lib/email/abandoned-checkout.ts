@@ -46,7 +46,7 @@ function buildEmail(businessName: string, plan: string): { subject: string; html
       <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b">${planLabel} — ${introPrice}/month first month</p>
       <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">
         Use code <strong>INTRO50</strong> at checkout for 50% off your first month.
-        ${plan === "growth" ? "Includes weekly AI articles, Reddit outreach, backlink prospecting, and AI citation monitoring." : "Includes monthly visibility monitoring, citation audit, review queue, and content ideas."}
+        ${plan === "growth" ? "Includes weekly AI articles, Google Business Profile posts, backlink prospecting, and AI citation monitoring." : "Includes monthly visibility monitoring, citation audit, review queue, and content ideas."}
         No contract. Cancel any time.
       </p>
     </div>

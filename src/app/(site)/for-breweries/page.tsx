@@ -18,7 +18,7 @@ export default function ForBreweriesPage() {
         "Publish weekly content: new releases, event recaps, brewery guides, local beer tourism.",
         "Track Google Map rankings for ‘craft brewery near me’ and city-specific beer searches.",
         "Monitor reviews on Google, Untappd, and Yelp. Key trust signals for brewery visitors.",
-        "Post to local and craft beer subreddits to build community and earn backlinks.",
+        "Turn your best reviews into social posts and keep your profile active with weekly GBP posts.",
         "Check AI search visibility. Travelers increasingly ask ChatGPT for taproom recommendations.",
       ]}
       ctaHref="/scan"

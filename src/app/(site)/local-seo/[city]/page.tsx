@@ -159,7 +159,7 @@ export default async function CityHubPage({ params }: Props) {
             {[
               `Audits your Google Business Profile and queues fixes for missing categories, photos, and service areas`,
               `Writes and publishes local SEO articles targeting "${city.name}" + your service keywords`,
-              `Posts in Reddit and local community forums where ${city.name} residents ask for recommendations`,
+              `Publishes weekly Google Business Profile posts and photos so your listing stays active in ${city.name} searches`,
               `Monitors AI visibility — does ChatGPT or Perplexity mention your business when asked about ${city.name} services?`,
               `Runs review request campaigns and drafts AI responses to every new Google review`,
               `Builds a backlink queue from ${city.name} directories, local blogs, and niche community sites`,

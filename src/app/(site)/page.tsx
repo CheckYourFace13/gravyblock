@@ -29,7 +29,7 @@ const plans = [
     monthly: 149.99,
     intro: 74.99,
     highlight: true,
-    bullets: ["Weekly AI articles published to your site", "Reddit posts to your city's communities", "8 backlink outreach emails/mo", "Facebook + Instagram auto-posting", "Review inbox with AI reply drafts"],
+    bullets: ["Weekly AI articles published to your site", "Weekly Google Business Profile posts & photos", "8 backlink outreach emails/mo", "Facebook + Instagram auto-posting", "Review inbox with AI reply drafts"],
     cta: "Start Scale",
     href: "/scan?plan=growth",
     ctaStyle: "bg-red-600 hover:bg-red-500 text-white",
@@ -61,7 +61,7 @@ const steps = [
   {
     n: "3",
     title: "Let it run every week",
-    desc: "Connect your site and turn on a plan. GravyBlock publishes content, posts to Reddit, sends backlink outreach, monitors reviews, and refreshes your score — automatically.",
+    desc: "Connect your site and turn on a plan. GravyBlock publishes content, keeps your Google Business Profile active, sends backlink outreach, monitors reviews, and refreshes your score — automatically.",
   },
 ];
 
@@ -71,7 +71,7 @@ const orgSchema = {
   name: "GravyBlock",
   url: "https://gravyblock.com",
   logo: "https://gravyblock.com/brand/favicon.png",
-  description: "GravyBlock is an automated local SEO platform for small businesses. It publishes AI-written content, posts to Reddit, sends backlink outreach, monitors reviews, and tracks Google rankings — automatically every week.",
+  description: "GravyBlock is an automated local SEO platform for small businesses. It publishes AI-written content, keeps your Google Business Profile active, sends backlink outreach, monitors reviews, and tracks Google rankings — automatically every week.",
   contactPoint: {
     "@type": "ContactPoint",
     contactType: "customer support",
@@ -102,7 +102,7 @@ const productSchema = {
     {
       "@type": "Product",
       name: "GravyBlock Scale",
-      description: "Weekly AI articles published to your site, Reddit posts, backlink outreach, Facebook and Instagram auto-posting, and review inbox with AI reply drafts.",
+      description: "Weekly AI articles published to your site, Google Business Profile posts, backlink outreach, Facebook and Instagram auto-posting, and review inbox with AI reply drafts.",
       url: "https://gravyblock.com/scan?plan=growth",
       image: "https://gravyblock.com/brand/og.png",
       brand: { "@type": "Brand", name: "GravyBlock" },
@@ -220,7 +220,6 @@ export default function HomePage() {
               { icon: "📍", title: "GBP posts published", desc: "Weekly Google Business Profile posts, photo uploads, and Q&A seeding — with your Google account connected" },
               { icon: "⭐", title: "Reviews answered", desc: "New reviews synced from Google, Yelp & TripAdvisor with AI replies — posted automatically to Google or ready to paste" },
               { icon: "📈", title: "Rankings checked", desc: "Real Google Maps pack positions checked weekly, plus daily keyword data when Search Console is connected" },
-              { icon: "📣", title: "Reddit posted", desc: "Helpful posts submitted to your city's subreddit and industry communities" },
               { icon: "🔗", title: "Backlinks outreached", desc: "Local link prospects found and personalized outreach emails sent, every month" },
               { icon: "🤖", title: "AI search checked", desc: "We probe ChatGPT, Perplexity & Gemini monthly to see if they mention your business" },
               { icon: "📊", title: "Social posts drafted", desc: "Every article repurposed into Facebook & Instagram posts — approve once, we publish them" },

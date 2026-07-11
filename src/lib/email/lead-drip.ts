@@ -89,7 +89,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
       </p>
       ${btn(`${siteUrl}/scan?plan=growth`, "Track my AI visibility — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:16px 0">
-        Scale includes AI visibility monitoring, weekly ranking refreshes, published content, and Reddit outreach. Code <strong>INTRO50</strong> = 50% off first month.
+        Scale includes AI visibility monitoring, weekly ranking refreshes, published content, and Google Business Profile posts. Code <strong>INTRO50</strong> = 50% off first month.
       </p>
     `, email, leadId),
   },
@@ -104,7 +104,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
         <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 1</p>
         <p style="margin:6px 0 12px;font-size:13px;color:#52525b">GravyBlock scans ${businessName}, scores all visibility signals, and queues the first citation and review tasks.</p>
         <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 2</p>
-        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">First AI-written article goes live on your site. Reddit posting starts in local communities. Review request campaign queued.</p>
+        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">First AI-written article goes live on your site. Google Business Profile posts start going out. Review request campaign queued.</p>
         <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 3</p>
         <p style="margin:6px 0 12px;font-size:13px;color:#52525b">Backlink opportunities queued. Second article drafted. Citation mismatches surfaced and flagged for correction.</p>
         <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 4</p>
@@ -125,7 +125,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
         Google rewards businesses that publish relevant, local content consistently. ${vertical ? `For ${vertical.toLowerCase()}s, t` : "T"}hat means articles about your services, your city, your customers' questions, and what makes you different from the 4 other results on the same page.
       </p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        GravyBlock writes and publishes these for ${businessName} automatically — targeting the exact keywords your customers search in your city. It also posts to Reddit and local forums where your potential customers already spend time.
+        GravyBlock writes and publishes these for ${businessName} automatically — targeting the exact keywords your customers search in your city. It also keeps your Google Business Profile active with weekly posts and photos.
       </p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         Most local businesses don't do this at all. That's the opportunity.
@@ -149,7 +149,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
         <ul style="margin:8px 0 0;padding-left:20px;color:#3f3f46;font-size:13px;line-height:1.9">
           <li>Weekly visibility refreshes and score tracking</li>
           <li>AI-written articles published to your site automatically</li>
-          <li>Reddit and blog outreach in your city and industry</li>
+          <li>Weekly Google Business Profile posts and photos</li>
           <li>12 citation tasks and 8 review tasks per month</li>
           <li>8 backlink opportunities queued monthly</li>
           <li>AI search visibility monitoring (ChatGPT, Perplexity, Google AI)</li>
@@ -268,7 +268,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
       </p>
       <div style="margin:20px 0;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px">
         <p style="margin:0;font-size:15px;font-weight:700;color:#166534">Scale — $74.99 first month (reg. $149.99)</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Weekly AI articles, Reddit outreach, citation audit, review requests, backlink prospecting, and AI visibility monitoring. Fully automated. No contract.</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Weekly AI articles, Google Business Profile posts, citation checklists, review requests, backlink prospecting, and AI visibility monitoring. Fully automated. No contract.</p>
       </div>
       <div style="margin:12px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
         <p style="margin:0;font-size:15px;font-weight:700;color:#991b1b">Starter — $39.99 first month (reg. $79.99)</p>

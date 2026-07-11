@@ -18,7 +18,7 @@ const UPSELL_PITCH: Record<string, { headline: string; bullets: string[] }> = {
     headline: "Scale would have also done this week:",
     bullets: [
       "Written and published 1 SEO article to your site",
-      "Posted on 2 relevant Reddit threads with your business linked",
+      "Published 2 Google Business Profile posts to keep your listing active",
       "Sent outreach to 2 local blogs or directories",
       "Queued 2 backlink opportunities",
       "Sent a 3-step follow-up sequence to warm leads",

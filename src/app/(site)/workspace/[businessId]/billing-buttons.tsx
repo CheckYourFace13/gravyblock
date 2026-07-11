@@ -20,7 +20,7 @@ async function runCheckout(businessId: string, plan: CheckoutPlan, promoCode?: P
 
 const growthExtras = [
   "AI-written content drafts + auto-published articles",
-  "Reddit and blog posting on third-party channels",
+  "Weekly Google Business Profile posts, photos & Q&A",
   "Multi-step outreach sequences (3-step follow-up)",
   "8 backlink opportunities queued every month",
   "12 citation tasks + 8 review tasks/month",
@@ -104,8 +104,8 @@ export function CheckoutButton({
               Before you choose Starter, Scale adds full execution
             </h2>
             <p className="mt-2 text-sm text-zinc-600">
-              Starter covers monthly monitoring and content ideas. Scale adds automated publishing, Reddit/blog posting,
-              and outreach sequences.
+              Starter covers monthly monitoring and content ideas. Scale adds automated publishing, Google Business
+              Profile posts, and outreach sequences.
             </p>
             <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-zinc-700">
               {growthExtras.map((line) => (

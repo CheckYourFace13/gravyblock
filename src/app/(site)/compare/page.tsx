@@ -47,7 +47,7 @@ export default function CompareIndexPage() {
         <div className="mt-3 grid gap-2 sm:grid-cols-2 text-sm text-zinc-700">
           {[
             "Weekly AI articles published to your website",
-            "Reddit posts auto-submitted to local communities",
+            "Weekly Google Business Profile posts, photos & Q&A",
             "Backlink outreach emails sent on your behalf",
             "Review inbox with AI-drafted reply suggestions",
             "AI search visibility (ChatGPT, Perplexity, Gemini)",
