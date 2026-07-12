@@ -1,4 +1,24 @@
-# GravyBlock acquisition plan — July 2026
+# GravyBlock acquisition plan — July 2026 (v2)
+
+## Ads verdict (July 12)
+
+Paid search was tried and didn't convert. Expected for this stage: local-SEO
+keywords cost $5-15/click and an unknown brand converting cold clicks straight
+to an $80/mo subscription rarely pays back without proof assets (testimonials,
+case studies) and retargeting. **Ads stay off until there are at least 5 paying
+customers and 3 public case studies.** Then retry with retargeting only.
+
+## v2 strategy: lead with proof, not promises
+
+Two assets competitors can't copy:
+1. **The scan engine can produce a real report for any business before we ever
+   talk to them.** So outreach now leads with "your business scored 54/100,
+   here's your report" instead of "come run a scan" — the work is pre-done and
+   the number is real. (Shipped July 12 — see below.)
+2. **The owner runs real house businesses on the platform.** Those are living,
+   verifiable case studies: real scores over time, real published content,
+   real GBP activity. Publishing "we run it on our own businesses, watch the
+   numbers" is proof no stock testimonial can match.
 
 ## Goal
 
@@ -33,12 +53,15 @@ The funnel is **input-starved**, not broken at conversion:
 
 | Lever | Status |
 |---|---|
+| **Pre-scanned outreach: every cold email now carries the prospect's real score + direct report link** | ✅ shipped July 12 |
 | 3x outreach prospect pool (query variants per city+industry) | ✅ shipped July 11 |
 | Removed false "sent by hand" line from outreach email (spam-complaint risk) | ✅ shipped July 11 |
-| Pre-filled scan links in outreach (recipient lands on their own results) | already live |
+| Pre-filled scan links in outreach (fallback when pre-scan fails) | already live |
 | 14-day lead drip + abandoned-checkout emails | already live |
 | "Powered by GravyBlock" + scan CTA on published customer articles | already live |
 | Referral links per business | already live |
+| House-account public case study page ("we run it on our own businesses") | next up — needs owner OK to name the businesses |
+| Vertical concentration: reweight outreach calendar to 2-3 proven verticals once reply data shows a winner | after 2 weeks of pre-scan data |
 | Weekly watch: raise emailsPerBatch from 13 → 20 via admin /outreach settings once bounce rate confirmed <3% | pending owner OK |
 
 ### Owner actions (agent can't do these)

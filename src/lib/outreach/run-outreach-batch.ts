@@ -1,6 +1,8 @@
 import { findWeakBusinesses } from "./prospect-finder";
 import { sendProspectEmail } from "./outreach-emailer";
 import { hasBeenContacted, recordOutreachSent } from "./outreach-tracker";
+import { runProspectPreScan } from "./prospect-prescan";
+import { isOptedOut } from "@/lib/email/optout";
 
 const DEFAULT_MAX_EMAILS = 13; // 13 per batch × 4 batches/day = ~52/day
 
@@ -33,11 +35,35 @@ export async function runOutreachBatch(params: {
       continue;
     }
 
+    // Cheap disqualifiers first — don't pay for a pre-scan on a prospect the
+    // emailer would skip anyway (unparseable domain or opted out).
+    let candidateEmail: string | undefined;
+    if (prospect.website) {
+      try {
+        const domain = new URL(prospect.website).hostname.replace(/^www\./, "");
+        candidateEmail = `info@${domain}`;
+      } catch { /* ignore */ }
+    }
+    if (!candidateEmail) {
+      skipped++;
+      continue;
+    }
+    if (await isOptedOut(candidateEmail)) {
+      skipped++;
+      continue;
+    }
+
+    // Run their scan BEFORE emailing so the email leads with a real score and
+    // a link to their actual report instead of an invitation to go run one.
+    // Falls back to the invite-style email when the pre-scan fails (null).
+    const preScan = await runProspectPreScan(prospect);
+
     let result: { ok: boolean; skipped?: boolean; reason?: string };
     try {
       result = await sendProspectEmail(prospect, {
         agencyName,
         industryLabel: industryLabel ?? industry,
+        preScan,
       });
     } catch (err) {
       console.error("[outreach-batch] Send failed", {
@@ -54,17 +80,14 @@ export async function runOutreachBatch(params: {
       continue;
     }
 
-    // Derive the email we sent (same logic as emailer)
-    let sentEmail: string | undefined;
-    if (prospect.website) {
-      try {
-        const domain = new URL(prospect.website).hostname.replace(/^www\./, "");
-        sentEmail = `info@${domain}`;
-      } catch { /* ignore */ }
-    }
-
-    await recordOutreachSent(prospect.placeId, prospect.businessName, sentEmail, prospect.city);
-    console.info("[outreach-batch] Sent", { businessName: prospect.businessName, email: sentEmail, score: prospect.opportunityScore });
+    await recordOutreachSent(prospect.placeId, prospect.businessName, candidateEmail, prospect.city, preScan?.publicId);
+    console.info("[outreach-batch] Sent", {
+      businessName: prospect.businessName,
+      email: candidateEmail,
+      score: prospect.opportunityScore,
+      preScanned: Boolean(preScan),
+      reportScore: preScan?.score,
+    });
     sent++;
   }
 

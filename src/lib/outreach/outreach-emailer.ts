@@ -1,4 +1,5 @@
 import type { Prospect } from "./prospect-finder";
+import type { ProspectPreScan } from "./prospect-prescan";
 import { isOptedOut, coldOutreachFooter } from "@/lib/email/optout";
 
 type SendEmailResult = { ok: boolean; skipped?: boolean; reason?: string };
@@ -145,6 +146,111 @@ function buildHtmlEmail(prospect: Prospect & { emailTo?: string }, industryLabel
 
   <p style="margin:8px 0 0;font-size:13px;color:#888">
     P.S. My tool flagged ${businessName} because the listing has room to rank higher in ${city}.
+  </p>
+
+  <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
+
+  ${coldOutreachFooter(emailTo)}
+
+</body>
+</html>`;
+}
+
+// ── Report-variant email #1: we already ran their scan ──────────────────────
+// Sent when a pre-scan succeeded. "Your business scored 54/100, here's why,
+// full report at this link" converts far better than asking a stranger to go
+// run a scan themselves — the work is already done and the number is real.
+
+function buildReportSubject(prospect: Prospect, preScan: ProspectPreScan): string {
+  return `${prospect.businessName} scored ${preScan.score}/100 on Google visibility`;
+}
+
+function buildReportText(prospect: Prospect, preScan: ProspectPreScan): string {
+  const { businessName, city } = prospect;
+  // Prospect-finder targets weak listings, so fixes essentially always exist —
+  // but a strong business must not get a broken empty list.
+  const fixBlock = preScan.topFixes.length
+    ? `The top things holding the score back:\n${preScan.topFixes.map((f, i) => `${i + 1}. ${f}`).join("\n")}`
+    : "Honestly, the fundamentals look solid — the report shows where the remaining headroom is.";
+
+  return `Hi,
+
+I run GravyBlock, a tool that scores how local businesses show up on Google and in AI search (ChatGPT, Perplexity, Google's AI answers). I ran a full visibility report on ${businessName} — all public data, took about 60 seconds.
+
+${businessName} scored ${preScan.score}/100 in ${city}.
+
+${fixBlock}
+
+The full report is here — score, verdict, and top findings visible right away, no signup:
+
+${preScan.reportUrl}
+
+If you'd want the fixes handled automatically (content, reviews, citations, Google Business Profile posts), that's what GravyBlock does, from under $100/mo. But the report is yours either way.
+
+${SENDER_NAME}
+${SENDER_TITLE} — https://gravyblock.com
+
+P.S. If you'd rather not hear from me, reply "no thanks" and you won't again.`;
+}
+
+function buildReportHtml(
+  prospect: Prospect & { emailTo?: string },
+  preScan: ProspectPreScan,
+): string {
+  const { businessName, city, emailTo = "" } = prospect;
+  const fixBlock = preScan.topFixes.length
+    ? `<p style="margin:0 0 6px;font-weight:600">The top things holding the score back:</p>
+  <ol style="margin:0 0 18px;padding-left:20px;color:#333">
+    ${preScan.topFixes.map((f) => `<li style="margin-bottom:6px">${f}</li>`).join("")}
+  </ol>`
+    : `<p style="margin:0 0 18px">Honestly, the fundamentals look solid — the report shows where the remaining headroom is.</p>`;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+</head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:#1a1a1a;max-width:560px;margin:0 auto;padding:32px 20px;background:#fff">
+
+  <p style="margin:0 0 18px">Hi,</p>
+
+  <p style="margin:0 0 18px">
+    I run GravyBlock, a tool that scores how local businesses show up on Google and in AI search
+    (ChatGPT, Perplexity, Google's AI answers). I ran a full visibility report on
+    <strong>${businessName}</strong> — all public data, took about 60 seconds.
+  </p>
+
+  <p style="margin:0 0 18px;text-align:center;font-size:17px">
+    <strong>${businessName}</strong> scored
+    <span style="font-size:28px;font-weight:800;color:#dc2626">&nbsp;${preScan.score}/100&nbsp;</span>
+    in ${city}.
+  </p>
+
+  ${fixBlock}
+
+  <p style="margin:0 0 24px;text-align:center">
+    <a href="${preScan.reportUrl}"
+       style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">
+      See the full report →
+    </a>
+    <br/>
+    <span style="font-size:12px;color:#666;margin-top:6px;display:block">Score, verdict, and top findings visible right away — no signup. ${preScan.reportUrl}</span>
+  </p>
+
+  <p style="margin:0 0 18px;font-size:14px;color:#555">
+    If you'd want the fixes handled automatically (content, reviews, citations, Google Business
+    Profile posts), that's what GravyBlock does, from under <strong>$100/mo</strong> — but the
+    report is yours either way.
+  </p>
+
+  <p style="margin:0 0 6px;font-size:14px">
+    ${SENDER_NAME}<br/>
+    <a href="https://gravyblock.com" style="color:#dc2626;text-decoration:none">${SENDER_TITLE}</a>
+  </p>
+
+  <p style="margin:8px 0 0;font-size:13px;color:#888">
+    P.S. If you'd rather not hear from me, reply &ldquo;no thanks&rdquo; and you won't again.
   </p>
 
   <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
@@ -394,7 +500,7 @@ function deriveEmailCandidates(website: string): string[] {
 
 export async function sendProspectEmail(
   prospect: Prospect,
-  senderContext?: { agencyName?: string; industryLabel?: string },
+  senderContext?: { agencyName?: string; industryLabel?: string; preScan?: ProspectPreScan | null },
 ): Promise<SendEmailResult> {
   const cfg = resendConfig();
 
@@ -415,10 +521,12 @@ export async function sendProspectEmail(
   (prospect as Prospect & { emailTo?: string }).emailTo = toEmail;
 
   const industryLabel = senderContext?.industryLabel ?? "local business";
+  const preScan = senderContext?.preScan ?? null;
 
-  const subject = buildSubjectLine(prospect);
-  const text = buildTextEmail(prospect, industryLabel);
-  const html = buildHtmlEmail(prospect, industryLabel);
+  // Report variant when we pre-ran their scan; invite variant as fallback
+  const subject = preScan ? buildReportSubject(prospect, preScan) : buildSubjectLine(prospect);
+  const text = preScan ? buildReportText(prospect, preScan) : buildTextEmail(prospect, industryLabel);
+  const html = preScan ? buildReportHtml(prospect, preScan) : buildHtmlEmail(prospect, industryLabel);
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
