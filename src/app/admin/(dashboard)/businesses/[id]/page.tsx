@@ -3,7 +3,7 @@ import { getAutopilotWorkspace } from "@/lib/autopilot/repository";
 import { normalizePlanTierFromDb, planFeatures, PLAN_TIERS } from "@/lib/plans";
 import { notFound } from "next/navigation";
 import { getWorkspaceBundle, listLeadsForBusiness } from "@/lib/report/repository";
-import { setHouseAccount, revertToCustomerAccount } from "./actions";
+import { setHouseAccount, revertToCustomerAccount, toggleShowcase } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +88,37 @@ export default async function AdminBusinessDetailPage({ params }: Props) {
             </button>
           </form>
         )}
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-zinc-900">Public showcase</h2>
+        <p className="mt-1 text-sm text-zinc-600">
+          Opted-in businesses appear on the public{" "}
+          <Link href="/proof" className="font-semibold text-red-800 underline">/proof</Link> page with live
+          visibility score and published articles. Nothing appears without an explicit opt-in here.
+          {bundle.business.name.toLowerCase().includes("iscream")
+            ? " This business is permanently excluded from the showcase (parent company)."
+            : ""}
+        </p>
+        {!bundle.business.name.toLowerCase().includes("iscream") ? (
+          <form action={toggleShowcase.bind(null, id)} className="mt-4 flex flex-wrap items-center gap-3">
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                bundle.business.showcaseOptIn === "true"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-zinc-100 text-zinc-700"
+              }`}
+            >
+              {bundle.business.showcaseOptIn === "true" ? "Shown on /proof" : "Not shown publicly"}
+            </span>
+            <button
+              type="submit"
+              className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+            >
+              {bundle.business.showcaseOptIn === "true" ? "Remove from showcase" : "Add to public showcase"}
+            </button>
+          </form>
+        ) : null}
       </section>
 
       <div className="grid gap-4 md:grid-cols-4">

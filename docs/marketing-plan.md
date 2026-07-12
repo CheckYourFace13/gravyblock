@@ -60,25 +60,26 @@ The funnel is **input-starved**, not broken at conversion:
 | 14-day lead drip + abandoned-checkout emails | already live |
 | "Powered by GravyBlock" + scan CTA on published customer articles | already live |
 | Referral links per business | already live |
-| House-account public case study page ("we run it on our own businesses") | next up — needs owner OK to name the businesses |
+| House-account public case study page (/proof) — opt-in per business from admin; iScream Studio (parent co) permanently excluded | ✅ shipped July 12 — owner toggles businesses in |
+| OUTREACH_FROM_EMAIL env split so cold email moves to a separate sending domain the moment it's bought | ✅ shipped July 12 |
 | Vertical concentration: reweight outreach calendar to 2-3 proven verticals once reply data shows a winner | after 2 weeks of pre-scan data |
 | Weekly watch: raise emailsPerBatch from 13 → 20 via admin /outreach settings once bounce rate confirmed <3% | pending owner OK |
 
 ### Owner actions (agent can't do these)
 
-1. **Launch on Product Hunt.** The kit is in `docs/` and `/launch` page is
-   built with the PRODUCTHUNT promo code. This is the single biggest one-day
-   traffic event available. Pick a Tuesday-Thursday.
-2. **Submit to free directories** (agent will draft all copy on request):
+1. **Buy the cold-email sending domain** (e.g. trygravyblock.com or
+   gravyblockhq.com, ~$10/yr), add it to Resend (SPF/DKIM), then set
+   `OUTREACH_FROM_EMAIL` on the VPS. Code is already wired — links in the
+   emails keep pointing at gravyblock.com; only the from-address changes.
+   Unlocks scaling from ~50/day toward 100-200/day safely.
+2. **Toggle house businesses onto /proof** from each business's admin page
+   (Public showcase section). iScream Studio is hard-excluded (parent co).
+3. **Submit to free directories** (agent will draft all copy on request):
    AlternativeTo, SaaSHub, There's An AI For That, Uneed, MicroLaunch,
    BetaList, Indie Hackers product page, G2/Capterra.
-3. **Decide on a separate cold-email domain** (e.g. trygravyblock.com,
-   ~$10/yr). Sending 50+/day cold from gravyblock.com risks the domain that
-   also sends customer/transactional email. Recommended before any further
-   volume increase.
-4. **Optional: $10-20/day Google Ads** on "local seo tool for small business"
-   style long-tail terms pointed at /scan. Fastest paid lever; skip if
-   bootstrapping.
+4. **Product Hunt: deferred by owner decision until 20-50 paid users.**
+   Kit stays ready in `docs/`; /launch page stays unindexed until then.
+5. **Ads: off** until 5+ customers and 3 public case studies (see verdict).
 
 ## Deliverability guardrails (cold outreach)
 

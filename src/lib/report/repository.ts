@@ -942,7 +942,7 @@ export async function getWorkspaceBundle(businessId: string) {
   if (sql && !safeBusinessId) return null;
   const businessRows = sql
     ? await sql.unsafe(
-        `select id,name,vertical,plan_tier as "planTier",account_type as "accountType",website,phone,address,google_maps_uri as "googleMapsUri",brand_notes as "brandNotes",stripe_customer_id as "stripeCustomerId",stripe_subscription_id as "stripeSubscriptionId",subscription_status as "subscriptionStatus",billing_email as "billingEmail",current_period_end as "currentPeriodEnd",created_at as "createdAt",updated_at as "updatedAt" from businesses where id='${safeBusinessId}' limit 1`,
+        `select id,name,vertical,plan_tier as "planTier",account_type as "accountType",showcase_opt_in as "showcaseOptIn",website,phone,address,google_maps_uri as "googleMapsUri",brand_notes as "brandNotes",stripe_customer_id as "stripeCustomerId",stripe_subscription_id as "stripeSubscriptionId",subscription_status as "subscriptionStatus",billing_email as "billingEmail",current_period_end as "currentPeriodEnd",created_at as "createdAt",updated_at as "updatedAt" from businesses where id='${safeBusinessId}' limit 1`,
       )
     : await db.select().from(businesses).where(eq(businesses.id, businessId)).limit(1);
   const business = businessRows[0] as
@@ -952,6 +952,7 @@ export async function getWorkspaceBundle(businessId: string) {
         vertical?: string | null;
         planTier?: string | null;
         accountType?: string | null;
+        showcaseOptIn?: string | null;
         website?: string | null;
         phone?: string | null;
         address?: string | null;
@@ -1088,6 +1089,7 @@ export async function getWorkspaceBundle(businessId: string) {
       vertical: business.vertical ?? null,
       planTier: business.planTier ?? "free",
       accountType: business.accountType ?? "customer",
+      showcaseOptIn: business.showcaseOptIn ?? "false",
       website: business.website ?? null,
       phone: business.phone ?? null,
       address: business.address ?? null,

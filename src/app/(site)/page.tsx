@@ -288,7 +288,11 @@ export default function HomePage() {
             ))}
           </div>
           <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-zinc-400 leading-relaxed">
-            We&apos;ll publish real customer results here the moment we have them to share. We&apos;d rather show you nothing than make it up.
+            We also run GravyBlock on{" "}
+            <Link href="/proof" className="font-semibold text-zinc-600 underline underline-offset-2 hover:text-zinc-900">
+              our own businesses — live numbers here
+            </Link>
+            . Real customer results get published the moment we have them. We&apos;d rather show you nothing than make it up.
           </p>
         </div>
       </section>

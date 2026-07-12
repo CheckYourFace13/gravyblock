@@ -47,6 +47,7 @@ function memoryBusinessToRow(businessId: string): BusinessRow | null {
     targetScope: null,
     planTier: mem.planTier,
     accountType: mem.accountType ?? "customer",
+    showcaseOptIn: mem.showcaseOptIn ?? "false",
     stripeCustomerId: mem.stripeCustomerId,
     stripeSubscriptionId: mem.stripeSubscriptionId,
     subscriptionStatus: mem.subscriptionStatus,

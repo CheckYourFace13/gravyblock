@@ -48,3 +48,32 @@ export async function revertToCustomerAccount(businessId: string, _formData: For
   revalidatePath("/admin/reports");
   revalidatePath("/admin");
 }
+
+/** Toggles whether this business appears on the public /proof showcase page. */
+export async function toggleShowcase(businessId: string, _formData: FormData): Promise<void> {
+  if (!(await isAdminSession())) throw new Error("Not authorized.");
+
+  const db = getDb();
+  if (!db) throw new Error("Database unavailable.");
+
+  const [biz] = await db
+    .select({ showcaseOptIn: businesses.showcaseOptIn, name: businesses.name })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+  if (!biz) throw new Error("Business not found.");
+
+  // Owner directive: the parent company never appears on the public page,
+  // even if the toggle is clicked by accident.
+  if (biz.name.toLowerCase().includes("iscream")) {
+    throw new Error("This business is excluded from the public showcase.");
+  }
+
+  await db
+    .update(businesses)
+    .set({ showcaseOptIn: biz.showcaseOptIn === "true" ? "false" : "true" })
+    .where(eq(businesses.id, businessId));
+
+  revalidatePath(`/admin/businesses/${businessId}`);
+  revalidatePath("/proof");
+}

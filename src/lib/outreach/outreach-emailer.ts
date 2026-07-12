@@ -11,7 +11,15 @@ const SENDER_TITLE = "GravyBlock";
 function resendConfig() {
   return {
     apiKey: process.env.RESEND_API_KEY ?? "",
-    from: process.env.RESEND_FROM_EMAIL ?? `${SENDER_NAME} at GravyBlock <hello@gravyblock.com>`,
+    // Cold outreach sends from OUTREACH_FROM_EMAIL when set — a separate
+    // sending domain so bounce/spam reputation from cold email never touches
+    // gravyblock.com, which transactional mail (receipts, login links,
+    // reports) depends on. Links in the emails still point at gravyblock.com.
+    // Falls back to the main from-address until the outreach domain exists.
+    from:
+      process.env.OUTREACH_FROM_EMAIL ??
+      process.env.RESEND_FROM_EMAIL ??
+      `${SENDER_NAME} at GravyBlock <hello@gravyblock.com>`,
   };
 }
 

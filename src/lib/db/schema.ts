@@ -99,6 +99,12 @@ export const businesses = pgTable("businesses", {
    * needed. Excluded from MRR/revenue reporting and automated customer emails).
    */
   accountType: text("account_type").notNull().default("customer"),
+  /**
+   * "true" = business appears on the public /proof showcase page (live scores,
+   * published content). Owner opts each business in explicitly from the admin
+   * detail page — nothing is ever showcased by default.
+   */
+  showcaseOptIn: text("showcase_opt_in").notNull().default("false"),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   subscriptionStatus: text("subscription_status"),
