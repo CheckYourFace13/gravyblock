@@ -6,33 +6,46 @@ import { getDb, jobs } from "@/lib/db";
 import { isAdminSession } from "@/lib/auth/admin-session";
 
 export type OutreachSettings = {
-  emailsPerBatch: number;   // 1–10
+  emailsPerBatch: number;   // 1–40 (4 weekday windows → up to 160/day)
   paused: boolean;
   weekdayEnabled: boolean;
   weekendRestaurantsEnabled: boolean;
 };
 
+// 25/batch × 4 weekday windows = ~100/day — owner-requested max while cold
+// email still sends from the primary domain. The worker's bounce circuit
+// breaker auto-pauses the channel if bounces exceed 8% of sends over 48h.
 const DEFAULTS: OutreachSettings = {
-  emailsPerBatch: 8,
+  emailsPerBatch: 25,
   paused: false,
   weekdayEnabled: true,
   weekendRestaurantsEnabled: true,
 };
+
+/**
+ * Settings rows saved before the July 13, 2026 volume ramp were capped at 10
+ * emails/batch by the old UI limit. The owner ordered max volume, so legacy
+ * rows no longer bind the batch size — but pause/enable flags are always
+ * honored, and any row saved after this date controls batch size exactly
+ * (the admin can still turn volume DOWN going forward).
+ */
+const VOLUME_RAMP_CUTOFF = new Date("2026-07-13T00:00:00Z");
 
 /** Read current settings from DB (latest outreach_settings job), falling back to defaults. */
 export async function getOutreachSettings(): Promise<OutreachSettings> {
   const db = getDb();
   if (!db) return DEFAULTS;
   const [row] = await db
-    .select({ payload: jobs.payload })
+    .select({ payload: jobs.payload, createdAt: jobs.createdAt })
     .from(jobs)
     .where(eq(jobs.type, "outreach_settings"))
     .orderBy(desc(jobs.createdAt))
     .limit(1);
   if (!row?.payload) return DEFAULTS;
   const p = row.payload as Partial<OutreachSettings>;
+  const legacyRow = row.createdAt < VOLUME_RAMP_CUTOFF;
   return {
-    emailsPerBatch: p.emailsPerBatch ?? DEFAULTS.emailsPerBatch,
+    emailsPerBatch: legacyRow ? DEFAULTS.emailsPerBatch : (p.emailsPerBatch ?? DEFAULTS.emailsPerBatch),
     paused: p.paused ?? DEFAULTS.paused,
     weekdayEnabled: p.weekdayEnabled ?? DEFAULTS.weekdayEnabled,
     weekendRestaurantsEnabled: p.weekendRestaurantsEnabled ?? DEFAULTS.weekendRestaurantsEnabled,
@@ -48,7 +61,7 @@ export async function saveOutreachSettings(
   const db = getDb();
   if (!db) return { ok: false, error: "No database" };
 
-  const emailsPerBatch = Math.min(10, Math.max(1, parseInt(String(formData.get("emailsPerBatch") ?? "8"), 10)));
+  const emailsPerBatch = Math.min(40, Math.max(1, parseInt(String(formData.get("emailsPerBatch") ?? "25"), 10)));
   const paused = formData.get("paused") === "true";
   const weekdayEnabled = formData.get("weekdayEnabled") !== "false";
   const weekendRestaurantsEnabled = formData.get("weekendRestaurantsEnabled") !== "false";

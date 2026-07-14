@@ -4,7 +4,7 @@ import { hasBeenContacted, recordOutreachSent } from "./outreach-tracker";
 import { runProspectPreScan } from "./prospect-prescan";
 import { isOptedOut } from "@/lib/email/optout";
 
-const DEFAULT_MAX_EMAILS = 13; // 13 per batch × 4 batches/day = ~52/day
+const DEFAULT_MAX_EMAILS = 25; // 25 per batch × 4 weekday windows = ~100/day
 
 export async function runOutreachBatch(params: {
   city: string;

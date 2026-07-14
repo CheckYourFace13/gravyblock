@@ -63,7 +63,9 @@ The funnel is **input-starved**, not broken at conversion:
 | House-account public case study page (/proof) — opt-in per business from admin; iScream Studio (parent co) permanently excluded | ✅ shipped July 12 — owner toggles businesses in |
 | OUTREACH_FROM_EMAIL env split so cold email moves to a separate sending domain the moment it's bought | ✅ shipped July 12 |
 | Vertical concentration: reweight outreach calendar to 2-3 proven verticals once reply data shows a winner | after 2 weeks of pre-scan data |
-| Weekly watch: raise emailsPerBatch from 13 → 20 via admin /outreach settings once bounce rate confirmed <3% | pending owner OK |
+| Volume ramp to ~100/day weekdays + 150/weekend (owner order, Jul 13): batch 25 (cap 40), 6 weekend windows, follow-up/breakup batches raised to 100/day | ✅ shipped July 13 |
+| Bounce circuit breaker: auto-pauses all cold outreach if bounces >8% of sends over 48h (protects gravyblock.com until the sending domain exists) | ✅ shipped July 13 |
+| Directory submission pack with ready-to-paste copy | ✅ docs/directory-listings.md |
 
 ### Owner actions (agent can't do these)
 
@@ -83,8 +85,10 @@ The funnel is **input-starved**, not broken at conversion:
 
 ## Deliverability guardrails (cold outreach)
 
-- Stay under ~60 sends/day from the current domain; watch bounce % on the
-  Resend dashboard weekly. Pause the channel if bounces exceed 5%.
+- Owner ordered max volume July 13 (~100/day weekdays) from the current
+  domain. Automatic circuit breaker pauses ALL cold outreach if bounces
+  exceed 8% of sends over 48h; the sending-domain switch (reminder set for
+  July 14) removes the remaining risk.
 - Every email has a working opt-out (already enforced in code) and a truthful
   P.S. line (fixed July 11).
 - The `info@domain` guessing yields low open rates; if reply rate stays <0.5%

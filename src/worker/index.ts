@@ -17,7 +17,7 @@
 
 import { eq, and, inArray, gte, lte, count } from "drizzle-orm";
 import { runPendingRecurringSnapshotJobs, executeContentPublishPath } from "@/lib/autopilot/executor";
-import { getDb, businesses, contentQueue, jobs } from "@/lib/db";
+import { getDb, businesses, contentQueue, jobs, emailEvents } from "@/lib/db";
 import { queueContentForBusiness } from "@/lib/content-gen/queue-content";
 import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
@@ -260,20 +260,62 @@ async function maybeCitationAudit() {
  * Settings (paused, emailsPerBatch, etc.) are read from the DB via admin UI.
  */
 
-// Weekend sends at 14:00/17:00 UTC = 10am/1pm ET — when restaurant owners check email
+// Weekend sends at 14:00-18:00 UTC = 10am-2pm ET — when owner-operators of
+// weekend-open businesses (restaurants, salons, barbers, auto shops) check email
 const WEEKEND_RESTAURANT_TARGETS = [
-  { windowKey: "sat_morning",   day: 6, hour: 14, city: "Houston",   state: "TX", industry: "restaurant", industryLabel: "restaurant" },
-  { windowKey: "sat_afternoon", day: 6, hour: 17, city: "Chicago",   state: "IL", industry: "restaurant", industryLabel: "restaurant" },
-  { windowKey: "sun_morning",   day: 0, hour: 14, city: "Miami",     state: "FL", industry: "restaurant", industryLabel: "restaurant" },
-  { windowKey: "sun_afternoon", day: 0, hour: 17, city: "Nashville", state: "TN", industry: "restaurant", industryLabel: "restaurant" },
+  { windowKey: "sat_morning",   day: 6, hour: 14, city: "Houston",   state: "TX", industry: "restaurant",  industryLabel: "restaurant" },
+  { windowKey: "sat_midday",    day: 6, hour: 16, city: "Phoenix",   state: "AZ", industry: "salon",       industryLabel: "salon" },
+  { windowKey: "sat_afternoon", day: 6, hour: 18, city: "Chicago",   state: "IL", industry: "auto-repair", industryLabel: "auto repair shop" },
+  { windowKey: "sun_morning",   day: 0, hour: 14, city: "Miami",     state: "FL", industry: "restaurant",  industryLabel: "restaurant" },
+  { windowKey: "sun_midday",    day: 0, hour: 16, city: "Atlanta",   state: "GA", industry: "salon",       industryLabel: "salon" },
+  { windowKey: "sun_afternoon", day: 0, hour: 18, city: "Nashville", state: "TN", industry: "restaurant",  industryLabel: "restaurant" },
 ];
+
+/**
+ * Deliverability circuit breaker. Cold outreach runs at max volume from the
+ * primary domain until the dedicated sending domain exists, so a bad batch
+ * (bounce spike) must stop the channel automatically rather than burn the
+ * domain reputation that transactional email depends on.
+ *
+ * Uses Resend webhook events: if bounces exceed 8% of cold sends over the
+ * last 48h (with at least 20 sends to avoid small-sample noise), all windows
+ * skip and a visible job row is recorded for the admin outreach page.
+ */
+async function coldOutreachCircuitBreakerTripped(): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  try {
+    const since = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const [sends, bounces] = await Promise.all([
+      db.select({ n: count() }).from(jobs)
+        .where(and(eq(jobs.type, "cold_outreach_sent"), gte(jobs.createdAt, since)))
+        .then((r) => r[0]?.n ?? 0),
+      db.select({ n: count() }).from(emailEvents)
+        .where(and(eq(emailEvents.eventType, "bounced"), gte(emailEvents.createdAt, since)))
+        .then((r) => r[0]?.n ?? 0),
+    ]);
+    if (sends < 20) return false;
+    const rate = bounces / sends;
+    if (rate <= 0.08) return false;
+
+    if (!(await hasJobRunToday("outreach_circuit_breaker"))) {
+      await recordWorkerJob("outreach_circuit_breaker", { sends48h: sends, bounces48h: bounces, ratePct: Math.round(rate * 100) });
+      console.error("[worker] OUTREACH PAUSED by circuit breaker — bounce rate too high", {
+        sends48h: sends, bounces48h: bounces, ratePct: Math.round(rate * 100),
+      });
+    }
+    return true;
+  } catch {
+    return false; // events table missing on older DBs — never block sends on a monitoring failure
+  }
+}
 
 async function runColdOutreachWindow(
   windowKey: string,
   calendarOffset: number,
   hour: number,
   overrideTarget?: { city: string; state: string; industry: string; industryLabel: string },
-  emailsPerBatch = 8,
+  emailsPerBatch = 25,
 ) {
   const now = new Date();
   if (now.getUTCHours() < hour || now.getUTCHours() > hour + 1) return;
@@ -310,16 +352,18 @@ async function maybeSendColdOutreach() {
   // Read settings from DB (admin-controlled)
   const { getOutreachSettings } = await import("@/app/admin/(dashboard)/outreach/actions");
   const settings = await getOutreachSettings().catch(() => ({
-    emailsPerBatch: 13, paused: false, weekdayEnabled: true, weekendRestaurantsEnabled: true,
+    emailsPerBatch: 25, paused: false, weekdayEnabled: true, weekendRestaurantsEnabled: true,
   }));
 
   if (settings.paused) return;
+  if (await coldOutreachCircuitBreakerTripped()) return;
 
   const now = new Date();
   const day = now.getUTCDay(); // 0=Sun, 6=Sat
 
   // ── WEEKDAYS: 4 windows hitting different city+industry combos ──
-  // 4 × 13 = ~52 emails/day on weekdays
+  // 4 × 25 = ~100 emails/day on weekdays (owner requested max volume;
+  // circuit breaker above auto-pauses on bounce spikes)
   // Windows in UTC chosen to land in US business hours:
   // 13:00 UTC = 9am ET / 6am PT · 15:00 = 11am ET / 8am PT
   // 17:00 = 1pm ET / 10am PT  · 19:00 = 3pm ET / 12pm PT
@@ -330,7 +374,7 @@ async function maybeSendColdOutreach() {
     await runColdOutreachWindow("evening",   5, 19,  undefined, settings.emailsPerBatch);
   }
 
-  // ── WEEKENDS: restaurants only ──
+  // ── WEEKENDS: weekend-open verticals (restaurants, salons, auto) ──
   if (settings.weekendRestaurantsEnabled && (day === 0 || day === 6)) {
     for (const wt of WEEKEND_RESTAURANT_TARGETS) {
       if (wt.day === day) {
@@ -427,7 +471,7 @@ async function tick() {
   // Runs once per day at 14:00 UTC (10am ET / 7am PT)
   if (new Date().getUTCHours() === 14 && !(await hasJobRunToday("followup_outreach_batch"))) {
     try {
-      const followupResult = await runFollowupOutreachBatch(40);
+      const followupResult = await runFollowupOutreachBatch(100);
       if (followupResult.sent > 0) {
         await recordWorkerJob("followup_outreach_batch", followupResult);
         console.info("[worker] followup outreach emails sent", followupResult);
@@ -441,7 +485,7 @@ async function tick() {
   // Runs once per day at 16:00 UTC (12pm ET / 9am PT)
   if (new Date().getUTCHours() === 16 && !(await hasJobRunToday("breakup_outreach_batch"))) {
     try {
-      const breakupResult = await runBreakupOutreachBatch(40);
+      const breakupResult = await runBreakupOutreachBatch(100);
       if (breakupResult.sent > 0) {
         await recordWorkerJob("breakup_outreach_batch", breakupResult);
         console.info("[worker] breakup outreach emails sent", breakupResult);
