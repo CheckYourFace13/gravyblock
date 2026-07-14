@@ -99,12 +99,16 @@ export function ReportView({
   }, [payload]);
   const chosenPlan = (["starter", "growth", "pro", "agency"] as string[]).includes(selectedPlan ?? "") ? selectedPlan : null;
   const promoQuery = promoCode ? `promo=${encodeURIComponent(promoCode)}` : "";
+  // Route checkout CTAs through /start (no login required) rather than
+  // /workspace, which redirects anonymous report visitors to a magic-link
+  // login wall. directSignupAction on /start matches this business by
+  // website automatically, so the scan data isn't lost.
   const workspacePlanHref = (plan: string) =>
-    `/workspace/${businessId}?plan=${plan}${promoQuery ? `&${promoQuery}` : ""}#billing`;
+    `/start?plan=${plan}${promoQuery ? `&${promoQuery}` : ""}`;
   const workspaceHref = businessId
     ? chosenPlan
       ? workspacePlanHref(chosenPlan)
-      : `/workspace/${businessId}${promoQuery ? `?${promoQuery}` : ""}#billing`
+      : `/start${promoQuery ? `?${promoQuery}` : ""}`
     : null;
   const planLabel = chosenPlan ? (chosenPlan.charAt(0).toUpperCase() + chosenPlan.slice(1)) : null;
   const primaryLabel = planLabel ? `Continue to ${planLabel} checkout` : "Continue to billing";
