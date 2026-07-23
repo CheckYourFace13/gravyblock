@@ -34,6 +34,41 @@ export type DiscoveredSocial = {
 };
 
 /** Scrape homepage and return first 3000 chars of readable text */
+/**
+ * Extracts the first complete JSON object from an LLM response, tracking
+ * string state so braces inside quoted values (e.g. a business whose site
+ * copy includes template syntax like "{{first_name}}") don't get mistaken
+ * for object boundaries, and so trailing commentary the model adds after
+ * the JSON (small models don't reliably follow "return ONLY JSON") doesn't
+ * get swept into the match the way a naive greedy /\{[\s\S]*\}/ regex would.
+ * Returns the substring, or null if no balanced object is found.
+ */
+function extractJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null; // unbalanced — model got cut off or never closed the object
+}
+
 async function scrapeWebsiteText(url: string): Promise<{ text: string; ok: boolean }> {
   try {
     const normalised = url.startsWith("http") ? url : `https://${url}`;
@@ -325,12 +360,16 @@ Return ONLY a valid JSON object with these exact keys (no markdown, no explanati
     temperature: 0.3,
   });
 
-  // If AI is unavailable, build a basic profile directly from scraped + Google data
-  if (!raw) {
+  // Shared fallback: builds a basic-but-real profile directly from scraped
+  // website text + Google data, no AI required. Used both when the AI call
+  // itself is unavailable AND when it returns something that won't parse —
+  // a parse failure is a reason to degrade gracefully, not to dead-end the
+  // owner with an error and nothing to show for the scrape that DID work.
+  function buildFallbackProfile(): BusinessProfileData {
     const city = biz.address?.split(",")[1]?.trim() ?? "";
     const state = biz.address?.split(",")[2]?.trim()?.split(/\s+/)[0] ?? "";
     const vertical = biz.primaryCategory ?? biz.vertical ?? "local business";
-    const fallbackProfile: BusinessProfileData = {
+    return {
       serviceDescription: websiteText
         ? websiteText.slice(0, 300).replace(/\s+/g, " ").trim()
         : `${biz.name} is a ${vertical} serving ${city}${state ? ", " + state : ""}.`,
@@ -352,17 +391,21 @@ Return ONLY a valid JSON object with these exact keys (no markdown, no explanati
       instagramHandle: igProfile?.handle ? (igProfile.handle.startsWith("@") ? igProfile.handle : `@${igProfile.handle}`) : (igProfile?.url ?? ""),
       facebookUrl: fbProfile?.url ?? "",
     };
+  }
+
+  // If AI is unavailable, build a basic profile directly from scraped + Google data
+  if (!raw) {
     return {
       ok: true,
-      profile: fallbackProfile,
+      profile: buildFallbackProfile(),
       sources: { websiteScraped: websiteOk, socialFound: socialFoundPlatforms, websiteUrl: biz.website },
     };
   }
 
   try {
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON in response");
-    const parsed = JSON.parse(jsonMatch[0]) as BusinessProfileData;
+    const jsonText = extractJsonObject(raw);
+    if (!jsonText) throw new Error("No JSON in response");
+    const parsed = JSON.parse(jsonText) as BusinessProfileData;
 
     // Ensure discovered socials override AI guesses
     if (igProfile?.handle) parsed.instagramHandle = igProfile.handle.startsWith("@") ? igProfile.handle : `@${igProfile.handle}`;
@@ -386,7 +429,18 @@ Return ONLY a valid JSON object with these exact keys (no markdown, no explanati
         websiteUrl: biz.website,
       },
     };
-  } catch {
-    return { ok: false, error: "Could not parse AI response — try again" };
+  } catch (err) {
+    // Malformed JSON from the AI is a reason to degrade to the same
+    // scrape-only fallback used above, not to hand the owner a dead end —
+    // the scrape itself succeeded, so there's real data to show them either way.
+    console.warn("[business-profile] AI response failed to parse, using scrape-only fallback", {
+      businessId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return {
+      ok: true,
+      profile: buildFallbackProfile(),
+      sources: { websiteScraped: websiteOk, socialFound: socialFoundPlatforms, websiteUrl: biz.website },
+    };
   }
 }
