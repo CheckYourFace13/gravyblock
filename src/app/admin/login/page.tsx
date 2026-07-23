@@ -22,8 +22,7 @@ export default function AdminLoginPage() {
           <BrandMark compact href="/" />
           <h1 className="mt-5 text-2xl font-semibold tracking-tight text-zinc-900">Operator sign-in</h1>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-            Enter the password from <span className="font-mono text-xs text-zinc-800">ADMIN_PASSWORD</span> in your
-            server environment. After sign-in you land on the dashboard with full navigation.
+            Password-only — no email or username. After sign-in you land on the dashboard with full navigation.
           </p>
           <form action={formAction} className="mt-8 space-y-4">
             <label className="block space-y-2 text-sm">

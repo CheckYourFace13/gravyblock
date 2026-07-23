@@ -143,6 +143,11 @@ export function SiteFooter() {
           </div>
         </div>
       </div>
+      <div className="border-t border-zinc-200 px-4 py-4 text-center text-xs text-zinc-400 sm:px-6">
+        <Link href="/admin/login" className="hover:text-zinc-600 hover:underline">
+          Staff
+        </Link>
+      </div>
     </footer>
   );
 }
