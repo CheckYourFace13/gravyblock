@@ -46,8 +46,16 @@ git reset --hard origin/main
 
 npm install --production=false
 
-# DB migrations (idempotent)
-echo "y" | npx drizzle-kit push --config=drizzle.config.ts 2>&1 || echo "[self-deploy] migration warning (non-fatal)"
+# DB migrations. IMPORTANT: never pipe "y" here. drizzle-kit push shows an
+# interactive prompt whenever it can't tell an added+removed column pair
+# apart from a rename ("is X renamed to Y?"). Blindly answering "y" accepts
+# whatever choice is highlighted, which can silently reset a column's
+# existing values to its default instead of preserving them — this is what
+# wiped businesses.account_type back to "customer" on 2026-07-19. Running
+# with no piped input instead makes an ambiguous change fail loudly (falls
+# through to the warning below, deploy continues on stale-but-safe schema)
+# rather than silently guessing wrong on live data.
+npx drizzle-kit push --config=drizzle.config.ts < /dev/null 2>&1 || echo "[self-deploy] migration warning — schema change needs manual review, see log above (non-fatal)"
 
 # Stripe annual prices (idempotent)
 node scripts/setup-annual-prices.mjs 2>&1 || echo "[self-deploy] annual price warning (non-fatal)"
