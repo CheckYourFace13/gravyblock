@@ -1,4 +1,5 @@
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
+import { extractJsonObject } from "@/lib/ai/json-extract";
 
 const SYSTEM_PROMPT = `You are a local SEO content writer for GravyBlock, an automated local growth platform. You write clear, helpful, locally-relevant content for small businesses optimized for both traditional search and AI-powered answer engines (ChatGPT, Perplexity, Google AI Overviews).
 
@@ -145,8 +146,9 @@ Rules:
 
   if (!raw) return null;
   try {
-    const cleaned = raw.replace(/^```(?:json)?\n?/m, "").replace(/\n?```$/m, "").trim();
-    return JSON.parse(cleaned) as { metaTitle: string; metaDescription: string };
+    const jsonText = extractJsonObject(raw);
+    if (!jsonText) return null;
+    return JSON.parse(jsonText) as { metaTitle: string; metaDescription: string };
   } catch {
     return null;
   }

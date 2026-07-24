@@ -9,6 +9,7 @@
 import { eq } from "drizzle-orm";
 import { getDb, businesses, businessConfigs, publishedContent, contentQueue } from "@/lib/db";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
+import { extractJsonObject } from "@/lib/ai/json-extract";
 
 export type SupportingArticle = {
   title: string;
@@ -116,9 +117,9 @@ Return ONLY valid JSON in this exact format:
 
     if (!raw) return [];
 
-    // Strip markdown code fences if present
-    const cleaned = raw.replace(/^```(?:json)?\n?/m, "").replace(/\n?```$/m, "").trim();
-    const parsed = JSON.parse(cleaned) as ClusterMap;
+    const jsonText = extractJsonObject(raw);
+    if (!jsonText) return [];
+    const parsed = JSON.parse(jsonText) as ClusterMap;
     return parsed.clusters ?? [];
   } catch (err) {
     console.error("[topic-clusters] parse error", { error: String(err) });
