@@ -16,22 +16,23 @@ async function getOutreachStats() {
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);
 
+  // Count actual emails sent (cold_outreach_sent — one row per email), not
+  // batch runs. Batches now send a variable, admin-configured count across 4
+  // daily windows, so counting batch rows × a fixed multiplier (the old
+  // 1-batch/day model) badly undercounted here vs. the real total shown on
+  // /admin/outreach, which already counts this way.
   const [monthRows, todayRows, recentRows] = await Promise.all([
     db.select({ id: jobs.id }).from(jobs)
-      .where(and(eq(jobs.type, "cold_outreach_batch"), gte(jobs.createdAt, monthStart))),
+      .where(and(eq(jobs.type, "cold_outreach_sent"), gte(jobs.createdAt, monthStart))),
     db.select({ id: jobs.id }).from(jobs)
-      .where(and(eq(jobs.type, "cold_outreach_batch"), gte(jobs.createdAt, todayStart))),
+      .where(and(eq(jobs.type, "cold_outreach_sent"), gte(jobs.createdAt, todayStart))),
     db.select({ createdAt: jobs.createdAt, payload: jobs.payload }).from(jobs)
       .where(eq(jobs.type, "cold_outreach_batch"))
       .orderBy(desc(jobs.createdAt))
       .limit(10),
   ]);
 
-  // Count individual emails sent (each batch sends up to 3)
-  const sentThisMonth = monthRows.length * 3;
-  const sentToday = todayRows.length > 0 ? 3 : 0;
-
-  return { sentThisMonth, sentToday, recentJobs: recentRows };
+  return { sentThisMonth: monthRows.length, sentToday: todayRows.length, recentJobs: recentRows };
 }
 
 export const dynamic = "force-dynamic";
@@ -118,19 +119,19 @@ export default async function AdminHomePage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-zinc-900">🎯 Cold outreach pipeline</h2>
           <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-            Auto · Mon–Fri 9am UTC · 3 emails/day
+            Auto · Mon–Fri 9am/12pm/3pm UTC · weekends 9am/1pm UTC
           </span>
         </div>
         <div className="grid gap-4 sm:grid-cols-3 mb-5">
           <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Sent this month</p>
-            <p className="mt-1 text-2xl font-semibold text-zinc-900">~{outreach.sentThisMonth}</p>
+            <p className="mt-1 text-2xl font-semibold text-zinc-900">{outreach.sentThisMonth}</p>
             <p className="text-xs text-zinc-400">cold emails dispatched</p>
           </div>
           <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Sent today</p>
-            <p className="mt-1 text-2xl font-semibold text-zinc-900">{outreach.sentToday > 0 ? "✓ Done" : "Pending"}</p>
-            <p className="text-xs text-zinc-400">{outreach.sentToday > 0 ? "batch completed" : "fires at 9am UTC"}</p>
+            <p className="mt-1 text-2xl font-semibold text-zinc-900">{outreach.sentToday}</p>
+            <p className="text-xs text-zinc-400">emails dispatched today</p>
           </div>
           <div className="rounded-2xl border border-red-100 bg-red-50 p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Today&apos;s target</p>
