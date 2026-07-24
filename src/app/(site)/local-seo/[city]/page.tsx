@@ -59,7 +59,7 @@ export default async function CityHubPage({ params }: Props) {
         name: `How much does local SEO cost for a ${city.name} business?`,
         acceptedAnswer: {
           "@type": "Answer",
-          text: `Local SEO agencies in ${city.name} typically charge $500–$3,000/month. GravyBlock automates the same work — content publishing, citation management, review growth, and rank tracking — starting at $39.99/month. Use code INTRO50 for 50% off your first month.`,
+          text: `Local SEO agencies in ${city.name} typically charge $500–$3,000/month. GravyBlock automates the same work — content publishing, citation management, review growth, and rank tracking — starting at $29.99/month. Use code INTRO50 for 50% off your first month.`,
         },
       },
       {
@@ -113,7 +113,7 @@ export default async function CityHubPage({ params }: Props) {
               See plans
             </Link>
           </div>
-          <p className="mt-3 text-xs text-zinc-500">From $39.99/mo · No agency needed · Cancel anytime</p>
+          <p className="mt-3 text-xs text-zinc-500">From $29.99/mo · No agency needed · Cancel anytime</p>
         </div>
       </section>
 
@@ -219,7 +219,7 @@ export default async function CityHubPage({ params }: Props) {
               <p className="mt-2 text-sm text-zinc-600">
                 Local SEO agencies in {city.name} typically charge $500–$3,000/month. GravyBlock automates
                 the same work — content publishing, citation management, review growth, and rank tracking —
-                starting at $39.99/month. Use code <strong>INTRO50</strong> for 50% off your first month.
+                starting at $29.99/month. Use code <strong>INTRO50</strong> for 50% off your first month.
               </p>
             </div>
             <div>

@@ -53,8 +53,8 @@ export function planFeatures(tier: PlanTier): PlanFeatures {
     case "starter":
       return {
         label: "Starter",
-        monthlyPrice: 79.99,
-        introPrice: 39.99,
+        monthlyPrice: 59.99,
+        introPrice: 29.99,
         refreshCadenceLabel: "Monthly",
         refreshIntervalDays: 30,
         recurringRefresh: true,

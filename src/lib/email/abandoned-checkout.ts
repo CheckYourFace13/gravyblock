@@ -28,8 +28,8 @@ ${content}
 
 function buildEmail(businessName: string, plan: string): { subject: string; html: string } {
   const planLabel = plan === "growth" ? "Scale" : plan === "pro" ? "Pro" : "Starter";
-  const planPrice = plan === "growth" ? "$74.99" : plan === "pro" ? "$149.99" : "$39.99";
-  const introPrice = plan === "growth" ? "$74.99" : plan === "pro" ? "$74.99 first month (reg. $149.99)" : "$39.99";
+  const regularPrice = plan === "growth" ? "$149.99" : plan === "pro" ? "$299.99" : "$59.99";
+  const introPrice = plan === "growth" ? "$74.99" : plan === "pro" ? "$149.99" : "$29.99";
 
   const subject = `You left ${businessName}'s plan unfinished`;
 
@@ -43,7 +43,7 @@ function buildEmail(businessName: string, plan: string): { subject: string; html
       Your workspace is ready and waiting. To activate ${planLabel} and start the autopilot, just complete checkout below.
     </p>
     <div style="margin:20px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
-      <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b">${planLabel} — ${introPrice}/month first month</p>
+      <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b">${planLabel} — ${introPrice} first month (reg. ${regularPrice}/mo)</p>
       <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">
         Use code <strong>INTRO50</strong> at checkout for 50% off your first month.
         ${plan === "growth" ? "Includes weekly AI articles, Google Business Profile posts, backlink prospecting, and AI citation monitoring." : "Includes monthly visibility monitoring, citation audit, review queue, and content ideas."}

@@ -29,7 +29,7 @@ Pick one. They're ranked by how well they convert a scroll into a click:
 
 ## 5. DESCRIPTION (260 char max — the expanded blurb under the tagline)
 
-> GravyBlock is local SEO on autopilot for small businesses. It publishes weekly content, manages your Google Business Profile, monitors and replies to reviews, fixes citations, and tracks your AI search visibility — automatically, from $39.99/mo. Free scan, no card.
+> GravyBlock is local SEO on autopilot for small businesses. It publishes weekly content, manages your Google Business Profile, monitors and replies to reviews, fixes citations, and tracks your AI search visibility — automatically, from $29.99/mo. Free scan, no card.
 
 ---
 
@@ -58,7 +58,7 @@ GravyBlock just **does the work**. Every week, automatically:
 🤖 Probes ChatGPT, Perplexity & Copilot monthly to see if AI recommends you
 📊 Tracks where you rank vs. your local competitors
 
-It starts with a **free 60-second scan** — no credit card — that scores your visibility and shows your top gaps. If you want it handled, plans start at **$39.99/mo**.
+It starts with a **free 60-second scan** — no credit card — that scores your visibility and shows your top gaps. If you want it handled, plans start at **$29.99/mo**.
 
 **For Product Hunt: use code PRODUCTHUNT for 50% off your first 2 months.**
 
@@ -73,7 +73,7 @@ I'm here all day — ask me anything about local SEO, the build, the AI stack, w
 > Fair question — it's the #1 complaint about AI content tools. Every article is grounded in your real business profile (services, city, brand voice pulled from your site) and written in a direct-answer format. You can review and edit before anything publishes if you're on a plan that publishes to your site. Nothing goes live without being on-brand.
 
 **"What does it cost?"**
-> Free scan, no card. Paid plans: Starter $39.99/mo, Scale $74.99/mo, Pro $149.99/mo (intro pricing). PH code PRODUCTHUNT takes 50% off your first 2 months on top of that.
+> Free scan, no card. Paid plans: Starter $29.99/mo, Scale $74.99/mo, Pro $149.99/mo (intro pricing). PH code PRODUCTHUNT takes 50% off your first 2 months on top of that.
 
 **"Will this work for [my industry]?"**
 > Yes — it's built for any local business: home services (HVAC, plumbing, roofing, electrical), health (dentists, chiropractors, med spas), professional (lawyers, agents), and hospitality (restaurants, salons). The free scan works for all of them — try it on your business and see your score.
@@ -89,7 +89,7 @@ Order matters. PH shows these as a carousel; the first is your feed thumbnail.
 
 1. **Hero/thumbnail (1270×760px):** The workspace dashboard showing the 4 score cards (SEO / AEO / GEO / Entity) with the "What GravyBlock is doing for you" panel. Add a headline overlay: *"Local SEO that runs itself."*
 2. **The free scan result** — a scan report showing the visibility score + top findings. Caption: *"Free 60-second scan. No credit card."*
-3. **The comparison table** from /pricing (DIY vs agency vs tools vs GravyBlock). Caption: *"~0 hours a week. From $39.99/mo."*
+3. **The comparison table** from /pricing (DIY vs agency vs tools vs GravyBlock). Caption: *"~0 hours a week. From $29.99/mo."*
 4. **Content calendar / published article** — show the automated content. Caption: *"Publishes SEO content to your site every week."*
 5. **GEO score / AI visibility section** — the ChatGPT/Perplexity probe results. Caption: *"See if AI recommends your business — and fix it if it doesn't."*
 6. **(Optional) A 30–60s screen-recording GIF** walking through scan → workspace. Video/GIF as the 2nd asset measurably lifts conversion.
@@ -114,7 +114,7 @@ Order matters. PH shows these as a carousel; the first is your feed thumbnail.
 
 > I just launched GravyBlock on Product Hunt 🚀
 >
-> It's local SEO on autopilot for small businesses — it publishes content, manages your Google Business Profile, handles reviews, and tracks whether AI assistants recommend you. All automatically, from $39.99/mo.
+> It's local SEO on autopilot for small businesses — it publishes content, manages your Google Business Profile, handles reviews, and tracks whether AI assistants recommend you. All automatically, from $29.99/mo.
 >
 > If you run a local business (or know someone who does), I'd love your support and your honest feedback:
 > 👉 [Product Hunt link]

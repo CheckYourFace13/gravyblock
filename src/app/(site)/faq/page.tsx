@@ -38,7 +38,7 @@ const faqs = [
       },
       {
         q: "What is the INTRO50 discount?",
-        a: "INTRO50 is our launch promo code that gives you 50% off your first month. Starter drops to $39.99, Scale to $74.99, and Pro to $149.99. Apply the code at checkout. It's valid on all paid plans.",
+        a: "INTRO50 is our launch promo code that gives you 50% off your first month. Starter drops to $29.99, Scale to $74.99, and Pro to $149.99. Apply the code at checkout. It's valid on all paid plans.",
       },
       {
         q: "Is there a free plan?",

@@ -85,8 +85,10 @@ const PLANS = [
     monthlyEnvVar: "STRIPE_PRICE_STARTER_MONTHLY",
     fallbackEnvVars: ["STRIPE_PRICE_BASE_MONTHLY", "STRIPE_PRICE_ENTRY_MONTHLY"],
     annualEnvVar: "STRIPE_PRICE_STARTER_ANNUAL",
-    // $59.99/mo × 12 = $719.88/yr (25% off vs $79.99×12=$959.88)
-    amountCents: 71988,
+    // $44.99/mo × 12 = $539.88/yr (25% off vs $59.99×12=$719.88)
+    // Superseded by scripts/update-starter-pricing.mjs, which already wires
+    // this env var — kept here only so a from-scratch Stripe setup matches.
+    amountCents: 53988,
     nickname: "Starter Annual",
   },
   {

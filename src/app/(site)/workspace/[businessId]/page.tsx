@@ -310,7 +310,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                   businessId={businessId}
                   plan="starter"
                   requireGrowthUpsell
-                  label="or Starter — $39.99/mo"
+                  label="or Starter — $29.99/mo"
                   promoCode={promoCode}
                   className="rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                 />
@@ -1429,7 +1429,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           {tier !== "starter" && tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
               <p className="text-sm font-semibold text-zinc-900">Starter</p>
-              <p className="text-xs text-zinc-600">$79.99/mo · intro $39.99/mo with INTRO50</p>
+              <p className="text-xs text-zinc-600">$59.99/mo · intro $29.99/mo with INTRO50</p>
               <div className="mt-3">
                 <CheckoutButton
                   businessId={businessId}

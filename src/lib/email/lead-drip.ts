@@ -168,12 +168,12 @@ const DRIP_SEQUENCE: DripEmail[] = [
         You haven't started a plan for ${businessName} yet — totally fine. Just didn't want the report to get buried.
       </p>
       <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">
-        If the price is the sticking point: Starter is $39.99 for the first month with code <strong>INTRO50</strong>. That's less than most businesses spend on a single Google Ads click — and this keeps running every week without you touching it.
+        If the price is the sticking point: Starter is $29.99 for the first month with code <strong>INTRO50</strong>. That's less than most businesses spend on a single Google Ads click — and this keeps running every week without you touching it.
       </p>
       <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">
         If you're not sure it'll work for your type of business — just reply to this email and tell me what ${businessName} does. I'll give you a straight answer.
       </p>
-      ${btn(`${siteUrl}/scan?plan=starter`, "Start for $39.99 — code INTRO50")}
+      ${btn(`${siteUrl}/scan?plan=starter`, "Start for $29.99 — code INTRO50")}
       <p style="color:#71717a;font-size:13px;margin:16px 0">Your report: <a href="${reportUrl}" style="color:#dc2626">${reportUrl}</a></p>
     `, email, leadId),
   },
@@ -271,7 +271,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
         <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Weekly AI articles, Google Business Profile posts, citation checklists, review requests, backlink prospecting, and AI visibility monitoring. Fully automated. No contract.</p>
       </div>
       <div style="margin:12px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
-        <p style="margin:0;font-size:15px;font-weight:700;color:#991b1b">Starter — $39.99 first month (reg. $79.99)</p>
+        <p style="margin:0;font-size:15px;font-weight:700;color:#991b1b">Starter — $29.99 first month (reg. $59.99)</p>
         <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Monthly visibility monitoring, citation audit, review queue, and content ideas. Good starting point for ${businessName}.</p>
       </div>
       ${btn(`${siteUrl}/scan?plan=growth`, "Start Scale — use code INTRO50")}

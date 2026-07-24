@@ -149,8 +149,8 @@ export default function LaunchPage() {
             {[
               {
                 label: "Starter",
-                regular: "$79.99",
-                ph: "$39.99",
+                regular: "$59.99",
+                ph: "$29.99",
                 desc: "Monthly visibility score, fix queue, AI search check, citation audit.",
                 href: "/scan?plan=starter&promo=PRODUCTHUNT",
                 highlight: false,

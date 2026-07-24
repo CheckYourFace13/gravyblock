@@ -50,7 +50,7 @@ export default async function LocalSeoPage({ params }: Props) {
     },
     {
       q: `How much does local SEO cost for a ${ind} in ${city.name}?`,
-      a: `A ${city.name} SEO agency typically charges $1,000–$3,000/month and you still attend meetings. GravyBlock runs the same work automatically from $39.99/month introductory — content, Google Business Profile management, review monitoring, and citation fixes included. You can start with a free scan, no credit card.`,
+      a: `A ${city.name} SEO agency typically charges $1,000–$3,000/month and you still attend meetings. GravyBlock runs the same work automatically from $29.99/month introductory — content, Google Business Profile management, review monitoring, and citation fixes included. You can start with a free scan, no credit card.`,
     },
     {
       q: `How long until my ${ind} shows up in ${city.name} search results?`,

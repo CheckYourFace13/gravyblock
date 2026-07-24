@@ -60,6 +60,9 @@ npx drizzle-kit push --config=drizzle.config.ts < /dev/null 2>&1 || echo "[self-
 # Stripe annual prices (idempotent)
 node scripts/setup-annual-prices.mjs 2>&1 || echo "[self-deploy] annual price warning (non-fatal)"
 
+# One-time Starter price drop to $59.99/mo ($29.99 intro) — idempotent, safe to leave running
+node scripts/update-starter-pricing.mjs 2>&1 || echo "[self-deploy] starter price warning (non-fatal)"
+
 npm run build
 
 pm2 startOrRestart ecosystem.config.js --update-env

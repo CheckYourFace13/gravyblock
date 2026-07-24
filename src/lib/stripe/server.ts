@@ -27,12 +27,12 @@ export function getAppBaseUrl(): string {
 export type CheckoutPlan = "starter" | "growth" | "pro" | "agency";
 export type BillingInterval = "monthly" | "annual";
 
-// Annual prices are ~25% cheaper than 12× monthly (e.g. Starter: $719.88/yr vs $79.99×12=$959.88)
+// Annual prices are ~25% cheaper than 12× monthly (e.g. Starter: $539.88/yr vs $59.99×12=$719.88)
 // Create these in Stripe dashboard, then set these env vars on VPS:
 //   STRIPE_PRICE_STARTER_ANNUAL, STRIPE_PRICE_GROWTH_ANNUAL,
 //   STRIPE_PRICE_PRO_ANNUAL, STRIPE_PRICE_AGENCY_ANNUAL
 export const ANNUAL_SAVINGS: Record<CheckoutPlan, { monthlyEquiv: number; fullPrice: number }> = {
-  starter: { monthlyEquiv: 59.99,  fullPrice: 719.88 },
+  starter: { monthlyEquiv: 44.99,  fullPrice: 539.88 },
   growth:  { monthlyEquiv: 112.49, fullPrice: 1349.88 },
   pro:     { monthlyEquiv: 187.49, fullPrice: 2249.88 },
   agency:  { monthlyEquiv: 374.99, fullPrice: 4499.88 },

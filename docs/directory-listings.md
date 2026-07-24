@@ -18,7 +18,7 @@ signups in analytics).
 > and TripAdvisor with AI-drafted replies, checks your real Google Maps
 > rankings, sends backlink outreach to local sites, and monitors whether
 > ChatGPT, Perplexity, and Gemini mention your business. Start with a free
-> 60-second visibility scan — no account or credit card. Plans from $39.99/mo.
+> 60-second visibility scan — no account or credit card. Plans from $29.99/mo.
 > Built for restaurants, dentists, contractors, salons, lawyers, and any
 > business that gets customers through Google.
 

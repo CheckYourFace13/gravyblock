@@ -215,7 +215,7 @@ export function ReportView({
                       href={workspacePlanHref("starter")}
                       className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                     >
-                      Starter — $39.99/mo
+                      Starter — $29.99/mo
                     </Link>
                   ) : null}
                   {/* Show Scale as upgrade nudge only if chosen plan is below Scale */}

@@ -288,7 +288,7 @@ Here's what happens during that month:
 - We find and fix citation issues that hurt your local rankings
 - We track where you rank vs. competitors
 
-Local rankings move when content, citations, and reviews stay consistent — that's exactly what GravyBlock runs for you every week. After the free month it's $79.99/mo, less than most SEO agencies charge for a single hour.
+Local rankings move when content, citations, and reviews stay consistent — that's exactly what GravyBlock runs for you every week. After the free month it's $59.99/mo, less than most SEO agencies charge for a single hour.
 
 Run your free visibility score first (takes 60 seconds):
 ${scanUrl}
@@ -330,7 +330,7 @@ function buildFollowupHtml(businessName: string, scanUrl: string, emailTo: strin
 
   <p style="margin:0 0 18px;font-size:14px;color:#555">
     Local rankings move when content, citations, and reviews stay consistent — that's exactly
-    what GravyBlock runs for you every week. After the free month it's $79.99/mo,
+    what GravyBlock runs for you every week. After the free month it's $59.99/mo,
     less than most agencies charge for a single hour.
   </p>
 

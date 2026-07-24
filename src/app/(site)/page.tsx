@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/" },
   title: "GravyBlock — Automated Local SEO for Small Businesses | Free Scan",
   description:
-    "GravyBlock automates local SEO for small businesses: publishes content, manages reviews, fixes citations, and tracks visibility — so you get discovered on Google Maps and Google Search. No manual weekly work. From $39.99/mo intro. Free scan.",
+    "GravyBlock automates local SEO for small businesses: publishes content, manages reviews, fixes citations, and tracks visibility — so you get discovered on Google Maps and Google Search. No manual weekly work. From $29.99/mo intro. Free scan.",
 };
 
 const siteUrl = "https://gravyblock.com";
@@ -15,8 +15,8 @@ const plans = [
   {
     tier: "starter",
     label: "Starter",
-    monthly: 79.99,
-    intro: 39.99,
+    monthly: 59.99,
+    intro: 29.99,
     highlight: false,
     bullets: ["Monthly visibility score + trend history", "4 AI content ideas/mo", "Citation & review fix queue", "AI search check (ChatGPT, Perplexity, Google AI)", "Monthly progress email"],
     cta: "Start Starter",
@@ -94,7 +94,7 @@ const productSchema = {
       offers: {
         "@type": "Offer",
         priceCurrency: "USD",
-        price: "79.99",
+        price: "59.99",
         availability: "https://schema.org/InStock",
         url: "https://gravyblock.com/scan?plan=starter",
       },
@@ -161,7 +161,7 @@ export default function HomePage() {
               Get my free visibility score →
             </Link>
             <Link href="/pricing" className="rounded-full border border-zinc-300 bg-white px-7 py-3.5 text-sm font-semibold text-zinc-700 hover:border-zinc-400 shadow-sm">
-              Plans from $39.99/mo
+              Plans from $29.99/mo
             </Link>
             <Link href="/start?promo=" className="rounded-full px-7 py-3.5 text-sm font-semibold text-zinc-500 hover:text-zinc-800 underline underline-offset-2">
               Sign up now →
@@ -413,7 +413,7 @@ export default function HomePage() {
         operatingSystem: "Web",
         url: siteUrl,
         offers: [
-          { "@type": "Offer", name: "Starter", price: "39.99", priceCurrency: "USD" },
+          { "@type": "Offer", name: "Starter", price: "29.99", priceCurrency: "USD" },
           { "@type": "Offer", name: "Scale", price: "74.99", priceCurrency: "USD" },
           { "@type": "Offer", name: "Pro", price: "149.99", priceCurrency: "USD" },
         ],

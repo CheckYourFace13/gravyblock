@@ -118,7 +118,7 @@ export default function ReviewLinkGeneratorPage() {
           </h2>
           <p className="mt-2 text-sm text-zinc-600 max-w-lg mx-auto">
             Weekly review requests, review monitoring, AI-drafted reply suggestions, and your full
-            local SEO running on autopilot — from $39.99/mo.
+            local SEO running on autopilot — from $29.99/mo.
           </p>
           <Link
             href="/scan"

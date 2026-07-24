@@ -5,15 +5,15 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/pricing" },
   title: "Pricing — GravyBlock Local SEO Automation",
   description:
-    "GravyBlock pricing: Starter $79.99/mo (intro $39.99), Scale $149.99/mo (intro $74.99), Pro $299.99/mo (intro $149.99). No contracts, cancel anytime. Use code INTRO50 for 50% off your first month.",
+    "GravyBlock pricing: Starter $59.99/mo (intro $29.99), Scale $149.99/mo (intro $74.99), Pro $299.99/mo (intro $149.99). No contracts, cancel anytime. Use code INTRO50 for 50% off your first month.",
 };
 
 const plans = [
   {
     tier: "starter",
     label: "Starter",
-    monthly: 79.99,
-    intro: 39.99,
+    monthly: 59.99,
+    intro: 29.99,
     highlight: false,
     tagline: "Visibility monitoring with a fix list every month.",
     bullets: [
@@ -98,7 +98,7 @@ const faqs = [
   },
   {
     q: "What happens after the first month?",
-    a: "The INTRO50 discount applies to your first month only. After that you are billed the regular price ($79.99, $149.99, or $299.99 depending on your plan). You can cancel or downgrade any time from the billing portal — no phone call required.",
+    a: "The INTRO50 discount applies to your first month only. After that you are billed the regular price ($59.99, $149.99, or $299.99 depending on your plan). You can cancel or downgrade any time from the billing portal — no phone call required.",
   },
   {
     q: "Can I cancel anytime?",
@@ -285,7 +285,7 @@ export default function PricingPage() {
                   </tr>
                   <tr className="bg-red-50/60">
                     <td className="px-4 py-3.5 font-bold text-zinc-900 border-t border-red-100">GravyBlock</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">$39.99–$299</td>
+                    <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">$29.99–$299</td>
                     <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">~0 hrs/week</td>
                     <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-red-100">GravyBlock — content published, GBP managed, reviews handled, automatically</td>
                   </tr>
@@ -334,7 +334,7 @@ export default function PricingPage() {
                   ["Programmatic city pages", "—", "—", "✓"],
                   ["Lead pipeline (competitor outreach)", "—", "—", "✓"],
                   ["Locations included", "1", "1", "3"],
-                  ["Price (intro, first month)", "$39.99", "$74.99", "$149.99"],
+                  ["Price (intro, first month)", "$29.99", "$74.99", "$149.99"],
                 ].map(([feature, starter, scale, pro]) => (
                   <tr key={feature} className="hover:bg-white/60">
                     <td className="py-3 pr-4 text-zinc-700">{feature}</td>
