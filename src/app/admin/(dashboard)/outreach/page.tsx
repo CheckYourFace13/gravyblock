@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getOutreachSettings, getSentEmails, getBatchHistory, getOutreachCounts } from "./actions";
-import { getCalendarPreview, getTodaysOutreachTarget } from "@/lib/outreach/outreach-calendar";
+import { getCalendarPreview, getTodaysOutreachTarget, getOutreachTargetForOffset, daysSinceEpoch, OUTREACH_WINDOW_OFFSETS } from "@/lib/outreach/outreach-calendar";
 import { OutreachSettingsForm } from "./outreach-settings-form";
 
 export const metadata: Metadata = { title: "Outreach — Admin" };
@@ -74,14 +74,13 @@ export default async function OutreachPage() {
             </div>
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[0, 10, 20].map((offset, i) => {
-              const slot = ((now.getUTCDate() - 1 + offset) % 30);
-              const target = calendar[slot]!;
-              const labels = ["9am UTC (morning)", "12pm UTC (midday)", "3pm UTC (afternoon)"];
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {(["morning", "midday", "afternoon", "evening"] as const).map((windowKey) => {
+              const target = getOutreachTargetForOffset(OUTREACH_WINDOW_OFFSETS[windowKey]);
+              const labels = { morning: "9am UTC (morning)", midday: "12pm UTC (midday)", afternoon: "3pm UTC (afternoon)", evening: "7pm UTC (evening)" };
               return (
-                <div key={offset} className="rounded-xl border border-red-100 bg-red-50 p-3">
-                  <p className="text-xs font-bold text-red-700 uppercase tracking-wide">{labels[i]}</p>
+                <div key={windowKey} className="rounded-xl border border-red-100 bg-red-50 p-3">
+                  <p className="text-xs font-bold text-red-700 uppercase tracking-wide">{labels[windowKey]}</p>
                   <p className="text-sm font-semibold text-zinc-900 mt-0.5">{target.industryLabel}s</p>
                   <p className="text-xs text-zinc-500">{target.city}, {target.state}</p>
                 </div>
@@ -92,12 +91,17 @@ export default async function OutreachPage() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* ── 30-DAY CALENDAR ──────────────────────────────── */}
+        {/* ── CALENDAR ──────────────────────────────── */}
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="text-base font-semibold text-zinc-900 mb-3">Weekday calendar (30-day rotation)</h2>
+          <h2 className="text-base font-semibold text-zinc-900 mb-3">Weekday calendar (100-slot rotation, ~25 days between repeats per window)</h2>
           <div className="space-y-0.5 max-h-96 overflow-y-auto pr-1">
             {calendar.map((slot) => {
-              const isToday = !isWeekend && ((now.getUTCDate() - 1) % 30) === (slot.daySlot - 1);
+              const today = daysSinceEpoch();
+              const isToday =
+                !isWeekend &&
+                Object.values(OUTREACH_WINDOW_OFFSETS).some(
+                  (offset) => (today + offset) % calendar.length === slot.daySlot - 1,
+                );
               return (
                 <div key={slot.daySlot} className={`flex items-center gap-3 rounded-lg px-2 py-1.5 text-xs ${isToday ? "bg-red-50 border border-red-200 font-semibold" : "hover:bg-zinc-50"}`}>
                   <span className={`w-5 text-right shrink-0 ${isToday ? "text-red-700 font-bold" : "text-zinc-400"}`}>{slot.daySlot}</span>

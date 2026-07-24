@@ -3,7 +3,7 @@ import { getAutopilotOpsSummary, listBrandsOverview, listLocationsOverview } fro
 import { listBusinessSummaries, listLeads, listReportSummaries } from "@/lib/report/repository";
 import { getDb, jobs } from "@/lib/db";
 import { and, gte, eq, desc } from "drizzle-orm";
-import { getCalendarPreview, getTodaysOutreachTarget } from "@/lib/outreach/outreach-calendar";
+import { getCalendarPreview, getTodaysOutreachTarget, daysSinceEpoch, OUTREACH_WINDOW_OFFSETS } from "@/lib/outreach/outreach-calendar";
 
 async function getOutreachStats() {
   const db = getDb();
@@ -141,12 +141,15 @@ export default async function AdminHomePage() {
         </div>
 
         <div className="grid gap-5 lg:grid-cols-2">
-          {/* 30-day calendar */}
+          {/* 100-slot calendar */}
           <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold text-zinc-900 mb-3">30-day calendar</h3>
+            <h3 className="text-sm font-semibold text-zinc-900 mb-3">100-slot calendar</h3>
             <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
               {calendar.map((slot) => {
-                const isToday = slot.daySlot === new Date().getUTCDate() || (new Date().getUTCDate() > 30 && slot.daySlot === new Date().getUTCDate() % 30);
+                const today = daysSinceEpoch();
+                const isToday = Object.values(OUTREACH_WINDOW_OFFSETS).some(
+                  (offset) => (today + offset) % calendar.length === slot.daySlot - 1,
+                );
                 return (
                   <div key={slot.daySlot} className={`flex items-center gap-3 rounded-lg px-2 py-1.5 text-xs ${isToday ? "bg-red-50 border border-red-200" : "hover:bg-zinc-50"}`}>
                     <span className={`w-6 text-center font-bold shrink-0 ${isToday ? "text-red-700" : "text-zinc-400"}`}>{slot.daySlot}</span>

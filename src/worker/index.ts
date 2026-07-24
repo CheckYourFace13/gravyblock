@@ -325,9 +325,8 @@ async function runColdOutreachWindow(
   if (overrideTarget) {
     target = overrideTarget;
   } else {
-    const { OUTREACH_CALENDAR } = await import("@/lib/outreach/outreach-calendar");
-    const slot = ((now.getUTCDate() - 1 + calendarOffset) % 30);
-    target = OUTREACH_CALENDAR[slot]!;
+    const { getOutreachTargetForOffset } = await import("@/lib/outreach/outreach-calendar");
+    target = getOutreachTargetForOffset(calendarOffset);
   }
 
   try {
@@ -367,11 +366,16 @@ async function maybeSendColdOutreach() {
   // Windows in UTC chosen to land in US business hours:
   // 13:00 UTC = 9am ET / 6am PT · 15:00 = 11am ET / 8am PT
   // 17:00 = 1pm ET / 10am PT  · 19:00 = 3pm ET / 12pm PT
+  // Offsets are evenly spaced across the 100-slot calendar (see
+  // OUTREACH_WINDOW_OFFSETS) so each window covers different combos and,
+  // over a full cycle, no city+industry pair gets re-emailed until the
+  // other 99 slots have already gone out.
   if (settings.weekdayEnabled && day >= 1 && day <= 5) {
-    await runColdOutreachWindow("morning",   0, 13,  undefined, settings.emailsPerBatch);
-    await runColdOutreachWindow("midday",   10, 15,  undefined, settings.emailsPerBatch);
-    await runColdOutreachWindow("afternoon",20, 17,  undefined, settings.emailsPerBatch);
-    await runColdOutreachWindow("evening",   5, 19,  undefined, settings.emailsPerBatch);
+    const { OUTREACH_WINDOW_OFFSETS } = await import("@/lib/outreach/outreach-calendar");
+    await runColdOutreachWindow("morning",   OUTREACH_WINDOW_OFFSETS.morning,   13, undefined, settings.emailsPerBatch);
+    await runColdOutreachWindow("midday",    OUTREACH_WINDOW_OFFSETS.midday,    15, undefined, settings.emailsPerBatch);
+    await runColdOutreachWindow("afternoon", OUTREACH_WINDOW_OFFSETS.afternoon, 17, undefined, settings.emailsPerBatch);
+    await runColdOutreachWindow("evening",   OUTREACH_WINDOW_OFFSETS.evening,   19, undefined, settings.emailsPerBatch);
   }
 
   // ── WEEKENDS: weekend-open verticals (restaurants, salons, auto) ──
