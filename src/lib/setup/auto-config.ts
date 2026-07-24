@@ -6,6 +6,9 @@
 import { eq, inArray } from "drizzle-orm";
 import { getDb, businesses, businessConfigs, jobs, auditFindings, placeProfiles } from "@/lib/db";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
+import { extractJsonObject } from "@/lib/ai/json-extract";
+
+const MAX_AUTO_CONFIG_ATTEMPTS = 3;
 
 function cityFromAddress(address: string | null | undefined): string {
   if (!address) return "";
@@ -57,13 +60,15 @@ export async function autoConfigBusiness(businessId: string): Promise<AutoConfig
     .limit(1);
   if (existing) return { ok: false, skipped: "config_exists" };
 
-  // Skip if already attempted
-  const [alreadyTried] = await db
+  // Skip only after repeated failures — a single transient LLM/parse hiccup
+  // must not permanently strand a paying customer with no config at all.
+  // Each failed attempt is logged under a distinct type so it doesn't collide
+  // with (or get mistaken for) a successful completion.
+  const priorAttempts = await db
     .select({ id: jobs.id })
     .from(jobs)
-    .where(eq(jobs.type, `auto_config_${businessId}`))
-    .limit(1);
-  if (alreadyTried) return { ok: false, skipped: "already_attempted" };
+    .where(eq(jobs.type, `auto_config_attempt_${businessId}`));
+  if (priorAttempts.length >= MAX_AUTO_CONFIG_ATTEMPTS) return { ok: false, skipped: "max_attempts_reached" };
 
   const [biz] = await db
     .select({
@@ -133,12 +138,45 @@ Return ONLY valid JSON, no markdown, no extra text:
   "additionalContext": "1-2 sentences of extra context from website/data useful for writing content"
 }`;
 
-  // Record attempt before calling LLM
-  await db.insert(jobs).values({
-    type: `auto_config_${businessId}`,
-    status: "completed",
-    payload: { businessId },
-  });
+  // Builds a usable config straight from scraped/Google data, no LLM needed —
+  // used once we've exhausted retries so the business still ends up with a
+  // real businessConfigs row instead of silently having none forever.
+  function buildFallbackConfig() {
+    const location = [city, state].filter(Boolean).join(", ");
+    return {
+      serviceDescription: `${biz!.name} is a ${industry.toLowerCase()}${location ? ` serving ${location}` : ""}.`,
+      uniqueSellingPoints: null,
+      tone: "professional",
+      targetKeywords: null,
+      targetCities: city || null,
+      focusArea: biz!.focusArea ?? "local",
+      targetScope: biz!.targetScope ?? (city ? `${city}, ${state}` : null),
+      additionalContext: websiteText ? websiteText.slice(0, 300) : null,
+    };
+  }
+
+  // Logs the failed attempt; only after MAX_AUTO_CONFIG_ATTEMPTS do we stop
+  // retrying and fall back to a scrape-only config so onboarding never just
+  // silently dead-ends for the customer.
+  async function recordFailureAndMaybeFallback(reason: string): Promise<AutoConfigResult> {
+    await db!.insert(jobs).values({
+      type: `auto_config_attempt_${businessId}`,
+      status: "failed",
+      payload: { businessId, reason },
+    });
+    const attemptCount = priorAttempts.length + 1;
+    if (attemptCount < MAX_AUTO_CONFIG_ATTEMPTS) {
+      console.warn(`[auto-config] attempt ${attemptCount} failed (${reason}), will retry next batch`, { businessId });
+      return { ok: false, skipped: reason };
+    }
+    console.warn(`[auto-config] giving up after ${attemptCount} attempts (${reason}), using scrape-only fallback`, { businessId });
+    await db!.insert(businessConfigs).values({
+      businessId,
+      source: "auto_generated_fallback",
+      ...buildFallbackConfig(),
+    });
+    return { ok: true, skipped: `fallback_after_${reason}` };
+  }
 
   const response = await openRouterChat({
     model: MODELS.outreach,
@@ -147,18 +185,23 @@ Return ONLY valid JSON, no markdown, no extra text:
     temperature: 0.4,
   });
 
-  if (!response) return { ok: false, skipped: "no_llm_response" };
+  if (!response) return recordFailureAndMaybeFallback("no_llm_response");
 
   let parsed: Record<string, string>;
   try {
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    parsed = JSON.parse(jsonMatch?.[0] ?? response);
-  } catch {
-    console.error("[auto-config] JSON parse failed", { businessId, response: response.slice(0, 200) });
-    return { ok: false, skipped: "json_parse_failed" };
+    const jsonText = extractJsonObject(response);
+    if (!jsonText) throw new Error("no JSON object found in response");
+    parsed = JSON.parse(jsonText) as Record<string, string>;
+  } catch (err) {
+    console.warn("[auto-config] JSON parse failed", {
+      businessId,
+      error: err instanceof Error ? err.message : String(err),
+      response: response.slice(0, 200),
+    });
+    return recordFailureAndMaybeFallback("json_parse_failed");
   }
 
-  if (!parsed.serviceDescription) return { ok: false, skipped: "no_service_description" };
+  if (!parsed.serviceDescription) return recordFailureAndMaybeFallback("no_service_description");
 
   await db.insert(businessConfigs).values({
     businessId,
