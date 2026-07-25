@@ -5,7 +5,7 @@
  */
 
 import { and, count, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
-import { getDb, businesses, contentQueue, publishedContent, visibilitySnapshots, operatorTasks, jobs, aiVisibilityChecks, auditFindings, citationMonitors, socialProfiles } from "@/lib/db";
+import { getDb, businesses, contentQueue, publishedContent, visibilitySnapshots, operatorTasks, jobs, aiVisibilityChecks, auditFindings, citationMonitors, socialProfiles, businessIssues } from "@/lib/db";
 import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { computeAeoScore, getGrade } from "@/lib/scoring/aeo-score";
 import { computeEntityScore } from "@/lib/scoring/entity-score";
@@ -51,6 +51,7 @@ function buildDigestHtml(params: {
   entityScore?: number | null;
   aiProbesRun?: number;
   citationChecks?: number;
+  issuesResolved?: number;
   businessEmail?: string;
 }): string {
   const {
@@ -60,7 +61,7 @@ function buildDigestHtml(params: {
     aeoScore = null, aeoGrade = null,
     geoScore = null, geoGrade = null,
     entityScore = null,
-    aiProbesRun = 0, citationChecks = 0,
+    aiProbesRun = 0, citationChecks = 0, issuesResolved = 0,
   } = params;
 
   const scoreSection = latestScore !== null
@@ -103,6 +104,7 @@ function buildDigestHtml(params: {
     contentPublished > 0 ? `${contentPublished} article${contentPublished !== 1 ? "s" : ""} published &rarr; improved AEO signals` : null,
     aiProbesRun > 0 ? `${aiProbesRun} AI citation probe${aiProbesRun !== 1 ? "s" : ""} run &rarr; tracking your GEO score` : null,
     citationChecks > 0 ? `${citationChecks} citation check${citationChecks !== 1 ? "s" : ""} completed &rarr; protecting your Entity score` : null,
+    issuesResolved > 0 ? `${issuesResolved} website issue${issuesResolved !== 1 ? "s" : ""} confirmed fixed on your latest re-check &check; see your fix list` : null,
   ].filter(Boolean);
 
   const automationWinsSection = automationWins.length > 0
@@ -218,7 +220,7 @@ export async function runMonthlyDigestBatch(): Promise<{ sent: number; skipped: 
 
     try {
       // Gather last month's stats
-      const [contentQueuedRow, contentPublishedRow, snapshotsRow, tasksRow, outreachRow, aiChecksRow, citationRow, socialRow, findingsRow, bizRow] = await Promise.all([
+      const [contentQueuedRow, contentPublishedRow, snapshotsRow, tasksRow, outreachRow, aiChecksRow, citationRow, socialRow, findingsRow, bizRow, issuesResolvedRow] = await Promise.all([
         db.select({ count: count() }).from(contentQueue).where(
           and(eq(contentQueue.businessId, biz.id), gte(contentQueue.createdAt, lastMonthStart), lt(contentQueue.createdAt, monthStart))
         ),
@@ -257,6 +259,9 @@ export async function runMonthlyDigestBatch(): Promise<{ sent: number; skipped: 
           .from(auditFindings).where(eq(auditFindings.businessId, biz.id)).limit(50),
         db.select({ website: businesses.website, phone: businesses.phone, address: businesses.address })
           .from(businesses).where(eq(businesses.id, biz.id)).limit(1),
+        db.select({ count: count() }).from(businessIssues).where(
+          and(eq(businessIssues.businessId, biz.id), gte(businessIssues.resolvedAt, lastMonthStart), lt(businessIssues.resolvedAt, monthStart))
+        ),
       ]);
 
       const latestScore = snapshotsRow[0]?.overallScore ?? null;
@@ -339,6 +344,7 @@ export async function runMonthlyDigestBatch(): Promise<{ sent: number; skipped: 
           entityScore: entityResult.score,
           aiProbesRun: totalAiChecks,
           citationChecks: citationRow.length,
+          issuesResolved: issuesResolvedRow[0]?.count ?? 0,
           businessEmail: biz.billingEmail,
         }),
       );

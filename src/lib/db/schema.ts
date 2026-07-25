@@ -276,6 +276,29 @@ export const auditFindings = pgTable("audit_findings", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/**
+ * Persistent, cross-scan issue tracker — distinct from auditFindings (which
+ * logs a fresh per-scan snapshot, used for one-off public reports). Every
+ * recurring refresh diffs its findings against the open rows here: a key
+ * that stops appearing gets resolvedAt set, a new key gets a fresh row.
+ * Lets the workspace show a running fix list that flips to resolved
+ * automatically once a customer's web developer actually fixes something.
+ */
+export const businessIssues = pgTable("business_issues", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  key: text("key").notNull(),
+  category: text("category").notNull(),
+  severity: text("severity").notNull(),
+  title: text("title").notNull(),
+  detail: text("detail").notNull(),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).defaultNow().notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+});
+
 export const competitorSnapshots = pgTable("competitor_snapshots", {
   id: uuid("id").defaultRandom().primaryKey(),
   businessId: uuid("business_id")

@@ -17,6 +17,7 @@ import { getReferralStats, referralUrlForBusiness } from "@/lib/referrals/referr
 import { getBusinessReviews } from "@/lib/reviews/review-fetcher";
 import { ReviewsSection } from "./reviews-section";
 import { CompetitorPanel } from "./competitor-panel";
+import { IssueTrackerPanel } from "./issue-tracker-panel";
 import { IntegrationsSection } from "./integrations-section";
 import { getPublishingTargets } from "./integrations-actions";
 import { getAiVisibilityStats } from "@/lib/ai-visibility/llm-probes";
@@ -1134,6 +1135,9 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
 
       {/* ─── Competitor panel ────────────────────────────────────────────────── */}
       <CompetitorPanel businessId={businessId} />
+
+      {/* ─── Website fix list ────────────────────────────────────────────────── */}
+      <IssueTrackerPanel businessId={businessId} />
 
       {/* ─── Integrations ────────────────────────────────────────────────────── */}
       {features.contentDraftsPerMonth > 0 ? (

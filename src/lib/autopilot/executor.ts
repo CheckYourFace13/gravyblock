@@ -22,6 +22,8 @@ import { publishToShopify, extractShopifyConfig } from "@/lib/publishing/adapter
 import { planFeatures, normalizePlanTierFromDb, type PlanTier } from "@/lib/plans";
 import { getGooglePlaceDetails } from "@/lib/integrations/google-places";
 import { runSiteCrawlAudit } from "@/lib/audit/site-crawl";
+import { syncBusinessIssues } from "@/lib/audit/issue-tracker";
+import type { WebsiteAuditFinding } from "@/lib/report/types";
 import { buildSocialPresence } from "@/lib/social/discover";
 import { generateArticleBody, generateLocalPageBody, generateOutreachPitch, generateMetaTags } from "@/lib/content/generator";
 import { addInternalLinks } from "@/lib/content/internal-linker";
@@ -100,6 +102,7 @@ type RefreshSignals = {
   placeRating: number | null;
   placeReviewCount: number | null;
   socialProfileCount: number;
+  auditFindings: WebsiteAuditFinding[];
 };
 
 async function refreshPublicSignals(input: {
@@ -134,6 +137,7 @@ async function refreshPublicSignals(input: {
       placeRating,
       placeReviewCount,
       socialProfileCount: social.profiles.length,
+      auditFindings: crawl.audit.findings,
     };
   } catch (error) {
     console.error("[autopilot] public refresh failed", { error: error instanceof Error ? error.message : String(error) });
@@ -591,6 +595,17 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         website: businessSignals?.website ?? null,
       });
       const changeResult = detectSignalChanges(priorSignals, refreshedSignals);
+
+      if (refreshedSignals) {
+        try {
+          const issueSync = await syncBusinessIssues(businessId, refreshedSignals.auditFindings);
+          if (issueSync.resolved > 0 || issueSync.newIssues > 0) {
+            console.info("[autopilot] issue tracker synced", { businessId, ...issueSync });
+          }
+        } catch (error) {
+          console.error("[autopilot] issue tracker sync failed", { businessId, error: error instanceof Error ? error.message : String(error) });
+        }
+      }
       await db.insert(visibilitySnapshots).values({
         id: snapshotId,
         businessId,
