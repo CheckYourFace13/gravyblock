@@ -28,6 +28,7 @@ import { runReviewRequestBatch } from "@/lib/email/review-request";
 import { runAutoConfigBatch } from "@/lib/setup/auto-config";
 import { runMonthlyDigestBatch } from "@/lib/email/monthly-digest";
 import { runAbandonedCheckoutBatch } from "@/lib/email/abandoned-checkout";
+import { runLeadReengagementBatch } from "@/lib/email/lead-reengagement";
 import { runCitationAuditBatch } from "@/lib/citations/citation-audit";
 import { runMultiPlatformReviewBatch } from "@/lib/reviews/platform-sync";
 import { runLlmProbeBatch } from "@/lib/ai-visibility/llm-probes";
@@ -654,6 +655,15 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] abandoned checkout failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  try {
+    const reengagementResult = await runLeadReengagementBatch();
+    if (reengagementResult.sent > 0) {
+      console.info("[worker] lead reengagement emails sent", reengagementResult);
+    }
+  } catch (error) {
+    console.error("[worker] lead reengagement failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   try {
