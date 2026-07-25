@@ -39,21 +39,41 @@ function readEnv() {
   }
 }
 
+// Rewrites the env var deterministically: replaces the FIRST existing line
+// for this key in place (preserving file order) and drops any further
+// duplicates — dotenv/PM2 resolve duplicate keys by taking the LAST line,
+// which is exactly how a prior bug in this function (appending instead of
+// replacing in place) silently left the app on an old, since-archived
+// Stripe price. Only writes the file if content actually changes, so this
+// stays a true no-op on repeat runs instead of just reshuffling line order.
 function setEnvVar(key, value) {
   const current = readEnv();
-  const line = `${key}=${value}`;
-  const pattern = new RegExp(`^${key}=.*$`, "m");
-  if (pattern.test(current)) {
-    if (new RegExp(`^${key}=${value}$`, "m").test(current)) {
-      console.log(`[update-starter-pricing] ${key} already set to ${value} — skipping`);
-      return;
-    }
-    writeFileSync(ENV_PATH, current.replace(pattern, line));
-    console.log(`[update-starter-pricing] Updated ${key}=${value}`);
-  } else {
-    writeFileSync(ENV_PATH, current.endsWith("\n") || current === "" ? current + line + "\n" : current + "\n" + line + "\n");
-    console.log(`[update-starter-pricing] Added ${key}=${value}`);
+  const targetLine = `${key}=${value}`;
+  const keyPattern = new RegExp(`^${key}=`);
+
+  const rawLines = current.split("\n");
+  const hadTrailingNewline = rawLines.length > 0 && rawLines[rawLines.length - 1] === "";
+  const lines = hadTrailingNewline ? rawLines.slice(0, -1) : rawLines;
+
+  let replaced = false;
+  const next = [];
+  for (const line of lines) {
+    if (!keyPattern.test(line)) {
+      next.push(line);
+    } else if (!replaced) {
+      next.push(targetLine); // overwrite the first match in place
+      replaced = true;
+    } // else: drop this duplicate
   }
+  if (!replaced) next.push(targetLine);
+
+  const nextContent = next.join("\n") + "\n";
+  if (nextContent === current) {
+    console.log(`[update-starter-pricing] ${key} already set to ${value} — skipping`);
+    return;
+  }
+  writeFileSync(ENV_PATH, nextContent);
+  console.log(`[update-starter-pricing] Set ${key}=${value}`);
 }
 
 async function ensurePrice(interval, amountCents, nickname) {
