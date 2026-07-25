@@ -82,7 +82,7 @@ ${scanUrl}
 
 It scores your Google profile, reviews, and whether AI actually recommends you in ${city}.
 
-If it's useful and you'd want it handled automatically (content, reviews, citations, all of it), GravyBlock does that from under $100/mo. But the report's free either way.
+If it's useful and you'd want it handled automatically (content, reviews, citations, all of it), GravyBlock starts at $29.99/mo right now with code INTRO50 — the lowest we've ever priced it, and it won't stay this low. But the report's free either way.
 
 ${SENDER_NAME}
 ${SENDER_TITLE} — https://gravyblock.com
@@ -143,8 +143,9 @@ function buildHtmlEmail(prospect: Prospect & { emailTo?: string }, industryLabel
 
   <p style="margin:0 0 18px;font-size:14px;color:#555">
     It scores your Google profile, reviews, and whether AI actually recommends you in ${city}.
-    If you'd want it all handled automatically (content, reviews, citations), GravyBlock does that
-    from under <strong>$100/mo</strong> — but the report's free either way.
+    If you'd want it all handled automatically (content, reviews, citations), GravyBlock starts at
+    <strong>$29.99/mo</strong> right now with code INTRO50 — the lowest we've ever priced it, and it
+    won't stay this low. But the report's free either way.
   </p>
 
   <p style="margin:0 0 6px;font-size:14px">
@@ -193,7 +194,7 @@ The full report is here — score, verdict, and top findings visible right away,
 
 ${preScan.reportUrl}
 
-If you'd want the fixes handled automatically (content, reviews, citations, Google Business Profile posts), that's what GravyBlock does, from under $100/mo. But the report is yours either way.
+If you'd want the fixes handled automatically (content, reviews, citations, Google Business Profile posts), that's what GravyBlock does — starting at $29.99/mo right now with code INTRO50, the lowest we've ever priced it. But the report is yours either way.
 
 ${SENDER_NAME}
 ${SENDER_TITLE} — https://gravyblock.com
@@ -248,8 +249,8 @@ function buildReportHtml(
 
   <p style="margin:0 0 18px;font-size:14px;color:#555">
     If you'd want the fixes handled automatically (content, reviews, citations, Google Business
-    Profile posts), that's what GravyBlock does, from under <strong>$100/mo</strong> — but the
-    report is yours either way.
+    Profile posts), that's what GravyBlock does — starting at <strong>$29.99/mo</strong> right now
+    with code INTRO50, the lowest we've ever priced it. But the report is yours either way.
   </p>
 
   <p style="margin:0 0 6px;font-size:14px">

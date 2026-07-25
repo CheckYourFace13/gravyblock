@@ -334,10 +334,10 @@ export default function HomePage() {
         <div className="mx-auto max-w-5xl">
           <div className="mb-8 text-center space-y-2">
             <div className="inline-block rounded-full bg-red-100 px-4 py-1 text-xs font-bold uppercase tracking-widest text-red-700">
-              Introductory pricing — limited time
+              Lowest price we&apos;ve ever offered — won&apos;t last
             </div>
             <h2 className="text-3xl font-bold text-zinc-900">Simple, transparent pricing.</h2>
-            <p className="text-sm text-zinc-500">Use code <strong className="text-zinc-800">INTRO50</strong> at checkout. No contracts. Cancel anytime.</p>
+            <p className="text-sm text-zinc-500">Use code <strong className="text-zinc-800">INTRO50</strong> at checkout for 50% off month one. No contracts. Cancel anytime.</p>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-3">

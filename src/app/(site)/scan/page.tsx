@@ -78,6 +78,14 @@ export default async function ScanPage({ searchParams }: Props) {
         <p className="mt-4 text-lg text-zinc-600">
           Find your business on Google, get a score across 6 ranking factors, and see exactly what's holding you back. Free, no credit card required. Works for restaurants, dentists, contractors, salons, lawyers, and any local business.
         </p>
+        <div className="mx-auto mt-4 max-w-xl rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3">
+          <p className="text-sm font-semibold text-amber-900">
+            🏆 Founding member pricing — first 20 customers lock in today&apos;s rates for life
+          </p>
+          <p className="mt-0.5 text-xs text-amber-700">
+            Prices increase as we grow. Lowest price we&apos;ve ever offered, and it won&apos;t stay this low.
+          </p>
+        </div>
         {promoCode === "EMAILFREE" || promoCode === "CONNECT" || promoCode === "ILoveYouFree" ? (
           <p className="mt-2 text-sm font-medium text-emerald-700">
             🎁 Your <strong>first month is FREE</strong> — code <strong>{promoCode}</strong> applies automatically at checkout.

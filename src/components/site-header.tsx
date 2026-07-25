@@ -28,9 +28,10 @@ export function SiteHeader({ isAdmin = false }: { isAdmin?: boolean }) {
         </div>
       ) : (
         <div className="bg-zinc-900 px-4 py-2 text-center text-xs font-semibold text-white">
-          <span className="text-red-400">Introductory pricing:</span>{" "}
-          Use code <span className="font-bold text-white">INTRO50</span> at checkout for{" "}
-          <span className="text-emerald-400">50% off your first month</span> — limited time.{" "}
+          <span className="text-red-400">Lowest price we&apos;ve ever offered:</span>{" "}
+          Starter now <span className="font-bold text-white">$29.99/mo</span> with code{" "}
+          <span className="font-bold text-white">INTRO50</span> —{" "}
+          <span className="text-emerald-400">won&apos;t last</span>.{" "}
           <Link href="/scan" className="underline underline-offset-2 hover:text-red-300">
             Start free →
           </Link>

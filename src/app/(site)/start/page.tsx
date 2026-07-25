@@ -88,9 +88,16 @@ export default async function StartPage({ searchParams }: Props) {
       <div className="mx-auto max-w-lg">
 
         {/* Back link */}
-        <a href="/pricing" className="mb-6 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
+        <a href="/pricing" className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
           ← Back to pricing
         </a>
+
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-center">
+          <p className="text-sm font-semibold text-amber-900">
+            🏆 Founding member pricing — first 20 customers lock in today&apos;s rates for life
+          </p>
+          <p className="mt-0.5 text-xs text-amber-700">Prices increase as we grow. Won&apos;t stay this low.</p>
+        </div>
 
         {/* Plan switcher — pick a different plan without leaving checkout */}
         <div className="mb-3 flex justify-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-100 p-1">
