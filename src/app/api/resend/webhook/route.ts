@@ -43,7 +43,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   let payload: ResendWebhookPayload;
   try {
-    payload = JSON.parse(body) as ResendWebhookPayload;
+    const parsed: unknown = JSON.parse(body);
+    // "null", "42", "\"x\"", "[]" are all valid JSON but not the {type, data}
+    // shape we need — JSON.parse succeeds on these (doesn't throw), so
+    // without this check a bare non-object body reaches payload.type below
+    // and crashes with an uncaught TypeError (raw 500, no response body).
+    // This is exactly what triggered Resend's "endpoint is failing" alert —
+    // confirmed by reproducing it with a literal `null` body.
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+    }
+    payload = parsed as ResendWebhookPayload;
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
