@@ -474,9 +474,14 @@ async function tick() {
 
   // Follow-up email (#2): free trial offer to prospects who got email #1 3-21 days ago
   // Runs once per day at 14:00 UTC (10am ET / 7am PT)
+  // Capped at 20/day — this, breakup (10/day), and cold outreach (60/day at
+  // 15/batch x 4 windows) share ONE 100/day Resend account quota with no
+  // coordination between them; each used to independently cap at 100,
+  // meaning all three firing the same day could triple-stack past the real
+  // limit regardless of what any single one was set to.
   if (new Date().getUTCHours() === 14 && !(await hasJobRunToday("followup_outreach_batch"))) {
     try {
-      const followupResult = await runFollowupOutreachBatch(100);
+      const followupResult = await runFollowupOutreachBatch(20);
       if (followupResult.sent > 0) {
         await recordWorkerJob("followup_outreach_batch", followupResult);
         console.info("[worker] followup outreach emails sent", followupResult);
@@ -488,9 +493,11 @@ async function tick() {
 
   // Breakup email (#3): final "closing your file" touch, 5-30 days after email #2
   // Runs once per day at 16:00 UTC (12pm ET / 9am PT)
+  // Capped at 10/day — see follow-up batch comment above for why this and
+  // the other outreach batches are coordinated against one shared quota.
   if (new Date().getUTCHours() === 16 && !(await hasJobRunToday("breakup_outreach_batch"))) {
     try {
-      const breakupResult = await runBreakupOutreachBatch(100);
+      const breakupResult = await runBreakupOutreachBatch(10);
       if (breakupResult.sent > 0) {
         await recordWorkerJob("breakup_outreach_batch", breakupResult);
         console.info("[worker] breakup outreach emails sent", breakupResult);
