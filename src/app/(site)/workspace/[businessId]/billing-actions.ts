@@ -1,6 +1,6 @@
 "use server";
 
-import { getBusinessById, persistStripeCustomerId } from "@/lib/billing/repository";
+import { getBusinessById, persistStripeCustomerId, persistPendingPlan } from "@/lib/billing/repository";
 import { getAppBaseUrl, getPriceIdForPlan, getStripeServerClient, type CheckoutPlan, type BillingInterval } from "@/lib/stripe/server";
 import { canAccessBusiness } from "@/lib/auth/customer-auth";
 import { isAdminSession } from "@/lib/auth/admin-session";
@@ -47,6 +47,10 @@ export async function createCheckoutSessionAction(formData: FormData) {
       customerId = customer.id;
       await persistStripeCustomerId(businessId, customerId);
     }
+
+    // Record which plan checkout was started for — abandoned-checkout recovery
+    // emails read this instead of assuming Starter.
+    await persistPendingPlan(businessId, plan);
 
     const baseUrl = getAppBaseUrl();
     const session = await stripe.checkout.sessions.create({

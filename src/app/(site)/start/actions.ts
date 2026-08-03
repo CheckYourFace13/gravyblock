@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { eq, or } from "drizzle-orm";
 import { getDb, businesses } from "@/lib/db";
 import { getStripeServerClient, getPriceIdForPlan, getAppBaseUrl, type CheckoutPlan, type BillingInterval } from "@/lib/stripe/server";
-import { persistStripeCustomerId } from "@/lib/billing/repository";
+import { persistStripeCustomerId, persistPendingPlan } from "@/lib/billing/repository";
 import { normalizePromoCode, resolveCouponId } from "@/lib/stripe/promo-codes";
 
 function normalizePlan(raw: string | null | undefined): CheckoutPlan {
@@ -106,6 +106,10 @@ export async function directSignupAction(
       customerId = customer.id;
       await persistStripeCustomerId(businessId, customerId);
     }
+
+    // Record which plan checkout was started for — abandoned-checkout recovery
+    // emails read this instead of assuming Starter.
+    await persistPendingPlan(businessId, plan);
 
     const baseUrl = getAppBaseUrl();
     const session = await stripe.checkout.sessions.create({

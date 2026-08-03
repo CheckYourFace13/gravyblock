@@ -46,6 +46,7 @@ function memoryBusinessToRow(businessId: string): BusinessRow | null {
     focusArea: "local",
     targetScope: null,
     planTier: mem.planTier,
+    pendingPlan: mem.pendingPlan ?? null,
     accountType: mem.accountType ?? "customer",
     showcaseOptIn: mem.showcaseOptIn ?? "false",
     stripeCustomerId: mem.stripeCustomerId,
@@ -218,6 +219,23 @@ export async function persistStripeCustomerId(businessId: string, stripeCustomer
   await db
     .update(businesses)
     .set({ updatedAt: new Date(), stripeCustomerId })
+    .where(eq(businesses.id, businessId));
+}
+
+/**
+ * Records which plan a business most recently started checkout for. Read
+ * by abandoned-checkout recovery emails so they quote the plan/price the
+ * customer actually picked instead of assuming Starter.
+ */
+export async function persistPendingPlan(businessId: string, pendingPlan: string) {
+  const db = getDb();
+  if (!db) {
+    memoryStore.updateBusinessBilling({ businessId, pendingPlan });
+    return;
+  }
+  await db
+    .update(businesses)
+    .set({ updatedAt: new Date(), pendingPlan })
     .where(eq(businesses.id, businessId));
 }
 

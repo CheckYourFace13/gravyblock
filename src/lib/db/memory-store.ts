@@ -25,6 +25,7 @@ type MemBusiness = {
   businessStatus: string | null;
   brandNotes: string | null;
   planTier: string;
+  pendingPlan: string | null;
   accountType: string;
   showcaseOptIn: string;
   stripeCustomerId: string | null;
@@ -274,6 +275,7 @@ function upsertBusiness(profile: BusinessProfile, vertical: Vertical): MemBusine
     businessStatus: profile.businessStatus ?? null,
     brandNotes: null,
     planTier: "free",
+      pendingPlan: null,
       accountType: "customer",
       showcaseOptIn: "false",
       stripeCustomerId: null,
@@ -668,6 +670,7 @@ export const memoryStore = {
   updateBusinessBilling(input: {
     businessId: string;
     planTier?: string;
+    pendingPlan?: string | null;
     stripeCustomerId?: string | null;
     stripeSubscriptionId?: string | null;
     subscriptionStatus?: string | null;
@@ -680,6 +683,7 @@ export const memoryStore = {
       ...b,
       updatedAt: now(),
       planTier: input.planTier !== undefined ? input.planTier : b.planTier,
+      pendingPlan: input.pendingPlan !== undefined ? input.pendingPlan : b.pendingPlan,
       stripeCustomerId: input.stripeCustomerId !== undefined ? input.stripeCustomerId : b.stripeCustomerId,
       stripeSubscriptionId: input.stripeSubscriptionId !== undefined ? input.stripeSubscriptionId : b.stripeSubscriptionId,
       subscriptionStatus: input.subscriptionStatus !== undefined ? input.subscriptionStatus : b.subscriptionStatus,

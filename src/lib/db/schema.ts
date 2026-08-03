@@ -94,6 +94,15 @@ export const businesses = pgTable("businesses", {
   targetScope: text("target_scope"),
   planTier: text("plan_tier").notNull().default("free"),
   /**
+   * Plan the business most recently started Stripe checkout for (starter |
+   * growth | pro | agency). Set when a checkout session is created, read by
+   * abandoned-checkout recovery emails so they quote the plan/price the
+   * customer actually picked instead of guessing. Stale once planTier
+   * reflects a completed subscription, but recovery emails only fire while
+   * planTier is still "free".
+   */
+  pendingPlan: text("pending_plan"),
+  /**
    * "customer" (real, billed) or "house" (owner-run demo/marketing account —
    * full plan features granted directly via planTier, no Stripe subscription
    * needed. Excluded from MRR/revenue reporting and automated customer emails).
