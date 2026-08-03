@@ -179,7 +179,7 @@ function buildReportText(prospect: Prospect, preScan: ProspectPreScan): string {
   // Prospect-finder targets weak listings, so fixes essentially always exist —
   // but a strong business must not get a broken empty list.
   const fixBlock = preScan.topFixes.length
-    ? `The top things holding the score back:\n${preScan.topFixes.map((f, i) => `${i + 1}. ${f}`).join("\n")}`
+    ? `The top things holding the score back:\n${preScan.topFixes.map((f, i) => `${i + 1}. ${f.title} — ${f.detail}`).join("\n")}`
     : "Honestly, the fundamentals look solid — the report shows where the remaining headroom is.";
 
   return `Hi,
@@ -210,7 +210,7 @@ function buildReportHtml(
   const fixBlock = preScan.topFixes.length
     ? `<p style="margin:0 0 6px;font-weight:600">The top things holding the score back:</p>
   <ol style="margin:0 0 18px;padding-left:20px;color:#333">
-    ${preScan.topFixes.map((f) => `<li style="margin-bottom:6px">${f}</li>`).join("")}
+    ${preScan.topFixes.map((f) => `<li style="margin-bottom:8px"><strong>${f.title}</strong> — ${f.detail}</li>`).join("")}
   </ol>`
     : `<p style="margin:0 0 18px">Honestly, the fundamentals look solid — the report shows where the remaining headroom is.</p>`;
 

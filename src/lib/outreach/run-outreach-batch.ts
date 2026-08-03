@@ -53,10 +53,19 @@ export async function runOutreachBatch(params: {
       continue;
     }
 
-    // Run their scan BEFORE emailing so the email leads with a real score and
-    // a link to their actual report instead of an invitation to go run one.
-    // Falls back to the invite-style email when the pre-scan fails (null).
+    // Run their scan BEFORE emailing so the email leads with a real score,
+    // their actual top fixes, and a link to their real report. A generic
+    // "invite yourself to scan" email with no specifics converts worse and
+    // reads as one more piece of spam — if the pre-scan fails, skip this
+    // prospect entirely rather than send the un-personalized fallback.
+    // (Places/site-crawl calls that back this rarely fail outright, so this
+    // costs very few sends — see prospect-prescan.ts's cost note.)
     const preScan = await runProspectPreScan(prospect);
+    if (!preScan) {
+      console.info("[outreach-batch] Skipped — pre-scan failed, no generic fallback sent", { businessName: prospect.businessName });
+      skipped++;
+      continue;
+    }
 
     let result: { ok: boolean; skipped?: boolean; reason?: string };
     try {

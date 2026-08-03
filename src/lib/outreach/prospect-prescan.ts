@@ -23,12 +23,14 @@ import type { Prospect } from "./prospect-finder";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
 
+export type ProspectPreScanFix = { title: string; detail: string };
+
 export type ProspectPreScan = {
   publicId: string;
   reportUrl: string;
   score: number;
-  /** Top prioritized fix titles, most impactful first (max 3). */
-  topFixes: string[];
+  /** Top prioritized fixes, most impactful first (max 3). */
+  topFixes: ProspectPreScanFix[];
 };
 
 export async function runProspectPreScan(prospect: Prospect): Promise<ProspectPreScan | null> {
@@ -61,7 +63,7 @@ export async function runProspectPreScan(prospect: Prospect): Promise<ProspectPr
     const topFixes = [...generated.payload.prioritizedFixes]
       .sort((a, b) => (impactRank[a.impact] ?? 3) - (impactRank[b.impact] ?? 3))
       .slice(0, 3)
-      .map((f) => f.title);
+      .map((f) => ({ title: f.title, detail: f.detail }));
 
     return {
       publicId,
