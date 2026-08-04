@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SignupForm } from "./signup-form";
+import { ProofTeaser } from "./proof-teaser";
 import { normalizePromoCode } from "@/lib/stripe/promo-codes";
 import { ANNUAL_SAVINGS } from "@/lib/stripe/server";
 
@@ -98,6 +99,8 @@ export default async function StartPage({ searchParams }: Props) {
           </p>
           <p className="mt-0.5 text-xs text-amber-700">Prices increase as we grow. Won&apos;t stay this low.</p>
         </div>
+
+        <ProofTeaser />
 
         {/* Plan switcher — pick a different plan without leaving checkout */}
         <div className="mb-3 flex justify-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-100 p-1">
