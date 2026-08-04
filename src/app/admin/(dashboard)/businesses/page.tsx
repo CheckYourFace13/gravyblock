@@ -42,13 +42,8 @@ type Props = { searchParams: Promise<{ q?: string }> };
 
 export default async function AdminBusinessesPage({ searchParams }: Props) {
   const { q } = await searchParams;
-  const query = q?.trim().toLowerCase() ?? "";
-  const allBusinesses = await listBusinessSummaries();
-  const businesses = query
-    ? allBusinesses.filter((b) =>
-        b.name.toLowerCase().includes(query) || (b.billingEmail ?? "").toLowerCase().includes(query),
-      )
-    : allBusinesses;
+  const query = q?.trim() ?? "";
+  const businesses = await listBusinessSummaries(query || undefined);
   const paidCount = businesses.filter((b) =>
     b.accountType !== "house" && (b.subscriptionStatus === "active" || b.subscriptionStatus === "trialing")
   ).length;

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { desc, eq, or } from "drizzle-orm";
+import { desc, eq, or, ilike } from "drizzle-orm";
 import {
   auditFindings,
   businesses,
@@ -870,7 +870,7 @@ export async function listReportSummaries() {
   }));
 }
 
-export async function listBusinessSummaries() {
+export async function listBusinessSummaries(search?: string) {
   const db = getDb();
   if (!db) {
     assertMemoryFallbackAllowed();
@@ -888,7 +888,9 @@ export async function listBusinessSummaries() {
     }));
   }
 
-  const rows = await db
+  const query = search?.trim();
+
+  const baseQuery = db
     .select({
       id: businesses.id,
       name: businesses.name,
@@ -902,8 +904,16 @@ export async function listBusinessSummaries() {
       currentPeriodEnd: businesses.currentPeriodEnd,
     })
     .from(businesses)
-    .orderBy(desc(businesses.updatedAt))
-    .limit(200);
+    .orderBy(desc(businesses.updatedAt));
+
+  // A search term queries the WHOLE table (no cap) — without this, search
+  // silently only matched inside the 200-most-recently-updated window below,
+  // so any business that hadn't been touched recently (e.g. a house account
+  // untouched for weeks while thousands of cold-outreach pre-scans kept
+  // creating newer rows) became unfindable even though it still existed.
+  const rows = query
+    ? await baseQuery.where(or(ilike(businesses.name, `%${query}%`), ilike(businesses.billingEmail, `%${query}%`))).limit(200)
+    : await baseQuery.limit(200);
 
   return rows.map((b) => ({
     id: b.id,
