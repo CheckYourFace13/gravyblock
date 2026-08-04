@@ -30,11 +30,11 @@ function cityFromAddress(address: string | null): string | null {
   return null;
 }
 
-async function getShowcaseBusinesses(): Promise<{ list: ShowcaseBusiness[]; debug: unknown }> {
+async function getShowcaseBusinesses(): Promise<ShowcaseBusiness[]> {
   const db = getDb();
-  if (!db) return { list: [], debug: { reason: "no db" } };
+  if (!db) return [];
 
-  let rows: Array<{ id: string; name: string; vertical: string | null; address: string | null; showcaseOptIn?: string }> = [];
+  let rows: Array<{ id: string; name: string; vertical: string | null; address: string | null }> = [];
   try {
     rows = await db
       .select({
@@ -42,20 +42,18 @@ async function getShowcaseBusinesses(): Promise<{ list: ShowcaseBusiness[]; debu
         name: businesses.name,
         vertical: businesses.vertical,
         address: businesses.address,
-        showcaseOptIn: businesses.showcaseOptIn,
       })
       .from(businesses)
       .where(eq(businesses.showcaseOptIn, "true"))
       .limit(12);
-  } catch (err) {
-    console.error("[proof] query failed", { error: err instanceof Error ? err.message : String(err) });
-    return { list: [], debug: { reason: "query threw", error: err instanceof Error ? err.message : String(err) } };
+  } catch {
+    return []; // column may not exist yet on older DBs
   }
 
   // Defense in depth: the parent company never appears here (owner directive),
   // on top of the same guard in the admin toggle action.
   const visible = rows.filter((b) => !b.name.toLowerCase().includes("iscream"));
-  if (!visible.length) return { list: [], debug: { rows } };
+  if (!visible.length) return [];
 
   const ids = visible.map((b) => b.id);
   const [snapshots, articles] = await Promise.all([
@@ -84,7 +82,7 @@ async function getShowcaseBusinesses(): Promise<{ list: ShowcaseBusiness[]; debu
       .limit(300),
   ]);
 
-  const list = visible.map((b) => {
+  return visible.map((b) => {
     const snaps = snapshots.filter((s) => s.businessId === b.id);
     const published = articles.filter(
       (a) => a.businessId === b.id && a.status === "published" && a.channel === "internal_site" && a.publicUrl,
@@ -102,21 +100,13 @@ async function getShowcaseBusinesses(): Promise<{ list: ShowcaseBusiness[]; debu
       recentArticles: published.slice(0, 3).map((a) => ({ title: a.title, publicUrl: a.publicUrl! })),
     };
   });
-
-  return { list, debug: { rows, visibleCount: visible.length, snapshotCount: snapshots.length } };
 }
 
-export default async function ProofPage({ searchParams }: { searchParams: Promise<{ debug?: string }> }) {
-  const { debug } = await searchParams;
-  const { list: showcased, debug: debugInfo } = await getShowcaseBusinesses();
+export default async function ProofPage() {
+  const showcased = await getShowcaseBusinesses();
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6">
-      {debug ? (
-        <pre className="mb-6 overflow-x-auto rounded-xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-900">
-          {JSON.stringify(debugInfo, null, 2)}
-        </pre>
-      ) : null}
       <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-800">Proof, not promises</p>
       <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
         We run GravyBlock on our own businesses.
