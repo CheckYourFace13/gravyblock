@@ -16,7 +16,7 @@
  */
 
 import { eq, and, inArray, gte, lte, count } from "drizzle-orm";
-import { runPendingRecurringSnapshotJobs, executeContentPublishPath } from "@/lib/autopilot/executor";
+import { runPendingRecurringSnapshotJobs, executeContentPublishPath, backfillMissingRecurringJobs } from "@/lib/autopilot/executor";
 import { getDb, businesses, contentQueue, jobs, emailEvents } from "@/lib/db";
 import { queueContentForBusiness } from "@/lib/content-gen/queue-content";
 import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
@@ -437,6 +437,22 @@ async function tick() {
     console.info("[worker] snapshot jobs", snapshotResult);
   } catch (error) {
     console.error("[worker] snapshot jobs failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  // Daily safety net: the recurring-refresh chain re-schedules its own next
+  // cycle, so any single failure in that step silently ends it forever for
+  // that business. Confirmed this happened system-wide — pending recurring
+  // jobs hit 0 with businesses frozen for weeks with no automatic recovery.
+  if (!(await hasJobRunToday("recurring_job_backfill"))) {
+    try {
+      const backfillResult = await backfillMissingRecurringJobs();
+      await recordWorkerJob("recurring_job_backfill", backfillResult);
+      if (backfillResult.scheduled > 0) {
+        console.info("[worker] backfilled missing recurring jobs", backfillResult);
+      }
+    } catch (error) {
+      console.error("[worker] recurring job backfill failed", { error: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   try {

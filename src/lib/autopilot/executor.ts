@@ -1046,7 +1046,23 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
       if (business?.planTier) {
         const planForSchedule = normalizePlanTierFromDb(business.planTier);
         if (planForSchedule !== "free") {
-          void schedulePlanRecurringSnapshotJob({ businessId, planTier: planForSchedule });
+          // Was fire-and-forget (`void ...`, never awaited) — a failure here
+          // silently ended the recurring chain forever for this business,
+          // since nothing else ever re-schedules an existing business's next
+          // cycle. Confirmed happening: PRO/BASE recurring jobs pending hit
+          // 0 system-wide with businesses frozen for weeks. Now awaited and
+          // logged so a failure is at least visible, and non-fatal so it
+          // doesn't flip this job to "failed" after real work already
+          // completed (backfillMissingRecurringJobs below is the safety net
+          // that recovers from this class of failure automatically).
+          try {
+            await schedulePlanRecurringSnapshotJob({ businessId, planTier: planForSchedule });
+          } catch (err) {
+            console.error("[autopilot] failed to reschedule next recurring cycle", {
+              businessId,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
         }
       }
 
@@ -1058,4 +1074,66 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
   }
 
   return { processed: results.length, results };
+}
+
+/**
+ * Safety net for the recurring-refresh chain: each cycle is supposed to
+ * re-schedule its own successor (see the reschedule call above), but that
+ * was fire-and-forget for a long time, so any single failure silently ended
+ * the chain forever for that business — nothing else ever creates a new
+ * recurring job for an already-existing business. Confirmed happening
+ * system-wide (pending recurring jobs hit 0 with businesses frozen for
+ * weeks). This sweeps every paid business without a pending recurring job
+ * and schedules one immediately (not delayed by a full cycle), so a stall
+ * is caught and recovered on the next run instead of staying broken
+ * indefinitely.
+ */
+export async function backfillMissingRecurringJobs(batchSize = 50): Promise<{ scheduled: number; checked: number }> {
+  const db = getDb();
+  if (!db) return { scheduled: 0, checked: 0 };
+
+  const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
+  const paidBusinesses = await db
+    .select({ id: businesses.id, planTier: businesses.planTier })
+    .from(businesses)
+    .where(inArray(businesses.planTier, PAID_TIERS))
+    .limit(2000);
+
+  if (paidBusinesses.length === 0) return { scheduled: 0, checked: 0 };
+
+  const businessIds = paidBusinesses.map((b) => b.id);
+  const pendingRows = await db
+    .select({ businessId: jobs.businessId })
+    .from(jobs)
+    .where(
+      and(
+        inArray(jobs.type, ["recurring_snapshot_refresh", "entry_monthly_refresh", "pro_recurring_refresh"]),
+        eq(jobs.status, "pending"),
+        inArray(jobs.businessId, businessIds),
+      ),
+    );
+  const alreadyPending = new Set(pendingRows.map((r) => r.businessId).filter((id): id is string => Boolean(id)));
+
+  const missing = paidBusinesses.filter((b) => !alreadyPending.has(b.id));
+
+  let scheduled = 0;
+  for (const biz of missing.slice(0, batchSize)) {
+    const tier = normalizePlanTierFromDb(biz.planTier);
+    if (tier === "free") continue;
+    try {
+      const result = await scheduleRecurringSnapshotJob({
+        businessId: biz.id,
+        runAfterMs: 0,
+        type: recurringJobTypeForPlan(tier),
+      });
+      if (!result.skipped) scheduled++;
+    } catch (err) {
+      console.error("[autopilot] backfill schedule failed", {
+        businessId: biz.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  return { scheduled, checked: missing.length };
 }
