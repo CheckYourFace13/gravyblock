@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { desc, eq, or, ilike } from "drizzle-orm";
+import { count, desc, eq, or, ilike } from "drizzle-orm";
 import {
   auditFindings,
   businesses,
@@ -868,6 +868,26 @@ export async function listReportSummaries() {
     accountType: r.accountType ?? "customer",
     planTier: r.planTier ?? "free",
   }));
+}
+
+export async function countBusinesses(): Promise<number> {
+  const db = getDb();
+  if (!db) {
+    assertMemoryFallbackAllowed();
+    return memoryStore.listBusinesses().length;
+  }
+  const [row] = await db.select({ n: count() }).from(businesses);
+  return row?.n ?? 0;
+}
+
+export async function countReports(): Promise<number> {
+  const db = getDb();
+  if (!db) {
+    assertMemoryFallbackAllowed();
+    return memoryStore.listReports().length;
+  }
+  const [row] = await db.select({ n: count() }).from(reports);
+  return row?.n ?? 0;
 }
 
 export async function listBusinessSummaries(search?: string) {

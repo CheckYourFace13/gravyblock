@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getAutopilotOpsSummary, listBrandsOverview, listLocationsOverview } from "@/lib/autopilot/repository";
-import { listBusinessSummaries, listLeads, listReportSummaries } from "@/lib/report/repository";
+import { countBusinesses, countReports, listLeads, listReportSummaries } from "@/lib/report/repository";
 import { getDb, jobs } from "@/lib/db";
 import { and, gte, eq, desc } from "drizzle-orm";
 import { getCalendarPreview, getTodaysOutreachTarget, daysSinceEpoch, OUTREACH_WINDOW_OFFSETS } from "@/lib/outreach/outreach-calendar";
@@ -48,14 +48,15 @@ const panels: { href: string; title: string; description: string }[] = [
 ];
 
 export default async function AdminHomePage() {
-  const [reports, leads, businesses, brands, locations, autopilot, outreach] = await Promise.all([
+  const [reports, leads, brands, locations, autopilot, outreach, businessCount, reportCount] = await Promise.all([
     listReportSummaries(),
     listLeads(),
-    listBusinessSummaries(),
     listBrandsOverview(),
     listLocationsOverview(),
     getAutopilotOpsSummary(),
     getOutreachStats(),
+    countBusinesses(),
+    countReports(),
   ]);
 
   const todaysTarget = getTodaysOutreachTarget();
@@ -88,10 +89,10 @@ export default async function AdminHomePage() {
       <div>
         <h2 className="text-lg font-semibold text-zinc-900">At a glance</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Businesses" value={String(businesses.length)} />
+          <StatCard label="Businesses" value={businessCount.toLocaleString()} />
           <StatCard label="Brands" value={String(brands.length)} />
           <StatCard label="Locations" value={String(locations.length)} />
-          <StatCard label="Reports" value={String(reports.length)} />
+          <StatCard label="Reports" value={reportCount.toLocaleString()} />
           <StatCard label="Leads" value={String(leads.length)} />
           <StatCard label="Autopilot · queued tasks" value={String(autopilot.queuedTasks)} />
           <StatCard label="Autopilot · pending jobs" value={String(autopilot.queuedJobs)} />
