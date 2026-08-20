@@ -16,6 +16,7 @@ import {
   visibilitySnapshots,
 } from "@/lib/db";
 import { sendAutomationSummaryEmail, sendOutreachEmail } from "@/lib/integrations/resend";
+import { discoverContactEmail } from "@/lib/outreach/discover-contact-email";
 import { publishToWordPress, type WordPressConfig } from "@/lib/integrations/wordpress";
 import { publishToWebflow, extractWebflowConfig } from "@/lib/publishing/adapters/webflow";
 import { publishToShopify, extractShopifyConfig } from "@/lib/publishing/adapters/shopify";
@@ -222,15 +223,6 @@ function buildPublishBody(input: {
   ].join("\n");
 }
 
-function hostFromUrl(url: string | null | undefined) {
-  if (!url) return null;
-  try {
-    return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
-  } catch {
-    return null;
-  }
-}
-
 function cityFromAddress(address: string | null | undefined): string {
   if (!address) return "your area";
   // "123 Main St, Austin, TX 78701" → "Austin"
@@ -239,11 +231,6 @@ function cityFromAddress(address: string | null | undefined): string {
   return address.trim();
 }
 
-function outreachEmailForTarget(targetUrl: string | null, fallbackEmail: string | null) {
-  const host = hostFromUrl(targetUrl);
-  if (host) return `partnerships@${host}`;
-  return fallbackEmail;
-}
 
 export async function executeContentPublishPath(businessId: string) {
   const db = getDb();
@@ -907,12 +894,6 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
           .limit(runProfile.outreachDrafts);
 
         if (realProspects.length > 0) {
-          const [lead] = await db
-            .select({ email: leads.email })
-            .from(leads)
-            .where(eq(leads.businessId, businessId))
-            .orderBy(desc(leads.lastSeenAt))
-            .limit(1);
           const businessName = business?.name ?? "GravyBlock customer";
           const publishedReference = publishedUrls[0] ?? (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
           const outreachTasks = realProspects.map((opportunity, idx) => {
@@ -931,8 +912,23 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
             const task = outreachTasks[idx];
             const opportunity = realProspects[idx];
             if (!opportunity) continue;
-            const targetEmail = outreachEmailForTarget(opportunity.targetUrl, lead?.email ?? null);
-            if (!targetEmail) continue;
+            if (!opportunity.targetUrl) continue;
+            // Never guess an address (e.g. the old `partnerships@{host}` pattern) — only
+            // send when the target site itself publishes a contact email. lead?.email
+            // (the customer's own contact) must never be used as a stand-in for a
+            // partner site's address, so there is no fallback here.
+            const contact = await discoverContactEmail(opportunity.targetUrl);
+            await db
+              .update(backlinkOpportunities)
+              .set({ contactEmail: contact.email, contactSource: contact.source })
+              .where(eq(backlinkOpportunities.id, opportunity.id));
+            if (!contact.email) {
+              await db
+                .update(operatorTasks)
+                .set({ status: "draft_generated", detail: `${task.detail} | no published contact found on target site` })
+                .where(eq(operatorTasks.id, task.id));
+              continue;
+            }
             try {
               const aiPitch = await generateOutreachPitch({
                 businessName,
@@ -945,7 +941,7 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
               const pitch = aiPitch ??
                 "We have a newly refreshed local visibility page and can provide an audience-relevant contribution tied to current service-area demand.";
               const sendResult = await sendOutreachEmail({
-                to: targetEmail,
+                to: contact.email,
                 businessName,
                 targetName: opportunity.sourceName,
                 angle: "Local resource collaboration",

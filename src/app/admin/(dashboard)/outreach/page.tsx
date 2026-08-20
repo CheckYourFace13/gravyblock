@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getOutreachSettings, getSentEmails, getBatchHistory, getOutreachCounts } from "./actions";
+import { getOutreachSettings, getSentEmails, getBatchHistory, getOutreachCounts, getOutreachFunnel, type FunnelPeriodStats } from "./actions";
 import { getCalendarPreview, getTodaysOutreachTarget, getOutreachTargetForOffset, daysSinceEpoch, OUTREACH_WINDOW_OFFSETS } from "@/lib/outreach/outreach-calendar";
 import { OutreachSettingsForm } from "./outreach-settings-form";
 
@@ -14,11 +14,12 @@ const WEEKEND_TARGETS = [
 ];
 
 export default async function OutreachPage() {
-  const [settings, sentEmails, batches, counts] = await Promise.all([
+  const [settings, sentEmails, batches, counts, funnel] = await Promise.all([
     getOutreachSettings(),
     getSentEmails(200),
     getBatchHistory(30),
     getOutreachCounts(),
+    getOutreachFunnel(),
   ]);
 
   const todaysTarget = getTodaysOutreachTarget();
@@ -50,6 +51,60 @@ export default async function OutreachPage() {
           highlight={!settings.paused}
         />
       </div>
+
+      {/* ── FUNNEL ────────────────────────────────────────── */}
+      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <h2 className="text-base font-semibold text-zinc-900 mb-1">Outreach funnel</h2>
+        <p className="text-sm text-zinc-500 mb-1">
+          Sent/skipped are real for all time. Delivered/bounced/opened/clicked come from the Resend webhook —{" "}
+          {funnel.emailEventsTrackingSince
+            ? `only reliable from ${new Date(funnel.emailEventsTrackingSince).toLocaleDateString()} forward (webhook signature verification was fixed this session — earlier data may be incomplete or unverified).`
+            : "no events recorded yet."}
+        </p>
+        <p className="text-sm text-zinc-500 mb-5">
+          Scan-starts/leads attributed to outreach clicks use first-party tracking shipped{" "}
+          {funnel.attributionTrackingSince
+            ? `${new Date(funnel.attributionTrackingSince).toLocaleDateString()}`
+            : "just now"}
+          {" "}— nothing before that date can be attributed and is not estimated.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-zinc-100 text-left text-xs uppercase tracking-wide text-zinc-400">
+                <th className="pb-2 pr-4 font-semibold">Stage</th>
+                <th className="pb-2 pr-4 font-semibold text-right">Today</th>
+                <th className="pb-2 pr-4 font-semibold text-right">7 days</th>
+                <th className="pb-2 pr-4 font-semibold text-right">30 days</th>
+                <th className="pb-2 font-semibold text-right">All time</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-50">
+              <FunnelRow label="Prospects evaluated" field="prospectsEvaluated" funnel={funnel} />
+              <FunnelRow label="Skipped (dedup/prescan fail/opted out)" field="skipped" funnel={funnel} />
+              <FunnelRow label="Emails attempted" field="emailsAttempted" funnel={funnel} highlight />
+              <FunnelRow label="Delivered (webhook)" field="delivered" funnel={funnel} />
+              <FunnelRow label="Bounced" field="bounced" funnel={funnel} warn />
+              <FunnelRow label="Complained" field="complained" funnel={funnel} warn />
+              <FunnelRow label="Unsubscribed" field="unsubscribed" funnel={funnel} warn />
+              <FunnelRow label="Opened (webhook)" field="opened" funnel={funnel} />
+              <FunnelRow label="Clicked (webhook)" field="clicked" funnel={funnel} />
+              <FunnelRow label="→ Scan started (attributed)" field="attributedScanStarts" funnel={funnel} highlight />
+              <FunnelRow label="→ Lead captured (attributed)" field="attributedLeads" funnel={funnel} highlight />
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3 text-xs text-zinc-500">
+          <RateNote label="Bounce rate (all-time)" value={rate(funnel.allTime.bounced, funnel.allTime.emailsAttempted)} />
+          <RateNote label="Open rate (all-time)" value={rate(funnel.allTime.opened, funnel.allTime.delivered || funnel.allTime.emailsAttempted)} />
+          <RateNote label="Click rate of opens (all-time)" value={rate(funnel.allTime.clicked, funnel.allTime.opened)} />
+        </div>
+        <p className="mt-4 text-xs text-zinc-400">
+          Not currently measurable and not estimated: pricing-page visits, checkout starts, and paid conversions attributable
+          specifically to a cold-outreach click (vs. organic/direct). Stripe is authoritative for payment completion —
+          see /admin/mrr.
+        </p>
+      </section>
 
       {/* ── SETTINGS PANEL ───────────────────────────────── */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -198,6 +253,45 @@ export default async function OutreachPage() {
         </p>
       </section>
     </div>
+  );
+}
+
+function rate(numerator: number, denominator: number): string {
+  if (!denominator) return "—";
+  return `${((numerator / denominator) * 100).toFixed(1)}%`;
+}
+
+function RateNote({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+      <p className="font-semibold text-zinc-600">{label}</p>
+      <p className="mt-0.5 text-base font-bold text-zinc-900">{value}</p>
+    </div>
+  );
+}
+
+function FunnelRow({
+  label,
+  field,
+  funnel,
+  highlight,
+  warn,
+}: {
+  label: string;
+  field: keyof FunnelPeriodStats;
+  funnel: { today: FunnelPeriodStats; last7d: FunnelPeriodStats; last30d: FunnelPeriodStats; allTime: FunnelPeriodStats };
+  highlight?: boolean;
+  warn?: boolean;
+}) {
+  const cls = highlight ? "font-semibold text-zinc-900" : warn ? "text-amber-700" : "text-zinc-700";
+  return (
+    <tr>
+      <td className={`py-2 pr-4 ${highlight ? "font-semibold text-zinc-900" : "text-zinc-600"}`}>{label}</td>
+      <td className={`py-2 pr-4 text-right tabular-nums ${cls}`}>{funnel.today[field].toLocaleString()}</td>
+      <td className={`py-2 pr-4 text-right tabular-nums ${cls}`}>{funnel.last7d[field].toLocaleString()}</td>
+      <td className={`py-2 pr-4 text-right tabular-nums ${cls}`}>{funnel.last30d[field].toLocaleString()}</td>
+      <td className={`py-2 text-right tabular-nums ${cls}`}>{funnel.allTime[field].toLocaleString()}</td>
+    </tr>
   );
 }
 

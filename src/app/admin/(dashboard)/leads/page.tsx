@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { listLeads } from "@/lib/report/repository";
+import { getLeadsNeedingFollowUp } from "../outreach/actions";
+import { FollowUpQueue } from "./follow-up-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +14,14 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
   const source = filters.source ?? "all";
   const pipeline = filters.pipeline ?? "all";
   const linked = filters.linked ?? "all";
-  const leads = await listLeads({
-    source,
-    pipelineStatus: pipeline,
-    linked: linked as "all" | "linked" | "unlinked",
-  });
+  const [leads, followUpLeads] = await Promise.all([
+    listLeads({
+      source,
+      pipelineStatus: pipeline,
+      linked: linked as "all" | "linked" | "unlinked",
+    }),
+    getLeadsNeedingFollowUp(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -26,6 +31,7 @@ export default async function AdminLeadsPage({ searchParams }: Props) {
           Inbound messages from scan, report, contact, support, and legacy upgrade/demo sources.
         </p>
       </div>
+      <FollowUpQueue leads={followUpLeads} />
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
           <FilterChip href="/admin/leads" active={source === "all" && pipeline === "all" && linked === "all"}>

@@ -6,6 +6,8 @@ import { getDb, businesses } from "@/lib/db";
 import { getStripeServerClient, getPriceIdForPlan, getAppBaseUrl, type CheckoutPlan, type BillingInterval } from "@/lib/stripe/server";
 import { persistStripeCustomerId, persistPendingPlan } from "@/lib/billing/repository";
 import { normalizePromoCode, resolveCouponId } from "@/lib/stripe/promo-codes";
+import { trackFunnelEvent } from "@/lib/events/track";
+import { cookies } from "next/headers";
 
 function normalizePlan(raw: string | null | undefined): CheckoutPlan {
   const p = (raw ?? "").toLowerCase();
@@ -110,6 +112,14 @@ export async function directSignupAction(
     // Record which plan checkout was started for — abandoned-checkout recovery
     // emails read this instead of assuming Starter.
     await persistPendingPlan(businessId, plan);
+
+    const visitorSessionId = (await cookies()).get("gb_visitor")?.value ?? null;
+    await trackFunnelEvent({
+      eventType: "checkout_started",
+      businessId,
+      sessionId: visitorSessionId,
+      metadata: { plan, interval },
+    });
 
     const baseUrl = getAppBaseUrl();
     const session = await stripe.checkout.sessions.create({

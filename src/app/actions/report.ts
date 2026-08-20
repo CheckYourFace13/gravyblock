@@ -1,9 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createPublicId, generateReportFromPlace, generateReportFromWebsite } from "@/lib/report/generator";
 import { recordScanRun } from "@/lib/report/repository";
 import { scanFormSchema } from "@/lib/validation/scan";
+import { trackFunnelEvent } from "@/lib/events/track";
 
 export type ReportActionState =
   | { status: "idle" }
@@ -139,6 +141,9 @@ export async function generateReportAction(
     const message = err instanceof Error ? err.message : "Could not save report";
     return { status: "error", formError: message };
   }
+
+  const visitorSessionId = (await cookies()).get("gb_visitor")?.value ?? null;
+  await trackFunnelEvent({ eventType: "scan_completed", reportPublicId: publicId, sessionId: visitorSessionId });
 
   const next = new URL(`/report/${publicId}`, "http://localhost");
   if (selectedPlan) next.searchParams.set("plan", selectedPlan);

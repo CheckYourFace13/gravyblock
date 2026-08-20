@@ -1,9 +1,211 @@
 "use server";
 
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getDb, jobs } from "@/lib/db";
+import { getDb, jobs, emailEvents, funnelEvents, leads } from "@/lib/db";
 import { isAdminSession } from "@/lib/auth/admin-session";
+
+const COLD_OUTREACH_EMAIL_TYPES = ["cold_outreach", "cold_outreach_followup", "cold_outreach_breakup"] as const;
+
+export type FunnelPeriodStats = {
+  prospectsEvaluated: number;
+  skipped: number;
+  emailsAttempted: number;
+  delivered: number;
+  bounced: number;
+  complained: number;
+  unsubscribed: number;
+  opened: number;
+  clicked: number;
+  attributedScanStarts: number;
+  attributedLeads: number;
+};
+
+const EMPTY_PERIOD: FunnelPeriodStats = {
+  prospectsEvaluated: 0,
+  skipped: 0,
+  emailsAttempted: 0,
+  delivered: 0,
+  bounced: 0,
+  complained: 0,
+  unsubscribed: 0,
+  opened: 0,
+  clicked: 0,
+  attributedScanStarts: 0,
+  attributedLeads: 0,
+};
+
+async function periodStats(since: Date | null): Promise<FunnelPeriodStats> {
+  const db = getDb();
+  if (!db) return EMPTY_PERIOD;
+
+  const batchWhere = since
+    ? and(eq(jobs.type, "cold_outreach_batch"), gte(jobs.createdAt, since))
+    : eq(jobs.type, "cold_outreach_batch");
+  const sentWhere = since
+    ? and(eq(jobs.type, "cold_outreach_sent"), gte(jobs.createdAt, since))
+    : eq(jobs.type, "cold_outreach_sent");
+  const optOutWhere = since
+    ? and(eq(jobs.type, "email_optout"), gte(jobs.createdAt, since))
+    : eq(jobs.type, "email_optout");
+  const emailEventsWhere = since
+    ? and(inArray(emailEvents.emailType, [...COLD_OUTREACH_EMAIL_TYPES]), gte(emailEvents.createdAt, since))
+    : inArray(emailEvents.emailType, [...COLD_OUTREACH_EMAIL_TYPES]);
+  const attributedWhere = since
+    ? and(eq(funnelEvents.utmSource, "cold_outreach"), gte(funnelEvents.createdAt, since))
+    : eq(funnelEvents.utmSource, "cold_outreach");
+
+  const [batchRows, sentRows, optOutRows, eventRows, attributedRows] = await Promise.all([
+    db.select({ payload: jobs.payload }).from(jobs).where(batchWhere),
+    db.select({ id: jobs.id }).from(jobs).where(sentWhere),
+    db.select({ id: jobs.id }).from(jobs).where(optOutWhere),
+    db
+      .select({ eventType: emailEvents.eventType, n: sql<number>`count(*)::int` })
+      .from(emailEvents)
+      .where(emailEventsWhere)
+      .groupBy(emailEvents.eventType)
+      .catch(() => [] as Array<{ eventType: string; n: number }>),
+    db
+      .select({ eventType: funnelEvents.eventType, n: sql<number>`count(*)::int` })
+      .from(funnelEvents)
+      .where(attributedWhere)
+      .groupBy(funnelEvents.eventType)
+      .catch(() => [] as Array<{ eventType: string; n: number }>),
+  ]);
+
+  let prospectsEvaluated = 0;
+  let skipped = 0;
+  for (const row of batchRows) {
+    const p = row.payload as Record<string, unknown> | null;
+    prospectsEvaluated += Number(p?.prospects ?? 0);
+    skipped += Number(p?.skipped ?? 0);
+  }
+
+  const byType = new Map(eventRows.map((r) => [r.eventType, Number(r.n)]));
+  const attributedByType = new Map(attributedRows.map((r) => [r.eventType, Number(r.n)]));
+
+  return {
+    prospectsEvaluated,
+    skipped,
+    emailsAttempted: sentRows.length,
+    delivered: byType.get("delivered") ?? 0,
+    bounced: byType.get("bounced") ?? 0,
+    complained: byType.get("complained") ?? 0,
+    unsubscribed: optOutRows.length,
+    opened: byType.get("opened") ?? 0,
+    clicked: byType.get("clicked") ?? 0,
+    attributedScanStarts: attributedByType.get("scan_started") ?? 0,
+    attributedLeads: attributedByType.get("lead_form_submitted") ?? 0,
+  };
+}
+
+/**
+ * Outreach funnel across four windows. Delivered/opened/clicked/bounced come
+ * from the Resend webhook (emailEvents) — only populated from whenever that
+ * webhook first started reliably receiving events, not retroactive.
+ * attributedScanStarts/attributedLeads come from funnelEvents.utmSource =
+ * 'cold_outreach', which only exists from this feature's ship date forward —
+ * historical clicks before that date cannot be attributed and are not
+ * estimated here.
+ */
+export async function getOutreachFunnel(): Promise<{
+  today: FunnelPeriodStats;
+  last7d: FunnelPeriodStats;
+  last30d: FunnelPeriodStats;
+  allTime: FunnelPeriodStats;
+  emailEventsTrackingSince: string | null;
+  attributionTrackingSince: string | null;
+}> {
+  const db = getDb();
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const start7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const start30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const [today, last7d, last30d, allTime] = await Promise.all([
+    periodStats(todayStart),
+    periodStats(start7d),
+    periodStats(start30d),
+    periodStats(null),
+  ]);
+
+  let emailEventsTrackingSince: string | null = null;
+  let attributionTrackingSince: string | null = null;
+  if (db) {
+    const [firstEmailEvent] = await db
+      .select({ createdAt: emailEvents.createdAt })
+      .from(emailEvents)
+      .orderBy(emailEvents.createdAt)
+      .limit(1)
+      .catch(() => []);
+    emailEventsTrackingSince = firstEmailEvent?.createdAt?.toISOString() ?? null;
+
+    const [firstAttributed] = await db
+      .select({ createdAt: funnelEvents.createdAt })
+      .from(funnelEvents)
+      .orderBy(funnelEvents.createdAt)
+      .limit(1)
+      .catch(() => []);
+    attributionTrackingSince = firstAttributed?.createdAt?.toISOString() ?? null;
+  }
+
+  return { today, last7d, last30d, allTime, emailEventsTrackingSince, attributionTrackingSince };
+}
+
+/** Real leads (excludes the founder's own addresses/house-account inboxes) needing follow-up. */
+export async function getLeadsNeedingFollowUp() {
+  const db = getDb();
+  if (!db) return [];
+
+  const INTERNAL_DOMAINS = ["iscreamstudio.com", "gravyblock.com", "outbreakthreat.com", "example.com"];
+  const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+
+  const rows = await db.select().from(leads).orderBy(desc(leads.lastSeenAt)).limit(500);
+
+  const now = Date.now();
+  return rows
+    .filter((lead) => {
+      const domain = lead.emailNormalized?.split("@")[1] ?? "";
+      if (INTERNAL_DOMAINS.includes(domain)) return false;
+      if (lead.pipelineStatus !== "new") return false;
+      const age = now - new Date(lead.lastSeenAt ?? lead.createdAt).getTime();
+      return age > STALE_AFTER_MS;
+    })
+    .map((lead) => ({
+      id: lead.id,
+      name: lead.name,
+      email: lead.email,
+      businessId: lead.businessId,
+      source: lead.source,
+      sources: Array.isArray(lead.sources) ? (lead.sources as string[]) : [lead.source],
+      reportPublicId: lead.reportPublicId,
+      firstSeenAt: lead.firstSeenAt.toISOString(),
+      lastSeenAt: lead.lastSeenAt.toISOString(),
+      daysWaiting: Math.floor((now - new Date(lead.lastSeenAt ?? lead.createdAt).getTime()) / (24 * 60 * 60 * 1000)),
+    }))
+    .sort((a, b) => b.daysWaiting - a.daysWaiting);
+}
+
+/** Mark a lead as contacted/working/closed — the only write this page needs. */
+export async function updateLeadPipelineStatus(
+  _prev: { ok: boolean } | null,
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!(await isAdminSession())) return { ok: false, error: "Unauthorized" };
+  const db = getDb();
+  if (!db) return { ok: false, error: "No database" };
+
+  const leadId = String(formData.get("leadId") ?? "");
+  const status = String(formData.get("status") ?? "");
+  if (!leadId || !["new", "contacted", "working", "closed", "unsubscribed"].includes(status)) {
+    return { ok: false, error: "Invalid input" };
+  }
+
+  await db.update(leads).set({ pipelineStatus: status }).where(eq(leads.id, leadId));
+  revalidatePath("/admin/leads");
+  revalidatePath("/admin/outreach");
+  return { ok: true };
+}
 
 export type OutreachSettings = {
   emailsPerBatch: number;   // 1–40 (4 weekday windows → up to 160/day)

@@ -28,6 +28,7 @@ import {
 } from "@/lib/db";
 import { memoryStore } from "@/lib/db/memory-store";
 import { normalizeEmail, normalizeWebsiteForLookup } from "@/lib/business/normalize";
+import { trackFunnelEvent } from "@/lib/events/track";
 import { buildContentOpportunitySeeds } from "@/lib/growth/content-opportunities";
 import { buildRoadmapRows, sectionScoresFromPayload } from "@/lib/growth/roadmap";
 import type { BusinessProfile, LocalRankingCheck, ReportPayload, Vertical, WebsiteAuditFinding } from "@/lib/report/types";
@@ -313,6 +314,13 @@ async function upsertLeadDb(
         placeId: input.placeId ?? existing.placeId,
       })
       .where(eq(leads.id, existing.id));
+    await trackFunnelEvent({
+      eventType: "lead_form_submitted",
+      leadId: existing.id,
+      businessId: resolvedBusinessId ?? existing.businessId,
+      reportPublicId,
+      metadata: { source: input.source, newLead: false },
+    });
     return {
       created: false,
       leadId: existing.id,
@@ -342,6 +350,13 @@ async function upsertLeadDb(
     pipelineStatus: "new",
     firstSeenAt: now,
     lastSeenAt: now,
+  });
+  await trackFunnelEvent({
+    eventType: "lead_form_submitted",
+    leadId,
+    businessId: resolvedBusinessId,
+    reportPublicId,
+    metadata: { source: input.source, newLead: true },
   });
   return { created: true, leadId, businessId: resolvedBusinessId };
 }

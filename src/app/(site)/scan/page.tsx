@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 
 import { trackReferralEvent } from "@/lib/referrals/referral-tracker";
 import { normalizePromoCode } from "@/lib/stripe/promo-codes";
+import { FunnelBeacon } from "@/components/funnel-beacon";
 
 type Props = { searchParams: Promise<{ plan?: string; promo?: string; ref?: string; q?: string; city?: string; location?: string; e?: string }> };
 
@@ -69,6 +70,7 @@ export default async function ScanPage({ searchParams }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppSchema) }}
       />
+      <FunnelBeacon eventType="scan_started" />
     <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
       <div className="mx-auto max-w-3xl text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Free scan</p>

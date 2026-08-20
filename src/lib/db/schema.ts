@@ -454,6 +454,8 @@ export const backlinkOpportunities = pgTable("backlink_opportunities", {
   relevanceNote: text("relevance_note"),
   qualityScore: integer("quality_score"),
   status: text("status").notNull().default("prospecting"),
+  contactEmail: text("contact_email"),
+  contactSource: text("contact_source"), // 'website_mailto' | 'none_found' | 'fetch_failed' — never a guessed address
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -575,6 +577,28 @@ export const emailEvents = pgTable("email_events", {
   recipient: text("recipient"),           // email address
   emailType: text("email_type"),          // 'cold_outreach' | 'cold_outreach_followup' | 'lead_drip' | etc.
   clickUrl: text("click_url"),            // for click events
+  metadata: jsonb("metadata").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * First-party site funnel events — the steps GA pageviews can't attribute
+ * back to a specific outreach send or report. Anonymous sessionId is a
+ * random id set in a first-party cookie, no PII beyond what's already
+ * collected elsewhere (email/lead capture stays in `leads`).
+ */
+export const funnelEvents = pgTable("funnel_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  eventType: text("event_type").notNull(), // 'scan_started' | 'scan_completed' | 'report_unlocked' | 'pricing_viewed' | 'checkout_started' | 'checkout_completed' | 'lead_form_submitted'
+  sessionId: text("session_id"),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "set null" }),
+  reportPublicId: text("report_public_id"),
+  leadId: uuid("lead_id").references(() => leads.id, { onDelete: "set null" }),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  referrer: text("referrer"),
+  path: text("path"),
   metadata: jsonb("metadata").notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

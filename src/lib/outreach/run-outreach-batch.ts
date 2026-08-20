@@ -3,6 +3,7 @@ import { sendProspectEmail } from "./outreach-emailer";
 import { hasBeenContacted, recordOutreachSent } from "./outreach-tracker";
 import { runProspectPreScan } from "./prospect-prescan";
 import { isOptedOut } from "@/lib/email/optout";
+import { discoverContactEmail } from "./discover-contact-email";
 
 const DEFAULT_MAX_EMAILS = 25; // 25 per batch × 4 weekday windows = ~100/day
 
@@ -36,18 +37,20 @@ export async function runOutreachBatch(params: {
     }
 
     // Cheap disqualifiers first — don't pay for a pre-scan on a prospect the
-    // emailer would skip anyway (unparseable domain or opted out).
-    let candidateEmail: string | undefined;
-    if (prospect.website) {
-      try {
-        const domain = new URL(prospect.website).hostname.replace(/^www\./, "");
-        candidateEmail = `info@${domain}`;
-      } catch { /* ignore */ }
-    }
-    if (!candidateEmail) {
+    // emailer would skip anyway (no website, or opted out).
+    if (!prospect.website) {
       skipped++;
       continue;
     }
+    // Only email an address actually published on the prospect's own site —
+    // never a blind info@{domain} guess. Guessed addresses have an unknown
+    // (likely high) bounce rate and damage GravyBlock's own sending domain.
+    const contact = await discoverContactEmail(prospect.website);
+    if (!contact.email) {
+      skipped++;
+      continue;
+    }
+    const candidateEmail = contact.email;
     if (await isOptedOut(candidateEmail)) {
       skipped++;
       continue;
@@ -89,7 +92,15 @@ export async function runOutreachBatch(params: {
       continue;
     }
 
-    await recordOutreachSent(prospect.placeId, prospect.businessName, candidateEmail, prospect.city, preScan?.publicId);
+    await recordOutreachSent(
+      prospect.placeId,
+      prospect.businessName,
+      candidateEmail,
+      prospect.city,
+      preScan?.publicId,
+      contact.source,
+      contact.confidence,
+    );
     console.info("[outreach-batch] Sent", {
       businessName: prospect.businessName,
       email: candidateEmail,

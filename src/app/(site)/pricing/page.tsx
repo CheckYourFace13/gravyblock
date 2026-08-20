@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { FunnelBeacon } from "@/components/funnel-beacon";
 
 export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/pricing" },
@@ -49,7 +50,7 @@ const plans = [
       "Review replies posted to Google automatically (or ready to paste for Yelp & TripAdvisor)",
       "Real Google Maps ranking checks every week",
       "Review spotlights — your best reviews turned into ready-to-approve social posts",
-      "8 backlink outreach emails sent to local sites/month",
+      "Up to 8 backlink outreach attempts/month to local sites — only to a real published contact, never a guessed address",
       "Facebook + Instagram auto-posting",
       "Weekly visibility refreshes (vs. monthly on Starter)",
       "AEO, GEO, and Entity scores alongside your SEO score",
@@ -90,7 +91,7 @@ const plans = [
 const faqs = [
   {
     q: "What does 'automated' actually mean?",
-    a: "GravyBlock runs on a schedule — you do not have to log in each week. Articles are written and published to your site automatically. Google Business Profile posts go out. Backlink outreach emails are sent. Review alerts surface in your inbox. Your visibility score refreshes. All without you initiating anything.",
+    a: "GravyBlock runs on a schedule — you do not have to log in each week. Articles are written and published to your site automatically. Google Business Profile posts go out. Backlink outreach goes out to real, published contacts on local sites when one can be found. Review alerts surface in your inbox. Your visibility score refreshes. All without you initiating anything.",
   },
   {
     q: "Do I need to know anything about SEO?",
@@ -131,6 +132,7 @@ const schema = {
 export default function PricingPage() {
   return (
     <div className="bg-white">
+      <FunnelBeacon eventType="pricing_viewed" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
 
       {/* ── HERO ─────────────────────────────────────────── */}
@@ -323,7 +325,7 @@ export default function PricingPage() {
                   ["Real Google Maps ranking checks", "—", "Weekly", "Weekly"],
                   ["Listing watchdog (Google edit alerts)", "Weekly", "Weekly", "Weekly"],
                   ["Review spotlight social posts", "—", "✓", "✓"],
-                  ["Backlink outreach emails/mo", "—", "8", "16"],
+                  ["Backlink outreach attempts/mo (real contacts only)", "—", "up to 8", "up to 16"],
                   ["Facebook + Instagram auto-posting", "—", "✓", "✓"],
                   ["Review inbox + AI reply drafts", "—", "✓", "✓"],
                   ["Review request automation", "—", "✓", "✓"],
