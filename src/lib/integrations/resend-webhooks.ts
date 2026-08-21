@@ -49,6 +49,30 @@ export async function listResendWebhooks(): Promise<{ ok: boolean; webhooks: Res
   };
 }
 
+export type ResendEmailStatus = {
+  ok: boolean;
+  lastEvent: string | null;
+  error?: string;
+};
+
+/**
+ * Retrieves Resend's own record of what happened to a specific sent email —
+ * independent of whether our webhook ever received anything for it. Lets us
+ * tell "Resend delivered it but our webhook never fired" apart from "Resend
+ * itself never delivered it" without waiting on the webhook at all.
+ */
+export async function getResendEmailStatus(emailId: string): Promise<ResendEmailStatus> {
+  const key = apiKey();
+  if (!key) return { ok: false, lastEvent: null, error: "RESEND_API_KEY not configured" };
+
+  const res = await fetch(`${RESEND_API_BASE}/emails/${emailId}`, {
+    headers: { authorization: `Bearer ${key}` },
+  });
+  if (!res.ok) return { ok: false, lastEvent: null, error: `Resend API ${res.status}` };
+  const body = (await res.json()) as { last_event?: string };
+  return { ok: true, lastEvent: body.last_event ?? null };
+}
+
 /**
  * Compares the live Resend signing secret for `webhookId` against this
  * server's RESEND_WEBHOOK_SECRET — WITHOUT ever exposing either value. Only

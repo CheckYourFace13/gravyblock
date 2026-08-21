@@ -6,6 +6,7 @@ import { sendWebhookTestEmail, getWebhookTestTrace } from "./actions";
 export function WebhookTestForm() {
   const [state, formAction, pending] = useActionState(sendWebhookTestEmail, null);
   const [trace, setTrace] = useState<Array<{ eventType: string; createdAt: string }> | null>(null);
+  const [resendLastEvent, setResendLastEvent] = useState<string | null | undefined>(undefined);
   const [checking, setChecking] = useState(false);
 
   async function checkTrace() {
@@ -14,6 +15,7 @@ export function WebhookTestForm() {
     try {
       const result = await getWebhookTestTrace(state.resendEmailId);
       setTrace(result.events);
+      setResendLastEvent(result.resendLastEvent);
     } finally {
       setChecking(false);
     }
@@ -57,6 +59,12 @@ export function WebhookTestForm() {
           >
             {checking ? "Checking…" : "Check for events"}
           </button>
+          {resendLastEvent !== undefined ? (
+            <p className="mt-2 text-xs text-zinc-700">
+              Resend's own record for this email — <span className="font-semibold">last_event: {resendLastEvent ?? "unknown"}</span>{" "}
+              (this is Resend's status directly, independent of whether our webhook received anything)
+            </p>
+          ) : null}
           {trace ? (
             trace.length ? (
               <ul className="mt-2 space-y-1 text-xs text-zinc-700">
@@ -67,7 +75,7 @@ export function WebhookTestForm() {
                 ))}
               </ul>
             ) : (
-              <p className="mt-2 text-xs text-amber-700">No events received yet for this email id — try again shortly.</p>
+              <p className="mt-2 text-xs text-amber-700">No webhook events received yet for this email id — try again shortly.</p>
             )
           ) : null}
         </div>

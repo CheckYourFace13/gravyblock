@@ -4,7 +4,7 @@ import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb, jobs, emailEvents, funnelEvents, leads } from "@/lib/db";
 import { isAdminSession } from "@/lib/auth/admin-session";
-import { listResendWebhooks, checkWebhookSecretMatches } from "@/lib/integrations/resend-webhooks";
+import { listResendWebhooks, checkWebhookSecretMatches, getResendEmailStatus } from "@/lib/integrations/resend-webhooks";
 
 const EXPECTED_WEBHOOK_ENDPOINT = "https://gravyblock.com/api/resend/webhook";
 const EXPECTED_WEBHOOK_EVENTS = ["email.delivered", "email.opened", "email.clicked", "email.bounced", "email.complained"];
@@ -527,11 +527,20 @@ export async function sendWebhookTestEmail(
 /** Lifecycle trace for a specific test send — used to prove send -> webhook -> DB end to end. */
 export async function getWebhookTestTrace(resendEmailId: string) {
   const db = getDb();
-  if (!db) return { events: [] as Array<{ eventType: string; createdAt: string }> };
-  const rows = await db
-    .select({ eventType: emailEvents.eventType, createdAt: emailEvents.createdAt })
-    .from(emailEvents)
-    .where(eq(emailEvents.emailId, resendEmailId))
-    .orderBy(emailEvents.createdAt);
-  return { events: rows.map((r) => ({ eventType: r.eventType, createdAt: r.createdAt.toISOString() })) };
+  const events = db
+    ? (
+        await db
+          .select({ eventType: emailEvents.eventType, createdAt: emailEvents.createdAt })
+          .from(emailEvents)
+          .where(eq(emailEvents.emailId, resendEmailId))
+          .orderBy(emailEvents.createdAt)
+      ).map((r) => ({ eventType: r.eventType, createdAt: r.createdAt.toISOString() }))
+    : [];
+
+  // Resend's own record of the send, independent of whether our webhook ever
+  // fired — distinguishes "Resend delivered it, webhook never arrived" from
+  // "Resend itself hasn't delivered it yet".
+  const resendStatus = await getResendEmailStatus(resendEmailId);
+
+  return { events, resendLastEvent: resendStatus.lastEvent, resendCheckError: resendStatus.error ?? null };
 }

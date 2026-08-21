@@ -21,9 +21,32 @@ export type DiscoveredContact = {
 const FETCH_TIMEOUT_MS = 6000;
 const ROLE_ACCOUNT_PREFIXES = ["info", "contact", "hello", "office", "admin", "support"];
 
+// Never usable as an outreach recipient regardless of domain — these are
+// designed not to receive real correspondence (auto-reply/bounce mailboxes),
+// not just a lower-quality role account.
+const EXCLUDED_PREFIXES = ["noreply", "no-reply", "donotreply", "do-not-reply", "webmaster", "postmaster", "mailer-daemon"];
+
+// Template artifacts left uncustomized (e.g. a theme's placeholder
+// "info@yourdomain.com") are not a real published contact for that business.
+const PLACEHOLDER_DOMAINS = new Set([
+  "example.com",
+  "example.org",
+  "example.net",
+  "test.com",
+  "yourdomain.com",
+  "yoursite.com",
+  "domain.com",
+  "email.com",
+  "mydomain.com",
+  "website.com",
+  "localhost",
+]);
+
 function scoreCandidate(email: string, siteDomain: string): number {
   const [local, domain] = email.toLowerCase().split("@");
   if (!domain) return -1;
+  if (EXCLUDED_PREFIXES.includes(local)) return -1;
+  if (PLACEHOLDER_DOMAINS.has(domain)) return -1;
   // Prefer an address on the business's own domain over a third-party one
   // (e.g. a linked Gmail/Yahoo address) picked up incidentally on the page.
   const sameDomain = domain === siteDomain || domain.endsWith(`.${siteDomain}`);
@@ -59,7 +82,10 @@ export async function discoverContactEmail(websiteUrl: string): Promise<Discover
     // previous version included "%" in the captured character class) let
     // malformed addresses like "%20admin@shroylaw.com" through uncaught.
     const EMAIL_RE = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    const rawMatches = [...html.matchAll(/mailto:([^"'<>\s)]+)/gi)].map((m) => m[1]);
+    // Tolerate a literal space/tab right after "mailto:" (some sites hand-write
+    // "mailto: name@x.com") — trim it before the value itself, which still
+    // may not start with whitespace.
+    const rawMatches = [...html.matchAll(/mailto:[ \t]*([^"'<>\s)]+)/gi)].map((m) => m[1]);
     const decoded = rawMatches
       .map((raw) => {
         try {
