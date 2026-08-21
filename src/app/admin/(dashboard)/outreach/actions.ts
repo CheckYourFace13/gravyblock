@@ -396,6 +396,36 @@ export async function getBatchHistory(limit = 30) {
   });
 }
 
+/**
+ * Direct, zero-indirection read of this exact running process's own state —
+ * no wrapper functions, no Resend API call, just `process.env` and
+ * `process.uptime()` as this server action itself sees them right now.
+ * Exists to answer one question precisely: has THIS process actually
+ * restarted since the last time RESEND_WEBHOOK_SECRET was written to disk?
+ * dotenv-style env loading (which is what @next/env does) only runs once at
+ * process bootstrap — if this process has been up longer than that write,
+ * its process.env is provably stale regardless of what's on disk right now.
+ * Never returns the secret's value, only whether it's present and how long.
+ */
+export async function getRawProcessEnvDiagnostic(): Promise<{
+  uptimeSeconds: number;
+  processStartedAt: string;
+  resendWebhookSecretPresent: boolean;
+  resendWebhookSecretLength: number;
+  pid: number;
+}> {
+  const uptimeSeconds = process.uptime();
+  const processStartedAt = new Date(Date.now() - uptimeSeconds * 1000).toISOString();
+  const secret = process.env.RESEND_WEBHOOK_SECRET ?? "";
+  return {
+    uptimeSeconds,
+    processStartedAt,
+    resendWebhookSecretPresent: Boolean(secret),
+    resendWebhookSecretLength: secret.length,
+    pid: process.pid,
+  };
+}
+
 /** Rough count of emails sent this month and all-time. */
 export async function getOutreachCounts() {
   const db = getDb();

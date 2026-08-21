@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getOutreachSettings, getSentEmails, getBatchHistory, getOutreachCounts, getOutreachFunnel, getEmailHealth, type FunnelPeriodStats } from "./actions";
+import { getOutreachSettings, getSentEmails, getBatchHistory, getOutreachCounts, getOutreachFunnel, getEmailHealth, getRawProcessEnvDiagnostic, type FunnelPeriodStats } from "./actions";
 import { WebhookTestForm } from "./webhook-test-form";
 import { InstallWebhookSecretButton } from "./install-webhook-secret-button";
 import { ControlledOutreachTestForm } from "./controlled-outreach-test-form";
@@ -17,13 +17,14 @@ const WEEKEND_TARGETS = [
 ];
 
 export default async function OutreachPage() {
-  const [settings, sentEmails, batches, counts, funnel, health] = await Promise.all([
+  const [settings, sentEmails, batches, counts, funnel, health, processDiag] = await Promise.all([
     getOutreachSettings(),
     getSentEmails(200),
     getBatchHistory(30),
     getOutreachCounts(),
     getOutreachFunnel(),
     getEmailHealth(),
+    getRawProcessEnvDiagnostic(),
   ]);
 
   const todaysTarget = getTodaysOutreachTarget();
@@ -117,6 +118,25 @@ export default async function OutreachPage() {
             </p>
             {health.secretMatches !== true ? <InstallWebhookSecretButton /> : null}
           </div>
+        </div>
+        <div className="mt-4 rounded-xl border border-zinc-300 bg-zinc-50 p-3 text-xs">
+          <p className="font-semibold text-zinc-700 mb-1">This exact running process, right now (no indirection, not cached):</p>
+          <p className="text-zinc-600">
+            PID <span className="font-mono">{processDiag.pid}</span> · started{" "}
+            <span className="font-semibold">{new Date(processDiag.processStartedAt).toLocaleString()}</span> · uptime{" "}
+            <span className="font-semibold">{Math.floor(processDiag.uptimeSeconds / 60)}m {Math.floor(processDiag.uptimeSeconds % 60)}s</span>
+          </p>
+          <p className="mt-1 text-zinc-600">
+            <span className="font-semibold">process.env.RESEND_WEBHOOK_SECRET</span> present:{" "}
+            <span className={`font-semibold ${processDiag.resendWebhookSecretPresent ? "text-emerald-700" : "text-red-700"}`}>
+              {processDiag.resendWebhookSecretPresent ? `✓ yes (${processDiag.resendWebhookSecretLength} chars)` : "✗ no"}
+            </span>
+          </p>
+          <p className="mt-1 text-zinc-400">
+            If this process started before the .env file was last written, its process.env is provably stale — env
+            loading happens once at process boot, not on a hot-reload. Compare the &quot;started&quot; time above
+            against when the secret install last ran.
+          </p>
         </div>
         <WebhookTestForm />
         <div className="mt-4">
