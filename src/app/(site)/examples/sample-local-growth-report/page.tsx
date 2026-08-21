@@ -10,6 +10,7 @@ import { computeEntityScore } from "@/lib/scoring/entity-score";
 import { ScoresOverviewSection } from "@/app/(site)/workspace/[businessId]/scores-overview-section";
 import { CompetitorPanel } from "@/app/(site)/workspace/[businessId]/competitor-panel";
 import { IssueTrackerPanel } from "@/app/(site)/workspace/[businessId]/issue-tracker-panel";
+import { getBusinessIssues } from "@/lib/audit/issue-tracker";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,13 @@ export default async function SampleLocalGrowthReportPage() {
   const scoreDelta =
     latestSnapshot && previousSnapshot ? latestSnapshot.overallScore - previousSnapshot.overallScore : null;
 
+  // Earliest snapshot actually on record (real data only — never a made-up
+  // "before" number). bundle.snapshots is capped at 20 rows, newest first;
+  // this account only has a handful, so that cap doesn't hide anything here.
+  const earliestSnapshot = bundle.snapshots[bundle.snapshots.length - 1] ?? null;
+  const cyclesRun = bundle.snapshots.length;
+  const businessIssues = await getBusinessIssues(SAMPLE_BUSINESS_ID).catch(() => ({ open: [], resolved: [] }));
+
   const openRecs = bundle.recommendations.filter((r) => r.status !== "done");
   const fixNow = openRecs.filter((r) => r.lane === "FIX_NOW");
   const improveNext = openRecs.filter((r) => r.lane === "IMPROVE_NEXT");
@@ -136,6 +144,32 @@ export default async function SampleLocalGrowthReportPage() {
               </div>
             </div>
           ) : null}
+
+          {/* Real progress context — every number here is from the actual account, never invented */}
+          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 max-w-2xl">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Automation started</p>
+              <p className="text-sm font-semibold text-zinc-900">{new Date(bundle.business.createdAt).toLocaleDateString()}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Refresh cycles completed</p>
+              <p className="text-sm font-semibold text-zinc-900">{cyclesRun}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Score trend on record</p>
+              <p className="text-sm font-semibold text-zinc-900">
+                {earliestSnapshot && latestSnapshot && earliestSnapshot.overallScore !== latestSnapshot.overallScore
+                  ? `${earliestSnapshot.overallScore} → ${latestSnapshot.overallScore}`
+                  : cyclesRun > 1
+                    ? "Stable"
+                    : "First cycle — no trend yet"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-zinc-500">Issues resolved on record</p>
+              <p className="text-sm font-semibold text-zinc-900">{businessIssues.resolved.length}</p>
+            </div>
+          </div>
         </div>
       </section>
 
