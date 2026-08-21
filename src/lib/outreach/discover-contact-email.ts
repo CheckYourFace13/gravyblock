@@ -53,10 +53,23 @@ export async function discoverContactEmail(websiteUrl: string): Promise<Discover
     if (!res.ok) return { email: null, source: "fetch_failed", confidence: "none" };
     const html = await res.text();
 
-    const matches = [...html.matchAll(/mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi)].map((m) =>
-      m[1].toLowerCase(),
-    );
-    const unique = [...new Set(matches)];
+    // mailto: hrefs are sometimes percent-encoded by the site itself (a stray
+    // leading space becomes %20admin@...) — decode first, then trim, then
+    // validate strictly. Matching raw percent-encoded text directly (the
+    // previous version included "%" in the captured character class) let
+    // malformed addresses like "%20admin@shroylaw.com" through uncaught.
+    const EMAIL_RE = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const rawMatches = [...html.matchAll(/mailto:([^"'<>\s)]+)/gi)].map((m) => m[1]);
+    const decoded = rawMatches
+      .map((raw) => {
+        try {
+          return decodeURIComponent(raw.split("?")[0] ?? raw).trim().toLowerCase();
+        } catch {
+          return raw.split("?")[0]?.trim().toLowerCase() ?? "";
+        }
+      })
+      .filter((email) => EMAIL_RE.test(email));
+    const unique = [...new Set(decoded)];
     if (!unique.length) return { email: null, source: "none_found", confidence: "none" };
 
     const best = unique
