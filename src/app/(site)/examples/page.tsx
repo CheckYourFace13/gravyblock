@@ -17,6 +17,18 @@ export default function ExamplesIndexPage() {
         Anonymized, practical examples of how GravyBlock frames local growth work over time.
       </p>
       <ul className="mt-10 space-y-4">
+        <li>
+          <Link
+            href="/examples/sample-local-growth-report"
+            className="block rounded-2xl border-2 border-red-200 bg-red-50/50 p-5 shadow-sm transition hover:border-red-300"
+          >
+            <h2 className="text-lg font-semibold text-zinc-900">Sample local growth report</h2>
+            <p className="mt-2 text-sm text-zinc-600">
+              A real, anonymized GravyBlock scan — score, findings, competitors, and what we&apos;d automatically handle.
+            </p>
+            <p className="mt-3 text-sm font-semibold text-red-800">See the real report →</p>
+          </Link>
+        </li>
         {EXAMPLE_SLUGS.map((slug) => (
           <li key={slug}>
             <Link href={`/examples/${slug}`} className="block rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-red-200">

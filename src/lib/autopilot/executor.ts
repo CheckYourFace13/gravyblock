@@ -4,7 +4,6 @@ import {
   aiVisibilityChecks,
   backlinkOpportunities,
   businesses,
-  citationMonitors,
   contentQueue,
   getDb,
   jobs,
@@ -825,15 +824,15 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         }
       }
 
-      await db.insert(citationMonitors).values(
-        Array.from({ length: runProfile.citationTasks }).map((_, idx) => ({
-          id: randomUUID(),
-          businessId,
-          sourceName: `Listing consistency monitor ${idx + 1}`,
-          status: "pending",
-          mismatchNote: "Run generated from recurring refresh cycle.",
-        })),
-      );
+      // Previously inserted runProfile.citationTasks synthetic rows here
+      // ("Listing consistency monitor 1/2/3...", no real per-directory check
+      // behind any of them) purely to hit a target count for the customer-
+      // facing "citation/listing tasks queued" number and the sitewide
+      // "citation ops" admin stat — the same fabricated-activity pattern
+      // already removed from backlinkOpportunities/aiVisibilityChecks below.
+      // No real recurring per-directory NAP check exists yet (only the
+      // one-time Google-profile-vs-site baseline row created at scan time),
+      // so nothing is inserted here until that's genuinely built.
 
       // Backlink opportunities are discovered by the real prospect-finder (monthly batch job)
       // which finds actual local chambers, associations, and directories via Google Places.
@@ -987,7 +986,6 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
               contentIdeas: runProfile.contentIdeas,
               draftsGenerated: runProfile.drafts,
               publishingJobsQueued: runProfile.publishingJobs,
-              citationTasksQueued: runProfile.citationTasks,
               reviewTasksQueued: runProfile.reviewTasks,
               backlinkOpportunitiesQueued: runProfile.backlinkOpportunities,
               aiChecksCompleted: runProfile.aiChecks,
@@ -1032,7 +1030,7 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
             "Visibility score refreshed and history updated.",
             `${runProfile.aiChecks} AI visibility checks completed.`,
             `${runProfile.contentIdeas} content ideas queued${runProfile.drafts ? `, ${runProfile.drafts} drafts generated` : ""}.`,
-            `${runProfile.citationTasks} citation/listing tasks, ${runProfile.reviewTasks} review tasks, ${runProfile.backlinkOpportunities} authority opportunities queued.`,
+            `${runProfile.reviewTasks} review tasks, ${runProfile.backlinkOpportunities} authority opportunities queued.`,
             `${runProfile.outreachDrafts} outreach drafts generated. ${changeResult.summary}`,
           ],
           workspaceUrl,

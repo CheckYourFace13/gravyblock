@@ -14,23 +14,10 @@ const links = [
 ];
 
 export const EXAMPLE_PAGES: Record<string, ExamplePage> = {
-  "sample-local-growth-report": {
-    slug: "sample-local-growth-report",
-    metaTitle: "Sample local growth report format | GravyBlock",
-    metaDescription: "See what a sample local growth report includes: readiness score, findings, and action priorities.",
-    model: {
-      eyebrow: "Examples",
-      title: "Sample local growth report",
-      intro: "This is an anonymized example of how GravyBlock frames visibility and conversion readiness for a local operator.",
-      meaningForBusiness: "A useful report should make priorities obvious in minutes and give teams a sequence they can act on.",
-      sections: [
-        { title: "What a sample report contains", body: "Readiness score, verdict, top findings, and grouped opportunities across profile, trust, and conversion areas." },
-        { title: "How owners use it", body: "Owners and operators use the report to align teams around highest-impact fixes first." },
-        { title: "Why this format works", body: "It combines clarity for decision-makers with enough detail for execution teams." },
-      ],
-      relatedLinks: links,
-    },
-  },
+  // "sample-local-growth-report" moved to a real, bespoke page at
+  // src/app/(site)/examples/sample-local-growth-report/page.tsx — it now
+  // renders an actual anonymized real scan instead of copy describing what
+  // a report contains. That static route shadows this dynamic [slug] one.
   "how-a-local-business-improves-visibility-over-time": {
     slug: "how-a-local-business-improves-visibility-over-time",
     metaTitle: "How a local business improves visibility over time | GravyBlock",
