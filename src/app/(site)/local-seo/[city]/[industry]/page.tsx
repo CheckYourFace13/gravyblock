@@ -50,7 +50,7 @@ export default async function LocalSeoPage({ params }: Props) {
     },
     {
       q: `How much does local SEO cost for a ${ind} in ${city.name}?`,
-      a: `A ${city.name} SEO agency typically charges $1,000–$3,000/month and you still attend meetings. GravyBlock runs the same work automatically from $29.99/month introductory — content, Google Business Profile management, review monitoring, and citation fixes included. You can start with a free scan, no credit card.`,
+      a: `A ${city.name} SEO agency typically charges $1,000–$3,000/month and you still attend meetings. GravyBlock runs the same work automatically from $29.99/month introductory — content, Google Business Profile management, review monitoring, and citation audits included. You can start with a free scan, no credit card.`,
     },
     {
       q: `How long until my ${ind} shows up in ${city.name} search results?`,
@@ -140,7 +140,7 @@ export default async function LocalSeoPage({ params }: Props) {
             },
             {
               title: "Consistent citations build trust signals",
-              body: `Google cross-references business name, address, and phone across hundreds of directories. ${industry.plural} with mismatched or missing listings rank lower. GravyBlock audits and queues citation fixes automatically.`,
+              body: `Google cross-references business name, address, and phone across hundreds of directories. ${industry.plural} with mismatched or missing listings rank lower. GravyBlock monitors your listing consistency automatically and flags what needs fixing.`,
             },
           ].map((card) => (
             <article key={card.title} className="rounded-2xl border border-zinc-200 bg-white p-5">

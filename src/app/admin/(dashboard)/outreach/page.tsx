@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { getOutreachSettings, getSentEmails, getBatchHistory, getOutreachCounts, getOutreachFunnel, type FunnelPeriodStats } from "./actions";
+import { getOutreachSettings, getSentEmails, getBatchHistory, getOutreachCounts, getOutreachFunnel, getEmailHealth, type FunnelPeriodStats } from "./actions";
+import { WebhookTestForm } from "./webhook-test-form";
 import { getCalendarPreview, getTodaysOutreachTarget, getOutreachTargetForOffset, daysSinceEpoch, OUTREACH_WINDOW_OFFSETS } from "@/lib/outreach/outreach-calendar";
 import { OutreachSettingsForm } from "./outreach-settings-form";
 
@@ -14,12 +15,13 @@ const WEEKEND_TARGETS = [
 ];
 
 export default async function OutreachPage() {
-  const [settings, sentEmails, batches, counts, funnel] = await Promise.all([
+  const [settings, sentEmails, batches, counts, funnel, health] = await Promise.all([
     getOutreachSettings(),
     getSentEmails(200),
     getBatchHistory(30),
     getOutreachCounts(),
     getOutreachFunnel(),
+    getEmailHealth(),
   ]);
 
   const todaysTarget = getTodaysOutreachTarget();
@@ -51,6 +53,60 @@ export default async function OutreachPage() {
           highlight={!settings.paused}
         />
       </div>
+
+      {/* ── WEBHOOK / EMAIL DELIVERY HEALTH ─────────────────── */}
+      <section className={`rounded-2xl border-2 p-6 shadow-sm ${health.redAlert ? "border-red-400 bg-red-50" : health.webhookConfigured ? "border-emerald-200 bg-white" : "border-amber-400 bg-amber-50"}`}>
+        <h2 className="text-base font-semibold text-zinc-900 mb-1">📡 Resend webhook health</h2>
+        {health.redAlert ? (
+          <p className="text-sm font-bold uppercase tracking-wide text-red-700 mb-3">⚠ {health.redAlert}</p>
+        ) : null}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 text-sm mb-4">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Webhook configured</p>
+            <p className="font-semibold text-zinc-900">
+              {health.webhookConfigured === null ? `Unknown (${health.webhookCheckError})` : health.webhookConfigured ? "✓ Yes" : "✗ No / incomplete"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Registered endpoint</p>
+            <p className="font-semibold text-zinc-900 break-all">{health.registeredEndpoint ?? "none found"}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Registered events</p>
+            <p className="font-semibold text-zinc-900">{health.registeredEvents.length ? health.registeredEvents.join(", ") : "—"}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Status</p>
+            <p className="font-semibold text-zinc-900">{health.registeredStatus ?? "—"}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Last webhook event (any)</p>
+            <p className="font-semibold text-zinc-900">{health.lastWebhookEventAt ? new Date(health.lastWebhookEventAt).toLocaleString() : "never"}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Last delivered / opened</p>
+            <p className="font-semibold text-zinc-900">
+              {health.lastDeliveredAt ? new Date(health.lastDeliveredAt).toLocaleDateString() : "never"} /{" "}
+              {health.lastOpenedAt ? new Date(health.lastOpenedAt).toLocaleDateString() : "never"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Last clicked / bounced</p>
+            <p className="font-semibold text-zinc-900">
+              {health.lastClickedAt ? new Date(health.lastClickedAt).toLocaleDateString() : "never"} /{" "}
+              {health.lastBouncedAt ? new Date(health.lastBouncedAt).toLocaleDateString() : "never"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Sent / events, last 24h</p>
+            <p className="font-semibold text-zinc-900">
+              {health.sentLast24h} sent · {health.eventsLast24h} events
+              {health.sendsWithAnyEventPct !== null ? ` · ${health.sendsWithAnyEventPct}% of recipients have any event` : ""}
+            </p>
+          </div>
+        </div>
+        <WebhookTestForm />
+      </section>
 
       {/* ── FUNNEL ────────────────────────────────────────── */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">

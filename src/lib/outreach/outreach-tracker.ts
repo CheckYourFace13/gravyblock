@@ -36,6 +36,7 @@ export async function recordOutreachSent(
   reportPublicId?: string,
   contactSource?: string,
   contactConfidence?: string,
+  resendEmailId?: string,
 ): Promise<void> {
   const db = getDb();
   if (!db) {
@@ -53,6 +54,7 @@ export async function recordOutreachSent(
       ...(reportPublicId ? { reportPublicId } : {}),
       ...(contactSource ? { contactSource } : {}),
       ...(contactConfidence ? { contactConfidence } : {}),
+      ...(resendEmailId ? { resendEmailId } : {}),
     },
     status: "done",
   });

@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/" },
   title: "GravyBlock — Automated Local SEO for Small Businesses | Free Scan",
   description:
-    "GravyBlock automates local SEO for small businesses: publishes content, manages reviews, fixes citations, and tracks visibility — so you get discovered on Google Maps and Google Search. No manual weekly work. From $29.99/mo intro. Free scan.",
+    "GravyBlock automates local SEO for small businesses: publishes content, manages reviews, audits citations, and tracks visibility — so you get discovered on Google Maps and Google Search. No manual weekly work. From $29.99/mo intro. Free scan.",
 };
 
 const siteUrl = "https://gravyblock.com";
@@ -154,7 +154,7 @@ export default function HomePage() {
             Turn local visibility into<br className="hidden sm:block" /> customer actions.
           </h1>
           <p className="mx-auto max-w-xl text-lg text-zinc-600">
-            Get discovered on Google Maps and search results. GravyBlock publishes content, manages your Business Profile, gathers reviews, and fixes citations — automatically every week, with no manual work from you.
+            Get discovered on Google Maps and search results. GravyBlock publishes content, manages your Business Profile, gathers reviews, and audits your citations — automatically every week, with no manual work from you.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Link href="/scan" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-semibold text-white hover:bg-red-500 shadow-sm">

@@ -51,7 +51,7 @@ function resendConfig() {
   };
 }
 
-async function sendEmail(input: { to: string; subject: string; html: string }) {
+async function sendEmail(input: { to: string; subject: string; html: string; tags?: Array<{ name: string; value: string }> }) {
   const cfg = resendConfig();
   if (!cfg.apiKey || !cfg.from) {
     return { ok: false, skipped: true, reason: "missing resend config" };
@@ -67,13 +67,18 @@ async function sendEmail(input: { to: string; subject: string; html: string }) {
       to: [input.to],
       subject: input.subject,
       html: input.html,
+      ...(input.tags ? { tags: input.tags } : {}),
     }),
   });
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Resend API error: ${res.status} ${body}`);
   }
-  return { ok: true, skipped: false };
+  // Capture Resend's own email id so webhook events (which carry this same id)
+  // can be joined back to the specific send, rather than relying on recipient
+  // address matching alone (ambiguous when the same address gets multiple sends).
+  const body = (await res.json().catch(() => null)) as { id?: string } | null;
+  return { ok: true, skipped: false, resendEmailId: body?.id ?? null };
 }
 
 export async function sendLeadEmails(payload: LeadEmailPayload, isNewLead: boolean) {

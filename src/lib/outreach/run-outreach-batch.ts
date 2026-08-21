@@ -70,9 +70,9 @@ export async function runOutreachBatch(params: {
       continue;
     }
 
-    let result: { ok: boolean; skipped?: boolean; reason?: string };
+    let result: { ok: boolean; skipped?: boolean; reason?: string; resendEmailId?: string | null };
     try {
-      result = await sendProspectEmail(prospect, {
+      result = await sendProspectEmail(prospect, candidateEmail, {
         agencyName,
         industryLabel: industryLabel ?? industry,
         preScan,
@@ -100,6 +100,7 @@ export async function runOutreachBatch(params: {
       preScan?.publicId,
       contact.source,
       contact.confidence,
+      result.resendEmailId ?? undefined,
     );
     console.info("[outreach-batch] Sent", {
       businessName: prospect.businessName,

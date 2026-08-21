@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getAutopilotOpsSummary, listBrandsOverview, listLocationsOverview } from "@/lib/autopilot/repository";
 import { countBusinesses, countReports, listLeads, listReportSummaries } from "@/lib/report/repository";
+import { getEmailHealth } from "./outreach/actions";
+import { EmailHealthBanner } from "./email-health-banner";
 import { getDb, jobs } from "@/lib/db";
 import { and, gte, eq, desc } from "drizzle-orm";
 import { getCalendarPreview, getTodaysOutreachTarget, daysSinceEpoch, OUTREACH_WINDOW_OFFSETS } from "@/lib/outreach/outreach-calendar";
@@ -48,7 +50,7 @@ const panels: { href: string; title: string; description: string }[] = [
 ];
 
 export default async function AdminHomePage() {
-  const [reports, leads, brands, locations, autopilot, outreach, businessCount, reportCount] = await Promise.all([
+  const [reports, leads, brands, locations, autopilot, outreach, businessCount, reportCount, emailHealth] = await Promise.all([
     listReportSummaries(),
     listLeads(),
     listBrandsOverview(),
@@ -57,6 +59,7 @@ export default async function AdminHomePage() {
     getOutreachStats(),
     countBusinesses(),
     countReports(),
+    getEmailHealth(),
   ]);
 
   const todaysTarget = getTodaysOutreachTarget();
@@ -71,6 +74,8 @@ export default async function AdminHomePage() {
           Social discovery and per-scan detail live under each business.
         </p>
       </div>
+
+      <EmailHealthBanner health={emailHealth} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {panels.map((p) => (

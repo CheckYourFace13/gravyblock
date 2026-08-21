@@ -2,7 +2,7 @@ import type { Prospect } from "./prospect-finder";
 import type { ProspectPreScan } from "./prospect-prescan";
 import { isOptedOut, coldOutreachFooter } from "@/lib/email/optout";
 
-type SendEmailResult = { ok: boolean; skipped?: boolean; reason?: string };
+type SendEmailResult = { ok: boolean; skipped?: boolean; reason?: string; resendEmailId?: string | null };
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
 const SENDER_NAME = "Chris";
@@ -407,7 +407,8 @@ export async function sendFollowupEmail(params: {
     throw new Error(`Resend API error: ${res.status} ${body}`);
   }
 
-  return { ok: true };
+  const body = (await res.json().catch(() => null)) as { id?: string } | null;
+  return { ok: true, resendEmailId: body?.id ?? null };
 }
 
 // ── Breakup email (email #3 — final touch, highest reply rate) ──────────────
@@ -494,32 +495,19 @@ ${SENDER_TITLE} — https://gravyblock.com`;
     throw new Error(`Resend API error: ${res.status} ${body}`);
   }
 
-  return { ok: true };
-}
-
-/** Derives multiple candidate email addresses from a domain to try in order. */
-function deriveEmailCandidates(website: string): string[] {
-  try {
-    const domain = new URL(website).hostname.replace(/^www\./, "");
-    return [`info@${domain}`, `hello@${domain}`, `contact@${domain}`];
-  } catch {
-    return [];
-  }
+  const body = (await res.json().catch(() => null)) as { id?: string } | null;
+  return { ok: true, resendEmailId: body?.id ?? null };
 }
 
 export async function sendProspectEmail(
   prospect: Prospect,
+  toEmail: string,
   senderContext?: { agencyName?: string; industryLabel?: string; preScan?: ProspectPreScan | null },
 ): Promise<SendEmailResult> {
   const cfg = resendConfig();
 
   if (!cfg.apiKey) return { ok: false, skipped: true, reason: "RESEND_API_KEY not set" };
-  if (!prospect.website) return { ok: false, skipped: true, reason: "no website — cannot derive email" };
-
-  const candidates = deriveEmailCandidates(prospect.website);
-  if (candidates.length === 0) return { ok: false, skipped: true, reason: "could not parse website domain" };
-
-  const toEmail = candidates[0]!; // send to primary; others are fallback for future retry logic
+  if (!toEmail) return { ok: false, skipped: true, reason: "no recipient email" };
 
   // Skip opted-out addresses
   if (await isOptedOut(toEmail)) {
@@ -562,5 +550,6 @@ export async function sendProspectEmail(
     throw new Error(`Resend API error: ${res.status} ${body}`);
   }
 
-  return { ok: true };
+  const body = (await res.json().catch(() => null)) as { id?: string } | null;
+  return { ok: true, resendEmailId: body?.id ?? null };
 }

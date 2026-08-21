@@ -4,6 +4,10 @@ import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb, jobs, emailEvents, funnelEvents, leads } from "@/lib/db";
 import { isAdminSession } from "@/lib/auth/admin-session";
+import { listResendWebhooks } from "@/lib/integrations/resend-webhooks";
+
+const EXPECTED_WEBHOOK_ENDPOINT = "https://gravyblock.com/api/resend/webhook";
+const EXPECTED_WEBHOOK_EVENTS = ["email.delivered", "email.opened", "email.clicked", "email.bounced", "email.complained"];
 
 const COLD_OUTREACH_EMAIL_TYPES = ["cold_outreach", "cold_outreach_followup", "cold_outreach_breakup"] as const;
 
@@ -354,4 +358,172 @@ export async function getOutreachCounts() {
   ]);
 
   return { allTime: allRows.length, thisMonth: monthRows.length, thisWeek: weekRows.length };
+}
+
+export type EmailHealth = {
+  webhookConfigured: boolean | null; // null = couldn't check (no API key / API error)
+  webhookCheckError: string | null;
+  registeredEndpoint: string | null;
+  registeredEvents: string[];
+  registeredStatus: string | null;
+  lastWebhookEventAt: string | null;
+  lastDeliveredAt: string | null;
+  lastOpenedAt: string | null;
+  lastClickedAt: string | null;
+  lastBouncedAt: string | null;
+  eventsLast24h: number;
+  sentLast24h: number;
+  sendsWithAnyEventPct: number | null;
+  redAlert: string | null;
+};
+
+/** Checks Resend's own account config (not just our code) — see actions.ts header note on why this matters. */
+export async function getEmailHealth(): Promise<EmailHealth> {
+  const db = getDb();
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const webhookCheck = await listResendWebhooks();
+  const ours = webhookCheck.webhooks.find((w) => w.endpoint === EXPECTED_WEBHOOK_ENDPOINT);
+  const missingEvents = ours ? EXPECTED_WEBHOOK_EVENTS.filter((e) => !ours.events.includes(e)) : EXPECTED_WEBHOOK_EVENTS;
+
+  let lastWebhookEventAt: string | null = null;
+  let lastDeliveredAt: string | null = null;
+  let lastOpenedAt: string | null = null;
+  let lastClickedAt: string | null = null;
+  let lastBouncedAt: string | null = null;
+  let eventsLast24h = 0;
+  let sentLast24h = 0;
+  let sendsWithAnyEventPct: number | null = null;
+
+  if (db) {
+    const lastEventPerType = async (eventType: string) => {
+      const [row] = await db
+        .select({ createdAt: emailEvents.createdAt })
+        .from(emailEvents)
+        .where(eq(emailEvents.eventType, eventType))
+        .orderBy(desc(emailEvents.createdAt))
+        .limit(1)
+        .catch(() => []);
+      return row?.createdAt?.toISOString() ?? null;
+    };
+    [lastDeliveredAt, lastOpenedAt, lastClickedAt, lastBouncedAt] = await Promise.all([
+      lastEventPerType("delivered"),
+      lastEventPerType("opened"),
+      lastEventPerType("clicked"),
+      lastEventPerType("bounced"),
+    ]);
+
+    const [lastAny] = await db
+      .select({ createdAt: emailEvents.createdAt })
+      .from(emailEvents)
+      .orderBy(desc(emailEvents.createdAt))
+      .limit(1)
+      .catch(() => []);
+    lastWebhookEventAt = lastAny?.createdAt?.toISOString() ?? null;
+
+    const [eventsRows, sentRows] = await Promise.all([
+      db.select({ id: emailEvents.id }).from(emailEvents).where(gte(emailEvents.createdAt, since24h)),
+      db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.type, "cold_outreach_sent"), gte(jobs.createdAt, since24h))),
+    ]);
+    eventsLast24h = eventsRows.length;
+    sentLast24h = sentRows.length;
+
+    if (sentLast24h > 0) {
+      // Rough correlation: recipients from the last 24h of sends vs recipients with any event ever.
+      const [sentPayloads, recipientEvents] = await Promise.all([
+        db.select({ payload: jobs.payload }).from(jobs).where(and(eq(jobs.type, "cold_outreach_sent"), gte(jobs.createdAt, since24h))),
+        db.select({ recipient: emailEvents.recipient }).from(emailEvents).where(gte(emailEvents.createdAt, since24h)),
+      ]);
+      const recipientsWithEvent = new Set(recipientEvents.map((r) => r.recipient).filter(Boolean));
+      const sentRecipients = sentPayloads
+        .map((r) => (r.payload as Record<string, unknown> | null)?.email as string | undefined)
+        .filter((e): e is string => Boolean(e));
+      const withEvent = sentRecipients.filter((e) => recipientsWithEvent.has(e)).length;
+      sendsWithAnyEventPct = sentRecipients.length ? Math.round((withEvent / sentRecipients.length) * 100) : null;
+    }
+  }
+
+  let redAlert: string | null = null;
+  if (sentLast24h > 0 && eventsLast24h === 0) {
+    redAlert = `EMAIL TRACKING FAILURE — ${sentLast24h} emails sent in the last 24h but 0 Resend events received.`;
+  }
+
+  return {
+    webhookConfigured: webhookCheck.ok ? Boolean(ours && missingEvents.length === 0) : null,
+    webhookCheckError: webhookCheck.ok ? null : (webhookCheck.error ?? "unknown error"),
+    registeredEndpoint: ours?.endpoint ?? null,
+    registeredEvents: ours?.events ?? [],
+    registeredStatus: ours?.status ?? null,
+    lastWebhookEventAt,
+    lastDeliveredAt,
+    lastOpenedAt,
+    lastClickedAt,
+    lastBouncedAt,
+    eventsLast24h,
+    sentLast24h,
+    sendsWithAnyEventPct,
+    redAlert,
+  };
+}
+
+/**
+ * Sends ONE internal test email tagged distinctly (type=webhook_test), to an
+ * address the admin controls — never a prospect. Used to prove the full
+ * send -> webhook -> emailEvents lifecycle end to end instead of waiting
+ * days for organic outreach events to arrive.
+ */
+export async function sendWebhookTestEmail(
+  _prev: { ok: boolean; error?: string; resendEmailId?: string } | null,
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string; resendEmailId?: string }> {
+  if (!(await isAdminSession())) return { ok: false, error: "Unauthorized" };
+  const to = String(formData.get("to") ?? "").trim();
+  if (!to || !to.includes("@")) return { ok: false, error: "Enter a valid email you control" };
+
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !from) return { ok: false, error: "Resend not configured" };
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject: "GravyBlock webhook test — internal, not a real send",
+      html: `<p>This is a one-off internal test to verify Resend webhook delivery end to end.</p>
+             <p>Click this link once to help generate a click event: <a href="https://gravyblock.com/?webhook_test=1">confirm test</a></p>`,
+      tags: [{ name: "type", value: "webhook_test" }],
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    return { ok: false, error: `Resend API ${res.status}: ${text}` };
+  }
+  const body = (await res.json()) as { id: string };
+
+  const db = getDb();
+  if (db) {
+    await db.insert(jobs).values({
+      type: "webhook_test_sent",
+      status: "done",
+      payload: { to, resendEmailId: body.id, sentAt: new Date().toISOString() },
+    });
+  }
+
+  revalidatePath("/admin/outreach");
+  return { ok: true, resendEmailId: body.id };
+}
+
+/** Lifecycle trace for a specific test send — used to prove send -> webhook -> DB end to end. */
+export async function getWebhookTestTrace(resendEmailId: string) {
+  const db = getDb();
+  if (!db) return { events: [] as Array<{ eventType: string; createdAt: string }> };
+  const rows = await db
+    .select({ eventType: emailEvents.eventType, createdAt: emailEvents.createdAt })
+    .from(emailEvents)
+    .where(eq(emailEvents.emailId, resendEmailId))
+    .orderBy(emailEvents.createdAt);
+  return { events: rows.map((r) => ({ eventType: r.eventType, createdAt: r.createdAt.toISOString() })) };
 }
