@@ -97,6 +97,99 @@ export async function checkWebhookSecretMatches(webhookId: string): Promise<Secr
 }
 
 /**
+ * Retrieves the live signing secret for a specific webhook id. Internal use
+ * only — callers must never log, return, or display the result; it exists
+ * solely for installSigningSecretOnServer() to write directly to the env
+ * file, never to pass through an API response or admin UI.
+ */
+async function fetchSigningSecret(webhookId: string): Promise<{ ok: boolean; secret?: string; error?: string }> {
+  const key = apiKey();
+  if (!key) return { ok: false, error: "RESEND_API_KEY not configured" };
+  const res = await fetch(`${RESEND_API_BASE}/webhooks/${webhookId}`, {
+    headers: { authorization: `Bearer ${key}` },
+  });
+  if (!res.ok) return { ok: false, error: `Resend API ${res.status}` };
+  const body = (await res.json()) as { signing_secret?: string };
+  if (!body.signing_secret) return { ok: false, error: "Resend did not return a signing secret" };
+  return { ok: true, secret: body.signing_secret };
+}
+
+export type InstallResult = { ok: boolean; alreadyConfigured?: boolean; error?: string };
+
+/**
+ * One-time, narrowly-scoped setup operation: finds GravyBlock's own
+ * registered webhook, retrieves its real signing secret, and writes it
+ * directly into the .env file this same process was started from (the file
+ * PM2's --env-file / dotenv loading reads), then restarts the PM2 process
+ * so it picks up the new value. The secret is never returned to any caller,
+ * logged, or displayed — only a boolean result. Refuses to run if a secret
+ * is already correctly installed (see checkWebhookSecretMatches), so this
+ * naturally becomes a no-op once done rather than needing a separate
+ * self-disable step.
+ */
+export async function installSigningSecretOnServer(expectedEndpoint: string): Promise<InstallResult> {
+  const listResult = await listResendWebhooks();
+  if (!listResult.ok) return { ok: false, error: listResult.error ?? "could not list webhooks" };
+
+  const webhook = listResult.webhooks.find((w) => w.endpoint === expectedEndpoint);
+  if (!webhook) return { ok: false, error: `no webhook registered for ${expectedEndpoint}` };
+
+  const already = await checkWebhookSecretMatches(webhook.id);
+  if (already.ok && already.matches === true) {
+    return { ok: true, alreadyConfigured: true };
+  }
+
+  const secretResult = await fetchSigningSecret(webhook.id);
+  if (!secretResult.ok || !secretResult.secret) {
+    return { ok: false, error: secretResult.error ?? "failed to retrieve signing secret" };
+  }
+  const secret = secretResult.secret;
+
+  // Node-only APIs — this module is server-only (invoked from a "use server"
+  // admin action), so requiring these lazily here is safe.
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
+  const { exec } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const execAsync = promisify(exec);
+
+  const envPath = path.join(process.cwd(), ".env");
+
+  let existing = "";
+  try {
+    existing = await fs.readFile(envPath, "utf8");
+  } catch (err) {
+    return { ok: false, error: `could not read ${envPath}: ${err instanceof Error ? err.message : String(err)}` };
+  }
+
+  const line = `RESEND_WEBHOOK_SECRET=${secret}`;
+  const hasLine = /^RESEND_WEBHOOK_SECRET=/m.test(existing);
+  const updated = hasLine
+    ? existing.replace(/^RESEND_WEBHOOK_SECRET=.*$/m, line)
+    : `${existing.endsWith("\n") || existing === "" ? existing : existing + "\n"}${line}\n`;
+
+  try {
+    await fs.writeFile(envPath, updated, "utf8");
+  } catch (err) {
+    return { ok: false, error: `could not write ${envPath}: ${err instanceof Error ? err.message : String(err)}` };
+  }
+
+  // Don't await the restart inline — `pm2 restart` kills this very process,
+  // which would cut off the HTTP response to the admin who clicked the
+  // button before it ever reached them. Give the response a moment to flush
+  // first; the caller's UI tells the admin to check back in ~15s.
+  setTimeout(() => {
+    execAsync("pm2 restart gravyblock --update-env").catch((err) => {
+      console.error("[resend-webhooks] PM2 restart after secret install failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+  }, 1500);
+
+  return { ok: true };
+}
+
+/**
  * Creates a new webhook. Resend returns a fresh signing_secret on creation —
  * this function deliberately does NOT return it to the caller for logging;
  * it's returned only to be shown once, directly, for manual placement into

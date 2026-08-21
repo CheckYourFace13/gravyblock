@@ -514,6 +514,37 @@ export const operatorNotes = pgTable("operator_notes", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/**
+ * First-class outreach-send record — the durable, directly-queryable
+ * relationship the funnel/correlation logic should key off, instead of
+ * digging through arbitrary `jobs` payload JSON or relying on Resend's
+ * round-tripped tags (which cold-outreach's multi-tag sends apparently don't
+ * reliably preserve — see the emailType-tag mismatch investigated this
+ * session). resendEmailId is the primary join key: the webhook handler
+ * resolves incoming events to a row here by that id first.
+ */
+export const outreachSends = pgTable("outreach_sends", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  resendEmailId: text("resend_email_id").unique(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "set null" }),
+  placeId: text("place_id"),
+  recipient: text("recipient").notNull(),
+  campaign: text("campaign").notNull().default("cold_outreach"), // 'cold_outreach' | 'cold_outreach_followup' | 'cold_outreach_breakup' | 'webhook_test'
+  sequenceStep: text("sequence_step").notNull().default("initial"), // 'initial' | 'followup' | 'breakup' | 'test'
+  contactSource: text("contact_source"),
+  contactConfidence: text("contact_confidence"),
+  isTest: text("is_test").notNull().default("false"), // excluded from production funnel totals/suppression counts
+  status: text("status").notNull().default("attempted"),
+  attemptedAt: timestamp("attempted_at", { withTimezone: true }).defaultNow().notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  openedAt: timestamp("opened_at", { withTimezone: true }),
+  firstClickedAt: timestamp("first_clicked_at", { withTimezone: true }),
+  bouncedAt: timestamp("bounced_at", { withTimezone: true }),
+  complainedAt: timestamp("complained_at", { withTimezone: true }),
+  unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
+});
+
 /** Stub job queue for future workers (GBP sync, crawl, AI visibility checks). */
 export const jobs = pgTable("jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -578,6 +609,11 @@ export const emailEvents = pgTable("email_events", {
   emailType: text("email_type"),          // 'cold_outreach' | 'cold_outreach_followup' | 'lead_drip' | etc.
   clickUrl: text("click_url"),            // for click events
   metadata: jsonb("metadata").notNull().default({}),
+  // Svix's own per-delivery-attempt message id (svix-id header). Resend/Svix
+  // retries and dashboard "replay" reuse this same id for the same logical
+  // event — unique on it so a retry/replay can never insert a duplicate row
+  // or double-fire the bounce/complaint auto-opt-out below.
+  svixMessageId: text("svix_message_id").unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

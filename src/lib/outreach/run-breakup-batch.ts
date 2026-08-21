@@ -11,6 +11,7 @@
 
 import { getBreakupCandidates, recordBreakupSent } from "./outreach-tracker";
 import { sendBreakupEmail } from "./outreach-emailer";
+import { recordOutreachSendRow } from "./outreach-sends";
 
 export async function runBreakupOutreachBatch(
   batchSize = 40,
@@ -35,6 +36,13 @@ export async function runBreakupOutreachBatch(
 
       if (result.ok) {
         await recordBreakupSent(c.placeId, c.businessName, c.email);
+        await recordOutreachSendRow({
+          resendEmailId: result.resendEmailId ?? null,
+          placeId: c.placeId,
+          recipient: c.email,
+          campaign: "cold_outreach_breakup",
+          sequenceStep: "breakup",
+        });
         sent++;
         console.info("[breakup-outreach] sent", { businessName: c.businessName, email: c.email });
       }

@@ -4,6 +4,7 @@ import { hasBeenContacted, recordOutreachSent } from "./outreach-tracker";
 import { runProspectPreScan } from "./prospect-prescan";
 import { isOptedOut } from "@/lib/email/optout";
 import { discoverContactEmail } from "./discover-contact-email";
+import { recordOutreachSendRow } from "./outreach-sends";
 
 const DEFAULT_MAX_EMAILS = 25; // 25 per batch × 4 weekday windows = ~100/day
 
@@ -102,6 +103,15 @@ export async function runOutreachBatch(params: {
       contact.confidence,
       result.resendEmailId ?? undefined,
     );
+    await recordOutreachSendRow({
+      resendEmailId: result.resendEmailId ?? null,
+      placeId: prospect.placeId,
+      recipient: candidateEmail,
+      campaign: "cold_outreach",
+      sequenceStep: "initial",
+      contactSource: contact.source,
+      contactConfidence: contact.confidence,
+    });
     console.info("[outreach-batch] Sent", {
       businessName: prospect.businessName,
       email: candidateEmail,

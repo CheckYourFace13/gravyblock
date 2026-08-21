@@ -11,6 +11,7 @@
 import { getFollowupCandidates, recordFollowupSent } from "./outreach-tracker";
 import { sendFollowupEmail } from "./outreach-emailer";
 import { isOptedOut } from "@/lib/email/optout";
+import { recordOutreachSendRow } from "./outreach-sends";
 
 export async function runFollowupOutreachBatch(
   batchSize = 20,
@@ -38,6 +39,13 @@ export async function runFollowupOutreachBatch(
 
       if (result.ok) {
         await recordFollowupSent(c.placeId, c.businessName, c.email, c.city || undefined);
+        await recordOutreachSendRow({
+          resendEmailId: result.resendEmailId ?? null,
+          placeId: c.placeId,
+          recipient: c.email,
+          campaign: "cold_outreach_followup",
+          sequenceStep: "followup",
+        });
         sent++;
         console.info("[followup-outreach] sent", { businessName: c.businessName, email: c.email });
       }

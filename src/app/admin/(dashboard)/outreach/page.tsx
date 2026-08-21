@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getOutreachSettings, getSentEmails, getBatchHistory, getOutreachCounts, getOutreachFunnel, getEmailHealth, type FunnelPeriodStats } from "./actions";
 import { WebhookTestForm } from "./webhook-test-form";
+import { InstallWebhookSecretButton } from "./install-webhook-secret-button";
+import { ControlledOutreachTestForm } from "./controlled-outreach-test-form";
 import { getCalendarPreview, getTodaysOutreachTarget, getOutreachTargetForOffset, daysSinceEpoch, OUTREACH_WINDOW_OFFSETS } from "@/lib/outreach/outreach-calendar";
 import { OutreachSettingsForm } from "./outreach-settings-form";
 
@@ -113,19 +115,35 @@ export default async function OutreachPage() {
                   ? "✓ Yes"
                   : "✗ NO — this is very likely why events stopped arriving"}
             </p>
+            {health.secretMatches !== true ? <InstallWebhookSecretButton /> : null}
           </div>
         </div>
         <WebhookTestForm />
+        <div className="mt-4">
+          <ControlledOutreachTestForm />
+        </div>
       </section>
 
       {/* ── FUNNEL ────────────────────────────────────────── */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-base font-semibold text-zinc-900 mb-1">Outreach funnel</h2>
         <p className="text-sm text-zinc-500 mb-1">
-          Sent/skipped are real for all time. Delivered/bounced/opened/clicked come from the Resend webhook —{" "}
-          {funnel.emailEventsTrackingSince
-            ? `only reliable from ${new Date(funnel.emailEventsTrackingSince).toLocaleDateString()} forward (webhook signature verification was fixed this session — earlier data may be incomplete or unverified).`
-            : "no events recorded yet."}
+          Sent/skipped/unsubscribed are always real, known numbers. Delivered/bounced/opened/clicked show{" "}
+          <span className="font-semibold text-zinc-700">Unknown</span> for any period before verified webhook
+          tracking began —{" "}
+          {funnel.reliableTrackingSince ? (
+            <>
+              confirmed reliable from <span className="font-semibold">{new Date(funnel.reliableTrackingSince).toLocaleString()}</span>{" "}
+              forward (the moment a correct signing secret was installed and fail-closed verification took effect).
+              Zero recorded events before that is not the same as zero delivered — it means we can&apos;t currently
+              tell.
+            </>
+          ) : (
+            <>
+              tracking has not yet been confirmed reliable (signing secret not installed) — every period below shows
+              Unknown for these metrics until it is.
+            </>
+          )}
         </p>
         <p className="text-sm text-zinc-500 mb-5">
           Scan-starts/leads attributed to outreach clicks use first-party tracking shipped{" "}
@@ -322,9 +340,14 @@ export default async function OutreachPage() {
   );
 }
 
-function rate(numerator: number, denominator: number): string {
+function rate(numerator: number | null, denominator: number | null): string {
+  if (numerator === null || denominator === null) return "Unknown";
   if (!denominator) return "—";
   return `${((numerator / denominator) * 100).toFixed(1)}%`;
+}
+
+function cell(value: number | null): string {
+  return value === null ? "Unknown" : value.toLocaleString();
 }
 
 function RateNote({ label, value }: { label: string; value: string }) {
@@ -350,13 +373,15 @@ function FunnelRow({
   warn?: boolean;
 }) {
   const cls = highlight ? "font-semibold text-zinc-900" : warn ? "text-amber-700" : "text-zinc-700";
+  const unknownCls = "text-zinc-400 italic";
+  const cellCls = (v: number | null) => (v === null ? unknownCls : cls);
   return (
     <tr>
       <td className={`py-2 pr-4 ${highlight ? "font-semibold text-zinc-900" : "text-zinc-600"}`}>{label}</td>
-      <td className={`py-2 pr-4 text-right tabular-nums ${cls}`}>{funnel.today[field].toLocaleString()}</td>
-      <td className={`py-2 pr-4 text-right tabular-nums ${cls}`}>{funnel.last7d[field].toLocaleString()}</td>
-      <td className={`py-2 pr-4 text-right tabular-nums ${cls}`}>{funnel.last30d[field].toLocaleString()}</td>
-      <td className={`py-2 text-right tabular-nums ${cls}`}>{funnel.allTime[field].toLocaleString()}</td>
+      <td className={`py-2 pr-4 text-right tabular-nums ${cellCls(funnel.today[field] as number | null)}`}>{cell(funnel.today[field] as number | null)}</td>
+      <td className={`py-2 pr-4 text-right tabular-nums ${cellCls(funnel.last7d[field] as number | null)}`}>{cell(funnel.last7d[field] as number | null)}</td>
+      <td className={`py-2 pr-4 text-right tabular-nums ${cellCls(funnel.last30d[field] as number | null)}`}>{cell(funnel.last30d[field] as number | null)}</td>
+      <td className={`py-2 text-right tabular-nums ${cellCls(funnel.allTime[field] as number | null)}`}>{cell(funnel.allTime[field] as number | null)}</td>
     </tr>
   );
 }

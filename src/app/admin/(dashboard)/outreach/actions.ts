@@ -4,7 +4,9 @@ import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb, jobs, emailEvents, funnelEvents, leads } from "@/lib/db";
 import { isAdminSession } from "@/lib/auth/admin-session";
-import { listResendWebhooks, checkWebhookSecretMatches, getResendEmailStatus } from "@/lib/integrations/resend-webhooks";
+import { listResendWebhooks, checkWebhookSecretMatches, getResendEmailStatus, installSigningSecretOnServer } from "@/lib/integrations/resend-webhooks";
+import { recordOutreachSendRow } from "@/lib/outreach/outreach-sends";
+import { runControlledOutreachPathTest } from "@/lib/outreach/controlled-test";
 
 const EXPECTED_WEBHOOK_ENDPOINT = "https://gravyblock.com/api/resend/webhook";
 const EXPECTED_WEBHOOK_EVENTS = ["email.delivered", "email.opened", "email.clicked", "email.bounced", "email.complained"];
@@ -15,12 +17,14 @@ export type FunnelPeriodStats = {
   prospectsEvaluated: number;
   skipped: number;
   emailsAttempted: number;
-  delivered: number;
-  bounced: number;
-  complained: number;
+  // null = unknown (predates verified webhook tracking) — NEVER convert to 0.
+  // Zero recorded events is not the same as zero delivered messages.
+  delivered: number | null;
+  bounced: number | null;
+  complained: number | null;
   unsubscribed: number;
-  opened: number;
-  clicked: number;
+  opened: number | null;
+  clicked: number | null;
   attributedScanStarts: number;
   attributedLeads: number;
 };
@@ -29,19 +33,65 @@ const EMPTY_PERIOD: FunnelPeriodStats = {
   prospectsEvaluated: 0,
   skipped: 0,
   emailsAttempted: 0,
-  delivered: 0,
-  bounced: 0,
-  complained: 0,
+  delivered: null,
+  bounced: null,
+  complained: null,
   unsubscribed: 0,
-  opened: 0,
-  clicked: 0,
+  opened: null,
+  clicked: null,
   attributedScanStarts: 0,
   attributedLeads: 0,
 };
 
-async function periodStats(since: Date | null): Promise<FunnelPeriodStats> {
+const RELIABILITY_MARKER_JOB_TYPE = "webhook_tracking_reliable_since";
+
+/**
+ * The moment webhook signature verification actually started failing closed
+ * with a correct secret installed — before this, RESEND_WEBHOOK_SECRET was
+ * unset and verification was skipped, so anyone could have POSTed fabricated
+ * events and we'd have no way to tell real ones from fake. Returns null if
+ * that fix has never actually been confirmed live (secret not yet installed).
+ */
+export async function getTrackingReliableSince(): Promise<Date | null> {
+  const db = getDb();
+  if (!db) return null;
+  const [row] = await db
+    .select({ payload: jobs.payload })
+    .from(jobs)
+    .where(eq(jobs.type, RELIABILITY_MARKER_JOB_TYPE))
+    .orderBy(desc(jobs.createdAt))
+    .limit(1)
+    .catch(() => []);
+  const since = (row?.payload as { since?: string } | null)?.since;
+  return since ? new Date(since) : null;
+}
+
+/** Idempotent — only ever creates the marker once, at the first confirmed-fixed moment. */
+export async function markTrackingReliableNow(): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  const existing = await getTrackingReliableSince();
+  if (existing) return;
+  await db.insert(jobs).values({
+    type: RELIABILITY_MARKER_JOB_TYPE,
+    status: "done",
+    payload: { since: new Date().toISOString() },
+  });
+}
+
+async function periodStats(since: Date | null, reliableSince: Date | null): Promise<FunnelPeriodStats> {
   const db = getDb();
   if (!db) return EMPTY_PERIOD;
+
+  // Provider-sourced metrics (delivered/bounced/complained/opened/clicked)
+  // are only trustworthy from reliableSince forward. If the whole requested
+  // period predates that (or tracking was never confirmed fixed), these
+  // stay null (unknown) rather than reporting a misleading zero.
+  const providerWindowStart = reliableSince && (!since || reliableSince > since) ? reliableSince : since;
+  const providerDataAvailable = Boolean(reliableSince) && (!since || reliableSince! < new Date());
+  // Partial: the requested period starts before reliableSince, so the number
+  // shown covers only part of the period, not the whole thing.
+  const isPartial = Boolean(reliableSince) && since !== null && reliableSince! > since;
 
   const batchWhere = since
     ? and(eq(jobs.type, "cold_outreach_batch"), gte(jobs.createdAt, since))
@@ -52,8 +102,8 @@ async function periodStats(since: Date | null): Promise<FunnelPeriodStats> {
   const optOutWhere = since
     ? and(eq(jobs.type, "email_optout"), gte(jobs.createdAt, since))
     : eq(jobs.type, "email_optout");
-  const emailEventsWhere = since
-    ? and(inArray(emailEvents.emailType, [...COLD_OUTREACH_EMAIL_TYPES]), gte(emailEvents.createdAt, since))
+  const emailEventsWhere = providerWindowStart
+    ? and(inArray(emailEvents.emailType, [...COLD_OUTREACH_EMAIL_TYPES]), gte(emailEvents.createdAt, providerWindowStart))
     : inArray(emailEvents.emailType, [...COLD_OUTREACH_EMAIL_TYPES]);
   const attributedWhere = since
     ? and(eq(funnelEvents.utmSource, "cold_outreach"), gte(funnelEvents.createdAt, since))
@@ -63,12 +113,14 @@ async function periodStats(since: Date | null): Promise<FunnelPeriodStats> {
     db.select({ payload: jobs.payload }).from(jobs).where(batchWhere),
     db.select({ id: jobs.id }).from(jobs).where(sentWhere),
     db.select({ id: jobs.id }).from(jobs).where(optOutWhere),
-    db
-      .select({ eventType: emailEvents.eventType, n: sql<number>`count(*)::int` })
-      .from(emailEvents)
-      .where(emailEventsWhere)
-      .groupBy(emailEvents.eventType)
-      .catch(() => [] as Array<{ eventType: string; n: number }>),
+    providerDataAvailable
+      ? db
+          .select({ eventType: emailEvents.eventType, n: sql<number>`count(*)::int` })
+          .from(emailEvents)
+          .where(emailEventsWhere)
+          .groupBy(emailEvents.eventType)
+          .catch(() => [] as Array<{ eventType: string; n: number }>)
+      : Promise.resolve([] as Array<{ eventType: string; n: number }>),
     db
       .select({ eventType: funnelEvents.eventType, n: sql<number>`count(*)::int` })
       .from(funnelEvents)
@@ -88,16 +140,23 @@ async function periodStats(since: Date | null): Promise<FunnelPeriodStats> {
   const byType = new Map(eventRows.map((r) => [r.eventType, Number(r.n)]));
   const attributedByType = new Map(attributedRows.map((r) => [r.eventType, Number(r.n)]));
 
+  // isPartial periods still show a real (if incomplete) count rather than
+  // null — null means "we have no trustworthy data at all for this period",
+  // not "the number might be a bit low because tracking started partway through".
+  const providerValue = (key: string): number | null =>
+    providerDataAvailable ? byType.get(key) ?? 0 : null;
+  void isPartial; // surfaced to the caller via reliableSince/period-start comparison in the UI layer instead
+
   return {
     prospectsEvaluated,
     skipped,
     emailsAttempted: sentRows.length,
-    delivered: byType.get("delivered") ?? 0,
-    bounced: byType.get("bounced") ?? 0,
-    complained: byType.get("complained") ?? 0,
+    delivered: providerValue("delivered"),
+    bounced: providerValue("bounced"),
+    complained: providerValue("complained"),
     unsubscribed: optOutRows.length,
-    opened: byType.get("opened") ?? 0,
-    clicked: byType.get("clicked") ?? 0,
+    opened: providerValue("opened"),
+    clicked: providerValue("clicked"),
     attributedScanStarts: attributedByType.get("scan_started") ?? 0,
     attributedLeads: attributedByType.get("lead_form_submitted") ?? 0,
   };
@@ -119,6 +178,7 @@ export async function getOutreachFunnel(): Promise<{
   allTime: FunnelPeriodStats;
   emailEventsTrackingSince: string | null;
   attributionTrackingSince: string | null;
+  reliableTrackingSince: string | null;
 }> {
   const db = getDb();
   const todayStart = new Date();
@@ -126,11 +186,13 @@ export async function getOutreachFunnel(): Promise<{
   const start7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const start30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
+  const reliableSince = await getTrackingReliableSince();
+
   const [today, last7d, last30d, allTime] = await Promise.all([
-    periodStats(todayStart),
-    periodStats(start7d),
-    periodStats(start30d),
-    periodStats(null),
+    periodStats(todayStart, reliableSince),
+    periodStats(start7d, reliableSince),
+    periodStats(start30d, reliableSince),
+    periodStats(null, reliableSince),
   ]);
 
   let emailEventsTrackingSince: string | null = null;
@@ -153,7 +215,7 @@ export async function getOutreachFunnel(): Promise<{
     attributionTrackingSince = firstAttributed?.createdAt?.toISOString() ?? null;
   }
 
-  return { today, last7d, last30d, allTime, emailEventsTrackingSince, attributionTrackingSince };
+  return { today, last7d, last30d, allTime, emailEventsTrackingSince, attributionTrackingSince, reliableTrackingSince: reliableSince?.toISOString() ?? null };
 }
 
 /** Real leads (excludes the founder's own addresses/house-account inboxes) needing follow-up. */
@@ -392,6 +454,14 @@ export async function getEmailHealth(): Promise<EmailHealth> {
     ? await checkWebhookSecretMatches(ours.id)
     : { ok: false, matches: null, error: "no matching webhook to check" };
 
+  // Covers the case where the secret was installed by some path other than
+  // the one-click install action (e.g. set directly on the VPS) — the
+  // reliability marker should still get stamped the first time we confirm
+  // it's actually correct, not only through that one action.
+  if (secretCheck.matches === true) {
+    await markTrackingReliableNow();
+  }
+
   let lastWebhookEventAt: string | null = null;
   let lastDeliveredAt: string | null = null;
   let lastOpenedAt: string | null = null;
@@ -519,9 +589,35 @@ export async function sendWebhookTestEmail(
       payload: { to, resendEmailId: body.id, sentAt: new Date().toISOString() },
     });
   }
+  await recordOutreachSendRow({
+    resendEmailId: body.id,
+    recipient: to,
+    campaign: "webhook_test",
+    sequenceStep: "test",
+    isTest: true,
+  });
 
   revalidatePath("/admin/outreach");
   return { ok: true, resendEmailId: body.id };
+}
+
+/**
+ * Runs ONE send through the REAL cold-outreach send function
+ * (sendProspectEmail) without enabling the outreach scheduler — a fixed
+ * synthetic business, a fixed admin-supplied recipient, isTest=true. Does
+ * not touch real prospect contact history or jobs-based funnel counts.
+ */
+export async function sendControlledOutreachPathTest(
+  _prev: { ok: boolean; error?: string; resendEmailId?: string } | null,
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string; resendEmailId?: string }> {
+  if (!(await isAdminSession())) return { ok: false, error: "Unauthorized" };
+  const to = String(formData.get("to") ?? "").trim();
+  if (!to || !to.includes("@")) return { ok: false, error: "Enter a valid email you control" };
+
+  const result = await runControlledOutreachPathTest(to);
+  revalidatePath("/admin/outreach");
+  return { ok: result.ok, error: result.error, resendEmailId: result.resendEmailId ?? undefined };
 }
 
 /** Lifecycle trace for a specific test send — used to prove send -> webhook -> DB end to end. */
@@ -543,4 +639,25 @@ export async function getWebhookTestTrace(resendEmailId: string) {
   const resendStatus = await getResendEmailStatus(resendEmailId);
 
   return { events, resendLastEvent: resendStatus.lastEvent, resendCheckError: resendStatus.error ?? null };
+}
+
+/**
+ * One-time, admin-authenticated setup action: fetches the real signing
+ * secret for our registered webhook and writes it to the server's own .env
+ * file, then restarts PM2 so it takes effect. Never returns, logs, or
+ * displays the secret itself — only success/failure. Naturally becomes a
+ * no-op once the secret is correctly installed.
+ */
+export async function installWebhookSecret(): Promise<{ ok: boolean; alreadyConfigured?: boolean; error?: string }> {
+  if (!(await isAdminSession())) return { ok: false, error: "Unauthorized" };
+  const result = await installSigningSecretOnServer(EXPECTED_WEBHOOK_ENDPOINT);
+  if (result.ok) {
+    // Marks the point after which fail-closed verification with a correct
+    // secret was actually active — the boundary the historical-vs-reliable
+    // funnel display uses, independent of whether real Resend dispatch
+    // separately turns out to be working (a different, still-open question).
+    await markTrackingReliableNow();
+  }
+  revalidatePath("/admin/outreach");
+  return result;
 }
