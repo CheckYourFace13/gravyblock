@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, inArray, isNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
   aiVisibilityChecks,
   backlinkOpportunities,
@@ -55,6 +55,42 @@ function levelForScore(score: number) {
 
 function clampScore(score: number) {
   return Math.max(1, Math.min(100, score));
+}
+
+/**
+ * Recomputes the visibility score from real signals every cycle instead of
+ * an unconditional `previousScore + 2`. That flat increment meant every
+ * account's score climbed every cycle regardless of whether anything
+ * actually improved (or got worse) — a fabricated "improvement" shown to
+ * customers as if it reflected real progress. Every input here is real:
+ * Google's own rating/review count, the live site-crawl audit findings
+ * (weighted by severity), real discovered social profiles, and real
+ * published-article count (GravyBlock's own completed, verifiable work —
+ * the one part of this formula that legitimately trends upward over time
+ * as automation actually does more, not a per-cycle freebie).
+ */
+function computeRealVisibilityScore(input: {
+  placeRating: number | null;
+  placeReviewCount: number | null;
+  auditFindings: WebsiteAuditFinding[];
+  socialProfileCount: number;
+  publishedContentCount: number;
+}): number {
+  let score = 50;
+
+  if (input.placeRating !== null) score += (input.placeRating - 3) * 10;
+  if (input.placeReviewCount !== null && input.placeReviewCount > 0) {
+    score += Math.min(15, Math.log10(input.placeReviewCount + 1) * 8);
+  }
+
+  const highSeverity = input.auditFindings.filter((f) => f.severity === "high").length;
+  const mediumSeverity = input.auditFindings.filter((f) => f.severity === "medium").length;
+  score -= highSeverity * 6 + mediumSeverity * 3;
+
+  score += Math.min(10, input.socialProfileCount * 5);
+  score += Math.min(15, input.publishedContentCount * 2);
+
+  return clampScore(score);
 }
 
 function recurringJobTypeForPlan(tier: PlanTier) {
@@ -556,7 +592,6 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         .orderBy(desc(visibilitySnapshots.createdAt))
         .limit(1);
 
-      const nextScore = clampScore((latest?.overallScore ?? 60) + 2);
       const snapshotId = randomUUID();
       const runProfile = profileForJobType(job.type);
       const completedAt = new Date().toISOString();
@@ -592,6 +627,27 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
           console.error("[autopilot] issue tracker sync failed", { businessId, error: error instanceof Error ? error.message : String(error) });
         }
       }
+
+      const [{ n: publishedContentCountForScore }] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(publishedContent)
+        .where(and(eq(publishedContent.businessId, businessId), eq(publishedContent.status, "published")));
+
+      // Real signals if this cycle's refresh succeeded; otherwise recompute
+      // from the same real inputs the LAST successful snapshot used (still
+      // not a flat "+2" — a failed refresh just means no new Google/crawl
+      // data this cycle, not license to fabricate movement) so the score
+      // never goes stale-blank, but also never drifts on its own.
+      const nextScore = refreshedSignals
+        ? computeRealVisibilityScore({
+            placeRating: refreshedSignals.placeRating,
+            placeReviewCount: refreshedSignals.placeReviewCount,
+            auditFindings: refreshedSignals.auditFindings,
+            socialProfileCount: refreshedSignals.socialProfileCount,
+            publishedContentCount: publishedContentCountForScore,
+          })
+        : (latest?.overallScore ?? 50);
+
       await db.insert(visibilitySnapshots).values({
         id: snapshotId,
         businessId,
