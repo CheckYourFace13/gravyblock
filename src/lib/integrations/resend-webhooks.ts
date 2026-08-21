@@ -153,26 +153,42 @@ export async function installSigningSecretOnServer(expectedEndpoint: string): Pr
   const { promisify } = await import("node:util");
   const execAsync = promisify(exec);
 
-  const envPath = path.join(process.cwd(), ".env");
-
-  let existing = "";
-  try {
-    existing = await fs.readFile(envPath, "utf8");
-  } catch (err) {
-    return { ok: false, error: `could not read ${envPath}: ${err instanceof Error ? err.message : String(err)}` };
-  }
-
+  // Next.js loads (highest precedence first) .env.production.local, .env.local,
+  // .env.production, .env — merging by key, earlier files winning. Writing
+  // only to .env is silently overridden if a higher-precedence file already
+  // has ANY value (even empty) for this key. Updating every one of these
+  // that actually exists removes that ambiguity entirely rather than
+  // guessing which one wins; never creating files that don't already exist.
+  const candidateNames = [".env.production.local", ".env.local", ".env.production", ".env"];
   const line = `RESEND_WEBHOOK_SECRET=${secret}`;
-  const hasLine = /^RESEND_WEBHOOK_SECRET=/m.test(existing);
-  const updated = hasLine
-    ? existing.replace(/^RESEND_WEBHOOK_SECRET=.*$/m, line)
-    : `${existing.endsWith("\n") || existing === "" ? existing : existing + "\n"}${line}\n`;
+  const written: string[] = [];
+  let sawAnyFile = false;
 
-  try {
-    await fs.writeFile(envPath, updated, "utf8");
-  } catch (err) {
-    return { ok: false, error: `could not write ${envPath}: ${err instanceof Error ? err.message : String(err)}` };
+  for (const name of candidateNames) {
+    const p = path.join(process.cwd(), name);
+    let existing: string;
+    try {
+      existing = await fs.readFile(p, "utf8");
+    } catch {
+      continue; // this candidate doesn't exist — skip, never create it
+    }
+    sawAnyFile = true;
+    const hasLine = /^RESEND_WEBHOOK_SECRET=/m.test(existing);
+    const updated = hasLine
+      ? existing.replace(/^RESEND_WEBHOOK_SECRET=.*$/m, line)
+      : `${existing.endsWith("\n") || existing === "" ? existing : existing + "\n"}${line}\n`;
+    try {
+      await fs.writeFile(p, updated, "utf8");
+      written.push(p);
+    } catch (err) {
+      return { ok: false, error: `could not write ${p}: ${err instanceof Error ? err.message : String(err)}` };
+    }
   }
+
+  if (!sawAnyFile) {
+    return { ok: false, error: `none of ${candidateNames.join(", ")} exist in ${process.cwd()}` };
+  }
+  const envPath = written.join(", ");
 
   // Don't await the restart inline — `pm2 restart` kills this very process,
   // which would cut off the HTTP response to the admin who clicked the
