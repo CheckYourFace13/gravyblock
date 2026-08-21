@@ -104,6 +104,16 @@ export default async function OutreachPage() {
               {health.sendsWithAnyEventPct !== null ? ` · ${health.sendsWithAnyEventPct}% of recipients have any event` : ""}
             </p>
           </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Signing secret matches Resend</p>
+            <p className={`font-semibold ${health.secretMatches === false ? "text-red-700" : "text-zinc-900"}`}>
+              {health.secretMatches === null
+                ? `Unknown${health.secretCheckError ? ` (${health.secretCheckError})` : ""}`
+                : health.secretMatches
+                  ? "✓ Yes"
+                  : "✗ NO — this is very likely why events stopped arriving"}
+            </p>
+          </div>
         </div>
         <WebhookTestForm />
       </section>

@@ -4,7 +4,7 @@ import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb, jobs, emailEvents, funnelEvents, leads } from "@/lib/db";
 import { isAdminSession } from "@/lib/auth/admin-session";
-import { listResendWebhooks } from "@/lib/integrations/resend-webhooks";
+import { listResendWebhooks, checkWebhookSecretMatches } from "@/lib/integrations/resend-webhooks";
 
 const EXPECTED_WEBHOOK_ENDPOINT = "https://gravyblock.com/api/resend/webhook";
 const EXPECTED_WEBHOOK_EVENTS = ["email.delivered", "email.opened", "email.clicked", "email.bounced", "email.complained"];
@@ -375,6 +375,8 @@ export type EmailHealth = {
   sentLast24h: number;
   sendsWithAnyEventPct: number | null;
   redAlert: string | null;
+  secretMatches: boolean | null; // null = couldn't determine
+  secretCheckError: string | null;
 };
 
 /** Checks Resend's own account config (not just our code) — see actions.ts header note on why this matters. */
@@ -385,6 +387,10 @@ export async function getEmailHealth(): Promise<EmailHealth> {
   const webhookCheck = await listResendWebhooks();
   const ours = webhookCheck.webhooks.find((w) => w.endpoint === EXPECTED_WEBHOOK_ENDPOINT);
   const missingEvents = ours ? EXPECTED_WEBHOOK_EVENTS.filter((e) => !ours.events.includes(e)) : EXPECTED_WEBHOOK_EVENTS;
+
+  const secretCheck = ours
+    ? await checkWebhookSecretMatches(ours.id)
+    : { ok: false, matches: null, error: "no matching webhook to check" };
 
   let lastWebhookEventAt: string | null = null;
   let lastDeliveredAt: string | null = null;
@@ -463,6 +469,8 @@ export async function getEmailHealth(): Promise<EmailHealth> {
     sentLast24h,
     sendsWithAnyEventPct,
     redAlert,
+    secretMatches: secretCheck.matches,
+    secretCheckError: secretCheck.error ?? null,
   };
 }
 

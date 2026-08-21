@@ -16,6 +16,12 @@ export type ResendWebhook = {
   events: string[];
 };
 
+export type SecretCheckResult = {
+  ok: boolean;
+  matches: boolean | null; // null = couldn't determine (API error, no webhook found, or env var unset)
+  error?: string;
+};
+
 function apiKey(): string {
   return process.env.RESEND_API_KEY ?? "";
 }
@@ -41,6 +47,29 @@ export async function listResendWebhooks(): Promise<{ ok: boolean; webhooks: Res
       events: w.events,
     })),
   };
+}
+
+/**
+ * Compares the live Resend signing secret for `webhookId` against this
+ * server's RESEND_WEBHOOK_SECRET — WITHOUT ever exposing either value. Only
+ * a match/no-match boolean is returned. This is the direct way to answer
+ * "did the webhook stop firing because our stored secret is stale" without
+ * needing VPS file access or printing a secret anywhere.
+ */
+export async function checkWebhookSecretMatches(webhookId: string): Promise<SecretCheckResult> {
+  const key = apiKey();
+  const ours = process.env.RESEND_WEBHOOK_SECRET ?? "";
+  if (!key) return { ok: false, matches: null, error: "RESEND_API_KEY not configured" };
+  if (!ours) return { ok: true, matches: null, error: "RESEND_WEBHOOK_SECRET not set on this server" };
+
+  const res = await fetch(`${RESEND_API_BASE}/webhooks/${webhookId}`, {
+    headers: { authorization: `Bearer ${key}` },
+  });
+  if (!res.ok) return { ok: false, matches: null, error: `Resend API ${res.status}` };
+  const body = (await res.json()) as { signing_secret?: string };
+  if (!body.signing_secret) return { ok: false, matches: null, error: "Resend did not return a signing secret" };
+
+  return { ok: true, matches: body.signing_secret === ours };
 }
 
 /**
