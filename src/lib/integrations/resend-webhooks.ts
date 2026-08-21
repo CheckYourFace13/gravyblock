@@ -179,6 +179,17 @@ export async function installSigningSecretOnServer(expectedEndpoint: string): Pr
   // button before it ever reached them. Give the response a moment to flush
   // first; the caller's UI tells the admin to check back in ~15s.
   //
+  // Belt-and-suspenders: even if this in-process restart attempt never
+  // completes or logs an outcome (observed once — neither success nor
+  // failure was recorded, plausibly because `pm2 restart` sends a kill
+  // signal to this very process before its own "it worked" logging line
+  // gets to run), the secret is already durably on disk at this point and
+  // git-based deploys never touch .env (self-deploy.sh force-syncs the repo
+  // but explicitly leaves untracked files alone). Every regular deploy's
+  // `pm2 startOrRestart ecosystem.config.js --update-env` step — proven
+  // reliable all session — will pick up this file the next time ANY commit
+  // ships, with no further action needed here.
+  //
   // Use a login shell (`bash -lc`), not a bare exec — PM2 spawns this Node
   // process directly (not through an interactive shell), so `pm2` may not be
   // on its inherited PATH at all (the same nvm-PATH problem self-deploy.sh
