@@ -96,9 +96,6 @@ export default async function SampleLocalGrowthReportPage() {
   const ongoing = openRecs.filter((r) => r.lane === "ONGOING_MONITORING");
 
   const totalFindings = openRecs.length;
-  const automatedFindingCount = openRecs.filter((r) =>
-    /gravyblock|automatically|monitor|schema|article|publish|probe/i.test(r.detail),
-  ).length;
 
   return (
     <div className="bg-white">
@@ -167,9 +164,12 @@ export default async function SampleLocalGrowthReportPage() {
       {/* Top findings */}
       <section className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
         <h2 className="text-lg font-semibold text-zinc-900 mb-1">
-          Top opportunities ({totalFindings} open, {automatedFindingCount} of which GravyBlock is already handling automatically)
+          Top opportunities ({totalFindings} open)
         </h2>
-        <p className="text-sm text-zinc-500 mb-5">Real, currently-open recommendations for this account — nothing staged for this page.</p>
+        <p className="text-sm text-zinc-500 mb-5">
+          Real, currently-open recommendations for this account — these are the ones that need the owner (see
+          &quot;What happens automatically vs. what needs you&quot; below for what GravyBlock is already doing on its own).
+        </p>
         <div className="space-y-5">
           {fixNow.length > 0 ? (
             <FindingGroup title="Fix now" tone="red" items={fixNow} />
