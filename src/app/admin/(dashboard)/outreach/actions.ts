@@ -648,7 +648,7 @@ export async function getWebhookTestTrace(resendEmailId: string) {
  * displays the secret itself — only success/failure. Naturally becomes a
  * no-op once the secret is correctly installed.
  */
-export async function installWebhookSecret(): Promise<{ ok: boolean; alreadyConfigured?: boolean; error?: string }> {
+export async function installWebhookSecret(): Promise<{ ok: boolean; alreadyConfigured?: boolean; error?: string; envPathUsed?: string }> {
   if (!(await isAdminSession())) return { ok: false, error: "Unauthorized" };
   const result = await installSigningSecretOnServer(EXPECTED_WEBHOOK_ENDPOINT);
   if (result.ok) {
@@ -660,4 +660,20 @@ export async function installWebhookSecret(): Promise<{ ok: boolean; alreadyConf
   }
   revalidatePath("/admin/outreach");
   return result;
+}
+
+/** Outcome of the most recent PM2 restart attempt after a secret install — never contains the secret itself. */
+export async function getLastSecretInstallRestartStatus(): Promise<{ status: string; error: string | null; at: string } | null> {
+  const db = getDb();
+  if (!db) return null;
+  const [row] = await db
+    .select({ status: jobs.status, payload: jobs.payload, createdAt: jobs.createdAt })
+    .from(jobs)
+    .where(eq(jobs.type, "webhook_secret_install_restart"))
+    .orderBy(desc(jobs.createdAt))
+    .limit(1)
+    .catch(() => []);
+  if (!row) return null;
+  const p = row.payload as { error?: string } | null;
+  return { status: row.status, error: p?.error ?? null, at: row.createdAt.toISOString() };
 }

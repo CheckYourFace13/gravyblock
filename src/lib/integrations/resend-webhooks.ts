@@ -114,7 +114,7 @@ async function fetchSigningSecret(webhookId: string): Promise<{ ok: boolean; sec
   return { ok: true, secret: body.signing_secret };
 }
 
-export type InstallResult = { ok: boolean; alreadyConfigured?: boolean; error?: string };
+export type InstallResult = { ok: boolean; alreadyConfigured?: boolean; error?: string; envPathUsed?: string };
 
 /**
  * One-time, narrowly-scoped setup operation: finds GravyBlock's own
@@ -178,15 +178,36 @@ export async function installSigningSecretOnServer(expectedEndpoint: string): Pr
   // which would cut off the HTTP response to the admin who clicked the
   // button before it ever reached them. Give the response a moment to flush
   // first; the caller's UI tells the admin to check back in ~15s.
+  //
+  // Use a login shell (`bash -lc`), not a bare exec — PM2 spawns this Node
+  // process directly (not through an interactive shell), so `pm2` may not be
+  // on its inherited PATH at all (the same nvm-PATH problem self-deploy.sh
+  // has to work around by explicitly sourcing nvm.sh first). A login shell
+  // sources the profile/nvm setup, matching how a human running this command
+  // over SSH would have it on PATH. The outcome is logged to a `jobs` row
+  // (never the secret) so a failure here is observable via the DB instead of
+  // an invisible console.error only visible in server logs no one can read
+  // from here.
   setTimeout(() => {
-    execAsync("pm2 restart gravyblock --update-env").catch((err) => {
-      console.error("[resend-webhooks] PM2 restart after secret install failed", {
-        error: err instanceof Error ? err.message : String(err),
-      });
-    });
+    (async () => {
+      try {
+        await execAsync("bash -lc 'pm2 restart gravyblock --update-env'");
+        const { getDb, jobs } = await import("@/lib/db");
+        const db = getDb();
+        if (db) await db.insert(jobs).values({ type: "webhook_secret_install_restart", status: "done", payload: { ok: true } });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[resend-webhooks] PM2 restart after secret install failed", { error: message });
+        try {
+          const { getDb, jobs } = await import("@/lib/db");
+          const db = getDb();
+          if (db) await db.insert(jobs).values({ type: "webhook_secret_install_restart", status: "failed", payload: { ok: false, error: message } });
+        } catch { /* best effort */ }
+      }
+    })();
   }, 1500);
 
-  return { ok: true };
+  return { ok: true, envPathUsed: envPath };
 }
 
 /**
