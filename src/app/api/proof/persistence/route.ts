@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { isAdminSession } from "@/lib/auth/admin-session";
 import {
   aiVisibilityChecks,
   auditFindings,
@@ -23,6 +24,14 @@ import {
 } from "@/lib/db";
 
 export async function GET(req: Request) {
+  // Was completely unauthenticated — dumped organizations/brands/leads
+  // (including lead emails)/scans/reports/jobs for any businessId, or the
+  // 20 most recent businesses with no params at all. Same admin-session
+  // check every other diagnostic surface in /admin uses.
+  if (!(await isAdminSession())) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const db = getDb();
   if (!db) return Response.json({ error: "DATABASE_URL is required" }, { status: 500 });
 

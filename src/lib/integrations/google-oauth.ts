@@ -15,7 +15,15 @@ function clientSecret() {
   return process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";
 }
 function stateSecret() {
-  return process.env.CUSTOMER_AUTH_SECRET?.trim() || process.env.ADMIN_SECRET?.trim() || "dev-state-secret";
+  const secret = process.env.CUSTOMER_AUTH_SECRET?.trim() || process.env.ADMIN_SECRET?.trim();
+  if (secret) return secret;
+  // A hardcoded fallback here doesn't skip verification the way the Resend
+  // webhook bug did, but it makes the OAuth CSRF state token forgeable by
+  // anyone who knows this public string — same weakening, different shape.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("CUSTOMER_AUTH_SECRET or ADMIN_SECRET is required in production for Google OAuth state signing");
+  }
+  return "dev-state-secret";
 }
 function siteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") || "http://localhost:3000";

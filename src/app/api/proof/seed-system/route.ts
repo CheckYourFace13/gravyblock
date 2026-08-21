@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { brands, getDb, locations, organizations } from "@/lib/db";
 import { recordScanRun } from "@/lib/report/repository";
 import type { ReportPayload, Vertical } from "@/lib/report/types";
+import { isAdminSession } from "@/lib/auth/admin-session";
 
 function samplePayload(input: { name: string; website: string; city: string; placeId: string }): ReportPayload {
   const generatedAt = new Date().toISOString();
@@ -137,6 +138,13 @@ function samplePayload(input: { name: string; website: string; city: string; pla
 }
 
 export async function POST() {
+  // Was completely unauthenticated — anyone could POST here repeatedly to
+  // insert demo organizations/brands/locations/reports into the production
+  // database with no rate limit and no way to tell they weren't real.
+  if (!(await isAdminSession())) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const db = getDb();
   if (!db) {
     return Response.json({ error: "DATABASE_URL is required" }, { status: 500 });

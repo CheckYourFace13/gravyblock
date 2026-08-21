@@ -5,11 +5,12 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * needed — the link self-validates. Used to confirm a customer's account email.
  */
 function secret(): string {
-  return (
-    process.env.CUSTOMER_AUTH_SECRET?.trim() ||
-    process.env.ADMIN_SECRET?.trim() ||
-    "dev-only-change-me"
-  );
+  const value = process.env.CUSTOMER_AUTH_SECRET?.trim() || process.env.ADMIN_SECRET?.trim();
+  if (value) return value;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("CUSTOMER_AUTH_SECRET or ADMIN_SECRET is required in production for email-verification tokens");
+  }
+  return "dev-only-change-me";
 }
 
 export function makeVerifyToken(businessId: string, email: string): string {
