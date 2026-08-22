@@ -93,7 +93,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // bounce/open/click in the funnel, or fire the opt-out side effect twice.
   // (svixId can be null for a manually-posted/legacy event — those aren't
   // deduped against each other, which matches prior behavior for those cases.)
-  let inserted = true;
+  //
+  // `inserted` starts false, not true: a caught exception below must never
+  // be treated as "the row landed" — that was a real bug (confirmed live:
+  // the svix_message_id column was missing from production's email_events
+  // table, so every insert threw, was swallowed here, and downstream
+  // correlation/opt-out logic ran anyway as if the event had been recorded,
+  // when in fact zero rows were ever persisted).
+  let inserted = false;
   try {
     const rows = await db
       .insert(emailEvents)
@@ -110,7 +117,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       .returning({ id: emailEvents.id });
     inserted = rows.length > 0;
   } catch (err) {
-    console.error("[resend-webhook] insert failed", { error: err instanceof Error ? err.message : String(err) });
+    console.error("[resend-webhook] insert with svixMessageId failed — retrying without it (schema may not be migrated yet)", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    // Fall back to the pre-idempotency insert shape so an event is still
+    // captured (without dedup protection) rather than silently lost while
+    // the svix_message_id column isn't present on this DB yet.
+    try {
+      const rows = await db
+        .insert(emailEvents)
+        .values({ eventType, emailId, recipient, emailType, clickUrl, metadata: payload.data as Record<string, unknown> })
+        .returning({ id: emailEvents.id });
+      inserted = rows.length > 0;
+    } catch (fallbackErr) {
+      console.error("[resend-webhook] fallback insert also failed", {
+        error: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
+      });
+    }
   }
 
   // Primary correlation: resolve to a first-class outreach-send row by
