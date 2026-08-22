@@ -1017,7 +1017,7 @@ export async function getWorkspaceBundle(businessId: string) {
   const [snapRows, recRows, contentRows, reportRows, rankRows, auditRows, scRows, placeRows, socialRows] = sql
     ? await Promise.all([
         sql.unsafe(
-          `select id,overall_score as "overallScore",opportunity_level as "opportunityLevel",created_at as "createdAt" from visibility_snapshots where business_id='${safeBusinessId}' order by created_at desc limit 20`,
+          `select id,overall_score as "overallScore",opportunity_level as "opportunityLevel",score_method_version as "scoreMethodVersion",created_at as "createdAt" from visibility_snapshots where business_id='${safeBusinessId}' order by created_at desc limit 20`,
         ),
         sql.unsafe(
           `select id,lane,category,title,detail,impact,status,created_at as "createdAt" from recommendations where business_id='${safeBusinessId}' order by created_at desc limit 60`,
@@ -1050,6 +1050,7 @@ export async function getWorkspaceBundle(businessId: string) {
             id: visibilitySnapshots.id,
             overallScore: visibilitySnapshots.overallScore,
             opportunityLevel: visibilitySnapshots.opportunityLevel,
+            scoreMethodVersion: visibilitySnapshots.scoreMethodVersion,
             createdAt: visibilitySnapshots.createdAt,
           })
           .from(visibilitySnapshots)
@@ -1152,6 +1153,7 @@ export async function getWorkspaceBundle(businessId: string) {
       id: s.id,
       overallScore: s.overallScore,
       opportunityLevel: s.opportunityLevel,
+      scoreMethodVersion: (s as { scoreMethodVersion?: string | null }).scoreMethodVersion ?? null,
       sectionScores: {},
       createdAt: toIso(s.createdAt),
     })),

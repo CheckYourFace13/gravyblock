@@ -12,6 +12,7 @@ import {
   publishedContent,
   publishingJobs,
   publishingTargets,
+  reports,
   visibilitySnapshots,
 } from "@/lib/db";
 import { sendAutomationSummaryEmail, sendOutreachEmail } from "@/lib/integrations/resend";
@@ -23,7 +24,7 @@ import { planFeatures, normalizePlanTierFromDb, type PlanTier } from "@/lib/plan
 import { getGooglePlaceDetails } from "@/lib/integrations/google-places";
 import { runSiteCrawlAudit } from "@/lib/audit/site-crawl";
 import { syncBusinessIssues } from "@/lib/audit/issue-tracker";
-import type { WebsiteAuditFinding } from "@/lib/report/types";
+import type { WebsiteAuditFinding, WebsiteAuditSummary } from "@/lib/report/types";
 import { buildSocialPresence } from "@/lib/social/discover";
 import { generateArticleBody, generateLocalPageBody, generateOutreachPitch, generateMetaTags } from "@/lib/content/generator";
 import { addInternalLinks } from "@/lib/content/internal-linker";
@@ -33,6 +34,14 @@ import { buildSchemaScriptBlock, injectSchemaIntoHtml } from "@/lib/publishing/i
 import { checkBusinessVisibilityInAI } from "@/lib/integrations/perplexity";
 import { containsPlaceholderArtifact } from "@/lib/content-gen/quality-guard";
 import { pingIndexNowForGravyblock } from "@/lib/integrations/indexnow";
+import { getGeoAuditScore } from "@/lib/audit/geo-audit";
+import { computeAeoScore } from "@/lib/scoring/aeo-score";
+import {
+  computeVisibilityScore,
+  computeOptimizationHealthScore,
+  SCORE_METHOD_VERSION,
+} from "@/lib/scoring/visibility-score";
+import type { ReportPayload } from "@/lib/report/types";
 
 type AutomationRunProfile = {
   aiChecks: number;
@@ -53,44 +62,38 @@ function levelForScore(score: number) {
   return "high";
 }
 
-function clampScore(score: number) {
-  return Math.max(1, Math.min(100, score));
-}
-
 /**
- * Recomputes the visibility score from real signals every cycle instead of
- * an unconditional `previousScore + 2`. That flat increment meant every
- * account's score climbed every cycle regardless of whether anything
- * actually improved (or got worse) — a fabricated "improvement" shown to
- * customers as if it reflected real progress. Every input here is real:
- * Google's own rating/review count, the live site-crawl audit findings
- * (weighted by severity), real discovered social profiles, and real
- * published-article count (GravyBlock's own completed, verifiable work —
- * the one part of this formula that legitimately trends upward over time
- * as automation actually does more, not a per-cycle freebie).
+ * Pulls the last known search-visibility / local-ranking measurements out of
+ * this business's original scan report (reports.payload, the same
+ * ReportPayload the initial free scan produced). These are real, previously
+ * observed signals — a GSC-verified position or a modeled local-rank
+ * estimate — not re-verified every recurring cycle (that would mean
+ * re-running the rank estimator's live Places queries on every refresh,
+ * which this cycle does not do), so they're surfaced as "last known," not
+ * "just measured." Returns nulls (not measured) if there's no report to read.
  */
-function computeRealVisibilityScore(input: {
-  placeRating: number | null;
-  placeReviewCount: number | null;
-  auditFindings: WebsiteAuditFinding[];
-  socialProfileCount: number;
-  publishedContentCount: number;
-}): number {
-  let score = 50;
+async function lastKnownSearchAndRankSignals(
+  db: NonNullable<ReturnType<typeof getDb>>,
+  reportId: string | null,
+): Promise<{
+  searchVisibilityPoints: number | null;
+  searchVisibilitySource: "search_console_verified" | "estimated_rank" | null;
+  localRankingPoints: number | null;
+}> {
+  if (!reportId) return { searchVisibilityPoints: null, searchVisibilitySource: null, localRankingPoints: null };
+  const [row] = await db.select({ payload: reports.payload }).from(reports).where(eq(reports.id, reportId)).limit(1);
+  const payload = row?.payload as ReportPayload | undefined;
+  if (!payload) return { searchVisibilityPoints: null, searchVisibilitySource: null, localRankingPoints: null };
 
-  if (input.placeRating !== null) score += (input.placeRating - 3) * 10;
-  if (input.placeReviewCount !== null && input.placeReviewCount > 0) {
-    score += Math.min(15, Math.log10(input.placeReviewCount + 1) * 8);
-  }
+  const searchSection = payload.sections?.find((s) => s.key === "searchVisibility") ?? null;
+  const rankSection = payload.sections?.find((s) => s.key === "localRankingSignals") ?? null;
+  const verified = payload.searchVisibility?.verified ?? false;
 
-  const highSeverity = input.auditFindings.filter((f) => f.severity === "high").length;
-  const mediumSeverity = input.auditFindings.filter((f) => f.severity === "medium").length;
-  score -= highSeverity * 6 + mediumSeverity * 3;
-
-  score += Math.min(10, input.socialProfileCount * 5);
-  score += Math.min(15, input.publishedContentCount * 2);
-
-  return clampScore(score);
+  return {
+    searchVisibilityPoints: searchSection?.score ?? null,
+    searchVisibilitySource: searchSection ? (verified ? "search_console_verified" : "estimated_rank") : null,
+    localRankingPoints: rankSection?.score ?? null,
+  };
 }
 
 function recurringJobTypeForPlan(tier: PlanTier) {
@@ -139,6 +142,7 @@ type RefreshSignals = {
   placeReviewCount: number | null;
   socialProfileCount: number;
   auditFindings: WebsiteAuditFinding[];
+  websiteAudit: WebsiteAuditSummary;
 };
 
 async function refreshPublicSignals(input: {
@@ -174,6 +178,7 @@ async function refreshPublicSignals(input: {
       placeReviewCount,
       socialProfileCount: social.profiles.length,
       auditFindings: crawl.audit.findings,
+      websiteAudit: crawl.audit,
     };
   } catch (error) {
     console.error("[autopilot] public refresh failed", { error: error instanceof Error ? error.message : String(error) });
@@ -628,25 +633,58 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         }
       }
 
-      const [{ n: publishedContentCountForScore }] = await db
+      // Automation Activity counter — never a scoring input (see
+      // src/lib/scoring/visibility-score.ts header). Tracked here purely for
+      // the "work completed" side of the run summary below.
+      const [{ n: publishedContentCountForActivity }] = await db
         .select({ n: sql<number>`count(*)::int` })
         .from(publishedContent)
         .where(and(eq(publishedContent.businessId, businessId), eq(publishedContent.status, "published")));
 
-      // Real signals if this cycle's refresh succeeded; otherwise recompute
-      // from the same real inputs the LAST successful snapshot used (still
-      // not a flat "+2" — a failed refresh just means no new Google/crawl
-      // data this cycle, not license to fabricate movement) so the score
-      // never goes stale-blank, but also never drifts on its own.
-      const nextScore = refreshedSignals
-        ? computeRealVisibilityScore({
-            placeRating: refreshedSignals.placeRating,
-            placeReviewCount: refreshedSignals.placeReviewCount,
-            auditFindings: refreshedSignals.auditFindings,
-            socialProfileCount: refreshedSignals.socialProfileCount,
-            publishedContentCount: publishedContentCountForScore,
-          })
-        : (latest?.overallScore ?? 50);
+      // Visibility Score v2 (see src/lib/scoring/visibility-score.ts): every
+      // input here is a real, independently observed signal — Google's own
+      // rating/review count, AI-assistant probe results, and (carried
+      // forward from the original scan report, not re-verified this cycle)
+      // search-console/rank-estimate positions. Automation activity
+      // (articles published, drafts sent, etc.) never enters this formula —
+      // see the runSummary block below for where that's tracked instead.
+      const [geoAudit, lastKnownSignals] = await Promise.all([
+        getGeoAuditScore(businessId),
+        lastKnownSearchAndRankSignals(db, latest?.reportId ?? null),
+      ]);
+
+      const visibilityResult = computeVisibilityScore({
+        placeRating: refreshedSignals?.placeRating ?? null,
+        placeReviewCount: refreshedSignals?.placeReviewCount ?? null,
+        searchVisibilityPoints: lastKnownSignals.searchVisibilityPoints,
+        searchVisibilitySource: lastKnownSignals.searchVisibilitySource,
+        localRankingPoints: lastKnownSignals.localRankingPoints,
+        aiDiscoveryPoints: geoAudit?.overallScore ?? null,
+        aiDiscoveryProbeCount: geoAudit?.totalProbes ?? 0,
+      });
+
+      const optimizationHealthResult = computeOptimizationHealthScore({
+        websiteTechnicalPoints: refreshedSignals?.websiteAudit.score ?? null,
+        aeoReadinessPoints: refreshedSignals
+          ? computeAeoScore({
+              websiteAudit: refreshedSignals.websiteAudit,
+              hasSchemaMarkup: publishedContentCountForActivity > 0,
+              reviewCount: refreshedSignals.placeReviewCount ?? 0,
+            }).score
+          : null,
+        // Entity completeness (citation/social/NAP data) is not gathered as
+        // part of this refresh cycle today — honestly reported as not
+        // measured here rather than guessed. Flagged as a follow-up: wire
+        // citationIssues/social counts through so this composite is complete.
+        entityCompletenessPoints: null,
+      });
+
+      // Fallback only for the narrow case where refresh failed on this
+      // business's very first recurring cycle (no prior snapshot exists to
+      // carry forward at all) — a real "we have nothing yet" state, not a
+      // per-cycle default. Every other case uses either this cycle's real
+      // measurement or the last real measurement on file.
+      const nextScore = visibilityResult.score ?? latest?.overallScore ?? 50;
 
       await db.insert(visibilitySnapshots).values({
         id: snapshotId,
@@ -654,7 +692,11 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         reportId: latest?.reportId ?? null,
         overallScore: nextScore,
         opportunityLevel: levelForScore(nextScore),
-        sectionScores: latest?.sectionScores ?? { technical: nextScore, visibility: nextScore, conversion: nextScore },
+        sectionScores: {
+          visibility: visibilityResult,
+          optimizationHealth: optimizationHealthResult,
+        },
+        scoreMethodVersion: SCORE_METHOD_VERSION,
         source: "automation",
       });
 
@@ -1049,6 +1091,10 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
               outreachDraftsGenerated: runProfile.outreachDrafts,
               publishedThisRun,
               outreachSentThisRun,
+              // Automation Activity — total work completed to date, never a
+              // scoring input. See computeVisibilityScore's header for why
+              // this is tracked separately from the score.
+              totalPublishedContentCount: publishedContentCountForActivity,
               detectedChanges: changeResult.changes,
               changeSummary: changeResult.summary,
             },

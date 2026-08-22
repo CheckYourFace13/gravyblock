@@ -122,6 +122,7 @@ const snapshots: Array<{
   overallScore: number;
   opportunityLevel: string;
   sectionScores: Record<string, number>;
+  scoreMethodVersion: string | null;
   source: string;
   createdAt: string;
 }> = [];
@@ -401,6 +402,7 @@ export const memoryStore = {
       overallScore: input.payload.summary.score,
       opportunityLevel: input.payload.opportunityLevel,
       sectionScores: sectionScoresFromPayload(input.payload),
+      scoreMethodVersion: null,
       source: "scan",
       createdAt,
     });

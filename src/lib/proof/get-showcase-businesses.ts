@@ -8,6 +8,8 @@ export type ShowcaseBusiness = {
   city: string | null;
   score: number | null;
   scoreDelta: number | null;
+  /** True when the latest snapshot uses a newer scoring methodology than the previous one — no comparable trend exists yet. */
+  baselineJustEstablished: boolean;
   articleCount: number;
   recentArticles: Array<{ title: string; publicUrl: string }>;
 };
@@ -51,6 +53,7 @@ export async function getShowcaseBusinesses(): Promise<ShowcaseBusiness[]> {
       .select({
         businessId: visibilitySnapshots.businessId,
         overallScore: visibilitySnapshots.overallScore,
+        scoreMethodVersion: visibilitySnapshots.scoreMethodVersion,
         createdAt: visibilitySnapshots.createdAt,
       })
       .from(visibilitySnapshots)
@@ -79,13 +82,22 @@ export async function getShowcaseBusinesses(): Promise<ShowcaseBusiness[]> {
     );
     const latest = snaps[0]?.overallScore ?? null;
     const previous = snaps[1]?.overallScore ?? null;
+    // A trend delta is only meaningful when both snapshots were produced by
+    // the same scoring formula — comparing across a methodology change (e.g.
+    // the legacy "previousScore + 2" formula vs. visibility-v2) would show a
+    // fabricated-looking jump/drop that has nothing to do with real change.
+    const sameMethod =
+      snaps[0]?.scoreMethodVersion != null && snaps[0].scoreMethodVersion === snaps[1]?.scoreMethodVersion;
+    const scoreDelta = sameMethod && latest !== null && previous !== null ? latest - previous : null;
+    const baselineJustEstablished = !sameMethod && snaps[0]?.scoreMethodVersion != null && snaps.length > 0;
     return {
       id: b.id,
       name: b.name,
       vertical: b.vertical,
       city: cityFromAddress(b.address),
       score: latest,
-      scoreDelta: latest !== null && previous !== null ? latest - previous : null,
+      scoreDelta,
+      baselineJustEstablished,
       articleCount: published.length,
       recentArticles: published.slice(0, 3).map((a) => ({ title: a.title, publicUrl: a.publicUrl! })),
     };

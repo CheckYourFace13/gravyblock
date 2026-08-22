@@ -163,7 +163,6 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
 
   const aeoResult = computeAeoScore({
     websiteAudit: syntheticWebsiteAudit,
-    publishedContentCount,
     // Distinct from websiteAudit.signals.hasStructuredData (crawl-detected, may
     // predate GravyBlock entirely) — this specifically credits schema GravyBlock
     // itself injected via published articles/location pages. Using the same
@@ -211,8 +210,12 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
 
   const latest = bundle.snapshots[0];
   const previous = bundle.snapshots[1];
-  const delta =
-    latest && previous ? latest.overallScore - previous.overallScore : latest && !previous ? null : null;
+  // Only a real trend when both snapshots share a scoring methodology — see
+  // src/lib/scoring/visibility-score.ts. A delta spanning a formula change
+  // (legacy vs. visibility-v2) is not a real movement and must not display.
+  const sameScoreMethod =
+    Boolean(latest?.scoreMethodVersion) && latest?.scoreMethodVersion === previous?.scoreMethodVersion;
+  const delta = sameScoreMethod && latest && previous ? latest.overallScore - previous.overallScore : null;
   const latestAutomation = autopilot.automationJobs[0];
   const upcomingAutomation = autopilot.upcomingJobs[0];
   const localPageQueue = autopilot.contentQueue.filter((item) => item.kind === "location_page");

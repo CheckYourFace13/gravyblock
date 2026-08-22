@@ -67,7 +67,6 @@ export default async function SampleLocalGrowthReportPage() {
           },
         }
       : null,
-    publishedContentCount,
     hasSchemaMarkup: publishedContentCount > 0,
     reviewCount: latestReviewCount,
   });

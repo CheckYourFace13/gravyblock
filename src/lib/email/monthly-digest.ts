@@ -227,7 +227,7 @@ export async function runMonthlyDigestBatch(): Promise<{ sent: number; skipped: 
         db.select({ count: count() }).from(publishedContent).where(
           and(eq(publishedContent.businessId, biz.id), gte(publishedContent.createdAt, lastMonthStart), lt(publishedContent.createdAt, monthStart))
         ),
-        db.select({ overallScore: visibilitySnapshots.overallScore, createdAt: visibilitySnapshots.createdAt })
+        db.select({ overallScore: visibilitySnapshots.overallScore, scoreMethodVersion: visibilitySnapshots.scoreMethodVersion, createdAt: visibilitySnapshots.createdAt })
           .from(visibilitySnapshots)
           .where(eq(visibilitySnapshots.businessId, biz.id))
           .orderBy(sql`${visibilitySnapshots.createdAt} desc`)
@@ -266,7 +266,12 @@ export async function runMonthlyDigestBatch(): Promise<{ sent: number; skipped: 
 
       const latestScore = snapshotsRow[0]?.overallScore ?? null;
       const prevScore = snapshotsRow[1]?.overallScore ?? null;
-      const scoreDelta = latestScore !== null && prevScore !== null ? latestScore - prevScore : null;
+      // Only compare two snapshots scored by the same methodology — a delta
+      // spanning a scoring-formula change (legacy vs. visibility-v2) is not a
+      // real trend and must not be shown as one.
+      const sameScoreMethod =
+        snapshotsRow[0]?.scoreMethodVersion != null && snapshotsRow[0].scoreMethodVersion === snapshotsRow[1]?.scoreMethodVersion;
+      const scoreDelta = sameScoreMethod && latestScore !== null && prevScore !== null ? latestScore - prevScore : null;
 
       // Compute AEO, GEO, Entity scores
       const bizDetails = bizRow[0] ?? null;
@@ -297,7 +302,6 @@ export async function runMonthlyDigestBatch(): Promise<{ sent: number; skipped: 
       const publishedCount = contentPublishedRow[0]?.count ?? 0;
       const aeoResult = computeAeoScore({
         websiteAudit: syntheticAudit,
-        publishedContentCount: publishedCount,
         hasSchemaMarkup: !findingHas("structured data", "schema", "json-ld"),
         reviewCount: 0,
       });

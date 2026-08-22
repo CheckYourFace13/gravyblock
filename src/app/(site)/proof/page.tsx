@@ -56,6 +56,8 @@ export default async function ProofPage() {
                       <p className={`text-[11px] font-semibold ${b.scoreDelta > 0 ? "text-emerald-600" : "text-red-600"}`}>
                         {b.scoreDelta > 0 ? "+" : ""}{b.scoreDelta} vs last check
                       </p>
+                    ) : b.baselineJustEstablished ? (
+                      <p className="text-[11px] font-medium text-zinc-400">Baseline established</p>
                     ) : null}
                   </div>
                 ) : null}

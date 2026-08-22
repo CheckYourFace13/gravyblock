@@ -65,13 +65,11 @@ async function getAeoAndGeoScores(businessId: string): Promise<{ aeoScore: numbe
   if (!db) return { aeoScore: null, geoScore: null };
 
   try {
-    const [findings, aiChecks, published] = await Promise.all([
+    const [findings, aiChecks] = await Promise.all([
       db.select({ title: auditFindings.title, category: auditFindings.category, severity: auditFindings.severity, detail: auditFindings.detail })
         .from(auditFindings).where(eq(auditFindings.businessId, businessId)).limit(50),
       db.select({ mentionFound: aiVisibilityChecks.mentionFound })
         .from(aiVisibilityChecks).where(eq(aiVisibilityChecks.businessId, businessId)).limit(60),
-      db.select({ id: publishedContent.id }).from(publishedContent)
-        .where(and(eq(publishedContent.businessId, businessId), eq(publishedContent.status, "published"))).limit(100),
     ]);
 
     function titleHas(...terms: string[]) {
@@ -101,7 +99,6 @@ async function getAeoAndGeoScores(businessId: string): Promise<{ aeoScore: numbe
 
     const aeoResult = computeAeoScore({
       websiteAudit: findings.length > 0 ? syntheticAudit : null,
-      publishedContentCount: published.length,
       hasSchemaMarkup: !titleHas("structured data", "schema", "json-ld"),
       reviewCount: 0, // not fetched here — conservative
     });

@@ -245,6 +245,11 @@ export const visibilitySnapshots = pgTable("visibility_snapshots", {
   opportunityLevel: text("opportunity_level").notNull(),
   sectionScores: jsonb("section_scores").notNull(),
   source: text("source").notNull().default("scan"),
+  // Which scoring formula produced this row (see src/lib/scoring/visibility-score.ts
+  // SCORE_METHOD_VERSION). Rows with no value predate versioning and must be
+  // treated as a distinct, incomparable methodology ("legacy") — never diffed
+  // against a versioned row to produce a "+X vs last check" trend number.
+  scoreMethodVersion: text("score_method_version"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

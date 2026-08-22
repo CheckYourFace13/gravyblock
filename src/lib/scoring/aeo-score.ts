@@ -15,13 +15,25 @@ export function getGrade(score: number): "A" | "B" | "C" | "D" | "F" {
   return "F";
 }
 
+/**
+ * AEO ("answer engine optimization") readiness — purely technical/on-page
+ * signals that make a site easier for an AI assistant to parse and cite.
+ * Deliberately excludes published-article COUNT: how many articles exist is
+ * automation activity, not a measured readiness or visibility signal, and
+ * mechanically rewarding volume here was the exact "activity feeds the score"
+ * pattern flagged for removal — see computeVisibilityScore in
+ * src/lib/scoring/visibility-score.ts for where real, measured content
+ * effects (once GravyBlock can observe indexing/impressions/citations) will
+ * belong instead. `hasSchemaMarkup` stays: it's a real boolean technical fact
+ * (GravyBlock injects JSON-LD schema into every article it publishes), not a
+ * volume count.
+ */
 export function computeAeoScore(input: {
   websiteAudit: WebsiteAuditSummary | null;
-  publishedContentCount: number;
   hasSchemaMarkup: boolean;
   reviewCount: number;
 }): AeoScoreResult {
-  const { websiteAudit, publishedContentCount, hasSchemaMarkup, reviewCount } = input;
+  const { websiteAudit, hasSchemaMarkup, reviewCount } = input;
 
   const signals = websiteAudit?.signals ?? null;
 
@@ -29,25 +41,17 @@ export function computeAeoScore(input: {
   const hasMetaDescription = signals?.hasMetaDescription ?? false;
   const hasTitle = signals?.hasTitle ?? false;
   const hasH1 = signals?.hasH1 ?? false;
-
-  // Content gets partial credit at >=1, full at >=3
-  const hasContent1 = publishedContentCount >= 1;
-  const hasContent3 = publishedContentCount >= 3;
   const hasReviews = reviewCount >= 10;
 
   const factors: { label: string; points: number; earned: boolean }[] = [
-    { label: "Structured data on website", points: 25, earned: hasStructuredData },
-    { label: "Schema markup via GravyBlock", points: 15, earned: hasSchemaMarkup },
+    { label: "Structured data on website", points: 30, earned: hasStructuredData },
+    { label: "Schema markup via GravyBlock", points: 20, earned: hasSchemaMarkup },
     { label: "Meta description present", points: 15, earned: hasMetaDescription },
     { label: "Page title present", points: 10, earned: hasTitle },
     { label: "H1 heading present", points: 10, earned: hasH1 },
-    // Content: 15 for >=3, 10 for >=1 (not stacked — pick highest)
-    { label: "3+ articles published", points: 15, earned: hasContent3 },
-    { label: "At least 1 article published", points: 10, earned: hasContent1 && !hasContent3 },
-    { label: "10+ reviews (citeable proof)", points: 10, earned: hasReviews },
+    { label: "10+ reviews (citeable proof)", points: 15, earned: hasReviews },
   ];
 
-  // Score: sum earned points. For content, award the highest earned tier.
   let score = 0;
   for (const f of factors) {
     if (f.earned) score += f.points;
@@ -62,12 +66,12 @@ export function computeAeoScore(input: {
   } else if (!hasMetaDescription) {
     topRecommendation =
       "Add a descriptive meta description to your homepage so AI search tools can summarize your business accurately.";
-  } else if (!hasContent3) {
+  } else if (!hasReviews) {
     topRecommendation =
-      "Publish at least 3 articles so AI assistants have citeable content about your business.";
+      "Build toward 10+ reviews — AI assistants weigh review volume as evidence a business is real and active.";
   } else {
     topRecommendation =
-      "Your AEO signals are solid. Keep publishing content and collecting reviews to maintain high answer engine visibility.";
+      "Your AEO technical signals are solid. Publishing content helps AI assistants find things to cite, but only measured pickup (citations, indexing) moves this further — not volume alone.";
   }
 
   return {
