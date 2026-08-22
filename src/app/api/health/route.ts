@@ -1,6 +1,5 @@
 import { getBuildVersion, getDeployedAt, getGitSha } from "@/lib/build-metadata";
-import { getDb } from "@/lib/db";
-import { sql } from "drizzle-orm";
+import { getSqlClient } from "@/lib/db";
 
 function isSet(...names: string[]): boolean {
   return names.every((n) => Boolean(process.env[n]?.trim()));
@@ -15,19 +14,19 @@ function isSet(...names: string[]): boolean {
  * only column/table EXISTENCE booleans — no data, no secrets. Remove this
  * block once confirmed either way; it has no ongoing operational value.
  */
-async function checkRecentSchemaMigrations(): Promise<Record<string, boolean> | null> {
-  const db = getDb();
-  if (!db) return null;
+async function checkRecentSchemaMigrations(): Promise<Record<string, boolean> | { checkFailed: string }> {
+  const sql = getSqlClient();
+  if (!sql) return { checkFailed: "no_sql_client" };
   try {
-    const rows = (await db.execute(sql`
+    const rows = await sql.unsafe(`
       select
-        exists (select 1 from information_schema.columns where table_name='visibility_snapshots' and column_name='score_method_version') as visibility_snapshots_score_method_version,
-        exists (select 1 from information_schema.columns where table_name='email_events' and column_name='svix_message_id') as email_events_svix_message_id,
-        exists (select 1 from information_schema.tables where table_name='outreach_sends') as outreach_sends_table
-    `)) as unknown as { rows: Array<Record<string, boolean>> };
-    return rows.rows?.[0] ?? null;
-  } catch {
-    return null;
+        exists (select 1 from information_schema.columns where table_name='visibility_snapshots' and column_name='score_method_version') as "visibilitySnapshotsScoreMethodVersion",
+        exists (select 1 from information_schema.columns where table_name='email_events' and column_name='svix_message_id') as "emailEventsSvixMessageId",
+        exists (select 1 from information_schema.tables where table_name='outreach_sends') as "outreachSendsTable"
+    `);
+    return (rows[0] as unknown as Record<string, boolean>) ?? { checkFailed: "no_rows" };
+  } catch (err) {
+    return { checkFailed: err instanceof Error ? err.message : String(err) };
   }
 }
 
