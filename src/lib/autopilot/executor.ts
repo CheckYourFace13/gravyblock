@@ -686,7 +686,7 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
       // measurement or the last real measurement on file.
       const nextScore = visibilityResult.score ?? latest?.overallScore ?? 50;
 
-      await db.insert(visibilitySnapshots).values({
+      const snapshotValues = {
         id: snapshotId,
         businessId,
         reportId: latest?.reportId ?? null,
@@ -696,9 +696,18 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
           visibility: visibilityResult,
           optimizationHealth: optimizationHealthResult,
         },
-        scoreMethodVersion: SCORE_METHOD_VERSION,
         source: "automation",
-      });
+      };
+      // scoreMethodVersion is a recently-added column — if a deploy's schema
+      // push hasn't landed on this DB yet, inserting a value for it would
+      // throw and silently fail this business's entire recurring cycle
+      // (job marked failed, automation stalls). Fall back to the
+      // pre-versioning insert shape rather than let a schema-timing gap take
+      // down the automation loop.
+      await db
+        .insert(visibilitySnapshots)
+        .values({ ...snapshotValues, scoreMethodVersion: SCORE_METHOD_VERSION })
+        .catch(() => db.insert(visibilitySnapshots).values(snapshotValues));
 
       {
         // AI probes are marketed as monthly for every plan ("runs monthly AI
