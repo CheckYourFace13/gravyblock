@@ -69,6 +69,17 @@ async function checkControlledTestLifecycle() {
       resendProviderState = res.ok ? await res.json() : { fetchError: `Resend API ${res.status}` };
     }
 
+    // Zero email_events for an email Resend confirms delivered means either
+    // dispatch hasn't happened yet, or Resend has this endpoint DISABLED —
+    // Resend auto-disables a webhook endpoint after sustained failures
+    // (exactly what a long history of 500s from the pre-fix route would
+    // trigger). Check the registration directly rather than guess.
+    let resendWebhookRegistration: unknown = null;
+    if (apiKey) {
+      const res = await fetch("https://api.resend.com/webhooks", { headers: { authorization: `Bearer ${apiKey}` } });
+      resendWebhookRegistration = res.ok ? await res.json() : { fetchError: `Resend API ${res.status}` };
+    }
+
     // Idempotency probe: attempt to insert a second row using the SAME real
     // svix_message_id the actual event arrived with. A distinct, clearly-
     // synthetic event_type marker keeps this identifiable/reversible. If the
@@ -103,6 +114,7 @@ async function checkControlledTestLifecycle() {
       outreachSendRow: latestTestSend,
       emailEvents: emailEventsRows,
       resendProviderState,
+      resendWebhookRegistration,
       idempotencyProbe,
     };
   } catch (err) {
