@@ -48,18 +48,37 @@ export async function getShowcaseBusinesses(): Promise<ShowcaseBusiness[]> {
   if (!visible.length) return [];
 
   const ids = visible.map((b) => b.id);
+  // scoreMethodVersion is a recently-added column — a deploy where the schema
+  // push hasn't landed yet must not 500 this public page. Fall back to the
+  // pre-versioning shape (delta always gated off) rather than crash.
+  const snapshotsQuery = db
+    .select({
+      businessId: visibilitySnapshots.businessId,
+      overallScore: visibilitySnapshots.overallScore,
+      scoreMethodVersion: visibilitySnapshots.scoreMethodVersion,
+      createdAt: visibilitySnapshots.createdAt,
+    })
+    .from(visibilitySnapshots)
+    .where(inArray(visibilitySnapshots.businessId, ids))
+    .orderBy(desc(visibilitySnapshots.createdAt))
+    .limit(200)
+    .catch(async () =>
+      (
+        await db
+          .select({
+            businessId: visibilitySnapshots.businessId,
+            overallScore: visibilitySnapshots.overallScore,
+            createdAt: visibilitySnapshots.createdAt,
+          })
+          .from(visibilitySnapshots)
+          .where(inArray(visibilitySnapshots.businessId, ids))
+          .orderBy(desc(visibilitySnapshots.createdAt))
+          .limit(200)
+      ).map((s) => ({ ...s, scoreMethodVersion: null as string | null })),
+    );
+
   const [snapshots, articles] = await Promise.all([
-    db
-      .select({
-        businessId: visibilitySnapshots.businessId,
-        overallScore: visibilitySnapshots.overallScore,
-        scoreMethodVersion: visibilitySnapshots.scoreMethodVersion,
-        createdAt: visibilitySnapshots.createdAt,
-      })
-      .from(visibilitySnapshots)
-      .where(inArray(visibilitySnapshots.businessId, ids))
-      .orderBy(desc(visibilitySnapshots.createdAt))
-      .limit(200),
+    snapshotsQuery,
     db
       .select({
         businessId: publishedContent.businessId,

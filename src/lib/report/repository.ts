@@ -1014,11 +1014,26 @@ export async function getWorkspaceBundle(businessId: string) {
     | undefined;
   if (!business) return null;
 
+  // scoreMethodVersion is a recently-added column. Deploys where the schema
+  // push hasn't landed on this DB yet must not 500 every workspace/proof
+  // page — isolate this one query so a missing column degrades to "not
+  // versioned" instead of failing the entire bundle fetch (which previously
+  // crashed everything else in the Promise.all below alongside it).
+  const snapRowsQuery = sql
+    ? sql
+        .unsafe(
+          `select id,overall_score as "overallScore",opportunity_level as "opportunityLevel",score_method_version as "scoreMethodVersion",created_at as "createdAt" from visibility_snapshots where business_id='${safeBusinessId}' order by created_at desc limit 20`,
+        )
+        .catch(() =>
+          sql!.unsafe(
+            `select id,overall_score as "overallScore",opportunity_level as "opportunityLevel",created_at as "createdAt" from visibility_snapshots where business_id='${safeBusinessId}' order by created_at desc limit 20`,
+          ),
+        )
+    : null;
+
   const [snapRows, recRows, contentRows, reportRows, rankRows, auditRows, scRows, placeRows, socialRows] = sql
     ? await Promise.all([
-        sql.unsafe(
-          `select id,overall_score as "overallScore",opportunity_level as "opportunityLevel",score_method_version as "scoreMethodVersion",created_at as "createdAt" from visibility_snapshots where business_id='${safeBusinessId}' order by created_at desc limit 20`,
-        ),
+        snapRowsQuery!,
         sql.unsafe(
           `select id,lane,category,title,detail,impact,status,created_at as "createdAt" from recommendations where business_id='${safeBusinessId}' order by created_at desc limit 60`,
         ),
@@ -1056,7 +1071,22 @@ export async function getWorkspaceBundle(businessId: string) {
           .from(visibilitySnapshots)
           .where(eq(visibilitySnapshots.businessId, businessId))
           .orderBy(desc(visibilitySnapshots.createdAt))
-          .limit(20),
+          .limit(20)
+          .catch(async () =>
+            (
+              await db
+                .select({
+                  id: visibilitySnapshots.id,
+                  overallScore: visibilitySnapshots.overallScore,
+                  opportunityLevel: visibilitySnapshots.opportunityLevel,
+                  createdAt: visibilitySnapshots.createdAt,
+                })
+                .from(visibilitySnapshots)
+                .where(eq(visibilitySnapshots.businessId, businessId))
+                .orderBy(desc(visibilitySnapshots.createdAt))
+                .limit(20)
+            ).map((s) => ({ ...s, scoreMethodVersion: null as string | null })),
+          ),
         db.select().from(recommendations).where(eq(recommendations.businessId, businessId)).orderBy(desc(recommendations.createdAt)).limit(60),
         db.select().from(contentOpportunities).where(eq(contentOpportunities.businessId, businessId)).orderBy(desc(contentOpportunities.createdAt)).limit(40),
         db
