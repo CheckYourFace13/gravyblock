@@ -269,6 +269,17 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
   return (
     <div className="mx-auto max-w-6xl space-y-12 px-4 py-14 sm:px-6">
 
+      {bundle.snapshots.length === 0 ? (
+        <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-5">
+          <p className="text-sm font-bold uppercase tracking-wide text-amber-800">Setup incomplete</p>
+          <p className="mt-1 text-sm text-amber-900">
+            GravyBlock hasn&apos;t run your first real visibility scan yet — this usually finishes within a few
+            minutes of signup. Scores and findings below will populate once it completes. If this persists more than
+            an hour, contact support and we&apos;ll check on it.
+          </p>
+        </div>
+      ) : null}
+
       {/* ─── Header ──────────────────────────────────────────────────────────── */}
       <header className="flex flex-col gap-6 border-b border-zinc-200 pb-10 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-3">

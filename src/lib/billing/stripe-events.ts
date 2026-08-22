@@ -13,6 +13,7 @@ import { getPlanFromPriceId } from "@/lib/stripe/server";
 import { getStripeServerClient } from "@/lib/stripe/server";
 import { sendSetupEmail } from "@/lib/setup/send-setup-email";
 import { autoConfigBusiness } from "@/lib/setup/auto-config";
+import { runOnboardingBaselineSetup } from "@/lib/setup/onboarding-baseline";
 import { applyDunningDowngrade, sendDowngradeNoticeEmail, sendPaymentFailedEmail } from "@/lib/billing/dunning";
 import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { getDb, businesses } from "@/lib/db";
@@ -93,6 +94,19 @@ export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Se
   // Kick off AI business profile generation immediately (don't block checkout response)
   void autoConfigBusiness(businessId).catch((err) =>
     console.error("[stripe] autoConfigBusiness failed on checkout", { businessId, error: String(err) }),
+  );
+
+  // Establish the REAL first visibility baseline — same scan pipeline the
+  // free-scan flow uses (generateReportFromPlace/FromWebsite → recordScanRun).
+  // Not awaited (a real scan can take 10-30s and must not risk timing out
+  // Stripe's webhook delivery), but durably tracked and retried: attempts are
+  // recorded in `jobs`, and runOnboardingBaselineBatch in the worker tick
+  // sweeps up anyone whose immediate attempt failed or didn't run (process
+  // restart, etc.) — the same immediate-attempt + worker-safety-net pattern
+  // already used for autoConfigBusiness above. Until this completes, the
+  // workspace page shows "Setup incomplete" rather than a fabricated score.
+  void runOnboardingBaselineSetup(businessId).catch((err) =>
+    console.error("[stripe] onboarding baseline setup failed on checkout", { businessId, error: String(err) }),
   );
 
   const planTier = getPlanFromPriceId(snap.priceId);

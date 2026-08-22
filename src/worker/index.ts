@@ -26,6 +26,7 @@ import { runOnboardingBatch } from "@/lib/email/onboarding";
 import { runTestimonialRequestBatch } from "@/lib/email/testimonial-request";
 import { runReviewRequestBatch } from "@/lib/email/review-request";
 import { runAutoConfigBatch } from "@/lib/setup/auto-config";
+import { runOnboardingBaselineBatch } from "@/lib/setup/onboarding-baseline";
 import { runMonthlyDigestBatch } from "@/lib/email/monthly-digest";
 import { runAbandonedCheckoutBatch } from "@/lib/email/abandoned-checkout";
 import { runLeadReengagementBatch } from "@/lib/email/lead-reengagement";
@@ -462,6 +463,19 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] auto-config failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  // Safety net for the paid-onboarding baseline scan kicked off (but not
+  // awaited) at checkout — catches anyone whose immediate attempt failed or
+  // never ran (process restart mid-checkout, etc.) so a paid business is
+  // never permanently stuck with zero real visibility snapshot.
+  try {
+    const baselineResult = await runOnboardingBaselineBatch(3);
+    if (baselineResult.completed > 0 || baselineResult.failed > 0) {
+      console.info("[worker] onboarding baseline setup", baselineResult);
+    }
+  } catch (error) {
+    console.error("[worker] onboarding baseline batch failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
   try {
