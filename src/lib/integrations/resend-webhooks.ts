@@ -1,10 +1,12 @@
 /**
- * Resend's webhook-management API (list/create) — used to verify what's
- * actually registered in Resend's own account settings, since the app code
- * existing and working is not the same as Resend being configured to call it.
- * Never logs or returns the API key or a signing secret to callers outside
- * this module.
+ * Read-only checks against Resend's own webhook-management API — used to
+ * verify what's actually registered in Resend's account settings, since the
+ * app code existing and working is not the same as Resend being configured
+ * to call it. Never logs or returns the API key or a signing secret to
+ * callers outside this module.
  */
+
+import { reloadEnvFromDisk } from "@/lib/env/reload-env";
 
 const RESEND_API_BASE = "https://api.resend.com";
 
@@ -81,6 +83,11 @@ export async function getResendEmailStatus(emailId: string): Promise<ResendEmail
  * needing VPS file access or printing a secret anywhere.
  */
 export async function checkWebhookSecretMatches(webhookId: string): Promise<SecretCheckResult> {
+  // Same reasoning as the webhook route itself: this process's env can be
+  // stale relative to what's actually on disk (see reload-env.ts). A
+  // diagnostic that reports the wrong answer because of a caching quirk is
+  // worse than no diagnostic — force a fresh read before checking.
+  reloadEnvFromDisk();
   const key = apiKey();
   const ours = process.env.RESEND_WEBHOOK_SECRET ?? "";
   if (!key) return { ok: false, matches: null, error: "RESEND_API_KEY not configured" };
@@ -96,170 +103,3 @@ export async function checkWebhookSecretMatches(webhookId: string): Promise<Secr
   return { ok: true, matches: body.signing_secret === ours };
 }
 
-/**
- * Retrieves the live signing secret for a specific webhook id. Internal use
- * only — callers must never log, return, or display the result; it exists
- * solely for installSigningSecretOnServer() to write directly to the env
- * file, never to pass through an API response or admin UI.
- */
-async function fetchSigningSecret(webhookId: string): Promise<{ ok: boolean; secret?: string; error?: string }> {
-  const key = apiKey();
-  if (!key) return { ok: false, error: "RESEND_API_KEY not configured" };
-  const res = await fetch(`${RESEND_API_BASE}/webhooks/${webhookId}`, {
-    headers: { authorization: `Bearer ${key}` },
-  });
-  if (!res.ok) return { ok: false, error: `Resend API ${res.status}` };
-  const body = (await res.json()) as { signing_secret?: string };
-  if (!body.signing_secret) return { ok: false, error: "Resend did not return a signing secret" };
-  return { ok: true, secret: body.signing_secret };
-}
-
-export type InstallResult = { ok: boolean; alreadyConfigured?: boolean; error?: string; envPathUsed?: string };
-
-/**
- * One-time, narrowly-scoped setup operation: finds GravyBlock's own
- * registered webhook, retrieves its real signing secret, and writes it
- * directly into the .env file this same process was started from (the file
- * PM2's --env-file / dotenv loading reads), then restarts the PM2 process
- * so it picks up the new value. The secret is never returned to any caller,
- * logged, or displayed — only a boolean result. Refuses to run if a secret
- * is already correctly installed (see checkWebhookSecretMatches), so this
- * naturally becomes a no-op once done rather than needing a separate
- * self-disable step.
- */
-export async function installSigningSecretOnServer(expectedEndpoint: string): Promise<InstallResult> {
-  const listResult = await listResendWebhooks();
-  if (!listResult.ok) return { ok: false, error: listResult.error ?? "could not list webhooks" };
-
-  const webhook = listResult.webhooks.find((w) => w.endpoint === expectedEndpoint);
-  if (!webhook) return { ok: false, error: `no webhook registered for ${expectedEndpoint}` };
-
-  const already = await checkWebhookSecretMatches(webhook.id);
-  if (already.ok && already.matches === true) {
-    return { ok: true, alreadyConfigured: true };
-  }
-
-  const secretResult = await fetchSigningSecret(webhook.id);
-  if (!secretResult.ok || !secretResult.secret) {
-    return { ok: false, error: secretResult.error ?? "failed to retrieve signing secret" };
-  }
-  const secret = secretResult.secret;
-
-  // Node-only APIs — this module is server-only (invoked from a "use server"
-  // admin action), so requiring these lazily here is safe.
-  const fs = await import("node:fs/promises");
-  const path = await import("node:path");
-  const { exec } = await import("node:child_process");
-  const { promisify } = await import("node:util");
-  const execAsync = promisify(exec);
-
-  // Next.js loads (highest precedence first) .env.production.local, .env.local,
-  // .env.production, .env — merging by key, earlier files winning. Writing
-  // only to .env is silently overridden if a higher-precedence file already
-  // has ANY value (even empty) for this key. Updating every one of these
-  // that actually exists removes that ambiguity entirely rather than
-  // guessing which one wins; never creating files that don't already exist.
-  const candidateNames = [".env.production.local", ".env.local", ".env.production", ".env"];
-  const line = `RESEND_WEBHOOK_SECRET=${secret}`;
-  const written: string[] = [];
-  let sawAnyFile = false;
-
-  for (const name of candidateNames) {
-    const p = path.join(process.cwd(), name);
-    let existing: string;
-    try {
-      existing = await fs.readFile(p, "utf8");
-    } catch {
-      continue; // this candidate doesn't exist — skip, never create it
-    }
-    sawAnyFile = true;
-    const hasLine = /^RESEND_WEBHOOK_SECRET=/m.test(existing);
-    const updated = hasLine
-      ? existing.replace(/^RESEND_WEBHOOK_SECRET=.*$/m, line)
-      : `${existing.endsWith("\n") || existing === "" ? existing : existing + "\n"}${line}\n`;
-    try {
-      await fs.writeFile(p, updated, "utf8");
-      written.push(p);
-    } catch (err) {
-      return { ok: false, error: `could not write ${p}: ${err instanceof Error ? err.message : String(err)}` };
-    }
-  }
-
-  if (!sawAnyFile) {
-    return { ok: false, error: `none of ${candidateNames.join(", ")} exist in ${process.cwd()}` };
-  }
-  const envPath = written.join(", ");
-
-  // Don't await the restart inline — `pm2 restart` kills this very process,
-  // which would cut off the HTTP response to the admin who clicked the
-  // button before it ever reached them. Give the response a moment to flush
-  // first; the caller's UI tells the admin to check back in ~15s.
-  //
-  // Belt-and-suspenders: even if this in-process restart attempt never
-  // completes or logs an outcome (observed once — neither success nor
-  // failure was recorded, plausibly because `pm2 restart` sends a kill
-  // signal to this very process before its own "it worked" logging line
-  // gets to run), the secret is already durably on disk at this point and
-  // git-based deploys never touch .env (self-deploy.sh force-syncs the repo
-  // but explicitly leaves untracked files alone). Every regular deploy's
-  // `pm2 startOrRestart ecosystem.config.js --update-env` step — proven
-  // reliable all session — will pick up this file the next time ANY commit
-  // ships, with no further action needed here.
-  //
-  // Use a login shell (`bash -lc`), not a bare exec — PM2 spawns this Node
-  // process directly (not through an interactive shell), so `pm2` may not be
-  // on its inherited PATH at all (the same nvm-PATH problem self-deploy.sh
-  // has to work around by explicitly sourcing nvm.sh first). A login shell
-  // sources the profile/nvm setup, matching how a human running this command
-  // over SSH would have it on PATH. The outcome is logged to a `jobs` row
-  // (never the secret) so a failure here is observable via the DB instead of
-  // an invisible console.error only visible in server logs no one can read
-  // from here.
-  setTimeout(() => {
-    (async () => {
-      try {
-        await execAsync("bash -lc 'pm2 restart gravyblock --update-env'");
-        const { getDb, jobs } = await import("@/lib/db");
-        const db = getDb();
-        if (db) await db.insert(jobs).values({ type: "webhook_secret_install_restart", status: "done", payload: { ok: true } });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error("[resend-webhooks] PM2 restart after secret install failed", { error: message });
-        try {
-          const { getDb, jobs } = await import("@/lib/db");
-          const db = getDb();
-          if (db) await db.insert(jobs).values({ type: "webhook_secret_install_restart", status: "failed", payload: { ok: false, error: message } });
-        } catch { /* best effort */ }
-      }
-    })();
-  }, 1500);
-
-  return { ok: true, envPathUsed: envPath };
-}
-
-/**
- * Creates a new webhook. Resend returns a fresh signing_secret on creation —
- * this function deliberately does NOT return it to the caller for logging;
- * it's returned only to be shown once, directly, for manual placement into
- * the server's env (there is no remote secret-deploy path to this VPS from
- * here — the deploy pipeline only pulls code over git, never touches .env).
- */
-export async function createResendWebhook(
-  endpoint: string,
-  events: string[],
-): Promise<{ ok: boolean; id?: string; signingSecret?: string; error?: string }> {
-  const key = apiKey();
-  if (!key) return { ok: false, error: "RESEND_API_KEY not configured" };
-
-  const res = await fetch(`${RESEND_API_BASE}/webhooks`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-    body: JSON.stringify({ endpoint, events }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    return { ok: false, error: `Resend API ${res.status}: ${text}` };
-  }
-  const body = (await res.json()) as { id: string; signing_secret: string };
-  return { ok: true, id: body.id, signingSecret: body.signing_secret };
-}

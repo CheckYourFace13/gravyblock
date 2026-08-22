@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb, emailEvents } from "@/lib/db";
 import { verifyResendSignature } from "@/lib/integrations/verify-resend-signature";
 import { applyWebhookEventToOutreachSend } from "@/lib/outreach/outreach-sends";
+import { reloadEnvFromDisk } from "@/lib/env/reload-env";
 
 type ResendWebhookPayload = {
   type: string; // "email.opened", "email.clicked", etc.
@@ -26,6 +27,13 @@ type ResendWebhookPayload = {
 };
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  // Traced root cause: @next/env caches its loaded result at module scope
+  // the first time it runs in this process (Next's own bootstrap does this
+  // automatically) — every later call without forceReload returns that
+  // stale cache for the rest of the process's life, regardless of what's
+  // actually on disk. Force a fresh read here so this route's view of the
+  // secret can never lag behind an admin-triggered .env update.
+  reloadEnvFromDisk();
   const secret = process.env.RESEND_WEBHOOK_SECRET ?? "";
   const svixId = req.headers.get("svix-id");
   const svixTimestamp = req.headers.get("svix-timestamp");

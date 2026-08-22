@@ -4,7 +4,7 @@ import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb, jobs, emailEvents, funnelEvents, leads } from "@/lib/db";
 import { isAdminSession } from "@/lib/auth/admin-session";
-import { listResendWebhooks, checkWebhookSecretMatches, getResendEmailStatus, installSigningSecretOnServer } from "@/lib/integrations/resend-webhooks";
+import { listResendWebhooks, checkWebhookSecretMatches, getResendEmailStatus } from "@/lib/integrations/resend-webhooks";
 import { recordOutreachSendRow } from "@/lib/outreach/outreach-sends";
 import { runControlledOutreachPathTest } from "@/lib/outreach/controlled-test";
 
@@ -396,36 +396,6 @@ export async function getBatchHistory(limit = 30) {
   });
 }
 
-/**
- * Direct, zero-indirection read of this exact running process's own state —
- * no wrapper functions, no Resend API call, just `process.env` and
- * `process.uptime()` as this server action itself sees them right now.
- * Exists to answer one question precisely: has THIS process actually
- * restarted since the last time RESEND_WEBHOOK_SECRET was written to disk?
- * dotenv-style env loading (which is what @next/env does) only runs once at
- * process bootstrap — if this process has been up longer than that write,
- * its process.env is provably stale regardless of what's on disk right now.
- * Never returns the secret's value, only whether it's present and how long.
- */
-export async function getRawProcessEnvDiagnostic(): Promise<{
-  uptimeSeconds: number;
-  processStartedAt: string;
-  resendWebhookSecretPresent: boolean;
-  resendWebhookSecretLength: number;
-  pid: number;
-}> {
-  const uptimeSeconds = process.uptime();
-  const processStartedAt = new Date(Date.now() - uptimeSeconds * 1000).toISOString();
-  const secret = process.env.RESEND_WEBHOOK_SECRET ?? "";
-  return {
-    uptimeSeconds,
-    processStartedAt,
-    resendWebhookSecretPresent: Boolean(secret),
-    resendWebhookSecretLength: secret.length,
-    pid: process.pid,
-  };
-}
-
 /** Rough count of emails sent this month and all-time. */
 export async function getOutreachCounts() {
   const db = getDb();
@@ -671,39 +641,3 @@ export async function getWebhookTestTrace(resendEmailId: string) {
   return { events, resendLastEvent: resendStatus.lastEvent, resendCheckError: resendStatus.error ?? null };
 }
 
-/**
- * One-time, admin-authenticated setup action: fetches the real signing
- * secret for our registered webhook and writes it to the server's own .env
- * file, then restarts PM2 so it takes effect. Never returns, logs, or
- * displays the secret itself — only success/failure. Naturally becomes a
- * no-op once the secret is correctly installed.
- */
-export async function installWebhookSecret(): Promise<{ ok: boolean; alreadyConfigured?: boolean; error?: string; envPathUsed?: string }> {
-  if (!(await isAdminSession())) return { ok: false, error: "Unauthorized" };
-  const result = await installSigningSecretOnServer(EXPECTED_WEBHOOK_ENDPOINT);
-  if (result.ok) {
-    // Marks the point after which fail-closed verification with a correct
-    // secret was actually active — the boundary the historical-vs-reliable
-    // funnel display uses, independent of whether real Resend dispatch
-    // separately turns out to be working (a different, still-open question).
-    await markTrackingReliableNow();
-  }
-  revalidatePath("/admin/outreach");
-  return result;
-}
-
-/** Outcome of the most recent PM2 restart attempt after a secret install — never contains the secret itself. */
-export async function getLastSecretInstallRestartStatus(): Promise<{ status: string; error: string | null; at: string } | null> {
-  const db = getDb();
-  if (!db) return null;
-  const [row] = await db
-    .select({ status: jobs.status, payload: jobs.payload, createdAt: jobs.createdAt })
-    .from(jobs)
-    .where(eq(jobs.type, "webhook_secret_install_restart"))
-    .orderBy(desc(jobs.createdAt))
-    .limit(1)
-    .catch(() => []);
-  if (!row) return null;
-  const p = row.payload as { error?: string } | null;
-  return { status: row.status, error: p?.error ?? null, at: row.createdAt.toISOString() };
-}
