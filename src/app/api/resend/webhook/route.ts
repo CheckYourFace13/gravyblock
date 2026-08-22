@@ -27,38 +27,77 @@ type ResendWebhookPayload = {
 };
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // Traced root cause: @next/env caches its loaded result at module scope
-  // the first time it runs in this process (Next's own bootstrap does this
-  // automatically) — every later call without forceReload returns that
-  // stale cache for the rest of the process's life, regardless of what's
-  // actually on disk. Force a fresh read here so this route's view of the
-  // secret can never lag behind an admin-triggered .env update.
-  reloadEnvFromDisk();
-  const secret = process.env.RESEND_WEBHOOK_SECRET ?? "";
-  const svixId = req.headers.get("svix-id");
-  const svixTimestamp = req.headers.get("svix-timestamp");
-  const svixSignature = req.headers.get("svix-signature");
-  const body = await req.text();
+  // Top-level safety net: a real, correctly-signed Resend delivery attempt
+  // (email.delivered for a controlled test send) was observed hitting this
+  // route and getting back a blank 500 with no response body — meaning
+  // something between here and the final response was throwing UNCAUGHT.
+  // Every step below already had its own narrow try/catch except this outer
+  // shell, so nothing was logging *which* step failed or *why*. Without
+  // server-log access this was invisible; wrapping everything means the next
+  // Resend retry's response body will carry the real exception message
+  // (never secret values) so it's visible from Resend's own delivery log.
+  try {
+    // Traced root cause: @next/env caches its loaded result at module scope
+    // the first time it runs in this process (Next's own bootstrap does this
+    // automatically) — every later call without forceReload returns that
+    // stale cache for the rest of the process's life, regardless of what's
+    // actually on disk. Force a fresh read here so this route's view of the
+    // secret can never lag behind an admin-triggered .env update.
+    reloadEnvFromDisk();
+    const secret = process.env.RESEND_WEBHOOK_SECRET ?? "";
+    const svixId = req.headers.get("svix-id");
+    const svixTimestamp = req.headers.get("svix-timestamp");
+    const svixSignature = req.headers.get("svix-signature");
+    const body = await req.text();
 
-  // FAIL CLOSED: a missing secret must never mean "skip verification and
-  // accept" — that let anyone who found this URL POST fabricated
-  // delivered/opened/clicked/bounced/complained events. Previously
-  // `if (secret && !verify(...))` short-circuited to `false` (accept)
-  // whenever `secret` was empty, which is exactly what was happening in
-  // production (RESEND_WEBHOOK_SECRET was unset). Now a missing secret is a
-  // hard configuration error that rejects every request until it's fixed.
-  if (!secret) {
-    console.error("[resend-webhook] CRITICAL: RESEND_WEBHOOK_SECRET is not configured — rejecting all webhook requests until this is fixed");
-    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+    // FAIL CLOSED: a missing secret must never mean "skip verification and
+    // accept" — that let anyone who found this URL POST fabricated
+    // delivered/opened/clicked/bounced/complained events. Previously
+    // `if (secret && !verify(...))` short-circuited to `false` (accept)
+    // whenever `secret` was empty, which is exactly what was happening in
+    // production (RESEND_WEBHOOK_SECRET was unset). Now a missing secret is a
+    // hard configuration error that rejects every request until it's fixed.
+    if (!secret) {
+      console.error("[resend-webhook] CRITICAL: RESEND_WEBHOOK_SECRET is not configured — rejecting all webhook requests until this is fixed");
+      return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+    }
+
+    // Verify webhook authenticity. Uses the raw request text above — never
+    // JSON.parse'd-then-stringified — per Resend's documented verification
+    // method (their signature is sensitive to any reformatting).
+    let signatureValid: boolean;
+    try {
+      signatureValid = verifyResendSignature(body, svixId, svixTimestamp, svixSignature, secret);
+    } catch (sigErr) {
+      // A signature-verification bug must surface as a controlled 401
+      // (still fail-closed), never as an unlogged, unexplained 500.
+      console.error("[resend-webhook] verifyResendSignature threw", {
+        error: sigErr instanceof Error ? sigErr.message : String(sigErr),
+        stack: sigErr instanceof Error ? sigErr.stack : undefined,
+        svixIdPresent: Boolean(svixId),
+        svixTimestampPresent: Boolean(svixTimestamp),
+        svixSignaturePresent: Boolean(svixSignature),
+      });
+      return NextResponse.json({ error: "Signature verification error" }, { status: 401 });
+    }
+    if (!signatureValid) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+
+    return await handleVerifiedWebhook(body, svixId);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error("[resend-webhook] UNCAUGHT exception in webhook route", { error: message, stack });
+    // Safe to return: the exception message/stack, never env values or the
+    // request body/signature. Lets the next Resend retry's own delivery log
+    // show the real cause even though this environment has no server-log access.
+    return NextResponse.json({ error: "Internal error", detail: message }, { status: 500 });
   }
+}
 
-  // Verify webhook authenticity. Uses the raw request text above — never
-  // JSON.parse'd-then-stringified — per Resend's documented verification
-  // method (their signature is sensitive to any reformatting).
-  if (!verifyResendSignature(body, svixId, svixTimestamp, svixSignature, secret)) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-  }
-
+async function handleVerifiedWebhook(body: string, svixId: string | null): Promise<NextResponse> {
+  console.info("[resend-webhook] stage: signature verified, parsing payload");
   let payload: ResendWebhookPayload;
   try {
     const parsed: unknown = JSON.parse(body);
@@ -76,6 +115,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  console.info("[resend-webhook] stage: payload parsed", { type: payload.type });
   const db = getDb();
   if (!db) return NextResponse.json({ ok: true }); // no DB, silently accept
 
@@ -136,13 +176,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
   }
 
+  console.info("[resend-webhook] stage: insert done", { inserted, eventType, emailId });
+
   // Primary correlation: resolve to a first-class outreach-send row by
   // Resend's own email id, not by round-tripped tags (see the emailType-tag
   // mismatch this was investigated for). No-op if no such row exists
   // (historical sends predate this table, or this event is for a non-
-  // outreach email category).
+  // outreach email category). Wrapped explicitly: a correlation bug must
+  // never take down the whole request after the real event was already
+  // durably persisted above.
   if (inserted) {
-    await applyWebhookEventToOutreachSend(emailId, eventType);
+    try {
+      await applyWebhookEventToOutreachSend(emailId, eventType);
+    } catch (correlationErr) {
+      console.error("[resend-webhook] outreach-send correlation failed (event already persisted)", {
+        error: correlationErr instanceof Error ? correlationErr.message : String(correlationErr),
+      });
+    }
   }
 
   // Auto-add bounces and complaints to opt-out list — only on the first
