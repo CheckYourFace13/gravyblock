@@ -21,18 +21,32 @@ async function checkControlledTestLifecycle() {
   const sql = getSqlClient();
   if (!sql) return { checkFailed: "no_sql_client" };
   try {
-    const [latestTestSend] = await sql.unsafe(`
+    const allOutreachSendsRows = await sql.unsafe(`
       select id, resend_email_id as "resendEmailId", recipient, campaign, sequence_step as "sequenceStep",
-             is_test as "isTest", status, accepted_at as "acceptedAt", delivered_at as "deliveredAt",
-             opened_at as "openedAt", first_clicked_at as "firstClickedAt", bounced_at as "bouncedAt",
-             complained_at as "complainedAt"
+             is_test as "isTest", status, attempted_at as "attemptedAt", accepted_at as "acceptedAt"
       from outreach_sends
-      where is_test = 'true'
-      order by accepted_at desc nulls last
-      limit 1
+      order by attempted_at desc
+      limit 10
     `);
 
-    if (!latestTestSend) return { checkFailed: "no_test_send_found_in_outreach_sends" };
+    const recentWebhookTestJobs = await sql.unsafe(`
+      select id, status, payload, created_at as "createdAt"
+      from jobs
+      where type = 'webhook_test_sent'
+      order by created_at desc
+      limit 5
+    `);
+
+    type OutreachSendRow = { id: string; resendEmailId: string | null; recipient: string; campaign: string; sequenceStep: string; isTest: string; status: string; attemptedAt: string; acceptedAt: string | null };
+    const [latestTestSend] = (allOutreachSendsRows as unknown as OutreachSendRow[]).filter((r) => r.isTest === "true");
+
+    if (!latestTestSend) {
+      return {
+        checkFailed: "no_test_send_found_in_outreach_sends",
+        allOutreachSendsRows,
+        recentWebhookTestJobs,
+      };
+    }
 
     const resendEmailId: string | null = latestTestSend.resendEmailId;
 
