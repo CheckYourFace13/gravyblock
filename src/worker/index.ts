@@ -16,7 +16,7 @@
  */
 
 import { eq, and, inArray, gte, lte, count } from "drizzle-orm";
-import { runPendingRecurringSnapshotJobs, executeContentPublishPath, backfillMissingRecurringJobs } from "@/lib/autopilot/executor";
+import { runPendingRecurringSnapshotJobs, executeContentPublishPath, backfillMissingRecurringJobs, reinitializeHouseAccountBaselines } from "@/lib/autopilot/executor";
 import { getDb, businesses, contentQueue, jobs, emailEvents } from "@/lib/db";
 import { queueContentForBusiness } from "@/lib/content-gen/queue-content";
 import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
@@ -157,6 +157,13 @@ async function hasJobRunThisWeek(jobType: string): Promise<boolean> {
     .from(jobs)
     .where(and(eq(jobs.type, jobType), gte(jobs.createdAt, weekStart)))
     .limit(1);
+  return Boolean(row);
+}
+
+async function hasJobEverRun(jobType: string): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  const [row] = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.type, jobType)).limit(1);
   return Boolean(row);
 }
 
@@ -476,6 +483,20 @@ async function tick() {
     }
   } catch (error) {
     console.error("[worker] onboarding baseline batch failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  // ONE-TIME: bring house accounts' next recurring refresh forward so /proof
+  // reflects a fresh recompute under the visibility-v2 scoring methodology
+  // instead of whatever score happened to be current from the old formula.
+  // Marker-gated so this never repeats once it's run.
+  if (!(await hasJobEverRun("house_baseline_reinit_v2_done"))) {
+    try {
+      const houseResult = await reinitializeHouseAccountBaselines();
+      await recordWorkerJob("house_baseline_reinit_v2_done", houseResult);
+      console.info("[worker] house account baseline reinit", houseResult);
+    } catch (error) {
+      console.error("[worker] house account baseline reinit failed", { error: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   try {
