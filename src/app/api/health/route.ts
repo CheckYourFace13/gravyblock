@@ -6,59 +6,90 @@ function isSet(...names: string[]): boolean {
 }
 
 /**
- * TEMPORARY, one-time post-migration integrity check — added after the
- * user manually ran `drizzle-kit push` on the VPS to add
- * email_events.svix_message_id (with a unique constraint over 130 existing
- * rows), the outreach_sends table, and visibility_snapshots.score_method_version.
- * Verifies no data loss and confirms the constraint actually exists, using
- * only read-only aggregate queries (counts, min/max timestamps, existence
- * checks) — no row-level data, no secrets. Remove this block once confirmed.
+ * TEMPORARY — one-time controlled-test-email lifecycle verification.
+ * Confirms the just-sent admin test email was: accepted by Resend, delivered
+ * with a real signed webhook, persisted to email_events with a real
+ * svix_message_id, correlated to its outreach_sends row by resend_email_id,
+ * and that the idempotency constraint actually rejects a duplicate insert on
+ * that same svix_message_id. Read-only against application data (the one
+ * write is a single scoped idempotency probe using a synthetic event_type
+ * that the real unique constraint is expected to block, so nothing new is
+ * actually persisted). No secrets returned. Remove this whole block once
+ * confirmed.
  */
-async function checkRecentSchemaMigrations() {
+async function checkControlledTestLifecycle() {
   const sql = getSqlClient();
   if (!sql) return { checkFailed: "no_sql_client" };
   try {
-    const [existence] = await sql.unsafe(`
-      select
-        exists (select 1 from information_schema.columns where table_name='visibility_snapshots' and column_name='score_method_version') as "visibilitySnapshotsScoreMethodVersion",
-        exists (select 1 from information_schema.columns where table_name='email_events' and column_name='svix_message_id') as "emailEventsSvixMessageId",
-        exists (select 1 from information_schema.tables where table_name='outreach_sends') as "outreachSendsTable",
-        exists (select 1 from information_schema.columns where table_name='outreach_sends' and column_name='resend_email_id') as "outreachSendsResendEmailId",
-        exists (
-          select 1 from pg_constraint c join pg_class t on c.conrelid = t.oid
-          where t.relname='email_events' and c.contype='u' and c.conname ilike '%svix_message_id%'
-        ) as "svixMessageIdUniqueConstraint",
-        exists (
-          select 1 from pg_constraint c join pg_class t on c.conrelid = t.oid
-          where t.relname='outreach_sends' and c.contype='u' and c.conname ilike '%resend_email_id%'
-        ) as "resendEmailIdUniqueConstraint",
-        exists (select 1 from information_schema.tables where table_name='funnel_events') as "funnelEventsTable"
+    const [latestTestSend] = await sql.unsafe(`
+      select id, resend_email_id as "resendEmailId", recipient, campaign, sequence_step as "sequenceStep",
+             is_test as "isTest", status, accepted_at as "acceptedAt", delivered_at as "deliveredAt",
+             opened_at as "openedAt", first_clicked_at as "firstClickedAt", bounced_at as "bouncedAt",
+             complained_at as "complainedAt"
+      from outreach_sends
+      where is_test = 'true'
+      order by accepted_at desc nulls last
+      limit 1
     `);
 
-    const [emailEventsCount] = await sql.unsafe(`select count(*)::int as "count" from email_events`);
-    const [emailEventsRange] = await sql.unsafe(
-      `select min(created_at) as "earliest", max(created_at) as "latest" from email_events`,
-    );
-    const byType = await sql.unsafe(
-      `select event_type as "eventType", count(*)::int as "count" from email_events group by event_type order by count(*) desc`,
-    );
-    const [nullSvix] = await sql.unsafe(
-      `select count(*)::int as "count" from email_events where svix_message_id is null`,
-    );
-    const [outreachSendsCount] = existence.outreachSendsTable
-      ? await sql.unsafe(`select count(*)::int as "count" from outreach_sends`)
-      : [{ count: null }];
+    if (!latestTestSend) return { checkFailed: "no_test_send_found_in_outreach_sends" };
+
+    const resendEmailId: string | null = latestTestSend.resendEmailId;
+
+    const emailEventsRows = resendEmailId
+      ? await sql.unsafe(
+          `select event_type as "eventType", svix_message_id as "svixMessageId", created_at as "createdAt"
+           from email_events where email_id = $1 order by created_at asc`,
+          [resendEmailId],
+        )
+      : [];
+
+    // Provider-side state, directly from Resend — independent confirmation
+    // this wasn't a synthetic/internal POST.
+    let resendProviderState: unknown = null;
+    const apiKey = process.env.RESEND_API_KEY;
+    if (resendEmailId && apiKey) {
+      const res = await fetch(`https://api.resend.com/emails/${resendEmailId}`, {
+        headers: { authorization: `Bearer ${apiKey}` },
+      });
+      resendProviderState = res.ok ? await res.json() : { fetchError: `Resend API ${res.status}` };
+    }
+
+    // Idempotency probe: attempt to insert a second row using the SAME real
+    // svix_message_id the actual event arrived with. A distinct, clearly-
+    // synthetic event_type marker keeps this identifiable/reversible. If the
+    // unique constraint works (expected), 0 rows are returned/inserted.
+    let idempotencyProbe: { attempted: boolean; svixMessageIdUsed: string | null; rowsInserted: number | null; note: string } = {
+      attempted: false,
+      svixMessageIdUsed: null,
+      rowsInserted: null,
+      note: "no real event with a svix_message_id available to probe against",
+    };
+    const realEventWithSvix = (emailEventsRows as Array<{ svixMessageId: string | null }>).find((e) => e.svixMessageId);
+    if (realEventWithSvix?.svixMessageId) {
+      const svixId = realEventWithSvix.svixMessageId;
+      const probeResult = await sql.unsafe(
+        `insert into email_events (event_type, email_id, svix_message_id, metadata)
+         values ('idempotency_probe_synthetic', $1, $2, '{}')
+         on conflict (svix_message_id) do nothing
+         returning id`,
+        [resendEmailId, svixId],
+      );
+      idempotencyProbe = {
+        attempted: true,
+        svixMessageIdUsed: svixId,
+        rowsInserted: probeResult.length,
+        note: probeResult.length === 0
+          ? "constraint correctly blocked the duplicate (0 rows inserted, as expected)"
+          : "UNEXPECTED: a row was inserted — constraint did not block the duplicate",
+      };
+    }
 
     return {
-      existence,
-      emailEvents: {
-        totalRows: emailEventsCount.count,
-        earliest: emailEventsRange.earliest,
-        latest: emailEventsRange.latest,
-        byType,
-        nullSvixMessageIdCount: nullSvix.count,
-      },
-      outreachSends: { totalRows: outreachSendsCount.count },
+      outreachSendRow: latestTestSend,
+      emailEvents: emailEventsRows,
+      resendProviderState,
+      idempotencyProbe,
     };
   } catch (err) {
     return { checkFailed: err instanceof Error ? err.message : String(err) };
@@ -68,7 +99,7 @@ async function checkRecentSchemaMigrations() {
 export async function GET() {
   const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
   const environment = process.env.NODE_ENV ?? "unknown";
-  const schemaCheck = await checkRecentSchemaMigrations();
+  const controlledTestLifecycle = await checkControlledTestLifecycle();
 
   return Response.json({
     ok: true,
@@ -92,6 +123,6 @@ export async function GET() {
       coverImages: isSet("UNSPLASH_ACCESS_KEY"),
       billing: isSet("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"),
     },
-    schemaCheck,
+    controlledTestLifecycle,
   });
 }
