@@ -6,25 +6,60 @@ function isSet(...names: string[]): boolean {
 }
 
 /**
- * TEMPORARY, one-time diagnostic — added to confirm whether recent additive
- * schema migrations (visibility_snapshots.score_method_version,
- * email_events.svix_message_id, the outreach_sends table) actually landed on
- * this DB via the self-deploy pipeline's `drizzle-kit push` step, after
- * scoreMethodVersion's own rollout was observed 500ing production. Reports
- * only column/table EXISTENCE booleans — no data, no secrets. Remove this
- * block once confirmed either way; it has no ongoing operational value.
+ * TEMPORARY, one-time post-migration integrity check — added after the
+ * user manually ran `drizzle-kit push` on the VPS to add
+ * email_events.svix_message_id (with a unique constraint over 130 existing
+ * rows), the outreach_sends table, and visibility_snapshots.score_method_version.
+ * Verifies no data loss and confirms the constraint actually exists, using
+ * only read-only aggregate queries (counts, min/max timestamps, existence
+ * checks) — no row-level data, no secrets. Remove this block once confirmed.
  */
-async function checkRecentSchemaMigrations(): Promise<Record<string, boolean> | { checkFailed: string }> {
+async function checkRecentSchemaMigrations() {
   const sql = getSqlClient();
   if (!sql) return { checkFailed: "no_sql_client" };
   try {
-    const rows = await sql.unsafe(`
+    const [existence] = await sql.unsafe(`
       select
         exists (select 1 from information_schema.columns where table_name='visibility_snapshots' and column_name='score_method_version') as "visibilitySnapshotsScoreMethodVersion",
         exists (select 1 from information_schema.columns where table_name='email_events' and column_name='svix_message_id') as "emailEventsSvixMessageId",
-        exists (select 1 from information_schema.tables where table_name='outreach_sends') as "outreachSendsTable"
+        exists (select 1 from information_schema.tables where table_name='outreach_sends') as "outreachSendsTable",
+        exists (select 1 from information_schema.columns where table_name='outreach_sends' and column_name='resend_email_id') as "outreachSendsResendEmailId",
+        exists (
+          select 1 from pg_constraint c join pg_class t on c.conrelid = t.oid
+          where t.relname='email_events' and c.contype='u' and c.conname ilike '%svix_message_id%'
+        ) as "svixMessageIdUniqueConstraint",
+        exists (
+          select 1 from pg_constraint c join pg_class t on c.conrelid = t.oid
+          where t.relname='outreach_sends' and c.contype='u' and c.conname ilike '%resend_email_id%'
+        ) as "resendEmailIdUniqueConstraint",
+        exists (select 1 from information_schema.tables where table_name='funnel_events') as "funnelEventsTable"
     `);
-    return (rows[0] as unknown as Record<string, boolean>) ?? { checkFailed: "no_rows" };
+
+    const [emailEventsCount] = await sql.unsafe(`select count(*)::int as "count" from email_events`);
+    const [emailEventsRange] = await sql.unsafe(
+      `select min(created_at) as "earliest", max(created_at) as "latest" from email_events`,
+    );
+    const byType = await sql.unsafe(
+      `select event_type as "eventType", count(*)::int as "count" from email_events group by event_type order by count(*) desc`,
+    );
+    const [nullSvix] = await sql.unsafe(
+      `select count(*)::int as "count" from email_events where svix_message_id is null`,
+    );
+    const [outreachSendsCount] = existence.outreachSendsTable
+      ? await sql.unsafe(`select count(*)::int as "count" from outreach_sends`)
+      : [{ count: null }];
+
+    return {
+      existence,
+      emailEvents: {
+        totalRows: emailEventsCount.count,
+        earliest: emailEventsRange.earliest,
+        latest: emailEventsRange.latest,
+        byType,
+        nullSvixMessageIdCount: nullSvix.count,
+      },
+      outreachSends: { totalRows: outreachSendsCount.count },
+    };
   } catch (err) {
     return { checkFailed: err instanceof Error ? err.message : String(err) };
   }
