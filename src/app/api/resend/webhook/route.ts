@@ -21,11 +21,41 @@ type ResendWebhookPayload = {
   data: {
     email_id?: string;
     to?: string[];
-    tags?: Array<{ name: string; value: string }>;
+    // Confirmed via a real production crash (TypeError: tags.find is not a
+    // function on a real signed "bounced" event): Resend's actual webhook
+    // callback does NOT always send tags back in the [{name,value}] array
+    // shape we send outbound — observed as something else entirely for at
+    // least this event type. Typed `unknown` deliberately; never assume a
+    // shape for data we don't control without runtime-checking it first.
+    tags?: unknown;
     click?: { link?: string };
     bounce?: { message?: string };
   };
 };
+
+/**
+ * Resend's outbound send API takes tags as [{name,value}], but the webhook
+ * CALLBACK payload's shape for the same field isn't guaranteed to match —
+ * handles the array shape, a plain {name: value} object map, and anything
+ * else without throwing, so a shape Resend didn't document (or changed)
+ * degrades to "no tag found" instead of crashing the whole request.
+ */
+function extractTagValue(tags: unknown, tagName: string): string | null {
+  if (Array.isArray(tags)) {
+    for (const entry of tags) {
+      if (entry && typeof entry === "object" && (entry as { name?: unknown }).name === tagName) {
+        const value = (entry as { value?: unknown }).value;
+        return typeof value === "string" ? value : null;
+      }
+    }
+    return null;
+  }
+  if (tags && typeof tags === "object") {
+    const value = (tags as Record<string, unknown>)[tagName];
+    return typeof value === "string" ? value : null;
+  }
+  return null;
+}
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const diag = newWebhookDiagnostic();
@@ -147,7 +177,7 @@ async function handleVerifiedWebhook(
   diag.resendEmailId = emailId;
 
   // Derive email type from Resend tags (we set type tag when sending)
-  const emailType = payload.data?.tags?.find((t) => t.name === "type")?.value ?? null;
+  const emailType = extractTagValue(payload.data?.tags, "type");
   diag.stage = "event_normalized";
 
   // Idempotent on svix-id: Resend/Svix retries and dashboard "replay" reuse
