@@ -110,6 +110,18 @@ async function checkControlledTestLifecycle() {
       };
     }
 
+    const outreachSettingsRow = await sql.unsafe(`
+      select payload, created_at as "createdAt" from jobs where type = 'outreach_settings' order by created_at desc limit 1
+    `);
+
+    const todayNonTestSends = await sql.unsafe(`
+      select id, resend_email_id as "resendEmailId", recipient, campaign, sequence_step as "sequenceStep", attempted_at as "attemptedAt"
+      from outreach_sends
+      where is_test = 'false' and attempted_at >= now() - interval '24 hours'
+      order by attempted_at desc
+      limit 50
+    `);
+
     const recentWebhookDiagnostics = await sql.unsafe(`
       select status, payload, created_at as "createdAt"
       from jobs
@@ -125,6 +137,8 @@ async function checkControlledTestLifecycle() {
       resendWebhookRegistration,
       idempotencyProbe,
       recentWebhookDiagnostics,
+      outreachSettingsRow,
+      todayNonTestSends,
     };
   } catch (err) {
     return { checkFailed: err instanceof Error ? err.message : String(err) };

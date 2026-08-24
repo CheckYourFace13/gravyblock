@@ -523,6 +523,19 @@ async function tick() {
   await maybeSendReviewRequests();
   await maybeSendColdOutreach();
 
+  // Follow-up (#2) and breakup (#3) sequence emails — these must respect the
+  // SAME admin pause switch as the initial cold-outreach windows. They did
+  // not: maybeSendColdOutreach() above checks settings.paused, but these two
+  // blocks ran unconditionally (gated only by time-of-day), so pausing
+  // outreach from /admin/outreach never actually stopped already-contacted
+  // prospects from receiving real follow-up/breakup emails. Confirmed live:
+  // real (isTest=false) sends went out today at 14:14 and 16:14 UTC while
+  // outreach was believed fully paused.
+  const { getOutreachSettings: getSettingsForSequenceEmails } = await import("@/app/admin/(dashboard)/outreach/actions");
+  const sequenceEmailSettings = await getSettingsForSequenceEmails().catch(() => ({
+    emailsPerBatch: 25, paused: false, weekdayEnabled: true, weekendRestaurantsEnabled: true,
+  }));
+
   // Follow-up email (#2): free trial offer to prospects who got email #1 3-21 days ago
   // Runs once per day at 14:00 UTC (10am ET / 7am PT)
   // Capped at 20/day — this, breakup (10/day), and cold outreach (60/day at
@@ -530,7 +543,7 @@ async function tick() {
   // coordination between them; each used to independently cap at 100,
   // meaning all three firing the same day could triple-stack past the real
   // limit regardless of what any single one was set to.
-  if (new Date().getUTCHours() === 14 && !(await hasJobRunToday("followup_outreach_batch"))) {
+  if (!sequenceEmailSettings.paused && new Date().getUTCHours() === 14 && !(await hasJobRunToday("followup_outreach_batch"))) {
     try {
       const followupResult = await runFollowupOutreachBatch(20);
       if (followupResult.sent > 0) {
@@ -546,7 +559,7 @@ async function tick() {
   // Runs once per day at 16:00 UTC (12pm ET / 9am PT)
   // Capped at 10/day — see follow-up batch comment above for why this and
   // the other outreach batches are coordinated against one shared quota.
-  if (new Date().getUTCHours() === 16 && !(await hasJobRunToday("breakup_outreach_batch"))) {
+  if (!sequenceEmailSettings.paused && new Date().getUTCHours() === 16 && !(await hasJobRunToday("breakup_outreach_batch"))) {
     try {
       const breakupResult = await runBreakupOutreachBatch(10);
       if (breakupResult.sent > 0) {
