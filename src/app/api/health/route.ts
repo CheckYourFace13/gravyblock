@@ -179,7 +179,27 @@ async function checkPauseIntegrityHistory() {
       select payload, created_at as "createdAt" from jobs where type = 'outreach_pause_violation' order by created_at desc limit 50
     `);
 
-    return { outreachSettingsHistory, allNonTestSendsWithPauseState, violationAlerts };
+    // outreach_sends only exists since today's migration, so it can't show
+    // pre-migration history. Cross-reference the OLDER batch-level job
+    // markers (created before outreach_sends existed) against pause state
+    // at their own created_at, to check for violations before the table did.
+    const batchJobsWithPauseState = await sql.unsafe(`
+      select
+        j.id, j.type, j.status, j.created_at as "createdAt",
+        (
+          select (s.payload->>'paused')
+          from jobs s
+          where s.type = 'outreach_settings' and s.created_at <= j.created_at
+          order by s.created_at desc
+          limit 1
+        ) as "pausedSettingValueAtRunTime"
+      from jobs j
+      where j.type in ('cold_outreach_batch', 'followup_outreach_batch', 'breakup_outreach_batch')
+      order by j.created_at desc
+      limit 100
+    `);
+
+    return { outreachSettingsHistory, allNonTestSendsWithPauseState, violationAlerts, batchJobsWithPauseState };
   } catch (err) {
     return { checkFailed: err instanceof Error ? err.message : String(err) };
   }
