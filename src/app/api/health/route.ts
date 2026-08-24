@@ -110,16 +110,30 @@ async function checkControlledTestLifecycle() {
       };
     }
 
-    const outreachSettingsRow = await sql.unsafe(`
-      select payload, created_at as "createdAt" from jobs where type = 'outreach_settings' order by created_at desc limit 1
+    const outreachSettingsHistory = await sql.unsafe(`
+      select payload, created_at as "createdAt" from jobs where type = 'outreach_settings' order by created_at asc
     `);
 
-    const todayNonTestSends = await sql.unsafe(`
-      select id, resend_email_id as "resendEmailId", recipient, campaign, sequence_step as "sequenceStep", attempted_at as "attemptedAt"
-      from outreach_sends
-      where is_test = 'false' and attempted_at >= now() - interval '24 hours'
-      order by attempted_at desc
-      limit 50
+    // Every real (non-test) cold_outreach/followup/breakup send, cross-
+    // referenced against whatever outreach_settings row was actually in
+    // effect at the moment it was attempted (append-only settings history,
+    // "latest as-of that timestamp wins" — same lookup getOutreachSettings()
+    // does for "now", just parameterized by attempted_at instead).
+    const allNonTestSendsWithPauseState = await sql.unsafe(`
+      select
+        os.id, os.resend_email_id as "resendEmailId", os.recipient, os.business_id as "businessId",
+        os.campaign, os.sequence_step as "sequenceStep", os.attempted_at as "attemptedAt",
+        (
+          select (j.payload->>'paused')
+          from jobs j
+          where j.type = 'outreach_settings' and j.created_at <= os.attempted_at
+          order by j.created_at desc
+          limit 1
+        ) as "pausedSettingValueAtSendTime"
+      from outreach_sends os
+      where os.is_test = 'false'
+      order by os.attempted_at desc
+      limit 200
     `);
 
     const recentWebhookDiagnostics = await sql.unsafe(`
@@ -137,8 +151,8 @@ async function checkControlledTestLifecycle() {
       resendWebhookRegistration,
       idempotencyProbe,
       recentWebhookDiagnostics,
-      outreachSettingsRow,
-      todayNonTestSends,
+      outreachSettingsHistory,
+      allNonTestSendsWithPauseState,
     };
   } catch (err) {
     return { checkFailed: err instanceof Error ? err.message : String(err) };

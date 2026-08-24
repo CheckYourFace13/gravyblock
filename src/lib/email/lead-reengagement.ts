@@ -16,6 +16,7 @@
 import { and, eq, ne, sql, desc, inArray, lt } from "drizzle-orm";
 import { getDb, leads, businesses, jobs } from "@/lib/db";
 import { isOptedOut, unsubscribeFooter } from "@/lib/email/optout";
+import { assertOutreachSendingAllowed } from "@/lib/outreach/pause-guard";
 
 const DRIP_DAYS = 14; // must match lead-drip.ts — leads younger than this are still mid-sequence
 const REENGAGE_INTERVAL_DAYS = 30;
@@ -100,6 +101,12 @@ async function sendReengagementEmail(email: string, subject: string, html: strin
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
   if (!apiKey) return false;
+
+  // Authoritative pause check, right at the send boundary — these are
+  // unconverted prospects, the same acquisition-send category the admin
+  // pause switch is meant to cover. See pause-guard.ts.
+  const pauseCheck = await assertOutreachSendingAllowed(email);
+  if (!pauseCheck.allowed) return false;
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",

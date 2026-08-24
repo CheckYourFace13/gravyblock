@@ -55,6 +55,20 @@ export default async function OutreachPage() {
         />
       </div>
 
+      {/* ── PAUSE SCOPE — explicit, not left to inference ────── */}
+      <div className={`rounded-2xl border-2 p-4 text-sm font-semibold ${settings.paused ? "border-amber-400 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
+        {settings.paused ? (
+          <>
+            ⏸ OUTREACH PAUSED — initial cold-outreach, follow-up (#2), and breakup (#3) emails are all blocked at the
+            send boundary (not just the scheduler). Lead-drip, lead-reengagement, and abandoned-checkout recovery
+            emails are also blocked. Internal test sends to gravyblock.com / iscreamstudio.com addresses
+            (explicitly marked isTest) still work for verification.
+          </>
+        ) : (
+          <>▶ OUTREACH RUNNING — initial, follow-up, breakup, lead-drip, lead-reengagement, and abandoned-checkout emails may all send.</>
+        )}
+      </div>
+
       {/* ── WEBHOOK / EMAIL DELIVERY HEALTH ─────────────────── */}
       <section className={`rounded-2xl border-2 p-6 shadow-sm ${health.redAlert ? "border-red-400 bg-red-50" : health.webhookConfigured ? "border-emerald-200 bg-white" : "border-amber-400 bg-amber-50"}`}>
         <h2 className="text-base font-semibold text-zinc-900 mb-1">📡 Resend webhook health</h2>

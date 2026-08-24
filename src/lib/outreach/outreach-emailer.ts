@@ -1,6 +1,7 @@
 import type { Prospect } from "./prospect-finder";
 import type { ProspectPreScan } from "./prospect-prescan";
 import { isOptedOut, coldOutreachFooter } from "@/lib/email/optout";
+import { assertOutreachSendingAllowed } from "./pause-guard";
 
 type SendEmailResult = { ok: boolean; skipped?: boolean; reason?: string; resendEmailId?: string | null };
 
@@ -375,6 +376,12 @@ export async function sendFollowupEmail(params: {
     return { ok: false, skipped: true, reason: "opted out" };
   }
 
+  // Authoritative pause check, right at the send boundary — see pause-guard.ts.
+  const pauseCheck = await assertOutreachSendingAllowed(params.email);
+  if (!pauseCheck.allowed) {
+    return { ok: false, skipped: true, reason: pauseCheck.reason };
+  }
+
   const scanUrlParams = new URLSearchParams({ q: params.businessName, ...(params.city ? { city: params.city } : {}) });
   scanUrlParams.set("e", Buffer.from(params.email.toLowerCase()).toString("base64url"));
   scanUrlParams.set("promo", "EMAILFREE");
@@ -423,6 +430,12 @@ export async function sendBreakupEmail(params: {
 
   if (await isOptedOut(params.email)) {
     return { ok: false, skipped: true, reason: "opted out" };
+  }
+
+  // Authoritative pause check, right at the send boundary — see pause-guard.ts.
+  const pauseCheck = await assertOutreachSendingAllowed(params.email);
+  if (!pauseCheck.allowed) {
+    return { ok: false, skipped: true, reason: pauseCheck.reason };
   }
 
   const scanUrlParams = new URLSearchParams({ q: params.businessName, ...(params.city ? { city: params.city } : {}) });
@@ -512,6 +525,12 @@ export async function sendProspectEmail(
   // Skip opted-out addresses
   if (await isOptedOut(toEmail)) {
     return { ok: false, skipped: true, reason: "opted out" };
+  }
+
+  // Authoritative pause check, right at the send boundary — see pause-guard.ts.
+  const pauseCheck = await assertOutreachSendingAllowed(toEmail);
+  if (!pauseCheck.allowed) {
+    return { ok: false, skipped: true, reason: pauseCheck.reason };
   }
 
   // Attach the recipient email to the prospect so the HTML footer can build the unsubscribe link

@@ -10,6 +10,7 @@
 
 import { and, eq, isNotNull, isNull, gte, sql } from "drizzle-orm";
 import { getDb, businesses, jobs } from "@/lib/db";
+import { assertOutreachSendingAllowed } from "@/lib/outreach/pause-guard";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
 
@@ -112,6 +113,14 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
   if (!apiKey) return false;
+
+  // Authoritative pause check, right at the send boundary — a business with
+  // a Stripe customer but planTier="free" is a prospect who never completed
+  // signup, the same acquisition-adjacent category the admin pause switch
+  // is meant to cover. See pause-guard.ts.
+  const pauseCheck = await assertOutreachSendingAllowed(to);
+  if (!pauseCheck.allowed) return false;
+
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },

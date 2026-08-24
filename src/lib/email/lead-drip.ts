@@ -1,6 +1,7 @@
 import { and, eq, gte, inArray, lt, ne, notInArray, sql } from "drizzle-orm";
 import { getDb, leads, businesses, jobs, visibilitySnapshots } from "@/lib/db";
 import { isOptedOut, unsubscribeFooter } from "@/lib/email/optout";
+import { assertOutreachSendingAllowed } from "@/lib/outreach/pause-guard";
 
 const DRIP_DAYS = 14;
 
@@ -325,6 +326,12 @@ async function sendDripEmail(lead: { email: string }, subject: string, html: str
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
   if (!apiKey) return false;
+
+  // Authoritative pause check, right at the send boundary — lead drip
+  // targets unconverted prospects, the same acquisition-send category the
+  // admin pause switch is meant to cover. See pause-guard.ts.
+  const pauseCheck = await assertOutreachSendingAllowed(lead.email);
+  if (!pauseCheck.allowed) return false;
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",

@@ -523,6 +523,18 @@ async function tick() {
   await maybeSendReviewRequests();
   await maybeSendColdOutreach();
 
+  // Defense-in-depth: independently re-verify no real send bypassed the
+  // pause in the last 24h, regardless of whether the guard was called.
+  try {
+    const { checkForPauseIntegrityViolations } = await import("@/lib/outreach/pause-guard");
+    const result = await checkForPauseIntegrityViolations();
+    if (result.violations > 0) {
+      console.error("[worker] OUTREACH PAUSE INTEGRITY CHECK found new violation(s)", result);
+    }
+  } catch (error) {
+    console.error("[worker] pause integrity check failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
   // Follow-up (#2) and breakup (#3) sequence emails — these must respect the
   // SAME admin pause switch as the initial cold-outreach windows. They did
   // not: maybeSendColdOutreach() above checks settings.paused, but these two
