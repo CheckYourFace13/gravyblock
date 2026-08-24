@@ -12,6 +12,7 @@ export const ADMIN_NAV_ITEMS: { href: string; label: string }[] = [
   { href: "/admin/locations", label: "Locations" },
   { href: "/admin/reports", label: "Reports" },
   { href: "/admin/outreach", label: "🎯 Outreach" },
+  { href: "/admin/webhook-diagnostics", label: "📡 Webhook diagnostics" },
   { href: "/admin/autopilot", label: "Autopilot" },
   { href: "/admin/mrr", label: "MRR" },
 ];

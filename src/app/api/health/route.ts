@@ -110,12 +110,21 @@ async function checkControlledTestLifecycle() {
       };
     }
 
+    const recentWebhookDiagnostics = await sql.unsafe(`
+      select status, payload, created_at as "createdAt"
+      from jobs
+      where type = 'webhook_diagnostic'
+      order by created_at desc
+      limit 10
+    `);
+
     return {
       outreachSendRow: latestTestSend,
       emailEvents: emailEventsRows,
       resendProviderState,
       resendWebhookRegistration,
       idempotencyProbe,
+      recentWebhookDiagnostics,
     };
   } catch (err) {
     return { checkFailed: err instanceof Error ? err.message : String(err) };
