@@ -110,15 +110,54 @@ async function checkControlledTestLifecycle() {
       };
     }
 
+    return {
+      outreachSendRow: latestTestSend,
+      emailEvents: emailEventsRows,
+      resendProviderState,
+      resendWebhookRegistration,
+      idempotencyProbe,
+    };
+  } catch (err) {
+    return { checkFailed: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * TEMPORARY — webhook diagnostic log (see src/lib/integrations/webhook-diagnostics.ts).
+ * Independent of the controlled-test-email check above.
+ */
+async function checkRecentWebhookDiagnostics() {
+  const sql = getSqlClient();
+  if (!sql) return { checkFailed: "no_sql_client" };
+  try {
+    return await sql.unsafe(`
+      select status, payload, created_at as "createdAt"
+      from jobs
+      where type = 'webhook_diagnostic'
+      order by created_at desc
+      limit 10
+    `);
+  } catch (err) {
+    return { checkFailed: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * TEMPORARY — pause-integrity audit. Independent of the checks above (does
+ * NOT require a test send to exist). Every real (non-test) cold_outreach/
+ * followup/breakup send, cross-referenced against whatever outreach_settings
+ * row was actually in effect at the moment it was attempted (append-only
+ * settings history, "latest as-of that timestamp wins" — same lookup
+ * getOutreachSettings() does for "now", just parameterized by attempted_at).
+ */
+async function checkPauseIntegrityHistory() {
+  const sql = getSqlClient();
+  if (!sql) return { checkFailed: "no_sql_client" };
+  try {
     const outreachSettingsHistory = await sql.unsafe(`
       select payload, created_at as "createdAt" from jobs where type = 'outreach_settings' order by created_at asc
     `);
 
-    // Every real (non-test) cold_outreach/followup/breakup send, cross-
-    // referenced against whatever outreach_settings row was actually in
-    // effect at the moment it was attempted (append-only settings history,
-    // "latest as-of that timestamp wins" — same lookup getOutreachSettings()
-    // does for "now", just parameterized by attempted_at instead).
     const allNonTestSendsWithPauseState = await sql.unsafe(`
       select
         os.id, os.resend_email_id as "resendEmailId", os.recipient, os.business_id as "businessId",
@@ -136,24 +175,11 @@ async function checkControlledTestLifecycle() {
       limit 200
     `);
 
-    const recentWebhookDiagnostics = await sql.unsafe(`
-      select status, payload, created_at as "createdAt"
-      from jobs
-      where type = 'webhook_diagnostic'
-      order by created_at desc
-      limit 10
+    const violationAlerts = await sql.unsafe(`
+      select payload, created_at as "createdAt" from jobs where type = 'outreach_pause_violation' order by created_at desc limit 50
     `);
 
-    return {
-      outreachSendRow: latestTestSend,
-      emailEvents: emailEventsRows,
-      resendProviderState,
-      resendWebhookRegistration,
-      idempotencyProbe,
-      recentWebhookDiagnostics,
-      outreachSettingsHistory,
-      allNonTestSendsWithPauseState,
-    };
+    return { outreachSettingsHistory, allNonTestSendsWithPauseState, violationAlerts };
   } catch (err) {
     return { checkFailed: err instanceof Error ? err.message : String(err) };
   }
@@ -162,7 +188,11 @@ async function checkControlledTestLifecycle() {
 export async function GET() {
   const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
   const environment = process.env.NODE_ENV ?? "unknown";
-  const controlledTestLifecycle = await checkControlledTestLifecycle();
+  const [controlledTestLifecycle, recentWebhookDiagnostics, pauseIntegrityHistory] = await Promise.all([
+    checkControlledTestLifecycle(),
+    checkRecentWebhookDiagnostics(),
+    checkPauseIntegrityHistory(),
+  ]);
 
   return Response.json({
     ok: true,
@@ -187,5 +217,7 @@ export async function GET() {
       billing: isSet("STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"),
     },
     controlledTestLifecycle,
+    recentWebhookDiagnostics,
+    pauseIntegrityHistory,
   });
 }
