@@ -23,13 +23,73 @@ function isSet(...names: string[]): boolean {
   return names.every((n) => Boolean(process.env[n]?.trim()));
 }
 
+/**
+ * TEMPORARY — behavioral proof the pause guard blocks a real (non-test,
+ * non-internal-domain) send at the actual production send boundary, not
+ * just by code inspection. Calls the real sendFollowupEmail() function
+ * (same one runFollowupOutreachBatch uses) from inside this same running
+ * process. Recipient is deliberately example.com — an IANA/RFC 2606
+ * reserved domain that will never accept real mail and belongs to no real
+ * person — so even a guard failure could not reach an actual prospect.
+ * Remove once the pause gate is fully closed.
+ */
+async function checkPauseBoundaryBehavior() {
+  const sql = getSqlClient();
+  const testRecipient = "outreach-pause-boundary-test@example.com";
+  try {
+    const { sendFollowupEmail } = await import("@/lib/outreach/outreach-emailer");
+    const beforeRows = sql
+      ? await sql.unsafe(`select count(*)::int as "count" from outreach_sends where recipient = $1`, [testRecipient])
+      : [{ count: null }];
+
+    const result = await sendFollowupEmail({
+      businessName: "Pause Boundary Test — not a real business",
+      email: testRecipient,
+    });
+
+    const afterRows = sql
+      ? await sql.unsafe(`select count(*)::int as "count" from outreach_sends where recipient = $1`, [testRecipient])
+      : [{ count: null }];
+
+    // Independent, out-of-band confirmation nothing actually reached Resend:
+    // list Resend's own recent sends and confirm this address isn't among them.
+    let resendSentToTestAddress: unknown = "not_checked";
+    const apiKey = process.env.RESEND_API_KEY;
+    if (apiKey) {
+      const res = await fetch("https://api.resend.com/emails?limit=5", { headers: { authorization: `Bearer ${apiKey}` } });
+      if (res.ok) {
+        const body = (await res.json()) as { data?: Array<{ to?: string[] }> };
+        resendSentToTestAddress = (body.data ?? []).some((e) => e.to?.includes(testRecipient));
+      } else {
+        resendSentToTestAddress = `fetch_failed_${res.status}`;
+      }
+    }
+
+    return {
+      testRecipient,
+      functionResult: result,
+      blockedBeforeResend: result.skipped === true && result.ok === false,
+      outreachSendsRowCountBefore: beforeRows[0]?.count,
+      outreachSendsRowCountAfter: afterRows[0]?.count,
+      noOutreachSendsRowCreated: beforeRows[0]?.count === afterRows[0]?.count,
+      resendSentToTestAddress,
+    };
+  } catch (err) {
+    return { checkFailed: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 export async function GET() {
   const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
   const environment = process.env.NODE_ENV ?? "unknown";
-  const openClickEvents = await checkOpenClickEvents();
+  const [openClickEvents, pauseBoundaryBehavior] = await Promise.all([
+    checkOpenClickEvents(),
+    checkPauseBoundaryBehavior(),
+  ]);
 
   return Response.json({
     openClickEvents,
+    pauseBoundaryBehavior,
     ok: true,
     appName: "GravyBlock",
     environment,
