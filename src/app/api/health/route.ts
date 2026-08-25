@@ -1,14 +1,35 @@
 import { getBuildVersion, getDeployedAt, getGitSha } from "@/lib/build-metadata";
+import { getSqlClient } from "@/lib/db";
+
+/** TEMPORARY — checking for existing opened/clicked events before asking for a new test send. Remove once webhook gate fully closes. */
+async function checkOpenClickEvents() {
+  const sql = getSqlClient();
+  if (!sql) return null;
+  try {
+    return await sql.unsafe(`
+      select event_type as "eventType", email_id as "emailId", svix_message_id as "svixMessageId",
+             recipient, created_at as "createdAt"
+      from email_events
+      where event_type in ('opened', 'clicked')
+      order by created_at desc
+      limit 20
+    `);
+  } catch (err) {
+    return { checkFailed: err instanceof Error ? err.message : String(err) };
+  }
+}
 
 function isSet(...names: string[]): boolean {
   return names.every((n) => Boolean(process.env[n]?.trim()));
 }
 
-export function GET() {
+export async function GET() {
   const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
   const environment = process.env.NODE_ENV ?? "unknown";
+  const openClickEvents = await checkOpenClickEvents();
 
   return Response.json({
+    openClickEvents,
     ok: true,
     appName: "GravyBlock",
     environment,
