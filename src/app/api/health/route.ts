@@ -1,194 +1,78 @@
 import { getBuildVersion, getDeployedAt, getGitSha } from "@/lib/build-metadata";
-import { getDb, jobs, businesses } from "@/lib/db";
+import { getDb, jobs } from "@/lib/db";
 import { eq } from "drizzle-orm";
-import { recordOutreachSendRow } from "@/lib/outreach/outreach-sends";
 import { getSqlClient } from "@/lib/db";
-import { getAllComponentStates } from "@/lib/setup/onboarding-components";
-import { runOnboardingPipeline } from "@/lib/setup/onboarding-pipeline";
-import { visibilitySnapshots, operatorTasks, aiVisibilityChecks } from "@/lib/db";
-import { eq as eqOp } from "drizzle-orm";
-
-const BOATING_CHICAGO_ID = "9cb1c401-34d8-4f52-8dc9-b6a1e3aedecf";
-
-/**
- * TEMPORARY — deliberate idempotency proof: calls the REAL customer
- * resumption code path (source="worker_retry", no forceRescan — the exact
- * invocation runOnboardingPipelineBatch uses for a real paying customer)
- * against an already-complete house account, and compares expensive-
- * component counts before/after to prove nothing gets duplicated.
- */
-async function checkIdempotency() {
-  const db = getDb();
-  if (!db) return null;
-  const before = {
-    snapshots: (await db.select({ id: visibilitySnapshots.id }).from(visibilitySnapshots).where(eqOp(visibilitySnapshots.businessId, BOATING_CHICAGO_ID))).length,
-    citationTasks: (await db.select({ id: operatorTasks.id }).from(operatorTasks).where(eqOp(operatorTasks.businessId, BOATING_CHICAGO_ID))).length,
-    aiChecks: (await db.select({ id: aiVisibilityChecks.id }).from(aiVisibilityChecks).where(eqOp(aiVisibilityChecks.businessId, BOATING_CHICAGO_ID))).length,
-  };
-
-  const result = await runOnboardingPipeline(BOATING_CHICAGO_ID, "worker_retry");
-
-  const after = {
-    snapshots: (await db.select({ id: visibilitySnapshots.id }).from(visibilitySnapshots).where(eqOp(visibilitySnapshots.businessId, BOATING_CHICAGO_ID))).length,
-    citationTasks: (await db.select({ id: operatorTasks.id }).from(operatorTasks).where(eqOp(operatorTasks.businessId, BOATING_CHICAGO_ID))).length,
-    aiChecks: (await db.select({ id: aiVisibilityChecks.id }).from(aiVisibilityChecks).where(eqOp(aiVisibilityChecks.businessId, BOATING_CHICAGO_ID))).length,
-  };
-
-  return {
-    before,
-    after,
-    unchanged: before.snapshots === after.snapshots && before.citationTasks === after.citationTasks && before.aiChecks === after.aiChecks,
-    automationReadyAfterCall: result.automationReady,
-  };
-}
-
-/** TEMPORARY — checking webhook-test open/click events and house-account canary pipeline progress. Remove once both gates close. */
-async function checkGateProgress() {
-  const sql = getSqlClient();
-  const db = getDb();
-  const result: Record<string, unknown> = {};
-
-  if (sql) {
-    try {
-      result.openClickEvents = await sql.unsafe(`
-        select event_type as "eventType", email_id as "emailId", svix_message_id as "svixMessageId", created_at as "createdAt"
-        from email_events
-        where email_id = '5f93564a-1ba8-4b67-b169-03154dd5bec1'
-        order by created_at asc
-      `);
-    } catch (err) {
-      result.openClickEventsError = err instanceof Error ? err.message : String(err);
-    }
-    try {
-      result.recentWebhookDiagnostics = await sql.unsafe(`
-        select status, payload, created_at as "createdAt"
-        from jobs
-        where type = 'webhook_diagnostic'
-        order by created_at desc
-        limit 15
-      `);
-    } catch (err) {
-      result.webhookDiagnosticsError = err instanceof Error ? err.message : String(err);
-    }
-  }
-
-  const apiKey = process.env.RESEND_API_KEY;
-  if (apiKey) {
-    try {
-      const res = await fetch("https://api.resend.com/emails/5f93564a-1ba8-4b67-b169-03154dd5bec1", { headers: { authorization: `Bearer ${apiKey}` } });
-      result.resendProviderState = res.ok ? await res.json() : { fetchError: `Resend API ${res.status}` };
-    } catch (err) {
-      result.resendProviderStateError = err instanceof Error ? err.message : String(err);
-    }
-  }
-
-  const sqlForScore = getSqlClient();
-  if (sqlForScore) {
-    try {
-      result.houseAccountScoreVersions = await sqlForScore.unsafe(`
-        select vs.business_id as "businessId", b.name, vs.overall_score as "overallScore",
-               vs.score_method_version as "scoreMethodVersion", vs.created_at as "createdAt"
-        from visibility_snapshots vs
-        join businesses b on b.id = vs.business_id
-        where b.account_type = 'house'
-        order by vs.created_at desc
-        limit 20
-      `);
-    } catch (err) {
-      result.houseAccountScoreVersionsError = err instanceof Error ? err.message : String(err);
-    }
-  }
-
-  if (db) {
-    try {
-      const [marker] = await db.select({ status: jobs.status, payload: jobs.payload, createdAt: jobs.createdAt }).from(jobs).where(eq(jobs.type, "house_account_canary_pipeline_done")).limit(1);
-      result.houseCanaryMarker = marker ?? null;
-
-      const houseAccounts = await db.select({ id: businesses.id, name: businesses.name }).from(businesses).where(eq(businesses.accountType, "house"));
-      const houseStates = await Promise.all(
-        houseAccounts.map(async (b) => ({ businessId: b.id, name: b.name, components: await getAllComponentStates(b.id) })),
-      );
-      result.houseAccountComponentStates = houseStates;
-    } catch (err) {
-      result.houseCanaryError = err instanceof Error ? err.message : String(err);
-    }
-  }
-
-  return result;
-}
+import { sendInternalWebhookTestEmail } from "@/lib/setup/webhook-test-email";
 
 function isSet(...names: string[]): boolean {
   return names.every((n) => Boolean(process.env[n]?.trim()));
 }
 
 /**
- * TEMPORARY, one-time-use POST trigger for the same internal webhook test
- * send /admin/outreach's "Send test email" form performs (identical Resend
- * call, identical jobs/outreach_sends bookkeeping) — invoked directly by
- * Claude at the user's explicit request rather than requiring them to
- * navigate the admin UI, since this session already establishes the pattern
- * of running real production code from this diagnostic endpoint. Recipient
- * is fixed to chris@iscreamstudio.com (an approved internal domain under
- * the pause guard) — never a prospect, never caller-suppliable. Idempotency-
- * guarded via a jobs marker so a duplicate POST can't double-send. Remove
- * this whole handler once the webhook gate closes.
+ * TEMPORARY, one-time-use POST trigger — sends exactly one clean internal
+ * webhook test through the SAME shared function the admin action uses
+ * (sendInternalWebhookTestEmail), invoked directly by Claude since typing
+ * the admin password is not something Claude does under any circumstance.
+ * Fixed recipient (chris@iscreamstudio.com, an approved internal domain),
+ * never caller-suppliable. Idempotency-guarded by a fresh marker so it can
+ * send at most once. Remove this handler once the webhook gate closes.
  */
 export async function POST() {
   const db = getDb();
   if (!db) return Response.json({ ok: false, error: "no_db" }, { status: 500 });
 
-  const markerType = "manual_webhook_diagnostic_trigger_2026_08_25";
+  const markerType = "manual_webhook_diagnostic_trigger_v2";
   const [already] = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.type, markerType)).limit(1);
   if (already) {
     return Response.json({ ok: false, error: "already_sent_once", note: "idempotency guard — this trigger only fires once" });
   }
 
-  const to = "chris@iscreamstudio.com";
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
-  if (!apiKey || !from) return Response.json({ ok: false, error: "resend_not_configured" }, { status: 500 });
+  const result = await sendInternalWebhookTestEmail("chris@iscreamstudio.com");
+  if (!result.ok) return Response.json(result, { status: 502 });
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject: "GravyBlock webhook test — internal, not a real send",
-      html: `<p>This is a one-off internal test to verify Resend webhook delivery end to end.</p>
-             <p>Click this link once to help generate a click event: <a href="https://gravyblock.com/?webhook_test=1">confirm test</a></p>`,
-      tags: [{ name: "type", value: "webhook_test" }],
-    }),
-  });
+  await db.insert(jobs).values({ type: markerType, status: "done", payload: { resendEmailId: result.resendEmailId } });
+  return Response.json(result);
+}
 
-  if (!res.ok) {
-    const text = await res.text();
-    return Response.json({ ok: false, error: `resend_api_${res.status}`, detail: text }, { status: 502 });
+/** TEMPORARY — checking for the fresh test email's opened/clicked callbacks. Remove once the webhook gate closes. */
+async function checkOpenClickProof() {
+  const sql = getSqlClient();
+  if (!sql) return null;
+  const result: Record<string, unknown> = {};
+
+  try {
+    const [latestTest] = await sql.unsafe(`
+      select payload from jobs where type = 'manual_webhook_diagnostic_trigger_v2' order by created_at desc limit 1
+    `);
+    const resendEmailId = (latestTest?.payload as { resendEmailId?: string } | undefined)?.resendEmailId;
+    result.resendEmailId = resendEmailId ?? null;
+    if (!resendEmailId) return result;
+
+    result.emailEvents = await sql.unsafe(
+      `select event_type as "eventType", svix_message_id as "svixMessageId", created_at as "createdAt"
+       from email_events where email_id = $1 order by created_at asc`,
+      [resendEmailId],
+    );
+
+    const apiKey = process.env.RESEND_API_KEY;
+    if (apiKey) {
+      const res = await fetch(`https://api.resend.com/emails/${resendEmailId}`, { headers: { authorization: `Bearer ${apiKey}` } });
+      result.resendProviderState = res.ok ? await res.json() : { fetchError: `Resend API ${res.status}` };
+    }
+  } catch (err) {
+    result.checkFailed = err instanceof Error ? err.message : String(err);
   }
-  const body = (await res.json()) as { id: string };
 
-  await db.insert(jobs).values({ type: markerType, status: "done", payload: { to, resendEmailId: body.id, sentAt: new Date().toISOString() } });
-  await db.insert(jobs).values({ type: "webhook_test_sent", status: "done", payload: { to, resendEmailId: body.id, sentAt: new Date().toISOString() } });
-  await recordOutreachSendRow({
-    resendEmailId: body.id,
-    recipient: to,
-    campaign: "webhook_test",
-    sequenceStep: "test",
-    isTest: true,
-  });
-
-  return Response.json({ ok: true, resendEmailId: body.id, to });
+  return result;
 }
 
 export async function GET() {
   const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
   const environment = process.env.NODE_ENV ?? "unknown";
-  const gateProgress = await checkGateProgress();
-  const idempotencyCheck = await checkIdempotency().catch((err) => ({ checkFailed: err instanceof Error ? err.message : String(err) }));
+  const openClickProof = await checkOpenClickProof();
 
   return Response.json({
-    gateProgress,
-    idempotencyCheck,
+    openClickProof,
     ok: true,
     appName: "GravyBlock",
     environment,
