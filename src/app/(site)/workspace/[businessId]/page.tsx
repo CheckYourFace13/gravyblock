@@ -273,19 +273,32 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
   return (
     <div className="mx-auto max-w-6xl space-y-12 px-4 py-14 sm:px-6">
 
-      {!onboardingReady && onboardingSummary.length > 0 ? (
-        <div className={`rounded-2xl border-2 p-5 ${onboardingStuck ? "border-red-400 bg-red-50" : "border-amber-400 bg-amber-50"}`}>
-          <p className={`text-sm font-bold uppercase tracking-wide ${onboardingStuck ? "text-red-800" : "text-amber-800"}`}>
-            {onboardingStuck ? "Setup needs attention" : "Setup in progress"}
+      {/*
+        Two DIFFERENT things, never conflated: whether setup is still actively
+        running (temporary, disappears once done) vs. which components are
+        durably stuck at needs_customer_action/stuck (e.g. no confident Google
+        Place match — competitor/ranking automation genuinely cannot run
+        without one). The second must stay visible even after
+        automation_ready flips true, or a customer would lose all visibility
+        into "why don't I have competitor data" the moment onboarding
+        finishes — automation_ready means "everything currently possible is
+        running," not "everything is running."
+      */}
+      {(!onboardingReady || onboardingSummary.some((i) => i.state === "action_needed" || i.state === "stuck")) && onboardingSummary.length > 0 ? (
+        <div className={`rounded-2xl border-2 p-5 ${onboardingStuck ? "border-red-400 bg-red-50" : !onboardingReady ? "border-amber-400 bg-amber-50" : "border-zinc-200 bg-zinc-50"}`}>
+          <p className={`text-sm font-bold uppercase tracking-wide ${onboardingStuck ? "text-red-800" : !onboardingReady ? "text-amber-800" : "text-zinc-600"}`}>
+            {onboardingStuck ? "Setup needs attention" : !onboardingReady ? "Setup in progress" : "Automation running — a few things could unlock more"}
           </p>
-          <p className={`mt-1 text-sm ${onboardingStuck ? "text-red-900" : "text-amber-900"}`}>
+          <p className={`mt-1 text-sm ${onboardingStuck ? "text-red-900" : !onboardingReady ? "text-amber-900" : "text-zinc-600"}`}>
             {onboardingStuck
               ? "Something in your setup needs a human to look at it — contact support and we'll sort it out."
-              : "GravyBlock is establishing your real baseline. This usually finishes within a few minutes of signup."}
+              : !onboardingReady
+                ? "GravyBlock is establishing your real baseline. This usually finishes within a few minutes of signup."
+                : "Your core automation is active. The items below are optional or waiting on information only you can provide."}
           </p>
           <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
             {onboardingSummary
-              .filter((i) => i.label !== "Automation ready")
+              .filter((i) => i.label !== "Automation ready" && (!onboardingReady || i.state !== "done"))
               .map((i) => (
                 <li key={i.label} className="flex items-center gap-2 text-sm">
                   <span className={
