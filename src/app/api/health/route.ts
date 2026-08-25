@@ -4,6 +4,43 @@ import { eq } from "drizzle-orm";
 import { recordOutreachSendRow } from "@/lib/outreach/outreach-sends";
 import { getSqlClient } from "@/lib/db";
 import { getAllComponentStates } from "@/lib/setup/onboarding-components";
+import { runOnboardingPipeline } from "@/lib/setup/onboarding-pipeline";
+import { visibilitySnapshots, operatorTasks, aiVisibilityChecks } from "@/lib/db";
+import { eq as eqOp } from "drizzle-orm";
+
+const BOATING_CHICAGO_ID = "9cb1c401-34d8-4f52-8dc9-b6a1e3aedecf";
+
+/**
+ * TEMPORARY — deliberate idempotency proof: calls the REAL customer
+ * resumption code path (source="worker_retry", no forceRescan — the exact
+ * invocation runOnboardingPipelineBatch uses for a real paying customer)
+ * against an already-complete house account, and compares expensive-
+ * component counts before/after to prove nothing gets duplicated.
+ */
+async function checkIdempotency() {
+  const db = getDb();
+  if (!db) return null;
+  const before = {
+    snapshots: (await db.select({ id: visibilitySnapshots.id }).from(visibilitySnapshots).where(eqOp(visibilitySnapshots.businessId, BOATING_CHICAGO_ID))).length,
+    citationTasks: (await db.select({ id: operatorTasks.id }).from(operatorTasks).where(eqOp(operatorTasks.businessId, BOATING_CHICAGO_ID))).length,
+    aiChecks: (await db.select({ id: aiVisibilityChecks.id }).from(aiVisibilityChecks).where(eqOp(aiVisibilityChecks.businessId, BOATING_CHICAGO_ID))).length,
+  };
+
+  const result = await runOnboardingPipeline(BOATING_CHICAGO_ID, "worker_retry");
+
+  const after = {
+    snapshots: (await db.select({ id: visibilitySnapshots.id }).from(visibilitySnapshots).where(eqOp(visibilitySnapshots.businessId, BOATING_CHICAGO_ID))).length,
+    citationTasks: (await db.select({ id: operatorTasks.id }).from(operatorTasks).where(eqOp(operatorTasks.businessId, BOATING_CHICAGO_ID))).length,
+    aiChecks: (await db.select({ id: aiVisibilityChecks.id }).from(aiVisibilityChecks).where(eqOp(aiVisibilityChecks.businessId, BOATING_CHICAGO_ID))).length,
+  };
+
+  return {
+    before,
+    after,
+    unchanged: before.snapshots === after.snapshots && before.citationTasks === after.citationTasks && before.aiChecks === after.aiChecks,
+    automationReadyAfterCall: result.automationReady,
+  };
+}
 
 /** TEMPORARY — checking webhook-test open/click events and house-account canary pipeline progress. Remove once both gates close. */
 async function checkGateProgress() {
@@ -130,9 +167,11 @@ export async function GET() {
   const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
   const environment = process.env.NODE_ENV ?? "unknown";
   const gateProgress = await checkGateProgress();
+  const idempotencyCheck = await checkIdempotency().catch((err) => ({ checkFailed: err instanceof Error ? err.message : String(err) }));
 
   return Response.json({
     gateProgress,
+    idempotencyCheck,
     ok: true,
     appName: "GravyBlock",
     environment,
