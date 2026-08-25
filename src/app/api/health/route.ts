@@ -22,6 +22,27 @@ async function checkGateProgress() {
     } catch (err) {
       result.openClickEventsError = err instanceof Error ? err.message : String(err);
     }
+    try {
+      result.recentWebhookDiagnostics = await sql.unsafe(`
+        select status, payload, created_at as "createdAt"
+        from jobs
+        where type = 'webhook_diagnostic'
+        order by created_at desc
+        limit 15
+      `);
+    } catch (err) {
+      result.webhookDiagnosticsError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (apiKey) {
+    try {
+      const res = await fetch("https://api.resend.com/emails/5f93564a-1ba8-4b67-b169-03154dd5bec1", { headers: { authorization: `Bearer ${apiKey}` } });
+      result.resendProviderState = res.ok ? await res.json() : { fetchError: `Resend API ${res.status}` };
+    } catch (err) {
+      result.resendProviderStateError = err instanceof Error ? err.message : String(err);
+    }
   }
 
   if (db) {
