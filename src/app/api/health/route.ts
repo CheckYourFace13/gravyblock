@@ -82,6 +82,23 @@ async function checkGateProgress() {
     }
   }
 
+  const sqlForScore = getSqlClient();
+  if (sqlForScore) {
+    try {
+      result.houseAccountScoreVersions = await sqlForScore.unsafe(`
+        select vs.business_id as "businessId", b.name, vs.overall_score as "overallScore",
+               vs.score_method_version as "scoreMethodVersion", vs.created_at as "createdAt"
+        from visibility_snapshots vs
+        join businesses b on b.id = vs.business_id
+        where b.account_type = 'house'
+        order by vs.created_at desc
+        limit 20
+      `);
+    } catch (err) {
+      result.houseAccountScoreVersionsError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
   if (db) {
     try {
       const [marker] = await db.select({ status: jobs.status, payload: jobs.payload, createdAt: jobs.createdAt }).from(jobs).where(eq(jobs.type, "house_account_canary_pipeline_done")).limit(1);
