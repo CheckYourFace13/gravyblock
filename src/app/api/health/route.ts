@@ -187,6 +187,20 @@ async function checkPauseIntegrityHistory() {
       from outreach_sends
       where resend_email_id = '872676a8-7d9d-4506-a616-fcba4238d8e9'
     `);
+    const beforeCount = await sql.unsafe(`select count(*)::int as "count" from email_events where svix_message_id = 'msg_3IMx5hvol64orWXYsZ5YzQOOwQB'`);
+    const duplicateProbeResult = await sql.unsafe(`
+      insert into email_events (event_type, email_id, svix_message_id, metadata)
+      values ('delivered', '872676a8-7d9d-4506-a616-fcba4238d8e9', 'msg_3IMx5hvol64orWXYsZ5YzQOOwQB', '{}')
+      on conflict (svix_message_id) do nothing
+      returning id
+    `);
+    const afterCount = await sql.unsafe(`select count(*)::int as "count" from email_events where svix_message_id = 'msg_3IMx5hvol64orWXYsZ5YzQOOwQB'`);
+    const duplicateSafetyCheck = {
+      beforeCount: beforeCount[0]?.count,
+      duplicateInsertAttemptRowsReturned: duplicateProbeResult.length,
+      afterCount: afterCount[0]?.count,
+      duplicateSafe: beforeCount[0]?.count === afterCount[0]?.count && duplicateProbeResult.length === 0,
+    };
 
     const violationAlerts = await sql.unsafe(`
       select payload, created_at as "createdAt" from jobs where type = 'outreach_pause_violation' order by created_at desc limit 50
@@ -219,6 +233,7 @@ async function checkPauseIntegrityHistory() {
       batchJobsWithPauseState,
       specificEmailEventCheck,
       outreachCorrelationCheck,
+      duplicateSafetyCheck,
     };
   } catch (err) {
     return { checkFailed: err instanceof Error ? err.message : String(err) };
