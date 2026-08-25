@@ -1,95 +1,76 @@
 import { getBuildVersion, getDeployedAt, getGitSha } from "@/lib/build-metadata";
-import { getSqlClient } from "@/lib/db";
-
-/** TEMPORARY — checking for existing opened/clicked events before asking for a new test send. Remove once webhook gate fully closes. */
-async function checkOpenClickEvents() {
-  const sql = getSqlClient();
-  if (!sql) return null;
-  try {
-    return await sql.unsafe(`
-      select event_type as "eventType", email_id as "emailId", svix_message_id as "svixMessageId",
-             recipient, created_at as "createdAt"
-      from email_events
-      where event_type in ('opened', 'clicked')
-      order by created_at desc
-      limit 20
-    `);
-  } catch (err) {
-    return { checkFailed: err instanceof Error ? err.message : String(err) };
-  }
-}
+import { getDb, jobs } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { recordOutreachSendRow } from "@/lib/outreach/outreach-sends";
 
 function isSet(...names: string[]): boolean {
   return names.every((n) => Boolean(process.env[n]?.trim()));
 }
 
 /**
- * TEMPORARY — behavioral proof the pause guard blocks a real (non-test,
- * non-internal-domain) send at the actual production send boundary, not
- * just by code inspection. Calls the real sendFollowupEmail() function
- * (same one runFollowupOutreachBatch uses) from inside this same running
- * process. Recipient is deliberately example.com — an IANA/RFC 2606
- * reserved domain that will never accept real mail and belongs to no real
- * person — so even a guard failure could not reach an actual prospect.
- * Remove once the pause gate is fully closed.
+ * TEMPORARY, one-time-use POST trigger for the same internal webhook test
+ * send /admin/outreach's "Send test email" form performs (identical Resend
+ * call, identical jobs/outreach_sends bookkeeping) — invoked directly by
+ * Claude at the user's explicit request rather than requiring them to
+ * navigate the admin UI, since this session already establishes the pattern
+ * of running real production code from this diagnostic endpoint. Recipient
+ * is fixed to chris@iscreamstudio.com (an approved internal domain under
+ * the pause guard) — never a prospect, never caller-suppliable. Idempotency-
+ * guarded via a jobs marker so a duplicate POST can't double-send. Remove
+ * this whole handler once the webhook gate closes.
  */
-async function checkPauseBoundaryBehavior() {
-  const sql = getSqlClient();
-  const testRecipient = "outreach-pause-boundary-test@example.com";
-  try {
-    const { sendFollowupEmail } = await import("@/lib/outreach/outreach-emailer");
-    const beforeRows = sql
-      ? await sql.unsafe(`select count(*)::int as "count" from outreach_sends where recipient = $1`, [testRecipient])
-      : [{ count: null }];
+export async function POST() {
+  const db = getDb();
+  if (!db) return Response.json({ ok: false, error: "no_db" }, { status: 500 });
 
-    const result = await sendFollowupEmail({
-      businessName: "Pause Boundary Test — not a real business",
-      email: testRecipient,
-    });
-
-    const afterRows = sql
-      ? await sql.unsafe(`select count(*)::int as "count" from outreach_sends where recipient = $1`, [testRecipient])
-      : [{ count: null }];
-
-    // Independent, out-of-band confirmation nothing actually reached Resend:
-    // list Resend's own recent sends and confirm this address isn't among them.
-    let resendSentToTestAddress: unknown = "not_checked";
-    const apiKey = process.env.RESEND_API_KEY;
-    if (apiKey) {
-      const res = await fetch("https://api.resend.com/emails?limit=5", { headers: { authorization: `Bearer ${apiKey}` } });
-      if (res.ok) {
-        const body = (await res.json()) as { data?: Array<{ to?: string[] }> };
-        resendSentToTestAddress = (body.data ?? []).some((e) => e.to?.includes(testRecipient));
-      } else {
-        resendSentToTestAddress = `fetch_failed_${res.status}`;
-      }
-    }
-
-    return {
-      testRecipient,
-      functionResult: result,
-      blockedBeforeResend: result.skipped === true && result.ok === false,
-      outreachSendsRowCountBefore: beforeRows[0]?.count,
-      outreachSendsRowCountAfter: afterRows[0]?.count,
-      noOutreachSendsRowCreated: beforeRows[0]?.count === afterRows[0]?.count,
-      resendSentToTestAddress,
-    };
-  } catch (err) {
-    return { checkFailed: err instanceof Error ? err.message : String(err) };
+  const markerType = "manual_webhook_diagnostic_trigger_2026_08_25";
+  const [already] = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.type, markerType)).limit(1);
+  if (already) {
+    return Response.json({ ok: false, error: "already_sent_once", note: "idempotency guard — this trigger only fires once" });
   }
+
+  const to = "chris@iscreamstudio.com";
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !from) return Response.json({ ok: false, error: "resend_not_configured" }, { status: 500 });
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject: "GravyBlock webhook test — internal, not a real send",
+      html: `<p>This is a one-off internal test to verify Resend webhook delivery end to end.</p>
+             <p>Click this link once to help generate a click event: <a href="https://gravyblock.com/?webhook_test=1">confirm test</a></p>`,
+      tags: [{ name: "type", value: "webhook_test" }],
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    return Response.json({ ok: false, error: `resend_api_${res.status}`, detail: text }, { status: 502 });
+  }
+  const body = (await res.json()) as { id: string };
+
+  await db.insert(jobs).values({ type: markerType, status: "done", payload: { to, resendEmailId: body.id, sentAt: new Date().toISOString() } });
+  await db.insert(jobs).values({ type: "webhook_test_sent", status: "done", payload: { to, resendEmailId: body.id, sentAt: new Date().toISOString() } });
+  await recordOutreachSendRow({
+    resendEmailId: body.id,
+    recipient: to,
+    campaign: "webhook_test",
+    sequenceStep: "test",
+    isTest: true,
+  });
+
+  return Response.json({ ok: true, resendEmailId: body.id, to });
 }
 
 export async function GET() {
   const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
   const environment = process.env.NODE_ENV ?? "unknown";
-  const [openClickEvents, pauseBoundaryBehavior] = await Promise.all([
-    checkOpenClickEvents(),
-    checkPauseBoundaryBehavior(),
-  ]);
 
   return Response.json({
-    openClickEvents,
-    pauseBoundaryBehavior,
     ok: true,
     appName: "GravyBlock",
     environment,
