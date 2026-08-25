@@ -175,6 +175,19 @@ async function checkPauseIntegrityHistory() {
       limit 200
     `);
 
+    const specificEmailEventCheck = await sql.unsafe(`
+      select id, event_type as "eventType", email_id as "emailId", recipient,
+             svix_message_id as "svixMessageId", created_at as "createdAt"
+      from email_events
+      where svix_message_id = 'msg_3IMx5hvol64orWXYsZ5YzQOOwQB'
+    `);
+    const outreachCorrelationCheck = await sql.unsafe(`
+      select id, resend_email_id as "resendEmailId", recipient, campaign, status,
+             delivered_at as "deliveredAt", opened_at as "openedAt"
+      from outreach_sends
+      where resend_email_id = '872676a8-7d9d-4506-a616-fcba4238d8e9'
+    `);
+
     const violationAlerts = await sql.unsafe(`
       select payload, created_at as "createdAt" from jobs where type = 'outreach_pause_violation' order by created_at desc limit 50
     `);
@@ -199,7 +212,14 @@ async function checkPauseIntegrityHistory() {
       limit 100
     `);
 
-    return { outreachSettingsHistory, allNonTestSendsWithPauseState, violationAlerts, batchJobsWithPauseState };
+    return {
+      outreachSettingsHistory,
+      allNonTestSendsWithPauseState,
+      violationAlerts,
+      batchJobsWithPauseState,
+      specificEmailEventCheck,
+      outreachCorrelationCheck,
+    };
   } catch (err) {
     return { checkFailed: err instanceof Error ? err.message : String(err) };
   }
