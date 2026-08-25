@@ -58,6 +58,13 @@ async function checkOpenClickProof() {
     if (apiKey) {
       const res = await fetch(`https://api.resend.com/emails/${resendEmailId}`, { headers: { authorization: `Bearer ${apiKey}` } });
       result.resendProviderState = res.ok ? await res.json() : { fetchError: `Resend API ${res.status}` };
+
+      // Click/open tracking in Resend is a domain-level setting (dashboard,
+      // not a per-send API parameter — confirmed no send call anywhere in
+      // this codebase ever sets a tracking option). Check the sending
+      // domain's own configuration directly rather than guess.
+      const domainsRes = await fetch("https://api.resend.com/domains", { headers: { authorization: `Bearer ${apiKey}` } });
+      result.resendDomains = domainsRes.ok ? await domainsRes.json() : { fetchError: `Resend API ${domainsRes.status}` };
     }
   } catch (err) {
     result.checkFailed = err instanceof Error ? err.message : String(err);
