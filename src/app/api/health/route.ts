@@ -1,7 +1,46 @@
 import { getBuildVersion, getDeployedAt, getGitSha } from "@/lib/build-metadata";
-import { getDb, jobs } from "@/lib/db";
+import { getDb, jobs, businesses } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { recordOutreachSendRow } from "@/lib/outreach/outreach-sends";
+import { getSqlClient } from "@/lib/db";
+import { getAllComponentStates } from "@/lib/setup/onboarding-components";
+
+/** TEMPORARY — checking webhook-test open/click events and house-account canary pipeline progress. Remove once both gates close. */
+async function checkGateProgress() {
+  const sql = getSqlClient();
+  const db = getDb();
+  const result: Record<string, unknown> = {};
+
+  if (sql) {
+    try {
+      result.openClickEvents = await sql.unsafe(`
+        select event_type as "eventType", email_id as "emailId", svix_message_id as "svixMessageId", created_at as "createdAt"
+        from email_events
+        where email_id = '5f93564a-1ba8-4b67-b169-03154dd5bec1'
+        order by created_at asc
+      `);
+    } catch (err) {
+      result.openClickEventsError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  if (db) {
+    try {
+      const [marker] = await db.select({ status: jobs.status, payload: jobs.payload, createdAt: jobs.createdAt }).from(jobs).where(eq(jobs.type, "house_account_canary_pipeline_done")).limit(1);
+      result.houseCanaryMarker = marker ?? null;
+
+      const houseAccounts = await db.select({ id: businesses.id, name: businesses.name }).from(businesses).where(eq(businesses.accountType, "house"));
+      const houseStates = await Promise.all(
+        houseAccounts.map(async (b) => ({ businessId: b.id, name: b.name, components: await getAllComponentStates(b.id) })),
+      );
+      result.houseAccountComponentStates = houseStates;
+    } catch (err) {
+      result.houseCanaryError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  return result;
+}
 
 function isSet(...names: string[]): boolean {
   return names.every((n) => Boolean(process.env[n]?.trim()));
@@ -69,8 +108,10 @@ export async function POST() {
 export async function GET() {
   const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
   const environment = process.env.NODE_ENV ?? "unknown";
+  const gateProgress = await checkGateProgress();
 
   return Response.json({
+    gateProgress,
     ok: true,
     appName: "GravyBlock",
     environment,
