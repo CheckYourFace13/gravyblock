@@ -16,7 +16,7 @@
  */
 
 import { eq, and, inArray, gte, lte, count } from "drizzle-orm";
-import { runPendingRecurringSnapshotJobs, executeContentPublishPath, backfillMissingRecurringJobs, reinitializeHouseAccountBaselines } from "@/lib/autopilot/executor";
+import { runPendingRecurringSnapshotJobs, executeContentPublishPath, backfillMissingRecurringJobs } from "@/lib/autopilot/executor";
 import { getDb, businesses, contentQueue, jobs, emailEvents } from "@/lib/db";
 import { queueContentForBusiness } from "@/lib/content-gen/queue-content";
 import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
@@ -26,7 +26,7 @@ import { runOnboardingBatch } from "@/lib/email/onboarding";
 import { runTestimonialRequestBatch } from "@/lib/email/testimonial-request";
 import { runReviewRequestBatch } from "@/lib/email/review-request";
 import { runAutoConfigBatch } from "@/lib/setup/auto-config";
-import { runOnboardingBaselineBatch } from "@/lib/setup/onboarding-baseline";
+import { runOnboardingPipelineBatch, runHouseAccountCanaryPipeline } from "@/lib/setup/onboarding-pipeline";
 import { runMonthlyDigestBatch } from "@/lib/email/monthly-digest";
 import { runAbandonedCheckoutBatch } from "@/lib/email/abandoned-checkout";
 import { runLeadReengagementBatch } from "@/lib/email/lead-reengagement";
@@ -472,30 +472,31 @@ async function tick() {
     console.error("[worker] auto-config failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
-  // Safety net for the paid-onboarding baseline scan kicked off (but not
-  // awaited) at checkout — catches anyone whose immediate attempt failed or
-  // never ran (process restart mid-checkout, etc.) so a paid business is
-  // never permanently stuck with zero real visibility snapshot.
+  // Safety net for the shared onboarding pipeline kicked off (but not
+  // awaited) at checkout — catches anyone whose immediate attempt didn't
+  // reach automation_ready (process restart mid-checkout, a transient API
+  // failure on one component, etc.) so a paid business is never permanently
+  // stuck. Resumable per-component: only retries what's still pending.
   try {
-    const baselineResult = await runOnboardingBaselineBatch(3);
-    if (baselineResult.completed > 0 || baselineResult.failed > 0) {
-      console.info("[worker] onboarding baseline setup", baselineResult);
+    const pipelineResult = await runOnboardingPipelineBatch(3);
+    if (pipelineResult.processed > 0) {
+      console.info("[worker] onboarding pipeline batch", pipelineResult);
     }
   } catch (error) {
-    console.error("[worker] onboarding baseline batch failed", { error: error instanceof Error ? error.message : String(error) });
+    console.error("[worker] onboarding pipeline batch failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
-  // ONE-TIME: bring house accounts' next recurring refresh forward so /proof
-  // reflects a fresh recompute under the visibility-v2 scoring methodology
-  // instead of whatever score happened to be current from the old formula.
-  // Marker-gated so this never repeats once it's run.
-  if (!(await hasJobEverRun("house_baseline_reinit_v2_done"))) {
+  // ONE-TIME: run house accounts through the SAME shared onboarding pipeline
+  // a real paying customer's checkout triggers (not just a recurring-refresh
+  // fast-forward) so /proof reflects an account that actually exercised the
+  // real customer initialization path. Marker-gated so this never repeats.
+  if (!(await hasJobEverRun("house_account_canary_pipeline_done"))) {
     try {
-      const houseResult = await reinitializeHouseAccountBaselines();
-      await recordWorkerJob("house_baseline_reinit_v2_done", houseResult);
-      console.info("[worker] house account baseline reinit", houseResult);
+      const houseResult = await runHouseAccountCanaryPipeline();
+      await recordWorkerJob("house_account_canary_pipeline_done", houseResult);
+      console.info("[worker] house account canary pipeline", houseResult);
     } catch (error) {
-      console.error("[worker] house account baseline reinit failed", { error: error instanceof Error ? error.message : String(error) });
+      console.error("[worker] house account canary pipeline failed", { error: error instanceof Error ? error.message : String(error) });
     }
   }
 

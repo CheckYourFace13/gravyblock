@@ -8,6 +8,7 @@ import { getWorkspaceBundle } from "@/lib/report/repository";
 import { normalizePlanTierFromDb, planFeatures, type PlanTier } from "@/lib/plans";
 import { requireBusinessAccess } from "@/lib/auth/customer-guards";
 import { getBusinessActivity, type ActivityItem } from "@/lib/workspace/activity-feed";
+import { getCustomerOnboardingSummary } from "@/lib/setup/onboarding-components";
 import { CheckoutButton, PortalButton } from "./billing-buttons";
 import { LocationsSection } from "./locations-section";
 import { getLocationsForBusiness } from "./location-actions";
@@ -67,6 +68,9 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
   const query = await searchParams;
   const bundle = await getWorkspaceBundle(businessId);
   if (!bundle) notFound();
+  const onboardingSummary = await getCustomerOnboardingSummary(businessId).catch(() => []);
+  const onboardingReady = onboardingSummary.find((i) => i.label === "Automation ready")?.state === "done";
+  const onboardingStuck = onboardingSummary.some((i) => i.state === "stuck");
   const autopilot = await getAutopilotWorkspace(businessId).catch((err) => {
     console.error("[workspace] autopilot load failed", err);
     return {
@@ -269,14 +273,33 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
   return (
     <div className="mx-auto max-w-6xl space-y-12 px-4 py-14 sm:px-6">
 
-      {bundle.snapshots.length === 0 ? (
-        <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-5">
-          <p className="text-sm font-bold uppercase tracking-wide text-amber-800">Setup incomplete</p>
-          <p className="mt-1 text-sm text-amber-900">
-            GravyBlock hasn&apos;t run your first real visibility scan yet — this usually finishes within a few
-            minutes of signup. Scores and findings below will populate once it completes. If this persists more than
-            an hour, contact support and we&apos;ll check on it.
+      {!onboardingReady && onboardingSummary.length > 0 ? (
+        <div className={`rounded-2xl border-2 p-5 ${onboardingStuck ? "border-red-400 bg-red-50" : "border-amber-400 bg-amber-50"}`}>
+          <p className={`text-sm font-bold uppercase tracking-wide ${onboardingStuck ? "text-red-800" : "text-amber-800"}`}>
+            {onboardingStuck ? "Setup needs attention" : "Setup in progress"}
           </p>
+          <p className={`mt-1 text-sm ${onboardingStuck ? "text-red-900" : "text-amber-900"}`}>
+            {onboardingStuck
+              ? "Something in your setup needs a human to look at it — contact support and we'll sort it out."
+              : "GravyBlock is establishing your real baseline. This usually finishes within a few minutes of signup."}
+          </p>
+          <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
+            {onboardingSummary
+              .filter((i) => i.label !== "Automation ready")
+              .map((i) => (
+                <li key={i.label} className="flex items-center gap-2 text-sm">
+                  <span className={
+                    i.state === "done" ? "text-emerald-600" :
+                    i.state === "stuck" ? "text-red-600" :
+                    i.state === "action_needed" ? "text-amber-600" : "text-zinc-400"
+                  }>
+                    {i.state === "done" ? "✓" : i.state === "stuck" ? "✗" : i.state === "action_needed" ? "•" : "…"}
+                  </span>
+                  <span className="text-zinc-700">{i.label}</span>
+                  {i.state !== "done" ? <span className="text-xs text-zinc-400">{i.detail}</span> : null}
+                </li>
+              ))}
+          </ul>
         </div>
       ) : null}
 

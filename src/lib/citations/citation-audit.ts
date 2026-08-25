@@ -14,7 +14,6 @@
 
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb, businesses, operatorTasks, jobs } from "@/lib/db";
-import { normalizePlanTierFromDb } from "@/lib/plans";
 
 const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
 
@@ -53,6 +52,100 @@ function directoriesForCategory(category: string | null | undefined): string[] {
 
 function canonicalNap(biz: { name: string; address: string | null; phone: string | null }): string {
   return [biz.name, biz.address ?? "no address", biz.phone ?? "no phone"].join(" | ");
+}
+
+type CitationAuditBusiness = {
+  id: string;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  website: string | null;
+  primaryCategory: string | null;
+  vertical: string | null;
+  planTier: string;
+};
+
+/**
+ * Runs the real citation/NAP audit for exactly one business — creates the
+ * same operator tasks the batch path does. Extracted so onboarding can give
+ * a new customer its first citation baseline immediately instead of waiting
+ * an arbitrary number of ticks for the recurring batch rotation to reach
+ * them. Does NOT check the 30-day dedup window itself — callers decide
+ * whether this run is warranted (onboarding: unconditional first run;
+ * runCitationAuditBatch below: gated on the monthly window).
+ */
+export async function runCitationAuditForBusiness(biz: CitationAuditBusiness): Promise<{ tasksCreated: number }> {
+  const db = getDb();
+  if (!db) return { tasksCreated: 0 };
+
+  const category = biz.vertical ?? biz.primaryCategory ?? null;
+  const directories = directoriesForCategory(category);
+  const nap = canonicalNap(biz);
+
+  // Create one task per directory to verify
+  const taskRows = directories.map((dir) => ({
+    businessId: biz.id,
+    queue: "citation_ops" as const,
+    title: `Verify listing on ${dir}`,
+    detail: `Check that ${biz.name} is listed with correct NAP: ${nap}`,
+    status: "pending" as const,
+    priority: dir === "Google Business Profile" ? 1 : 2,
+  }));
+
+  // Also flag internal inconsistencies
+  if (!biz.address) {
+    taskRows.unshift({
+      businessId: biz.id,
+      queue: "citation_ops",
+      title: "Missing address on business record",
+      detail: `${biz.name} has no address saved. Add it to enable citation consistency checks.`,
+      status: "pending",
+      priority: 1,
+    });
+  }
+
+  if (!biz.phone) {
+    taskRows.unshift({
+      businessId: biz.id,
+      queue: "citation_ops",
+      title: "Missing phone number on business record",
+      detail: `${biz.name} has no phone number. Consistent phone across all citations is critical for local rankings.`,
+      status: "pending",
+      priority: 1,
+    });
+  }
+
+  // Check website domain matches what's on GBP (stored as business.website)
+  if (!biz.website) {
+    taskRows.unshift({
+      businessId: biz.id,
+      queue: "citation_ops",
+      title: "No website linked on GBP",
+      detail: `${biz.name} has no website URL recorded. Add a website to the GBP listing to improve rankings.`,
+      status: "pending",
+      priority: 1,
+    });
+  }
+
+  if (taskRows.length > 0) {
+    await db.insert(operatorTasks).values(
+      taskRows.map((t) => ({
+        businessId: t.businessId,
+        queue: t.queue,
+        title: t.title,
+        detail: t.detail,
+        status: t.status,
+      })),
+    );
+  }
+
+  await db.insert(jobs).values({
+    type: "citation_audit_run",
+    status: "completed",
+    payload: { businessId: biz.id, tasksCreated: taskRows.length },
+  });
+
+  return { tasksCreated: taskRows.length };
 }
 
 export async function runCitationAuditBatch(batchSize = 5): Promise<{ audited: number; skipped: number }> {
@@ -96,74 +189,7 @@ export async function runCitationAuditBatch(batchSize = 5): Promise<{ audited: n
 
     if (recent) { skipped++; continue; }
 
-    const tier = normalizePlanTierFromDb(biz.planTier);
-    const category = biz.vertical ?? biz.primaryCategory ?? null;
-    const directories = directoriesForCategory(category);
-    const nap = canonicalNap(biz);
-
-    // Create one task per directory to verify
-    const taskRows = directories.map((dir) => ({
-      businessId: biz.id,
-      queue: "citation_ops" as const,
-      title: `Verify listing on ${dir}`,
-      detail: `Check that ${biz.name} is listed with correct NAP: ${nap}`,
-      status: "pending" as const,
-      priority: dir === "Google Business Profile" ? 1 : 2,
-    }));
-
-    // Also flag internal inconsistencies
-    if (!biz.address) {
-      taskRows.unshift({
-        businessId: biz.id,
-        queue: "citation_ops",
-        title: "Missing address on business record",
-        detail: `${biz.name} has no address saved. Add it to enable citation consistency checks.`,
-        status: "pending",
-        priority: 1,
-      });
-    }
-
-    if (!biz.phone) {
-      taskRows.unshift({
-        businessId: biz.id,
-        queue: "citation_ops",
-        title: "Missing phone number on business record",
-        detail: `${biz.name} has no phone number. Consistent phone across all citations is critical for local rankings.`,
-        status: "pending",
-        priority: 1,
-      });
-    }
-
-    // Check website domain matches what's on GBP (stored as business.website)
-    if (!biz.website) {
-      taskRows.unshift({
-        businessId: biz.id,
-        queue: "citation_ops",
-        title: "No website linked on GBP",
-        detail: `${biz.name} has no website URL recorded. Add a website to the GBP listing to improve rankings.`,
-        status: "pending",
-        priority: 1,
-      });
-    }
-
-    if (taskRows.length > 0) {
-      await db.insert(operatorTasks).values(
-        taskRows.map((t) => ({
-          businessId: t.businessId,
-          queue: t.queue,
-          title: t.title,
-          detail: t.detail,
-          status: t.status,
-        })),
-      );
-    }
-
-    await db.insert(jobs).values({
-      type: "citation_audit_run",
-      status: "completed",
-      payload: { businessId: biz.id, tasksCreated: taskRows.length },
-    });
-
+    await runCitationAuditForBusiness(biz);
     audited++;
   }
 

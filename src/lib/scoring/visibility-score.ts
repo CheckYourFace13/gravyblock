@@ -43,6 +43,25 @@
 
 export const SCORE_METHOD_VERSION = "visibility-v2";
 
+/**
+ * Method version for the INITIAL scan formula (src/lib/report/generator.ts's
+ * buildSections/weightedScore — used by the public /scan flow, cold-outreach
+ * prospect pre-scan, and paid-onboarding's first baseline scan). This is a
+ * genuinely different, older formula from visibility-v2 above — a section-
+ * averaged score over businessSnapshot/googlePresence/websiteConversionHealth/
+ * searchVisibility/localRankingSignals/socialPresence, each built from real
+ * rating/review/crawl/search-console/rank-estimate/social-discovery signals.
+ * Verified clean of the activity-inflation pattern removed elsewhere this
+ * session: none of those six sections reference published-content count or
+ * any other automation-activity signal — inputs are all independently
+ * observed. Tagging it explicitly (rather than leaving new rows untagged/
+ * "legacy") means a same-formula trend comparison is still possible between
+ * two baseline-v1 snapshots, while a baseline-v1-to-visibility-v2 comparison
+ * correctly falls back to "Baseline established" rather than a fabricated
+ * delta across two different formulas.
+ */
+export const BASELINE_SCORE_METHOD_VERSION = "baseline-v1";
+
 export type ScoreComponent = {
   key: string;
   label: string;

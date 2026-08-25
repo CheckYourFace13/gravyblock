@@ -8,12 +8,10 @@ import {
   getBusinessByStripeSubscriptionId,
   stripeSubscriptionSnapshot,
 } from "@/lib/billing/repository";
-import { schedulePlanRecurringSnapshotJob, scheduleRecurringSnapshotJob } from "@/lib/autopilot/executor";
-import { getPlanFromPriceId } from "@/lib/stripe/server";
 import { getStripeServerClient } from "@/lib/stripe/server";
 import { sendSetupEmail } from "@/lib/setup/send-setup-email";
 import { autoConfigBusiness } from "@/lib/setup/auto-config";
-import { runOnboardingBaselineSetup } from "@/lib/setup/onboarding-baseline";
+import { runOnboardingPipeline } from "@/lib/setup/onboarding-pipeline";
 import { applyDunningDowngrade, sendDowngradeNoticeEmail, sendPaymentFailedEmail } from "@/lib/billing/dunning";
 import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { getDb, businesses } from "@/lib/db";
@@ -96,32 +94,22 @@ export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Se
     console.error("[stripe] autoConfigBusiness failed on checkout", { businessId, error: String(err) }),
   );
 
-  // Establish the REAL first visibility baseline — same scan pipeline the
-  // free-scan flow uses (generateReportFromPlace/FromWebsite → recordScanRun).
-  // Not awaited (a real scan can take 10-30s and must not risk timing out
-  // Stripe's webhook delivery), but durably tracked and retried: attempts are
-  // recorded in `jobs`, and runOnboardingBaselineBatch in the worker tick
-  // sweeps up anyone whose immediate attempt failed or didn't run (process
-  // restart, etc.) — the same immediate-attempt + worker-safety-net pattern
-  // already used for autoConfigBusiness above. Until this completes, the
-  // workspace page shows "Setup incomplete" rather than a fabricated score.
-  void runOnboardingBaselineSetup(businessId).catch((err) =>
-    console.error("[stripe] onboarding baseline setup failed on checkout", { businessId, error: String(err) }),
+  // Establish every baseline component (website crawl, place identity,
+  // competitor/ranking where resolvable, AI visibility, citations, GBP
+  // status, score snapshot, recurring scheduling) through the ONE shared
+  // onboarding pipeline — the same entry point house accounts use directly
+  // (see runHouseAccountCanaryPipeline). Not awaited (real scan/API
+  // calls take 10-30s and must not risk timing out Stripe's webhook
+  // delivery), but durably tracked and resumable per-component: each
+  // component's state is a `jobs` row, and runOnboardingPipelineBatch in the
+  // worker tick sweeps up any business that hasn't reached automation_ready
+  // (process restart, transient API failure, etc.) — the same immediate-
+  // attempt + worker-safety-net pattern already used for autoConfigBusiness
+  // above. Until automation_ready, the workspace page shows real per-
+  // component status rather than a fabricated score.
+  void runOnboardingPipeline(businessId, "stripe_checkout").catch((err) =>
+    console.error("[stripe] onboarding pipeline failed on checkout", { businessId, error: String(err) }),
   );
-
-  const planTier = getPlanFromPriceId(snap.priceId);
-  if (planTier && planTier !== "free") {
-    const jobType = planTier === "pro" || planTier === "agency" ? "pro_recurring_refresh" : "entry_monthly_refresh";
-    await scheduleRecurringSnapshotJob({
-      businessId,
-      runAfterMs: 0,
-      type: jobType,
-    });
-    await schedulePlanRecurringSnapshotJob({
-      businessId,
-      planTier,
-    });
-  }
 }
 
 export async function handleSubscriptionUpsert(subscription: Stripe.Subscription) {

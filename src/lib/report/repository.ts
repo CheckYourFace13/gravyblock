@@ -33,6 +33,7 @@ import { buildContentOpportunitySeeds } from "@/lib/growth/content-opportunities
 import { buildRoadmapRows, sectionScoresFromPayload } from "@/lib/growth/roadmap";
 import type { BusinessProfile, LocalRankingCheck, ReportPayload, Vertical, WebsiteAuditFinding } from "@/lib/report/types";
 import type { LeadFormInput } from "@/lib/validation/lead";
+import { BASELINE_SCORE_METHOD_VERSION } from "@/lib/scoring/visibility-score";
 
 type LeadSource = NonNullable<LeadFormInput["source"]>;
 type SocialPlatform = "facebook" | "instagram" | "twitter" | "tiktok" | "youtube" | "linkedin";
@@ -482,6 +483,7 @@ export async function recordScanRun(input: {
       overallScore: input.payload.summary.score,
       opportunityLevel: input.payload.opportunityLevel,
       sectionScores: sectionScoresFromPayload(input.payload),
+      scoreMethodVersion: BASELINE_SCORE_METHOD_VERSION,
       source: "scan",
     });
 
