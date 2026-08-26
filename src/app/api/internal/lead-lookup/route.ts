@@ -1,5 +1,6 @@
 import { timingSafeEqual, createHmac } from "node:crypto";
 import { getSqlClient } from "@/lib/db";
+import { runOnboardingPipeline } from "@/lib/setup/onboarding-pipeline";
 
 /**
  * TEMPORARY, read-only, secret-gated production lookup for the first-customer
@@ -90,4 +91,18 @@ export async function GET(req: Request) {
     : [];
 
   return Response.json({ leads, businesses, scans: scansByBusiness, reports, snapshots, funnel, outreach });
+}
+
+/**
+ * TEMPORARY — forces a fresh current-pipeline scan for one existing business
+ * ahead of sales follow-up, via the same already-proven runOnboardingPipeline
+ * used for house-account canaries/worker retries. Body: { businessId }.
+ */
+export async function POST(req: Request) {
+  if (!authorized(req)) return Response.json({ error: "unauthorized" }, { status: 401 });
+  const { businessId } = (await req.json()) as { businessId?: string };
+  if (!businessId) return Response.json({ error: "businessId required" }, { status: 400 });
+
+  const result = await runOnboardingPipeline(businessId, "worker_retry", { forceRescan: true });
+  return Response.json(result);
 }
