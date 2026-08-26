@@ -5,6 +5,7 @@ import { runProspectPreScan } from "./prospect-prescan";
 import { isOptedOut } from "@/lib/email/optout";
 import { discoverContactEmail } from "./discover-contact-email";
 import { recordOutreachSendRow } from "./outreach-sends";
+import { recordOutreachSendFailure } from "./outreach-health";
 
 const DEFAULT_MAX_EMAILS = 25; // 25 per batch × 4 weekday windows = ~100/day
 
@@ -79,10 +80,9 @@ export async function runOutreachBatch(params: {
         preScan,
       });
     } catch (err) {
-      console.error("[outreach-batch] Send failed", {
-        businessName: prospect.businessName,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[outreach-batch] Send failed", { businessName: prospect.businessName, error: message });
+      await recordOutreachSendFailure({ campaign: "cold_outreach", businessName: prospect.businessName, error: message });
       skipped++;
       continue;
     }

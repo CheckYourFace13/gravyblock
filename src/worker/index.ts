@@ -17,7 +17,7 @@
 
 import { eq, and, inArray, gte, lte, count } from "drizzle-orm";
 import { runPendingRecurringSnapshotJobs, executeContentPublishPath, backfillMissingRecurringJobs } from "@/lib/autopilot/executor";
-import { getDb, businesses, contentQueue, jobs, emailEvents } from "@/lib/db";
+import { getDb, businesses, contentQueue, jobs } from "@/lib/db";
 import { queueContentForBusiness } from "@/lib/content-gen/queue-content";
 import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
@@ -280,45 +280,6 @@ const WEEKEND_RESTAURANT_TARGETS = [
   { windowKey: "sun_afternoon", day: 0, hour: 18, city: "Nashville", state: "TN", industry: "restaurant",  industryLabel: "restaurant" },
 ];
 
-/**
- * Deliverability circuit breaker. Cold outreach runs at max volume from the
- * primary domain until the dedicated sending domain exists, so a bad batch
- * (bounce spike) must stop the channel automatically rather than burn the
- * domain reputation that transactional email depends on.
- *
- * Uses Resend webhook events: if bounces exceed 8% of cold sends over the
- * last 48h (with at least 20 sends to avoid small-sample noise), all windows
- * skip and a visible job row is recorded for the admin outreach page.
- */
-async function coldOutreachCircuitBreakerTripped(): Promise<boolean> {
-  const db = getDb();
-  if (!db) return false;
-  try {
-    const since = new Date(Date.now() - 48 * 60 * 60 * 1000);
-    const [sends, bounces] = await Promise.all([
-      db.select({ n: count() }).from(jobs)
-        .where(and(eq(jobs.type, "cold_outreach_sent"), gte(jobs.createdAt, since)))
-        .then((r) => r[0]?.n ?? 0),
-      db.select({ n: count() }).from(emailEvents)
-        .where(and(eq(emailEvents.eventType, "bounced"), gte(emailEvents.createdAt, since)))
-        .then((r) => r[0]?.n ?? 0),
-    ]);
-    if (sends < 20) return false;
-    const rate = bounces / sends;
-    if (rate <= 0.08) return false;
-
-    if (!(await hasJobRunToday("outreach_circuit_breaker"))) {
-      await recordWorkerJob("outreach_circuit_breaker", { sends48h: sends, bounces48h: bounces, ratePct: Math.round(rate * 100) });
-      console.error("[worker] OUTREACH PAUSED by circuit breaker — bounce rate too high", {
-        sends48h: sends, bounces48h: bounces, ratePct: Math.round(rate * 100),
-      });
-    }
-    return true;
-  } catch {
-    return false; // events table missing on older DBs — never block sends on a monitoring failure
-  }
-}
-
 async function runColdOutreachWindow(
   windowKey: string,
   calendarOffset: number,
@@ -329,6 +290,21 @@ async function runColdOutreachWindow(
   const now = new Date();
   if (now.getUTCHours() < hour || now.getUTCHours() > hour + 1) return;
   if (await hasJobRunToday(`cold_outreach_${windowKey}`)) return;
+
+  const { checkOutreachHealth } = await import("@/lib/outreach/outreach-health");
+  const health = await checkOutreachHealth();
+  if (!health.healthy) {
+    console.error(`[worker] cold outreach [${windowKey}] skipped — health check failed`, { reason: health.reason });
+    return;
+  }
+
+  const { getRemainingColdRampBudget } = await import("@/lib/outreach/send-budget");
+  const remainingBudget = await getRemainingColdRampBudget();
+  if (remainingBudget <= 0) {
+    console.info(`[worker] cold outreach [${windowKey}] skipped — daily ramp/shared budget exhausted`);
+    return;
+  }
+  const effectiveCap = Math.min(emailsPerBatch, remainingBudget);
 
   let target: { city: string; state: string; industry: string; industryLabel: string };
   if (overrideTarget) {
@@ -344,7 +320,7 @@ async function runColdOutreachWindow(
       state: target.state,
       industry: target.industry,
       industryLabel: target.industryLabel,
-      maxEmails: emailsPerBatch,
+      maxEmails: effectiveCap,
     });
     await recordWorkerJob(`cold_outreach_${windowKey}`, { ...result, ...target, window: windowKey });
     await recordWorkerJob("cold_outreach_batch", { ...result, ...target, window: windowKey });
@@ -364,7 +340,6 @@ async function maybeSendColdOutreach() {
   }));
 
   if (settings.paused) return;
-  if (await coldOutreachCircuitBreakerTripped()) return;
 
   const now = new Date();
   const day = now.getUTCDay(); // 0=Sun, 6=Sat
@@ -551,36 +526,56 @@ async function tick() {
 
   // Follow-up email (#2): free trial offer to prospects who got email #1 3-21 days ago
   // Runs once per day at 14:00 UTC (10am ET / 7am PT)
-  // Capped at 20/day — this, breakup (10/day), and cold outreach (60/day at
-  // 15/batch x 4 windows) share ONE 100/day Resend account quota with no
-  // coordination between them; each used to independently cap at 100,
-  // meaning all three firing the same day could triple-stack past the real
-  // limit regardless of what any single one was set to.
+  // Capped at 20/day, further reduced to whatever's left of the shared
+  // 100/day cross-type ceiling (send-budget.ts) — this, breakup, and cold
+  // outreach used to each independently cap at their own number with no
+  // coordination, meaning all three firing the same day could triple-stack
+  // past the real limit regardless of what any single one was set to.
   if (!sequenceEmailSettings.paused && new Date().getUTCHours() === 14 && !(await hasJobRunToday("followup_outreach_batch"))) {
-    try {
-      const followupResult = await runFollowupOutreachBatch(20);
-      if (followupResult.sent > 0) {
-        await recordWorkerJob("followup_outreach_batch", followupResult);
-        console.info("[worker] followup outreach emails sent", followupResult);
+    const { checkOutreachHealth } = await import("@/lib/outreach/outreach-health");
+    const { getRemainingSharedBudget } = await import("@/lib/outreach/send-budget");
+    const health = await checkOutreachHealth();
+    const remaining = health.healthy ? await getRemainingSharedBudget() : 0;
+    if (!health.healthy) {
+      console.error("[worker] followup outreach skipped — health check failed", { reason: health.reason });
+    } else if (remaining <= 0) {
+      console.info("[worker] followup outreach skipped — shared daily budget exhausted");
+    } else {
+      try {
+        const followupResult = await runFollowupOutreachBatch(Math.min(20, remaining));
+        if (followupResult.sent > 0) {
+          await recordWorkerJob("followup_outreach_batch", followupResult);
+          console.info("[worker] followup outreach emails sent", followupResult);
+        }
+      } catch (error) {
+        console.error("[worker] followup outreach failed", { error: error instanceof Error ? error.message : String(error) });
       }
-    } catch (error) {
-      console.error("[worker] followup outreach failed", { error: error instanceof Error ? error.message : String(error) });
     }
   }
 
   // Breakup email (#3): final "closing your file" touch, 5-30 days after email #2
   // Runs once per day at 16:00 UTC (12pm ET / 9am PT)
-  // Capped at 10/day — see follow-up batch comment above for why this and
-  // the other outreach batches are coordinated against one shared quota.
+  // Capped at 10/day, further reduced to whatever's left of the shared
+  // daily ceiling — see follow-up batch comment above.
   if (!sequenceEmailSettings.paused && new Date().getUTCHours() === 16 && !(await hasJobRunToday("breakup_outreach_batch"))) {
-    try {
-      const breakupResult = await runBreakupOutreachBatch(10);
-      if (breakupResult.sent > 0) {
-        await recordWorkerJob("breakup_outreach_batch", breakupResult);
-        console.info("[worker] breakup outreach emails sent", breakupResult);
+    const { checkOutreachHealth } = await import("@/lib/outreach/outreach-health");
+    const { getRemainingSharedBudget } = await import("@/lib/outreach/send-budget");
+    const health = await checkOutreachHealth();
+    const remaining = health.healthy ? await getRemainingSharedBudget() : 0;
+    if (!health.healthy) {
+      console.error("[worker] breakup outreach skipped — health check failed", { reason: health.reason });
+    } else if (remaining <= 0) {
+      console.info("[worker] breakup outreach skipped — shared daily budget exhausted");
+    } else {
+      try {
+        const breakupResult = await runBreakupOutreachBatch(Math.min(10, remaining));
+        if (breakupResult.sent > 0) {
+          await recordWorkerJob("breakup_outreach_batch", breakupResult);
+          console.info("[worker] breakup outreach emails sent", breakupResult);
+        }
+      } catch (error) {
+        console.error("[worker] breakup outreach failed", { error: error instanceof Error ? error.message : String(error) });
       }
-    } catch (error) {
-      console.error("[worker] breakup outreach failed", { error: error instanceof Error ? error.message : String(error) });
     }
   }
 

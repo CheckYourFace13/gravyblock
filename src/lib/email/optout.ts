@@ -23,7 +23,15 @@ export function unsubscribeUrl(email: string, leadId?: string): string {
   return `${SITE_URL}/api/unsubscribe?${params.toString()}`;
 }
 
-/** Check if an email address has opted out of all marketing emails. */
+/**
+ * Check if an email address has opted out of all marketing emails.
+ * Deliberately does NOT swallow a query failure into "not opted out" — a
+ * DB error here must block the send (fail closed), same posture as
+ * pause-guard.ts. Silently treating a failed suppression check as "clear to
+ * send" would mean a real opt-out could get re-contacted the moment the
+ * lookup itself has a transient error, which is worse than skipping a good
+ * prospect.
+ */
 export async function isOptedOut(email: string): Promise<boolean> {
   const db = getDb();
   if (!db) return false;
@@ -32,8 +40,7 @@ export async function isOptedOut(email: string): Promise<boolean> {
     .select({ id: jobs.id })
     .from(jobs)
     .where(and(eq(jobs.type, "email_optout"), eq(sql`lower(payload->>'email')`, email.toLowerCase())))
-    .limit(1)
-    .catch(() => []);
+    .limit(1);
 
   return Boolean(row);
 }

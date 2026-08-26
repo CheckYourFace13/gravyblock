@@ -12,6 +12,7 @@
 import { getBreakupCandidates, recordBreakupSent } from "./outreach-tracker";
 import { sendBreakupEmail } from "./outreach-emailer";
 import { recordOutreachSendRow } from "./outreach-sends";
+import { recordOutreachSendFailure } from "./outreach-health";
 
 export async function runBreakupOutreachBatch(
   batchSize = 40,
@@ -48,10 +49,9 @@ export async function runBreakupOutreachBatch(
       }
     } catch (error) {
       errors++;
-      console.error("[breakup-outreach] failed", {
-        businessName: c.businessName,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[breakup-outreach] failed", { businessName: c.businessName, error: message });
+      await recordOutreachSendFailure({ campaign: "cold_outreach_breakup", businessName: c.businessName, error: message });
     }
   }
 

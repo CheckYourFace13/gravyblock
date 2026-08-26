@@ -12,6 +12,7 @@ import { getFollowupCandidates, recordFollowupSent } from "./outreach-tracker";
 import { sendFollowupEmail } from "./outreach-emailer";
 import { isOptedOut } from "@/lib/email/optout";
 import { recordOutreachSendRow } from "./outreach-sends";
+import { recordOutreachSendFailure } from "./outreach-health";
 
 export async function runFollowupOutreachBatch(
   batchSize = 20,
@@ -51,10 +52,9 @@ export async function runFollowupOutreachBatch(
       }
     } catch (error) {
       errors++;
-      console.error("[followup-outreach] failed", {
-        businessName: c.businessName,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[followup-outreach] failed", { businessName: c.businessName, error: message });
+      await recordOutreachSendFailure({ campaign: "cold_outreach_followup", businessName: c.businessName, error: message });
     }
   }
 
