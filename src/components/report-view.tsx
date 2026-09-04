@@ -103,8 +103,13 @@ export function ReportView({
   // /workspace, which redirects anonymous report visitors to a magic-link
   // login wall. directSignupAction on /start matches this business by
   // website automatically, so the scan data isn't lost.
-  const workspacePlanHref = (plan: string) =>
-    `/start?plan=${plan}${promoQuery ? `&${promoQuery}` : ""}`;
+  const workspacePlanHref = (plan: string) => {
+    // Growth's locked-forever rate needs GROWTH50 specifically — don't fall
+    // through to no promo (or a caller-supplied one meant for another plan)
+    // when a visitor lands here without an explicit code in the URL.
+    const effectivePromo = promoQuery || (plan === "growth" ? "promo=GROWTH50" : "");
+    return `/start?plan=${plan}${effectivePromo ? `&${effectivePromo}` : ""}`;
+  };
   const workspaceHref = businessId
     ? chosenPlan
       ? workspacePlanHref(chosenPlan)
@@ -190,85 +195,52 @@ export function ReportView({
         <>
           {businessId ? (
             <section className="rounded-2xl border border-red-200 bg-red-50/50 p-5 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-zinc-900">
-                    {planLabel ? `You chose ${planLabel}. Continue to checkout.` : "Turn on autopilot for this business"}
-                  </h2>
-                  <p className="mt-1 text-sm text-zinc-700">
-                    Start with your business, then activate the plan. We&apos;ll connect this plan to this business and keep
-                    it monitored automatically.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {chosenPlan ? (
-                    <Link
-                      href={workspaceHref!}
-                      className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
-                    >
-                      {primaryLabel}
-                    </Link>
-                  ) : null}
-                  {/* Show Starter only if no plan chosen yet */}
-                  {!chosenPlan ? (
-                    <Link
-                      href={workspacePlanHref("starter")}
-                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
-                    >
-                      Starter — $29.99/mo
-                    </Link>
-                  ) : null}
-                  {/* Show Scale as upgrade nudge only if chosen plan is below Scale */}
-                  {(!chosenPlan || chosenPlan === "starter") ? (
-                    <Link
-                      href={workspacePlanHref("growth")}
-                      className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                    >
-                      Scale — $74.99/mo
-                    </Link>
-                  ) : null}
-                  {/* Show Pro as upgrade nudge only if chosen plan is below Pro */}
-                  {(!chosenPlan || chosenPlan === "starter" || chosenPlan === "growth") ? (
-                    <Link
-                      href={workspacePlanHref("pro")}
-                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
-                    >
-                      Pro — $149.99/mo
-                    </Link>
-                  ) : null}
-                </div>
+              <h2 className="text-lg font-semibold text-zinc-900">
+                {planLabel ? `You chose ${planLabel}. Continue to checkout.` : `Here's what's holding ${payload.business.name} back.`}
+              </h2>
+              {!chosenPlan && topFindings.length > 0 ? (
+                <p className="mt-1 text-sm text-zinc-700">
+                  {topFindings[0]!.title}
+                  {topFindings.length > 1 ? ` and ${topFindings.length - 1} other${topFindings.length > 2 ? "s" : ""} above` : ""} —
+                  let GravyBlock start working on these.
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-zinc-700">
+                  Start with your business, then activate the plan. We&apos;ll connect this plan to this business and keep
+                  it monitored automatically.
+                </p>
+              )}
+
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                {chosenPlan ? (
+                  <Link
+                    href={workspaceHref!}
+                    className="inline-flex items-center justify-center rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500"
+                  >
+                    {primaryLabel}
+                  </Link>
+                ) : (
+                  <Link
+                    href={workspacePlanHref("growth")}
+                    className="inline-flex items-center justify-center rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500"
+                  >
+                    Start Autopilot — $74.99/mo, locked while subscribed
+                  </Link>
+                )}
+                {!chosenPlan ? (
+                  <Link href="/pricing" className="text-sm font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-900">
+                    See all plans (Starter, Pro)
+                  </Link>
+                ) : null}
               </div>
               {promoCode ? <p className="mt-3 text-xs font-medium text-zinc-700">Promo code ready: {promoCode}</p> : null}
-              {chosenPlan === "starter" ? (
-                <div className="mt-4 rounded-xl border border-red-200 bg-white p-4">
-                  <h3 className="text-base font-semibold text-zinc-900">Scale adds full execution for $74.99/mo introductory</h3>
-                  <p className="mt-1 text-sm text-zinc-700">
-                    Scale includes weekly refreshes, AI-written content published to your site, Reddit and blog posting,
-                    multi-step outreach sequences, and 8 backlink opportunities queued monthly.
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Link
-                      href={workspacePlanHref("growth")}
-                      className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
-                    >
-                      Upgrade to Scale instead
-                    </Link>
-                    <Link
-                      href={workspacePlanHref("starter")}
-                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
-                    >
-                      No, continue with Starter
-                    </Link>
-                  </div>
-                </div>
-              ) : null}
             </section>
           ) : (
             /* No businessId — cold visitor viewing a shared report */
             <section className="rounded-2xl border border-red-200 bg-red-50/50 p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-zinc-900">Fix these issues automatically</h2>
+              <h2 className="text-lg font-semibold text-zinc-900">Here&apos;s what&apos;s holding {payload.business.name} back.</h2>
               <p className="mt-1 text-sm text-zinc-700">
-                GravyBlock can run all of this for your business — weekly content, citations, review monitoring, and backlink outreach. Scan your own business to get started free.
+                Let GravyBlock start working on these — weekly content, citations, review monitoring, and backlink outreach. Scan your own business to get started free.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Link

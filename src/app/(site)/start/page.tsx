@@ -6,7 +6,7 @@ import { ANNUAL_SAVINGS } from "@/lib/stripe/server";
 
 export const metadata: Metadata = {
   title: "Get started — GravyBlock",
-  description: "Start your GravyBlock plan. First month free or 50% off with INTRO50.",
+  description: "Start your GravyBlock plan.",
   robots: { index: false, follow: false }, // don't index the signup funnel
 };
 
@@ -75,14 +75,20 @@ export default async function StartPage({ searchParams }: Props) {
   const plan = normalizePlan(query.plan);
   const info = PLAN_INFO[plan];
   // No `promo` param at all → arrived via an existing marketing link that
-  // relies on the default intro offer. An explicit `promo` param (even an
-  // empty string, e.g. from the homepage "Sign up now" link) means the visitor
-  // opted out of the default discount — respect that exactly, don't inject one.
-  const promoCode = query.promo === undefined ? "INTRO50" : normalizePromoCode(query.promo);
+  // relies on the default offer for this plan. An explicit `promo` param
+  // (even an empty string, e.g. from the homepage "Sign up now" link) means
+  // the visitor opted out of the default discount — respect that exactly,
+  // don't inject one. Growth's default is GROWTH50 (locked-forever), not
+  // INTRO50 (first-month-only) — every Growth entry point must land on the
+  // same true "$74.99 for as long as you stay subscribed" price, not just
+  // the ones explicitly updated to say so.
+  const defaultPromoForPlan = plan === "growth" ? "GROWTH50" : "INTRO50";
+  const promoCode = query.promo === undefined ? defaultPromoForPlan : normalizePromoCode(query.promo);
+  const priceLocked = promoCode === "GROWTH50";
   const isAnnual = query.interval === "annual";
   const annualSavings = ANNUAL_SAVINGS[plan === "growth" ? "growth" : plan];
   const displayPrice = isAnnual ? annualSavings.monthlyEquiv : promoCode ? info.intro : info.monthly;
-  const billingLabel = isAnnual ? `/mo billed annually` : promoCode ? `/mo · first month` : `/mo`;
+  const billingLabel = isAnnual ? `/mo billed annually` : promoCode ? `/mo${priceLocked ? "" : " · first month"}` : `/mo`;
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-zinc-50 to-white px-4 py-12 sm:px-6">
@@ -93,12 +99,13 @@ export default async function StartPage({ searchParams }: Props) {
           ← Back to pricing
         </a>
 
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-center">
-          <p className="text-sm font-semibold text-amber-900">
-            🏆 Founding member pricing — first 20 customers lock in today&apos;s rates for life
-          </p>
-          <p className="mt-0.5 text-xs text-amber-700">Prices increase as we grow. Won&apos;t stay this low.</p>
-        </div>
+        {priceLocked && (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-center">
+            <p className="text-sm font-semibold text-amber-900">
+              Special rate: $74.99/month — keep this rate for as long as your subscription stays active.
+            </p>
+          </div>
+        )}
 
         <ProofTeaser />
 
@@ -148,7 +155,11 @@ export default async function StartPage({ searchParams }: Props) {
                 </div>
                 {!isAnnual && (
                   <p className={`mt-0.5 text-xs font-semibold ${info.highlight ? "text-red-200" : "text-zinc-500"}`}>
-                    {promoCode ? `Then $${info.monthly}/mo · cancel anytime` : "Cancel anytime"}
+                    {priceLocked
+                      ? "Locked while subscribed · cancel anytime"
+                      : promoCode
+                        ? `Then $${info.monthly}/mo · cancel anytime`
+                        : "Cancel anytime"}
                   </p>
                 )}
               </div>

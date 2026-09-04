@@ -114,7 +114,8 @@ export default async function SampleLocalGrowthReportPage() {
             {bundle.business.name}
           </h1>
           <p className="mt-2 text-sm text-zinc-500">
-            {bundle.business.vertical ?? "Local business"} · Automation running since account creation · Snapshot as of{" "}
+            {bundle.business.vertical && bundle.business.vertical.toLowerCase() !== "other" ? bundle.business.vertical : "Local business"}
+            {" "}· Automation running since account creation · Snapshot as of{" "}
             {new Date(bundle.business.updatedAt).toLocaleDateString()}
           </p>
           <div className="mt-4 max-w-2xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

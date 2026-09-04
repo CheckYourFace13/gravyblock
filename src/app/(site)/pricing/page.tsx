@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/pricing" },
   title: "Pricing — GravyBlock Local SEO Automation",
   description:
-    "GravyBlock pricing: Starter $59.99/mo (intro $29.99), Scale $149.99/mo (intro $74.99), Pro $299.99/mo (intro $149.99). No contracts, cancel anytime. Use code INTRO50 for 50% off your first month.",
+    "GravyBlock pricing: Starter $59.99/mo (intro $29.99, first month), Scale $149.99/mo ($74.99/mo locked for as long as you stay subscribed), Pro $299.99/mo (intro $149.99, first month). No contracts, cancel anytime.",
 };
 
 const plans = [
@@ -35,6 +35,7 @@ const plans = [
     cta: "Start Starter",
     href: "/start?plan=starter",
     ctaStyle: "bg-zinc-900 hover:bg-zinc-800 text-white",
+    priceLocked: false,
   },
   {
     tier: "growth",
@@ -42,6 +43,10 @@ const plans = [
     monthly: 149.99,
     intro: 74.99,
     highlight: true,
+    // GROWTH50 is a Stripe "forever"-duration coupon — the $74.99 rate
+    // applies to every renewal, not just month one (unlike INTRO50 on the
+    // other two plans). priceLocked drives the true copy below.
+    priceLocked: true,
     tagline: "Full autopilot — content, outreach, and social running every week.",
     bullets: [
       "Everything in Starter",
@@ -63,7 +68,7 @@ const plans = [
       "Lead pipeline (competitor outreach)",
     ],
     cta: "Start Scale",
-    href: "/start?plan=growth",
+    href: "/start?plan=growth&promo=GROWTH50",
     ctaStyle: "bg-red-600 hover:bg-red-500 text-white",
   },
   {
@@ -72,6 +77,7 @@ const plans = [
     monthly: 299.99,
     intro: 149.99,
     highlight: false,
+    priceLocked: false,
     tagline: "Double the output, programmatic pages, and competitor lead pipeline.",
     bullets: [
       "Everything in Scale, twice as often",
@@ -99,7 +105,7 @@ const faqs = [
   },
   {
     q: "What happens after the first month?",
-    a: "The INTRO50 discount applies to your first month only. After that you are billed the regular price ($59.99, $149.99, or $299.99 depending on your plan). You can cancel or downgrade any time from the billing portal — no phone call required.",
+    a: "On Scale, the $74.99/mo rate is locked for as long as your subscription stays active — it does not go up after month one. On Starter and Pro, the intro discount (code INTRO50) applies to your first month only; after that you're billed the regular price ($59.99 or $299.99). You can cancel or downgrade any time from the billing portal — no phone call required.",
   },
   {
     q: "Can I cancel anytime?",
@@ -139,14 +145,14 @@ export default function PricingPage() {
       <section className="bg-gradient-to-b from-red-50 to-white px-4 pt-14 pb-10 sm:px-6 text-center">
         <div className="mx-auto max-w-2xl space-y-4">
           <div className="inline-block rounded-full border border-red-200 bg-red-50 px-4 py-1 text-xs font-bold uppercase tracking-widest text-red-700">
-            50% off month one — code INTRO50
+            Scale: $74.99/mo, locked while subscribed
           </div>
           <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3">
             <p className="text-sm font-semibold text-amber-900">
-              🏆 Founding member pricing — first 20 customers lock in today&apos;s rates for life
+              Special rate on Scale: $74.99/month — keep this rate for as long as your subscription stays active.
             </p>
             <p className="mt-0.5 text-xs text-amber-700">
-              Prices increase as we grow. Founding members keep their rate forever and get direct access to the founder.
+              Regular price is $149.99/mo. This isn&apos;t a first-month discount — it applies to every renewal, not just the first.
             </p>
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
@@ -191,7 +197,9 @@ export default function PricingPage() {
                     <span className="text-sm text-zinc-500">/mo</span>
                   </div>
                   <p className="text-[11px] font-semibold text-emerald-600 mt-0.5">
-                    Save ${(plan.monthly - plan.intro).toFixed(2)} first month · code INTRO50
+                    {plan.priceLocked
+                      ? "Locked while subscribed — not just your first month"
+                      : `Save $${(plan.monthly - plan.intro).toFixed(2)} first month`}
                   </p>
                 </div>
 
@@ -393,11 +401,11 @@ export default function PricingPage() {
             <Link href="/scan" className="rounded-full bg-white px-7 py-3 text-sm font-bold text-zinc-900 hover:bg-zinc-100">
               Get my free score
             </Link>
-            <Link href="/start?plan=growth" className="rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">
+            <Link href="/start?plan=growth&promo=GROWTH50" className="rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">
               Start Scale — $74.99/mo
             </Link>
           </div>
-          <p className="text-xs text-zinc-600">Code INTRO50 = 50% off month one · No contracts · Cancel anytime</p>
+          <p className="text-xs text-zinc-600">$74.99/mo locked while subscribed · No contracts · Cancel anytime</p>
         </div>
       </section>
     </div>

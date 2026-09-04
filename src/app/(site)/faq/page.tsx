@@ -25,7 +25,7 @@ const faqs = [
       },
       {
         q: "How long before I see results?",
-        a: "Most customers see their GBP visibility score improve within the first 30 days from acting on the fix queue. Content and backlink effects typically compound over 60–90 days as Google re-crawls your site.",
+        a: "We don't publish a customer results statistic we can't back with real data. What we can tell you: your visibility score refreshes weekly so you can watch it move as fixes go out, and content/citation/backlink work generally takes 60–90 days to show up in rankings as Google re-crawls your site — that's how local SEO works generally, not a GravyBlock-specific guarantee.",
       },
     ],
   },

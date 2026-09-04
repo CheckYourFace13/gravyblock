@@ -104,9 +104,17 @@ export async function getFollowupCandidates(
         businessName: (p?.businessName as string) ?? "",
         email: (p?.email as string) ?? "",
         city: (p?.city as string) ?? "",
+        contactSource: p?.contactSource as string | undefined,
       };
     })
     .filter((c) => c.placeId && c.email && !alreadyFollowedUp.has(c.placeId))
+    // Legacy pre-discoverContactEmail records have no contactSource at all
+    // (that field didn't exist yet) — those are guessed addresses (many on
+    // garbage placeholder domains), confirmed via the Aug25-Sep4 funnel pull
+    // to be driving a 36%+ follow-up bounce rate. Only follow up contacts
+    // whose original send was a verified, genuinely published address.
+    .filter((c) => c.contactSource === "website_mailto")
+    .map(({ contactSource: _contactSource, ...c }) => c)
     .slice(0, limit);
 }
 
@@ -149,14 +157,23 @@ export async function getBreakupCandidates(
 
   if (followupJobs.length === 0) return [];
 
-  const breakupJobs = await db
-    .select({ payload: jobs.payload })
-    .from(jobs)
-    .where(eq(jobs.type, BREAKUP_JOB_TYPE))
-    .limit(2000);
+  const [breakupJobs, originalSendJobs] = await Promise.all([
+    db.select({ payload: jobs.payload }).from(jobs).where(eq(jobs.type, BREAKUP_JOB_TYPE)).limit(2000),
+    // cold_outreach_followup_sent doesn't carry contactSource itself — trace
+    // back to each candidate's original email-#1 record to check it (same
+    // legacy-guessed-address exclusion as getFollowupCandidates above).
+    db.select({ payload: jobs.payload }).from(jobs).where(eq(jobs.type, OUTREACH_JOB_TYPE)).limit(5000),
+  ]);
 
   const alreadyBrokenUp = new Set(
     breakupJobs.map((j) => (j.payload as Record<string, unknown>)?.placeId as string).filter(Boolean),
+  );
+  const verifiedPlaceIds = new Set(
+    originalSendJobs
+      .map((j) => j.payload as Record<string, unknown>)
+      .filter((p) => p?.contactSource === "website_mailto")
+      .map((p) => p.placeId as string)
+      .filter(Boolean),
   );
 
   return followupJobs
@@ -169,6 +186,7 @@ export async function getBreakupCandidates(
         city: (p?.city as string) ?? "",
       };
     })
+    .filter((c) => verifiedPlaceIds.has(c.placeId))
     .filter((c) => c.placeId && c.email && !alreadyBrokenUp.has(c.placeId))
     .slice(0, limit);
 }

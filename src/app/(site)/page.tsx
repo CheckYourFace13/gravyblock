@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/" },
   title: "GravyBlock — Automated Local SEO for Small Businesses | Free Scan",
   description:
-    "GravyBlock automates local SEO for small businesses: publishes content, manages reviews, audits citations, and tracks visibility — so you get discovered on Google Maps and Google Search. No manual weekly work. From $29.99/mo intro. Free scan.",
+    "GravyBlock automates local SEO for small businesses: publishes content, manages reviews, audits citations, and tracks visibility — so you get discovered on Google Maps and Google Search. Autopilot from $74.99/mo, locked while subscribed. Free scan.",
 };
 
 const siteUrl = "https://gravyblock.com";
@@ -31,7 +31,7 @@ const plans = [
     highlight: true,
     bullets: ["Weekly AI articles published to your site", "Weekly Google Business Profile posts & photos", "8 backlink outreach emails/mo", "Facebook + Instagram auto-posting", "Review inbox with AI reply drafts"],
     cta: "Start Scale",
-    href: "/scan?plan=growth",
+    href: "/start?plan=growth&promo=GROWTH50",
     ctaStyle: "bg-red-600 hover:bg-red-500 text-white",
   },
   {
@@ -148,23 +148,23 @@ export default function HomePage() {
       <section className="bg-gradient-to-b from-red-50 to-white px-4 pt-14 pb-12 sm:px-6 text-center">
         <div className="mx-auto max-w-3xl space-y-5">
           <div className="inline-block rounded-full border border-red-200 bg-red-50 px-4 py-1 text-xs font-bold uppercase tracking-widest text-red-700">
-            50% off month one — code INTRO50
+            Autopilot: $74.99/mo, locked while subscribed
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl leading-[1.08]">
-            Turn local visibility into<br className="hidden sm:block" /> customer actions.
+            Get found by more<br className="hidden sm:block" /> local customers.
           </h1>
           <p className="mx-auto max-w-xl text-lg text-zinc-600">
-            Get discovered on Google Maps and search results. GravyBlock publishes content, manages your Business Profile, gathers reviews, and audits your citations — automatically every week, with no manual work from you.
+            GravyBlock does the weekly SEO work for you — publishing content, keeping your Google profile active, and building the trust signals it takes to compete, so you can see what&apos;s improving without doing it yourself.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Link href="/scan" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-semibold text-white hover:bg-red-500 shadow-sm">
               Get my free visibility score →
             </Link>
-            <Link href="/pricing" className="rounded-full border border-zinc-300 bg-white px-7 py-3.5 text-sm font-semibold text-zinc-700 hover:border-zinc-400 shadow-sm">
-              Plans from $29.99/mo
+            <Link href="/start?plan=growth&promo=GROWTH50" className="rounded-full border border-zinc-300 bg-white px-7 py-3.5 text-sm font-semibold text-zinc-700 hover:border-zinc-400 shadow-sm">
+              Start Autopilot — $74.99/mo
             </Link>
-            <Link href="/start?promo=" className="rounded-full px-7 py-3.5 text-sm font-semibold text-zinc-500 hover:text-zinc-800 underline underline-offset-2">
-              Sign up now →
+            <Link href="/pricing" className="rounded-full px-7 py-3.5 text-sm font-semibold text-zinc-500 hover:text-zinc-800 underline underline-offset-2">
+              See all plans →
             </Link>
           </div>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 pt-1 text-xs text-zinc-500">
@@ -267,13 +267,13 @@ export default function HomePage() {
           <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">See it before you pay</p>
           <h2 className="mb-3 text-center text-3xl font-bold text-zinc-900">Proof, not promises</h2>
           <p className="mx-auto mb-8 max-w-2xl text-center text-sm text-zinc-500 leading-relaxed">
-            GravyBlock is new — built and run by one founder, in the open. So instead of stock-photo testimonials, here&apos;s the actual work. Run the free scan to see your own report, or look at a full sample first.
+            Instead of stock-photo testimonials, here&apos;s the actual work. Run the free scan to see your own report, or look at a full sample first.
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
             {[
               { href: "/examples/sample-local-growth-report", icon: "📄", title: "A real sample report", desc: "The exact visibility score, prioritized fix list, and competitor breakdown you get — no email required." },
               { href: "/scan", icon: "🔍", title: "Your own free scan", desc: "Score your business across 6 ranking factors in 60 seconds. No account, no credit card." },
-              { href: "/pricing", icon: "🏆", title: "Founding member pricing", desc: "The first 20 customers lock in today's rate for life and get the founder's direct line." },
+              { href: "/support", icon: "🤝", title: "Personal setup help", desc: "A real person reviews your scan and helps you get connected — not a support ticket queue." },
             ].map((c) => (
               <Link
                 key={c.href}
@@ -315,11 +315,11 @@ export default function HomePage() {
           <div className="mt-10 rounded-2xl border border-zinc-200 bg-white p-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="flex-1">
-                <p className="text-sm font-semibold text-zinc-900">Built by a founder, not a SaaS factory</p>
+                <p className="text-sm font-semibold text-zinc-900">Personal setup, not a support ticket queue</p>
                 <p className="mt-1 text-sm text-zinc-500">
-                  GravyBlock is in early access. I built this because local SEO agencies charge $1,000+/month for work that should be automated. Early customers get direct access to me — I&apos;ll personally review your scan and make sure the tool is delivering value.
+                  Local SEO agencies charge $1,000+/month for work that should be automated. When you sign up, I personally review your scan and make sure everything is connected and running correctly — you can reach me directly.
                 </p>
-                <p className="mt-2 text-xs text-zinc-400">— Chris, founder of GravyBlock · <a href="mailto:chris@gravyblock.com" className="underline hover:text-zinc-700">chris@gravyblock.com</a></p>
+                <p className="mt-2 text-xs text-zinc-400">— Chris · <a href="mailto:chris@gravyblock.com" className="underline hover:text-zinc-700">chris@gravyblock.com</a></p>
               </div>
               <Link href="/scan" className="shrink-0 rounded-full bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-500 text-center">
                 Start free
@@ -334,10 +334,10 @@ export default function HomePage() {
         <div className="mx-auto max-w-5xl">
           <div className="mb-8 text-center space-y-2">
             <div className="inline-block rounded-full bg-red-100 px-4 py-1 text-xs font-bold uppercase tracking-widest text-red-700">
-              Lowest price we&apos;ve ever offered — won&apos;t last
+              Autopilot (Scale): $74.99/mo, locked while subscribed
             </div>
             <h2 className="text-3xl font-bold text-zinc-900">Simple, transparent pricing.</h2>
-            <p className="text-sm text-zinc-500">Use code <strong className="text-zinc-800">INTRO50</strong> at checkout for 50% off month one. No contracts. Cancel anytime.</p>
+            <p className="text-sm text-zinc-500">No contracts. Cancel anytime. 30-day money-back guarantee.</p>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-3">
@@ -355,7 +355,9 @@ export default function HomePage() {
                     <span className="text-4xl font-black text-zinc-900">${plan.intro}</span>
                     <span className="text-sm text-zinc-500">/mo</span>
                   </div>
-                  <p className="text-[11px] font-semibold text-emerald-600 mt-0.5">Save ${(plan.monthly - plan.intro).toFixed(2)} · code INTRO50</p>
+                  <p className="text-[11px] font-semibold text-emerald-600 mt-0.5">
+                    {plan.tier === "growth" ? "Locked while subscribed" : `Save $${(plan.monthly - plan.intro).toFixed(2)} first month`}
+                  </p>
                 </div>
                 <ul className="mt-5 flex-1 space-y-2">
                   {plan.bullets.map((b) => (

@@ -94,11 +94,24 @@ export async function getShowcaseBusinesses(): Promise<ShowcaseBusiness[]> {
       .limit(300),
   ]);
 
+  // A pre-fix content-gen bug (since corrected — see executor.ts's
+  // cityFromAddress fallback guard) left some already-published articles
+  // with a literal unsubstituted "your area" placeholder, or a generic
+  // "other Services..." title from an unset vertical, baked into the title
+  // itself. Old rows, can't be un-published retroactively without
+  // regenerating content — so exclude only the visibly-broken titles from
+  // this showcase rather than show them as "proof."
+  const BROKEN_TITLE_MARKERS = [/\byour area\b/i, /^other\s/i];
+  const isBrokenTitle = (title: string) => BROKEN_TITLE_MARKERS.some((re) => re.test(title));
+
   return visible.map((b) => {
     const snaps = snapshots.filter((s) => s.businessId === b.id);
+    // Count is real work — keep it even for broken-title rows. Only the
+    // linked title list below hides specific broken titles.
     const published = articles.filter(
       (a) => a.businessId === b.id && a.status === "published" && a.channel === "internal_site" && a.publicUrl,
     );
+    const displayable = published.filter((a) => !isBrokenTitle(a.title));
     const latest = snaps[0]?.overallScore ?? null;
     const previous = snaps[1]?.overallScore ?? null;
     // A trend delta is only meaningful when both snapshots were produced by
@@ -111,14 +124,16 @@ export async function getShowcaseBusinesses(): Promise<ShowcaseBusiness[]> {
     const baselineJustEstablished = !sameMethod && snaps[0]?.scoreMethodVersion != null && snaps.length > 0;
     return {
       id: b.id,
+      // "other" is Google's own fallback primary-category value, not a real
+      // category — showing it verbatim reads as broken, not honest.
+      vertical: b.vertical && b.vertical.toLowerCase() !== "other" ? b.vertical : null,
       name: b.name,
-      vertical: b.vertical,
       city: cityFromAddress(b.address),
       score: latest,
       scoreDelta,
       baselineJustEstablished,
       articleCount: published.length,
-      recentArticles: published.slice(0, 3).map((a) => ({ title: a.title, publicUrl: a.publicUrl! })),
+      recentArticles: displayable.slice(0, 3).map((a) => ({ title: a.title, publicUrl: a.publicUrl! })),
     };
   });
 }

@@ -291,6 +291,26 @@ async function runColdOutreachWindow(
   if (now.getUTCHours() < hour || now.getUTCHours() > hour + 1) return;
   if (await hasJobRunToday(`cold_outreach_${windowKey}`)) return;
 
+  let target: { city: string; state: string; industry: string; industryLabel: string };
+  if (overrideTarget) {
+    target = overrideTarget;
+  } else {
+    const { getOutreachTargetForOffset } = await import("@/lib/outreach/outreach-calendar");
+    target = getOutreachTargetForOffset(calendarOffset);
+  }
+
+  // The fixed UTC hour above is only a sensible business hour for SOME of
+  // the timezones this calendar rotates through — verify against the
+  // actual target's local clock (DST-aware) rather than assume. Skips
+  // rather than sends at (e.g.) 6am Pacific just because it's 9am Eastern.
+  const { isReasonableLocalSendHour, localHourForState } = await import("@/lib/outreach/timezone");
+  if (!isReasonableLocalSendHour(target.state)) {
+    console.info(`[worker] cold outreach [${windowKey}] skipped — outside local business hours for ${target.city}, ${target.state}`, {
+      localHour: localHourForState(target.state),
+    });
+    return;
+  }
+
   const { checkOutreachHealth } = await import("@/lib/outreach/outreach-health");
   const health = await checkOutreachHealth();
   if (!health.healthy) {
@@ -305,14 +325,6 @@ async function runColdOutreachWindow(
     return;
   }
   const effectiveCap = Math.min(emailsPerBatch, remainingBudget);
-
-  let target: { city: string; state: string; industry: string; industryLabel: string };
-  if (overrideTarget) {
-    target = overrideTarget;
-  } else {
-    const { getOutreachTargetForOffset } = await import("@/lib/outreach/outreach-calendar");
-    target = getOutreachTargetForOffset(calendarOffset);
-  }
 
   try {
     const result = await runOutreachBatch({
@@ -525,13 +537,17 @@ async function tick() {
   }));
 
   // Follow-up email (#2): free trial offer to prospects who got email #1 3-21 days ago
-  // Runs once per day at 14:00 UTC (10am ET / 7am PT)
   // Capped at 20/day, further reduced to whatever's left of the shared
   // 100/day cross-type ceiling (send-budget.ts) — this, breakup, and cold
   // outreach used to each independently cap at their own number with no
   // coordination, meaning all three firing the same day could triple-stack
   // past the real limit regardless of what any single one was set to.
-  if (!sequenceEmailSettings.paused && new Date().getUTCHours() === 14 && !(await hasJobRunToday("followup_outreach_batch"))) {
+  // Runs at 11:00 UTC — deliberately BEFORE the first new-cold-prospect
+  // window (13:00). Priority order for the shared daily budget is
+  // suppression/health -> due follow-ups -> due breakup -> new cold
+  // prospects with whatever budget remains, so warm existing recipients
+  // never get starved by new sends claiming the ceiling first.
+  if (!sequenceEmailSettings.paused && new Date().getUTCHours() === 11 && !(await hasJobRunToday("followup_outreach_batch"))) {
     const { checkOutreachHealth } = await import("@/lib/outreach/outreach-health");
     const { getRemainingSharedBudget } = await import("@/lib/outreach/send-budget");
     const health = await checkOutreachHealth();
@@ -554,10 +570,11 @@ async function tick() {
   }
 
   // Breakup email (#3): final "closing your file" touch, 5-30 days after email #2
-  // Runs once per day at 16:00 UTC (12pm ET / 9am PT)
   // Capped at 10/day, further reduced to whatever's left of the shared
   // daily ceiling — see follow-up batch comment above.
-  if (!sequenceEmailSettings.paused && new Date().getUTCHours() === 16 && !(await hasJobRunToday("breakup_outreach_batch"))) {
+  // Runs at 12:00 UTC — after follow-ups (11:00), still before the first
+  // new-cold window (13:00). Same priority-order reasoning as above.
+  if (!sequenceEmailSettings.paused && new Date().getUTCHours() === 12 && !(await hasJobRunToday("breakup_outreach_batch"))) {
     const { checkOutreachHealth } = await import("@/lib/outreach/outreach-health");
     const { getRemainingSharedBudget } = await import("@/lib/outreach/send-budget");
     const health = await checkOutreachHealth();

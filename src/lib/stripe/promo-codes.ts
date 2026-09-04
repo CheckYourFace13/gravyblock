@@ -7,6 +7,7 @@ export const PROMO_CODES = [
   "ILoveYouFree",
   "ILikeYou50",
   "INTRO50",
+  "GROWTH50",
   "PRODUCTHUNT",
   "GOOGLE50",
   "CONNECT",
@@ -38,6 +39,13 @@ export function normalizePromoCode(raw?: string | null): PromoCode | null {
  */
 const COUPON_ID_BY_PROMO: Record<PromoCode, string> = {
   INTRO50: "jCfNjmSs",
+  // Growth only. Unlike INTRO50 (duration "once" — first month only), this
+  // is a duration "forever" Stripe coupon: it applies to every renewal for
+  // as long as the subscription stays active, genuinely locking $74.99/mo
+  // rather than reverting to $149.99 after month one. Verified live on
+  // Stripe 2026-09-04 (coupon id doubles as its own Stripe ID, like
+  // EMAILFREE/PRODUCTHUNT/GOOGLE50/CONNECT below).
+  GROWTH50: "GROWTH50",
   EMAILFREE: "EMAILFREE",
   PRODUCTHUNT: "PRODUCTHUNT",
   GOOGLE50: "GOOGLE50",

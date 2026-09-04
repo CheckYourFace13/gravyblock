@@ -178,29 +178,27 @@ function buildReportSubject(prospect: Prospect, preScan: ProspectPreScan): strin
 function buildReportText(prospect: Prospect, preScan: ProspectPreScan): string {
   const { businessName, city } = prospect;
   // Prospect-finder targets weak listings, so fixes essentially always exist —
-  // but a strong business must not get a broken empty list.
-  const fixBlock = preScan.topFixes.length
-    ? `The top things holding the score back:\n${preScan.topFixes.map((f, i) => `${i + 1}. ${f.title} — ${f.detail}`).join("\n")}`
-    : "Honestly, the fundamentals look solid — the report shows where the remaining headroom is.";
+  // but a strong business must not get a broken empty list. Lead with the
+  // real finding, not an explanation of what GravyBlock is — the tool
+  // pitch comes after, briefly, not first.
+  const topFinding = preScan.topFixes[0];
+  const openingLine = topFinding
+    ? `${topFinding.title} — that's the main thing holding ${businessName} back on Google in ${city} right now (scored ${preScan.score}/100).`
+    : `${businessName} actually scored well — ${preScan.score}/100 in ${city}. The report below shows where the remaining headroom is.`;
 
   return `Hi,
 
-I run GravyBlock, a tool that scores how local businesses show up on Google and in AI search (ChatGPT, Perplexity, Google's AI answers). I ran a full visibility report on ${businessName} — all public data, took about 60 seconds.
+${openingLine}
 
-${businessName} scored ${preScan.score}/100 in ${city}.
-
-${fixBlock}
-
-The full report is here — score, verdict, and top findings visible right away, no signup:
-
+Full breakdown here — score, verdict, and what's fixable, no signup:
 ${preScan.reportUrl}
 
-If you'd want the fixes handled automatically (content, reviews, citations, Google Business Profile posts), that's what GravyBlock does — starting at $29.99/mo right now with code INTRO50, the lowest we've ever priced it. But the report is yours either way.
+If you'd rather have it handled than do it yourself, that's what GravyBlock runs automatically. Just reply and I'll get you set up, or check the report for details.
 
 ${SENDER_NAME}
 ${SENDER_TITLE} — https://gravyblock.com
 
-P.S. If you'd rather not hear from me, reply "no thanks" and you won't again.`;
+P.S. Reply "no thanks" and you won't hear from me again.`;
 }
 
 function buildReportHtml(
@@ -208,12 +206,13 @@ function buildReportHtml(
   preScan: ProspectPreScan,
 ): string {
   const { businessName, city, emailTo = "" } = prospect;
-  const fixBlock = preScan.topFixes.length
-    ? `<p style="margin:0 0 6px;font-weight:600">The top things holding the score back:</p>
-  <ol style="margin:0 0 18px;padding-left:20px;color:#333">
-    ${preScan.topFixes.map((f) => `<li style="margin-bottom:8px"><strong>${f.title}</strong> — ${f.detail}</li>`).join("")}
-  </ol>`
-    : `<p style="margin:0 0 18px">Honestly, the fundamentals look solid — the report shows where the remaining headroom is.</p>`;
+  const topFinding = preScan.topFixes[0];
+  const openingBlock = topFinding
+    ? `<p style="margin:0 0 18px">
+        <strong>${topFinding.title}</strong> — that's the main thing holding <strong>${businessName}</strong> back on Google
+        in ${city} right now (scored <strong>${preScan.score}/100</strong>).
+      </p>`
+    : `<p style="margin:0 0 18px"><strong>${businessName}</strong> actually scored well — <strong>${preScan.score}/100</strong> in ${city}. The report below shows where the remaining headroom is.</p>`;
 
   return `<!DOCTYPE html>
 <html>
@@ -225,19 +224,7 @@ function buildReportHtml(
 
   <p style="margin:0 0 18px">Hi,</p>
 
-  <p style="margin:0 0 18px">
-    I run GravyBlock, a tool that scores how local businesses show up on Google and in AI search
-    (ChatGPT, Perplexity, Google's AI answers). I ran a full visibility report on
-    <strong>${businessName}</strong> — all public data, took about 60 seconds.
-  </p>
-
-  <p style="margin:0 0 18px;text-align:center;font-size:17px">
-    <strong>${businessName}</strong> scored
-    <span style="font-size:28px;font-weight:800;color:#dc2626">&nbsp;${preScan.score}/100&nbsp;</span>
-    in ${city}.
-  </p>
-
-  ${fixBlock}
+  ${openingBlock}
 
   <p style="margin:0 0 24px;text-align:center">
     <a href="${preScan.reportUrl}"
@@ -245,13 +232,11 @@ function buildReportHtml(
       See the full report →
     </a>
     <br/>
-    <span style="font-size:12px;color:#666;margin-top:6px;display:block">Score, verdict, and top findings visible right away — no signup. ${preScan.reportUrl}</span>
+    <span style="font-size:12px;color:#666;margin-top:6px;display:block">Score, verdict, and what's fixable — no signup. ${preScan.reportUrl}</span>
   </p>
 
   <p style="margin:0 0 18px;font-size:14px;color:#555">
-    If you'd want the fixes handled automatically (content, reviews, citations, Google Business
-    Profile posts), that's what GravyBlock does — starting at <strong>$29.99/mo</strong> right now
-    with code INTRO50, the lowest we've ever priced it. But the report is yours either way.
+    If you'd rather have it handled than do it yourself, that's what GravyBlock runs automatically. Just reply and I'll get you set up, or check the report for details.
   </p>
 
   <p style="margin:0 0 6px;font-size:14px">
@@ -260,7 +245,7 @@ function buildReportHtml(
   </p>
 
   <p style="margin:8px 0 0;font-size:13px;color:#888">
-    P.S. If you'd rather not hear from me, reply &ldquo;no thanks&rdquo; and you won't again.
+    P.S. Reply &ldquo;no thanks&rdquo; and you won't hear from me again.
   </p>
 
   <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
@@ -280,22 +265,12 @@ function buildFollowupSubject(businessName: string): string {
 function buildFollowupText(businessName: string, scanUrl: string): string {
   return `Hi,
 
-I reached out last week about ${businessName}'s local search rankings and wanted to follow up once.
+I reached out about ${businessName}'s local search rankings and wanted to follow up once.
 
-I know you're busy, so I'll make this quick: GravyBlock is running a trial where we give new customers their first month completely free — no credit card charge, cancel any time.
+I know you're busy, so I'll make this quick: first month is free (code EMAILFREE), no credit card charge, cancel any time.
 
-Here's what happens during that month:
-- We generate SEO content for your website automatically every week
-- We clean up your Google Business Profile (Q&As, services, photos)
-- We find and fix citation issues that hurt your local rankings
-- We track where you rank vs. competitors
-
-Local rankings move when content, citations, and reviews stay consistent — that's exactly what GravyBlock runs for you every week. After the free month it's $59.99/mo, less than most SEO agencies charge for a single hour.
-
-Run your free visibility score first (takes 60 seconds):
+Run your free visibility score first (60 seconds), then apply the code at checkout if you want to try it:
 ${scanUrl}
-
-Then use code EMAILFREE at checkout for your first month free.
 
 If the timing isn't right, I completely understand — I won't follow up again after this.
 
@@ -315,36 +290,20 @@ function buildFollowupHtml(businessName: string, scanUrl: string, emailTo: strin
   <p style="margin:0 0 18px">Hi,</p>
 
   <p style="margin:0 0 18px">
-    I reached out last week about <strong>${businessName}</strong>'s local search rankings — wanted to follow up once before I move on.
+    I reached out about <strong>${businessName}</strong>'s local search rankings — wanted to follow up once before I move on.
   </p>
 
   <p style="margin:0 0 18px">
-    I'll make this quick: GravyBlock is offering new customers their <strong>first month completely free</strong> — no charge, cancel any time.
+    I'll make this quick: first month is free (code <strong>EMAILFREE</strong>), no charge, cancel any time.
   </p>
 
-  <p style="margin:0 0 6px;font-weight:600;color:#1a1a1a">Here's what happens during that free month:</p>
-  <ul style="margin:0 0 18px;padding-left:20px;color:#333">
-    <li style="margin-bottom:6px">Weekly SEO content published for your business automatically</li>
-    <li style="margin-bottom:6px">Google Business Profile cleanup — Q&amp;As, services, photos</li>
-    <li style="margin-bottom:6px">Citation fixes that directly affect your local rankings</li>
-    <li style="margin-bottom:6px">Competitor tracking so you can see exactly where you stand</li>
-  </ul>
-
-  <p style="margin:0 0 18px;font-size:14px;color:#555">
-    Local rankings move when content, citations, and reviews stay consistent — that's exactly
-    what GravyBlock runs for you every week. After the free month it's $59.99/mo,
-    less than most agencies charge for a single hour.
-  </p>
-
-  <p style="margin:0 0 8px">Start with your free visibility score (60 seconds):</p>
+  <p style="margin:0 0 8px">Start with your free visibility score (60 seconds), then apply the code at checkout if you want to try it:</p>
 
   <p style="margin:0 0 24px;text-align:center">
     <a href="${scanUrl}"
        style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">
       See your free score →
     </a>
-    <br/>
-    <span style="font-size:12px;color:#666;margin-top:6px;display:block">Then use code <strong>EMAILFREE</strong> at checkout for your first month free</span>
   </p>
 
   <p style="margin:0 0 32px;font-size:14px;color:#555">
