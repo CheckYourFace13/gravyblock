@@ -37,6 +37,7 @@ export async function recordOutreachSent(
   contactSource?: string,
   contactConfidence?: string,
   resendEmailId?: string,
+  extra?: { industry?: string; attributionToken?: string; discoverySourceUrl?: string | null; isNamed?: boolean },
 ): Promise<void> {
   const db = getDb();
   if (!db) {
@@ -55,6 +56,10 @@ export async function recordOutreachSent(
       ...(contactSource ? { contactSource } : {}),
       ...(contactConfidence ? { contactConfidence } : {}),
       ...(resendEmailId ? { resendEmailId } : {}),
+      ...(extra?.industry ? { industry: extra.industry } : {}),
+      ...(extra?.attributionToken ? { attributionToken: extra.attributionToken } : {}),
+      ...(extra?.discoverySourceUrl ? { discoverySourceUrl: extra.discoverySourceUrl } : {}),
+      ...(extra?.isNamed !== undefined ? { isNamed: extra.isNamed } : {}),
     },
     status: "done",
   });
@@ -112,8 +117,11 @@ export async function getFollowupCandidates(
     // (that field didn't exist yet) — those are guessed addresses (many on
     // garbage placeholder domains), confirmed via the Aug25-Sep4 funnel pull
     // to be driving a 36%+ follow-up bounce rate. Only follow up contacts
-    // whose original send was a verified, genuinely published address.
-    .filter((c) => c.contactSource === "website_mailto")
+    // whose original send was a verified, genuinely published address —
+    // either a mailto: link or schema.org structured data (see
+    // discover-contact-email.ts's ContactSource type; keep this in sync
+    // with that type, not just literally "website_mailto").
+    .filter((c) => c.contactSource === "website_mailto" || c.contactSource === "structured_data")
     .map(({ contactSource: _contactSource, ...c }) => c)
     .slice(0, limit);
 }
@@ -123,12 +131,13 @@ export async function recordFollowupSent(
   businessName: string,
   email: string,
   city?: string,
+  attributionToken?: string,
 ): Promise<void> {
   const db = getDb();
   if (!db) return;
   await db.insert(jobs).values({
     type: FOLLOWUP_JOB_TYPE,
-    payload: { placeId, businessName, email, ...(city ? { city } : {}) },
+    payload: { placeId, businessName, email, ...(city ? { city } : {}), ...(attributionToken ? { attributionToken } : {}) },
     status: "done",
   });
 }
@@ -171,7 +180,7 @@ export async function getBreakupCandidates(
   const verifiedPlaceIds = new Set(
     originalSendJobs
       .map((j) => j.payload as Record<string, unknown>)
-      .filter((p) => p?.contactSource === "website_mailto")
+      .filter((p) => p?.contactSource === "website_mailto" || p?.contactSource === "structured_data")
       .map((p) => p.placeId as string)
       .filter(Boolean),
   );
@@ -195,12 +204,13 @@ export async function recordBreakupSent(
   placeId: string,
   businessName: string,
   email: string,
+  attributionToken?: string,
 ): Promise<void> {
   const db = getDb();
   if (!db) return;
   await db.insert(jobs).values({
     type: BREAKUP_JOB_TYPE,
-    payload: { placeId, businessName, email },
+    payload: { placeId, businessName, email, ...(attributionToken ? { attributionToken } : {}) },
     status: "done",
   });
 }

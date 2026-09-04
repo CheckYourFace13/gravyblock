@@ -1,10 +1,13 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { sendLeadEmails, sendReportDeliveryEmail } from "@/lib/integrations/resend";
 import { getReportWithContext, saveLeadRecord } from "@/lib/report/repository";
 import { createReportUnlockToken } from "@/lib/report/unlock-token";
+import { trackFunnelEvent } from "@/lib/events/track";
+import { getAttributionToken } from "@/lib/events/attribution";
 
 const reportUnlockSchema = z.object({
   publicId: z.string().trim().min(6, "Report ID is required"),
@@ -80,6 +83,18 @@ export async function unlockReportAction(
       unlockUrl,
     });
     revalidatePath("/admin/leads");
+
+    const visitorSessionId = (await cookies()).get("gb_visitor")?.value ?? null;
+    const attributionToken = await getAttributionToken();
+    await trackFunnelEvent({
+      eventType: "report_unlocked",
+      reportPublicId: parsed.data.publicId,
+      businessId: report.businessId ?? null,
+      sessionId: visitorSessionId,
+      leadId: saved?.leadId ?? null,
+      metadata: attributionToken ? { attributionToken } : {},
+    });
+
     return { status: "success", unlockUrl };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not unlock this report";

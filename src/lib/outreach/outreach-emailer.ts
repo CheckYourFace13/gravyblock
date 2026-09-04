@@ -24,7 +24,7 @@ function resendConfig() {
   };
 }
 
-function buildScanUrl(prospect: Prospect & { emailTo?: string }): string {
+function buildScanUrl(prospect: Prospect & { emailTo?: string }, attributionToken?: string | null): string {
   // Pre-fill the scan page with their business name + city so they land on results fast.
   // Include their email (base64url) so the scan auto-captures them as a lead — we
   // already know it, no reason to make them type it again.
@@ -35,7 +35,15 @@ function buildScanUrl(prospect: Prospect & { emailTo?: string }): string {
   if (prospect.emailTo) {
     params.set("e", Buffer.from(prospect.emailTo.toLowerCase()).toString("base64url"));
   }
+  if (attributionToken) params.set("src", attributionToken);
   return `${SITE_URL}/scan?${params.toString()}`;
+}
+
+/** Appends the first-party attribution token to a report/scan URL — never PII, just an opaque per-send id. */
+function withAttribution(url: string, token?: string | null): string {
+  if (!token) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}src=${encodeURIComponent(token)}`;
 }
 
 function buildSubjectLine(prospect: Prospect): string {
@@ -327,6 +335,7 @@ export async function sendFollowupEmail(params: {
   businessName: string;
   email: string;
   city?: string;
+  attributionToken?: string | null;
 }): Promise<SendEmailResult> {
   const cfg = resendConfig();
   if (!cfg.apiKey) return { ok: false, skipped: true, reason: "RESEND_API_KEY not set" };
@@ -344,6 +353,7 @@ export async function sendFollowupEmail(params: {
   const scanUrlParams = new URLSearchParams({ q: params.businessName, ...(params.city ? { city: params.city } : {}) });
   scanUrlParams.set("e", Buffer.from(params.email.toLowerCase()).toString("base64url"));
   scanUrlParams.set("promo", "EMAILFREE");
+  if (params.attributionToken) scanUrlParams.set("src", params.attributionToken);
   const scanUrl = `${SITE_URL}/scan?${scanUrlParams.toString()}`;
 
   const subject = buildFollowupSubject(params.businessName);
@@ -383,6 +393,7 @@ export async function sendBreakupEmail(params: {
   businessName: string;
   email: string;
   city?: string;
+  attributionToken?: string | null;
 }): Promise<SendEmailResult> {
   const cfg = resendConfig();
   if (!cfg.apiKey) return { ok: false, skipped: true, reason: "RESEND_API_KEY not set" };
@@ -400,6 +411,7 @@ export async function sendBreakupEmail(params: {
   const scanUrlParams = new URLSearchParams({ q: params.businessName, ...(params.city ? { city: params.city } : {}) });
   scanUrlParams.set("e", Buffer.from(params.email.toLowerCase()).toString("base64url"));
   scanUrlParams.set("promo", "EMAILFREE");
+  if (params.attributionToken) scanUrlParams.set("src", params.attributionToken);
   const scanUrl = `${SITE_URL}/scan?${scanUrlParams.toString()}`;
 
   const subject = `${params.businessName} — closing your file`;
@@ -474,7 +486,7 @@ ${SENDER_TITLE} — https://gravyblock.com`;
 export async function sendProspectEmail(
   prospect: Prospect,
   toEmail: string,
-  senderContext?: { agencyName?: string; industryLabel?: string; preScan?: ProspectPreScan | null },
+  senderContext?: { agencyName?: string; industryLabel?: string; preScan?: ProspectPreScan | null; attributionToken?: string | null },
 ): Promise<SendEmailResult> {
   const cfg = resendConfig();
 
@@ -496,7 +508,13 @@ export async function sendProspectEmail(
   (prospect as Prospect & { emailTo?: string }).emailTo = toEmail;
 
   const industryLabel = senderContext?.industryLabel ?? "local business";
-  const preScan = senderContext?.preScan ?? null;
+  const rawPreScan = senderContext?.preScan ?? null;
+  const attributionToken = senderContext?.attributionToken ?? null;
+  // Attach attribution to the report link itself, not just the fallback scan
+  // link, since the report variant is the one actually sent (see
+  // run-outreach-batch.ts — it skips rather than falling back when pre-scan
+  // fails, so the plain buildScanUrl path below is effectively unused today).
+  const preScan = rawPreScan ? { ...rawPreScan, reportUrl: withAttribution(rawPreScan.reportUrl, attributionToken) } : null;
 
   // Report variant when we pre-ran their scan; invite variant as fallback
   const subject = preScan ? buildReportSubject(prospect, preScan) : buildSubjectLine(prospect);

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { findWeakBusinesses } from "./prospect-finder";
 import { sendProspectEmail } from "./outreach-emailer";
 import { hasBeenContacted, recordOutreachSent } from "./outreach-tracker";
@@ -72,12 +73,18 @@ export async function runOutreachBatch(params: {
       continue;
     }
 
+    // Generated before the send so it can be embedded in the report link
+    // itself — opaque, no PII, correlates this exact send back to campaign/
+    // industry/city/contact-type/business once the observation window ends.
+    const attributionToken = randomUUID();
+
     let result: { ok: boolean; skipped?: boolean; reason?: string; resendEmailId?: string | null };
     try {
       result = await sendProspectEmail(prospect, candidateEmail, {
         agencyName,
         industryLabel: industryLabel ?? industry,
         preScan,
+        attributionToken,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -102,6 +109,7 @@ export async function runOutreachBatch(params: {
       contact.source,
       contact.confidence,
       result.resendEmailId ?? undefined,
+      { industry: industryLabel ?? industry, attributionToken, discoverySourceUrl: contact.discoverySourceUrl, isNamed: contact.isNamed },
     );
     await recordOutreachSendRow({
       resendEmailId: result.resendEmailId ?? null,
@@ -115,6 +123,8 @@ export async function runOutreachBatch(params: {
     console.info("[outreach-batch] Sent", {
       businessName: prospect.businessName,
       email: candidateEmail,
+      isNamed: contact.isNamed,
+      discoverySourceUrl: contact.discoverySourceUrl,
       score: prospect.opportunityScore,
       preScanned: Boolean(preScan),
       reportScore: preScan?.score,

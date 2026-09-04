@@ -16,6 +16,7 @@ import { applyDunningDowngrade, sendDowngradeNoticeEmail, sendPaymentFailedEmail
 import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { getDb, businesses } from "@/lib/db";
 import { eq } from "drizzle-orm";
+import { trackFunnelEvent } from "@/lib/events/track";
 
 function customerIdFromUnknown(customer: string | Stripe.Customer | Stripe.DeletedCustomer | null): string | null {
   if (!customer) return null;
@@ -78,6 +79,20 @@ export async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Se
     currentPeriodEndUnix: snap.currentPeriodEndUnix,
     priceId: snap.priceId,
     billingEmail,
+  });
+
+  // Server-side completion event, tied back to the original outreach send
+  // via the token carried in Stripe's own metadata since checkout —
+  // webhooks have no access to the browser's attribution cookie, so this
+  // has to travel through Stripe itself, not the cookie.
+  const attributionToken = typeof session.metadata?.attributionToken === "string" ? session.metadata.attributionToken : null;
+  await trackFunnelEvent({
+    eventType: "checkout_completed",
+    businessId,
+    metadata: {
+      requestedPlan: session.metadata?.requestedPlan ?? null,
+      ...(attributionToken ? { attributionToken } : {}),
+    },
   });
 
   // Send setup email so owner can configure autopilot context

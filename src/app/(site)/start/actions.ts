@@ -7,6 +7,7 @@ import { getStripeServerClient, getPriceIdForPlan, getAppBaseUrl, type CheckoutP
 import { persistStripeCustomerId, persistPendingPlan } from "@/lib/billing/repository";
 import { normalizePromoCode, resolveCouponId } from "@/lib/stripe/promo-codes";
 import { trackFunnelEvent } from "@/lib/events/track";
+import { getAttributionToken } from "@/lib/events/attribution";
 import { cookies } from "next/headers";
 
 function normalizePlan(raw: string | null | undefined): CheckoutPlan {
@@ -114,11 +115,12 @@ export async function directSignupAction(
     await persistPendingPlan(businessId, plan);
 
     const visitorSessionId = (await cookies()).get("gb_visitor")?.value ?? null;
+    const attributionToken = await getAttributionToken();
     await trackFunnelEvent({
       eventType: "checkout_started",
       businessId,
       sessionId: visitorSessionId,
-      metadata: { plan, interval },
+      metadata: { plan, interval, ...(attributionToken ? { attributionToken } : {}) },
     });
 
     const baseUrl = getAppBaseUrl();
@@ -131,6 +133,10 @@ export async function directSignupAction(
         requestedPlan: plan,
         billingInterval: interval,
         ...(promoIntent ? { promoIntent } : {}),
+        // Carried through to the completed-checkout webhook so "paid" can
+        // be tied back to the original outreach send server-side, without
+        // relying on a browser cookie the webhook has no access to.
+        ...(attributionToken ? { attributionToken } : {}),
       },
       line_items: [{ price: getPriceIdForPlan(plan, interval), quantity: 1 }],
       subscription_data: {

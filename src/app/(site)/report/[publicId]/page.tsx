@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ReportView } from "@/components/report-view";
+import { FunnelBeacon } from "@/components/funnel-beacon";
 import { getReportWithContext } from "@/lib/report/repository";
 import { verifyReportUnlockToken } from "@/lib/report/unlock-token";
 
@@ -37,13 +38,16 @@ export default async function ReportPage({ params, searchParams }: Props) {
     : raw === "base" || raw === "entry" ? "starter" : null) as "starter" | "growth" | "pro" | "agency" | null;
   const promoCode = normalizePromoCodeIntent(query.promo);
   return (
-    <ReportView
-      payload={record.payload}
-      publicId={publicId}
-      businessId={record.businessId}
-      initiallyUnlocked={initiallyUnlocked}
-      selectedPlan={selectedPlan}
-      promoCode={promoCode}
-    />
+    <>
+      <FunnelBeacon eventType="report_landed" businessId={record.businessId} reportPublicId={publicId} />
+      <ReportView
+        payload={record.payload}
+        publicId={publicId}
+        businessId={record.businessId}
+        initiallyUnlocked={initiallyUnlocked}
+        selectedPlan={selectedPlan}
+        promoCode={promoCode}
+      />
+    </>
   );
 }

@@ -2,11 +2,13 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { trackFunnelEvent, type FunnelEventType } from "@/lib/events/track";
+import { getAttributionToken, setAttributionToken } from "@/lib/events/attribution";
 
 export const dynamic = "force-dynamic";
 
 const SESSION_COOKIE = "gb_visitor";
 const VALID_TYPES = new Set<FunnelEventType>([
+  "report_landed",
   "scan_started",
   "scan_completed",
   "report_unlocked",
@@ -50,16 +52,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
   }
 
+  // A token arriving in the body (from ?src= on a fresh outreach-link
+  // landing) establishes attribution for the rest of this visitor's
+  // session; otherwise inherit whatever the cookie already carries, so
+  // later steps (pricing view, checkout) stay attributed without every
+  // caller needing to know about the token.
+  const incomingToken = typeof p.attributionToken === "string" ? p.attributionToken.slice(0, 200) : null;
+  if (incomingToken) await setAttributionToken(incomingToken);
+  const attributionToken = incomingToken ?? (await getAttributionToken());
+
   await trackFunnelEvent({
     eventType: eventType as FunnelEventType,
     sessionId,
     businessId: typeof p.businessId === "string" ? p.businessId : null,
     reportPublicId: typeof p.reportPublicId === "string" ? p.reportPublicId : null,
-    utmSource: typeof p.utmSource === "string" ? p.utmSource.slice(0, 120) : null,
+    utmSource: typeof p.utmSource === "string" ? p.utmSource.slice(0, 120) : (attributionToken ? "cold_outreach" : null),
     utmMedium: typeof p.utmMedium === "string" ? p.utmMedium.slice(0, 120) : null,
     utmCampaign: typeof p.utmCampaign === "string" ? p.utmCampaign.slice(0, 120) : null,
     referrer: typeof p.referrer === "string" ? p.referrer.slice(0, 500) : null,
     path: typeof p.path === "string" ? p.path.slice(0, 300) : null,
+    metadata: attributionToken ? { attributionToken } : {},
   });
 
   return NextResponse.json({ ok: true });

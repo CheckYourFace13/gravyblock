@@ -1,6 +1,7 @@
 import { getDb, funnelEvents } from "@/lib/db";
 
 export type FunnelEventType =
+  | "report_landed"
   | "scan_started"
   | "scan_completed"
   | "report_unlocked"

@@ -9,6 +9,7 @@
  * Runs once per day via the worker.
  */
 
+import { randomUUID } from "node:crypto";
 import { getBreakupCandidates, recordBreakupSent } from "./outreach-tracker";
 import { sendBreakupEmail } from "./outreach-emailer";
 import { recordOutreachSendRow } from "./outreach-sends";
@@ -26,17 +27,19 @@ export async function runBreakupOutreachBatch(
   for (const c of candidates) {
     if (!c.email) { skipped++; continue; }
 
+    const attributionToken = randomUUID();
     try {
       const result = await sendBreakupEmail({
         businessName: c.businessName,
         email: c.email,
         city: c.city || undefined,
+        attributionToken,
       });
 
       if (result.skipped) { skipped++; continue; }
 
       if (result.ok) {
-        await recordBreakupSent(c.placeId, c.businessName, c.email);
+        await recordBreakupSent(c.placeId, c.businessName, c.email, attributionToken);
         await recordOutreachSendRow({
           resendEmailId: result.resendEmailId ?? null,
           placeId: c.placeId,

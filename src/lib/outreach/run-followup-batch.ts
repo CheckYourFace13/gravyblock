@@ -8,6 +8,7 @@
  * Runs once per day via the worker.
  */
 
+import { randomUUID } from "node:crypto";
 import { getFollowupCandidates, recordFollowupSent } from "./outreach-tracker";
 import { sendFollowupEmail } from "./outreach-emailer";
 import { isOptedOut } from "@/lib/email/optout";
@@ -26,11 +27,13 @@ export async function runFollowupOutreachBatch(
   for (const c of candidates) {
     if (!c.email) { skipped++; continue; }
 
+    const attributionToken = randomUUID();
     try {
       const result = await sendFollowupEmail({
         businessName: c.businessName,
         email: c.email,
         city: c.city || undefined,
+        attributionToken,
       });
 
       if (result.skipped) {
@@ -39,7 +42,7 @@ export async function runFollowupOutreachBatch(
       }
 
       if (result.ok) {
-        await recordFollowupSent(c.placeId, c.businessName, c.email, c.city || undefined);
+        await recordFollowupSent(c.placeId, c.businessName, c.email, c.city || undefined, attributionToken);
         await recordOutreachSendRow({
           resendEmailId: result.resendEmailId ?? null,
           placeId: c.placeId,

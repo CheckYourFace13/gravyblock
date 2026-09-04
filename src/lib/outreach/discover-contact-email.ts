@@ -5,17 +5,28 @@
  * `partnerships@{domain}` out of thin air, with no check that the mailbox was
  * ever published anywhere — meaning every send was a guess with an unknown
  * (likely high) bounce rate, hurting GravyBlock's own sending-domain
- * reputation. This fetches the site and looks for a `mailto:` link actually
- * present on the page; if none exists, callers should skip rather than guess.
+ * reputation.
+ *
+ * Checks the homepage first, then — if no NAMED (non-role-account) address
+ * turned up there — a small set of pages a real business is likely to
+ * publish contact info on (contact/about/team), plus any schema.org
+ * structured data (Organization/LocalBusiness/Person contactPoint). Every
+ * candidate still has to be a real `mailto:`/structured-data value actually
+ * present on a page this business controls — if none exists anywhere,
+ * callers should skip rather than guess.
  */
 
-export type ContactSource = "website_mailto" | "none_found" | "fetch_failed";
+export type ContactSource = "website_mailto" | "structured_data" | "none_found" | "fetch_failed";
 export type ContactConfidence = "verified_published" | "none";
 
 export type DiscoveredContact = {
   email: string | null;
   source: ContactSource;
   confidence: ContactConfidence;
+  /** Exact page this email was found on — for the discovery-quality record, never shown to the recipient. */
+  discoverySourceUrl: string | null;
+  /** false for a role account (info@, contact@, ...) even though it's still a genuinely published, usable address. */
+  isNamed: boolean;
 };
 
 const FETCH_TIMEOUT_MS = 6000;
@@ -42,6 +53,16 @@ const PLACEHOLDER_DOMAINS = new Set([
   "localhost",
 ]);
 
+// Checked only if the homepage itself doesn't already yield a named
+// (non-role-account) address — most small-business sites that publish a
+// real contact do it on one of these. Kept short and specific: not a full
+// site crawl, just the pages a business is likely to actually have.
+const SECONDARY_PATHS = ["/contact", "/contact-us", "/about", "/about-us", "/team"];
+
+const EMAIL_RE = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+type Candidate = { email: string; sourceUrl: string; fromStructuredData: boolean };
+
 function scoreCandidate(email: string, siteDomain: string): number {
   const [local, domain] = email.toLowerCase().split("@");
   if (!domain) return -1;
@@ -57,56 +78,146 @@ function scoreCandidate(email: string, siteDomain: string): number {
   return ROLE_ACCOUNT_PREFIXES.includes(local) ? 1 : 2;
 }
 
-/** Fetch a business's homepage and return the best real, published contact email found, if any. */
-export async function discoverContactEmail(websiteUrl: string): Promise<DiscoveredContact> {
-  let siteDomain: string;
-  try {
-    siteDomain = new URL(websiteUrl).hostname.replace(/^www\./, "").toLowerCase();
-  } catch {
-    return { email: null, source: "fetch_failed", confidence: "none" };
-  }
+function isNamedAddress(email: string): boolean {
+  const local = email.toLowerCase().split("@")[0] ?? "";
+  return !ROLE_ACCOUNT_PREFIXES.includes(local) && !EXCLUDED_PREFIXES.includes(local);
+}
 
+async function fetchPage(url: string): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(websiteUrl, {
+    const res = await fetch(url, {
       signal: controller.signal,
       headers: { "User-Agent": "Mozilla/5.0 (compatible; GravyBlockBot/1.0; +https://gravyblock.com)" },
     });
-    if (!res.ok) return { email: null, source: "fetch_failed", confidence: "none" };
-    const html = await res.text();
-
-    // mailto: hrefs are sometimes percent-encoded by the site itself (a stray
-    // leading space becomes %20admin@...) — decode first, then trim, then
-    // validate strictly. Matching raw percent-encoded text directly (the
-    // previous version included "%" in the captured character class) let
-    // malformed addresses like "%20admin@shroylaw.com" through uncaught.
-    const EMAIL_RE = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    // Tolerate a literal space/tab right after "mailto:" (some sites hand-write
-    // "mailto: name@x.com") — trim it before the value itself, which still
-    // may not start with whitespace.
-    const rawMatches = [...html.matchAll(/mailto:[ \t]*([^"'<>\s)]+)/gi)].map((m) => m[1]);
-    const decoded = rawMatches
-      .map((raw) => {
-        try {
-          return decodeURIComponent(raw.split("?")[0] ?? raw).trim().toLowerCase();
-        } catch {
-          return raw.split("?")[0]?.trim().toLowerCase() ?? "";
-        }
-      })
-      .filter((email) => EMAIL_RE.test(email));
-    const unique = [...new Set(decoded)];
-    if (!unique.length) return { email: null, source: "none_found", confidence: "none" };
-
-    const best = unique
-      .map((email) => ({ email, score: scoreCandidate(email, siteDomain) }))
-      .sort((a, b) => b.score - a.score)[0];
-
-    if (!best || best.score <= 0) return { email: null, source: "none_found", confidence: "none" };
-    return { email: best.email, source: "website_mailto", confidence: "verified_published" };
+    if (!res.ok) return null;
+    return await res.text();
   } catch {
-    return { email: null, source: "fetch_failed", confidence: "none" };
+    return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** mailto: links actually present on the page — decoded, deduped, validated. */
+function extractMailtoCandidates(html: string, sourceUrl: string): Candidate[] {
+  // mailto: hrefs are sometimes percent-encoded by the site itself (a stray
+  // leading space becomes %20admin@...) — decode first, then trim, then
+  // validate strictly. Matching raw percent-encoded text directly let
+  // malformed addresses like "%20admin@shroylaw.com" through uncaught.
+  const rawMatches = [...html.matchAll(/mailto:[ \t]*([^"'<>\s)]+)/gi)].map((m) => m[1]);
+  const emails = rawMatches
+    .map((raw) => {
+      try {
+        return decodeURIComponent(raw.split("?")[0] ?? raw).trim().toLowerCase();
+      } catch {
+        return raw.split("?")[0]?.trim().toLowerCase() ?? "";
+      }
+    })
+    .filter((email) => EMAIL_RE.test(email));
+  return [...new Set(emails)].map((email) => ({ email, sourceUrl, fromStructuredData: false }));
+}
+
+/**
+ * schema.org structured data (JSON-LD) — Organization/LocalBusiness/Person
+ * commonly publish an `email` field directly, or nest one under
+ * `contactPoint`. This is business-controlled published data, same standing
+ * as a mailto: link, just a different place to look for it.
+ */
+function extractStructuredDataCandidates(html: string, sourceUrl: string): Candidate[] {
+  const blocks = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)].map(
+    (m) => m[1] ?? "",
+  );
+  const found: string[] = [];
+  for (const block of blocks) {
+    try {
+      const parsed: unknown = JSON.parse(block);
+      const nodes = Array.isArray(parsed) ? parsed : [parsed];
+      for (const node of nodes) {
+        collectEmailFields(node, found);
+      }
+    } catch {
+      // Malformed JSON-LD is common (trailing commas, HTML comments inside) — skip, don't crash discovery.
+    }
+  }
+  const emails = found.map((e) => e.trim().toLowerCase()).filter((e) => EMAIL_RE.test(e));
+  return [...new Set(emails)].map((email) => ({ email, sourceUrl, fromStructuredData: true }));
+}
+
+function collectEmailFields(node: unknown, out: string[], depth = 0): void {
+  if (!node || typeof node !== "object" || depth > 4) return;
+  const obj = node as Record<string, unknown>;
+  if (typeof obj.email === "string") out.push(obj.email.replace(/^mailto:/i, ""));
+  for (const key of ["contactPoint", "employee", "member", "founder"]) {
+    const value = obj[key];
+    if (Array.isArray(value)) value.forEach((v) => collectEmailFields(v, out, depth + 1));
+    else if (value) collectEmailFields(value, out, depth + 1);
+  }
+}
+
+function bestCandidate(candidates: Candidate[], siteDomain: string): Candidate | null {
+  const scored = candidates
+    .map((c) => ({ c, score: scoreCandidate(c.email, siteDomain) }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score || (a.c.fromStructuredData === b.c.fromStructuredData ? 0 : a.c.fromStructuredData ? -1 : 1));
+  return scored[0]?.c ?? null;
+}
+
+/** Fetch a business's site (homepage, then contact/about/team if needed) for the best real, published contact email. */
+export async function discoverContactEmail(websiteUrl: string): Promise<DiscoveredContact> {
+  let siteDomain: string;
+  let origin: string;
+  try {
+    const parsed = new URL(websiteUrl);
+    siteDomain = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    origin = parsed.origin;
+  } catch {
+    return { email: null, source: "fetch_failed", confidence: "none", discoverySourceUrl: null, isNamed: false };
+  }
+
+  const homepageHtml = await fetchPage(websiteUrl);
+  if (homepageHtml === null) {
+    return { email: null, source: "fetch_failed", confidence: "none", discoverySourceUrl: null, isNamed: false };
+  }
+
+  let candidates = [
+    ...extractMailtoCandidates(homepageHtml, websiteUrl),
+    ...extractStructuredDataCandidates(homepageHtml, websiteUrl),
+  ];
+
+  let winner = bestCandidate(candidates, siteDomain);
+
+  // Homepage already gave us a real named contact — good enough, no need to
+  // spend more requests checking secondary pages.
+  if (!winner || !isNamedAddress(winner.email)) {
+    const secondaryResults = await Promise.allSettled(
+      SECONDARY_PATHS.map(async (path) => {
+        const url = `${origin}${path}`;
+        const html = await fetchPage(url);
+        return html ? { url, html } : null;
+      }),
+    );
+    for (const result of secondaryResults) {
+      if (result.status !== "fulfilled" || !result.value) continue;
+      const { url, html } = result.value;
+      candidates = [...candidates, ...extractMailtoCandidates(html, url), ...extractStructuredDataCandidates(html, url)];
+    }
+    const improved = bestCandidate(candidates, siteDomain);
+    if (improved && (!winner || scoreCandidate(improved.email, siteDomain) > scoreCandidate(winner.email, siteDomain) || isNamedAddress(improved.email))) {
+      winner = improved;
+    }
+  }
+
+  if (!winner) {
+    return { email: null, source: "none_found", confidence: "none", discoverySourceUrl: null, isNamed: false };
+  }
+
+  return {
+    email: winner.email,
+    source: winner.fromStructuredData ? "structured_data" : "website_mailto",
+    confidence: "verified_published",
+    discoverySourceUrl: winner.sourceUrl,
+    isNamed: isNamedAddress(winner.email),
+  };
 }
