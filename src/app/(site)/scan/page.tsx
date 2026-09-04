@@ -82,10 +82,7 @@ export default async function ScanPage({ searchParams }: Props) {
         </p>
         <div className="mx-auto mt-4 max-w-xl rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3">
           <p className="text-sm font-semibold text-amber-900">
-            🏆 Founding member pricing — first 20 customers lock in today&apos;s rates for life
-          </p>
-          <p className="mt-0.5 text-xs text-amber-700">
-            Prices increase as we grow. Lowest price we&apos;ve ever offered, and it won&apos;t stay this low.
+            Special rate on Scale: $74.99/month — keep this rate for as long as your subscription stays active.
           </p>
         </div>
         {promoCode === "EMAILFREE" || promoCode === "CONNECT" || promoCode === "ILoveYouFree" ? (
@@ -98,7 +95,11 @@ export default async function ScanPage({ searchParams }: Props) {
           </p>
         ) : (
           <p className="mt-2 text-sm text-zinc-500">
-            Already know you want more? Use code <strong className="text-zinc-700">INTRO50</strong> at checkout for 50% off month one.
+            Already know you want more? Scale locks in at $74.99/mo — see{" "}
+            <Link href="/pricing" className="font-semibold text-zinc-700 underline">
+              pricing
+            </Link>
+            .
           </p>
         )}
       </div>
