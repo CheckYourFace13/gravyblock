@@ -77,6 +77,11 @@ export async function runOutreachBatch(params: {
     // itself — opaque, no PII, correlates this exact send back to campaign/
     // industry/city/contact-type/business once the observation window ends.
     const attributionToken = randomUUID();
+    // Simple 50/50 A/B split on the initial subject/opening only — see
+    // outreach-emailer.ts buildReportSubject/Text/Html. Persisted with the
+    // send (job payload + Resend tag) so delivered->report-visit can be
+    // compared per variant later. No experimentation framework, just a flag.
+    const variant: "A" | "B" = Math.random() < 0.5 ? "A" : "B";
 
     let result: { ok: boolean; skipped?: boolean; reason?: string; resendEmailId?: string | null };
     try {
@@ -85,6 +90,7 @@ export async function runOutreachBatch(params: {
         industryLabel: industryLabel ?? industry,
         preScan,
         attributionToken,
+        variant,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -109,7 +115,7 @@ export async function runOutreachBatch(params: {
       contact.source,
       contact.confidence,
       result.resendEmailId ?? undefined,
-      { industry: industryLabel ?? industry, attributionToken, discoverySourceUrl: contact.discoverySourceUrl, isNamed: contact.isNamed },
+      { industry: industryLabel ?? industry, attributionToken, discoverySourceUrl: contact.discoverySourceUrl, isNamed: contact.isNamed, variant },
     );
     await recordOutreachSendRow({
       resendEmailId: result.resendEmailId ?? null,

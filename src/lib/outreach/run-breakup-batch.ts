@@ -10,7 +10,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { getBreakupCandidates, recordBreakupSent } from "./outreach-tracker";
+import { getBreakupCandidates, recordBreakupSent, getReportSummary } from "./outreach-tracker";
 import { sendBreakupEmail } from "./outreach-emailer";
 import { recordOutreachSendRow } from "./outreach-sends";
 import { recordOutreachSendFailure } from "./outreach-health";
@@ -28,12 +28,15 @@ export async function runBreakupOutreachBatch(
     if (!c.email) { skipped++; continue; }
 
     const attributionToken = randomUUID();
+    const reportSummary = c.reportPublicId ? await getReportSummary(c.reportPublicId) : null;
     try {
       const result = await sendBreakupEmail({
         businessName: c.businessName,
         email: c.email,
         city: c.city || undefined,
         attributionToken,
+        reportPublicId: c.reportPublicId,
+        findingTitle: reportSummary?.findingTitle ?? null,
       });
 
       if (result.skipped) { skipped++; continue; }

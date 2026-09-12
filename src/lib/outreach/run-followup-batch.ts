@@ -4,12 +4,13 @@
  *   - Have not received a follow-up yet
  *   - Have not opted out
  *
- * Email offers: first month free with code EMAILFREE.
+ * Links back to the same personalized report as the initial email and
+ * introduces the offer: Autopilot $74.99/mo, locked while subscribed.
  * Runs once per day via the worker.
  */
 
 import { randomUUID } from "node:crypto";
-import { getFollowupCandidates, recordFollowupSent } from "./outreach-tracker";
+import { getFollowupCandidates, recordFollowupSent, getReportSummary } from "./outreach-tracker";
 import { sendFollowupEmail } from "./outreach-emailer";
 import { isOptedOut } from "@/lib/email/optout";
 import { recordOutreachSendRow } from "./outreach-sends";
@@ -28,12 +29,15 @@ export async function runFollowupOutreachBatch(
     if (!c.email) { skipped++; continue; }
 
     const attributionToken = randomUUID();
+    const reportSummary = c.reportPublicId ? await getReportSummary(c.reportPublicId) : null;
     try {
       const result = await sendFollowupEmail({
         businessName: c.businessName,
         email: c.email,
         city: c.city || undefined,
         attributionToken,
+        reportPublicId: c.reportPublicId,
+        findingTitle: reportSummary?.findingTitle ?? null,
       });
 
       if (result.skipped) {

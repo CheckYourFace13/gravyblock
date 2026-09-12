@@ -179,11 +179,14 @@ function buildHtmlEmail(prospect: Prospect & { emailTo?: string }, industryLabel
 // full report at this link" converts far better than asking a stranger to go
 // run a scan themselves — the work is already done and the number is real.
 
-function buildReportSubject(prospect: Prospect, preScan: ProspectPreScan): string {
+type InitialVariant = "A" | "B";
+
+function buildReportSubject(prospect: Prospect, preScan: ProspectPreScan, variant: InitialVariant = "A"): string {
+  if (variant === "B") return `Quick note about ${prospect.businessName}'s Google visibility`;
   return `${prospect.businessName} scored ${preScan.score}/100 on Google visibility`;
 }
 
-function buildReportText(prospect: Prospect, preScan: ProspectPreScan): string {
+function buildReportText(prospect: Prospect, preScan: ProspectPreScan, variant: InitialVariant = "A"): string {
   const { businessName, city } = prospect;
   // Prospect-finder targets weak listings, so fixes essentially always exist —
   // but a strong business must not get a broken empty list. Lead with the
@@ -191,7 +194,9 @@ function buildReportText(prospect: Prospect, preScan: ProspectPreScan): string {
   // pitch comes after, briefly, not first.
   const topFinding = preScan.topFixes[0];
   const openingLine = topFinding
-    ? `${topFinding.title} — that's the main thing holding ${businessName} back on Google in ${city} right now (scored ${preScan.score}/100).`
+    ? variant === "B"
+      ? `I noticed something about ${businessName}'s Google presence: ${topFinding.title}.`
+      : `${topFinding.title} — that's the main thing holding ${businessName} back on Google in ${city} right now (scored ${preScan.score}/100).`
     : `${businessName} actually scored well — ${preScan.score}/100 in ${city}. The report below shows where the remaining headroom is.`;
 
   return `Hi,
@@ -212,11 +217,14 @@ P.S. Reply "no thanks" and you won't hear from me again.`;
 function buildReportHtml(
   prospect: Prospect & { emailTo?: string },
   preScan: ProspectPreScan,
+  variant: InitialVariant = "A",
 ): string {
   const { businessName, city, emailTo = "" } = prospect;
   const topFinding = preScan.topFixes[0];
   const openingBlock = topFinding
-    ? `<p style="margin:0 0 18px">
+    ? variant === "B"
+      ? `<p style="margin:0 0 18px">I noticed something about <strong>${businessName}</strong>'s Google presence: <strong>${topFinding.title}</strong>.</p>`
+      : `<p style="margin:0 0 18px">
         <strong>${topFinding.title}</strong> — that's the main thing holding <strong>${businessName}</strong> back on Google
         in ${city} right now (scored <strong>${preScan.score}/100</strong>).
       </p>`
@@ -270,15 +278,19 @@ function buildFollowupSubject(businessName: string): string {
   return `${businessName} — one more note ($74.99/mo, locked)`;
 }
 
-function buildFollowupText(businessName: string, scanUrl: string): string {
+function buildFollowupText(businessName: string, linkUrl: string, findingTitle: string | null): string {
+  const reminderLine = findingTitle
+    ? `I reached out about ${businessName}'s Google visibility — specifically, ${findingTitle.charAt(0).toLowerCase()}${findingTitle.slice(1)}. Wanted to follow up once.`
+    : `I reached out about ${businessName}'s local search rankings and wanted to follow up once.`;
+
   return `Hi,
 
-I reached out about ${businessName}'s local search rankings and wanted to follow up once.
+${reminderLine}
+
+Here's the report I ran, still up to date:
+${linkUrl}
 
 I know you're busy, so I'll make this quick: Autopilot is currently $74.99/mo, locked while you stay subscribed — it doesn't go up after month one. 30-day money-back guarantee, cancel any time.
-
-Run your free visibility score first (60 seconds), then see the plan at checkout if you want to try it:
-${scanUrl}
 
 If the timing isn't right, I completely understand — I won't follow up again after this.
 
@@ -286,7 +298,11 @@ ${SENDER_NAME}
 ${SENDER_TITLE} — https://gravyblock.com`;
 }
 
-function buildFollowupHtml(businessName: string, scanUrl: string, emailTo: string): string {
+function buildFollowupHtml(businessName: string, linkUrl: string, findingTitle: string | null, emailTo: string): string {
+  const reminderLine = findingTitle
+    ? `I reached out about <strong>${businessName}</strong>'s Google visibility — specifically, <strong>${findingTitle.charAt(0).toLowerCase()}${findingTitle.slice(1)}</strong>. Wanted to follow up once.`
+    : `I reached out about <strong>${businessName}</strong>'s local search rankings — wanted to follow up once before I move on.`;
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -297,21 +313,19 @@ function buildFollowupHtml(businessName: string, scanUrl: string, emailTo: strin
 
   <p style="margin:0 0 18px">Hi,</p>
 
-  <p style="margin:0 0 18px">
-    I reached out about <strong>${businessName}</strong>'s local search rankings — wanted to follow up once before I move on.
+  <p style="margin:0 0 18px">${reminderLine}</p>
+
+  <p style="margin:0 0 24px;text-align:center">
+    <a href="${linkUrl}"
+       style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">
+      See the report →
+    </a>
+    <br/>
+    <span style="font-size:12px;color:#666;margin-top:6px;display:block">Still up to date. ${linkUrl}</span>
   </p>
 
   <p style="margin:0 0 18px">
     I'll make this quick: Autopilot is currently <strong>$74.99/mo, locked</strong> while you stay subscribed — it doesn't go up after month one. 30-day money-back guarantee, cancel any time.
-  </p>
-
-  <p style="margin:0 0 8px">Start with your free visibility score (60 seconds), then see the plan at checkout if you want to try it:</p>
-
-  <p style="margin:0 0 24px;text-align:center">
-    <a href="${scanUrl}"
-       style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">
-      See your free score →
-    </a>
   </p>
 
   <p style="margin:0 0 32px;font-size:14px;color:#555">
@@ -336,6 +350,8 @@ export async function sendFollowupEmail(params: {
   email: string;
   city?: string;
   attributionToken?: string | null;
+  reportPublicId?: string | null;
+  findingTitle?: string | null;
 }): Promise<SendEmailResult> {
   const cfg = resendConfig();
   if (!cfg.apiKey) return { ok: false, skipped: true, reason: "RESEND_API_KEY not set" };
@@ -350,15 +366,25 @@ export async function sendFollowupEmail(params: {
     return { ok: false, skipped: true, reason: pauseCheck.reason };
   }
 
-  const scanUrlParams = new URLSearchParams({ q: params.businessName, ...(params.city ? { city: params.city } : {}) });
-  scanUrlParams.set("e", Buffer.from(params.email.toLowerCase()).toString("base64url"));
-  scanUrlParams.set("promo", "GROWTH50");
-  if (params.attributionToken) scanUrlParams.set("src", params.attributionToken);
-  const scanUrl = `${SITE_URL}/scan?${scanUrlParams.toString()}`;
+  // Prefer linking back to the SAME personalized report already run for this
+  // business — never make a prospect re-run a scan GravyBlock already did.
+  // Falls back to the scan flow only when no report exists yet (older
+  // candidates, or a fallback-path initial send with no pre-scan).
+  let linkUrl: string;
+  if (params.reportPublicId) {
+    linkUrl = withAttribution(`${SITE_URL}/report/${params.reportPublicId}`, params.attributionToken);
+  } else {
+    const scanUrlParams = new URLSearchParams({ q: params.businessName, ...(params.city ? { city: params.city } : {}) });
+    scanUrlParams.set("e", Buffer.from(params.email.toLowerCase()).toString("base64url"));
+    scanUrlParams.set("promo", "GROWTH50");
+    if (params.attributionToken) scanUrlParams.set("src", params.attributionToken);
+    linkUrl = `${SITE_URL}/scan?${scanUrlParams.toString()}`;
+  }
 
+  const findingTitle = params.findingTitle ?? null;
   const subject = buildFollowupSubject(params.businessName);
-  const text = buildFollowupText(params.businessName, scanUrl);
-  const html = buildFollowupHtml(params.businessName, scanUrl, params.email);
+  const text = buildFollowupText(params.businessName, linkUrl, findingTitle);
+  const html = buildFollowupHtml(params.businessName, linkUrl, findingTitle, params.email);
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -394,6 +420,8 @@ export async function sendBreakupEmail(params: {
   email: string;
   city?: string;
   attributionToken?: string | null;
+  reportPublicId?: string | null;
+  findingTitle?: string | null;
 }): Promise<SendEmailResult> {
   const cfg = resendConfig();
   if (!cfg.apiKey) return { ok: false, skipped: true, reason: "RESEND_API_KEY not set" };
@@ -408,47 +436,58 @@ export async function sendBreakupEmail(params: {
     return { ok: false, skipped: true, reason: pauseCheck.reason };
   }
 
-  const scanUrlParams = new URLSearchParams({ q: params.businessName, ...(params.city ? { city: params.city } : {}) });
-  scanUrlParams.set("e", Buffer.from(params.email.toLowerCase()).toString("base64url"));
-  scanUrlParams.set("promo", "GROWTH50");
-  if (params.attributionToken) scanUrlParams.set("src", params.attributionToken);
-  const scanUrl = `${SITE_URL}/scan?${scanUrlParams.toString()}`;
+  let linkUrl: string;
+  if (params.reportPublicId) {
+    linkUrl = withAttribution(`${SITE_URL}/report/${params.reportPublicId}`, params.attributionToken);
+  } else {
+    const scanUrlParams = new URLSearchParams({ q: params.businessName, ...(params.city ? { city: params.city } : {}) });
+    scanUrlParams.set("e", Buffer.from(params.email.toLowerCase()).toString("base64url"));
+    scanUrlParams.set("promo", "GROWTH50");
+    if (params.attributionToken) scanUrlParams.set("src", params.attributionToken);
+    linkUrl = `${SITE_URL}/scan?${scanUrlParams.toString()}`;
+  }
 
-  const subject = `${params.businessName} — closing your file`;
+  const findingTitle = params.findingTitle ?? null;
+  const subject = `Last note on ${params.businessName}'s visibility`;
+
+  const openingLine = findingTitle
+    ? `I've reached out a couple of times about ${params.businessName}'s Google visibility — specifically ${findingTitle.charAt(0).toLowerCase()}${findingTitle.slice(1)} — and haven't heard back. Totally understand, you're running a business.`
+    : `I've reached out a couple of times about ${params.businessName}'s Google visibility and haven't heard back — totally understand, you're running a business.`;
 
   const text = `Hi,
 
-I've reached out a couple of times about ${params.businessName}'s Google visibility and haven't heard back — totally understand, you're running a business.
+${openingLine}
 
-This is my last email. I'll close your file after this.
+This is my last note — here's the report, still current, in case you want to look:
+${linkUrl}
 
-Before I do: Autopilot is $74.99/mo, locked for as long as you stay subscribed — not just the first month — with a 30-day money-back guarantee. The scan takes 60 seconds if you want to see where you stand first:
+If you want it handled automatically: Autopilot is $74.99/mo, locked for as long as you stay subscribed — not just the first month — with a 30-day money-back guarantee, so there's no real risk in trying it.
 
-${scanUrl}
-
-If now's not the time, no hard feelings — I hope business is booming.
+Just reply if you'd like me to set it up, or if you'd rather I leave you be — either way, no hard feelings, I hope business is booming.
 
 ${SENDER_NAME}
 ${SENDER_TITLE} — https://gravyblock.com`;
+
+  const openingBlockHtml = findingTitle
+    ? `I've reached out a couple of times about <strong>${params.businessName}</strong>'s Google visibility — specifically <strong>${findingTitle.charAt(0).toLowerCase()}${findingTitle.slice(1)}</strong> — and haven't heard back. Totally understand, you're running a business.`
+    : `I've reached out a couple of times about <strong>${params.businessName}</strong>'s Google visibility and haven't heard back — totally understand, you're running a business.`;
 
   const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:#1a1a1a;max-width:560px;margin:0 auto;padding:32px 20px;background:#fff">
   <p style="margin:0 0 18px">Hi,</p>
-  <p style="margin:0 0 18px">
-    I've reached out a couple of times about <strong>${params.businessName}</strong>'s Google visibility and haven't heard back — totally understand, you're running a business.
-  </p>
-  <p style="margin:0 0 18px"><strong>This is my last email.</strong> I'll close your file after this.</p>
-  <p style="margin:0 0 18px">
-    Before I do: Autopilot is <strong>$74.99/mo, locked</strong> for as long as you stay subscribed — not just the first month — with a 30-day money-back guarantee. The scan takes 60 seconds if you want to see where you stand first.
-  </p>
+  <p style="margin:0 0 18px">${openingBlockHtml}</p>
+  <p style="margin:0 0 18px"><strong>This is my last note</strong> — here's the report, still current, in case you want to look:</p>
   <p style="margin:0 0 24px;text-align:center">
-    <a href="${scanUrl}" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">
-      Run my free scan →
+    <a href="${linkUrl}" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">
+      See the report →
     </a>
   </p>
-  <p style="margin:0 0 32px;font-size:14px;color:#555">If now's not the time, no hard feelings — I hope business is booming.</p>
+  <p style="margin:0 0 18px">
+    If you want it handled automatically: Autopilot is <strong>$74.99/mo, locked</strong> for as long as you stay subscribed — not just the first month — with a 30-day money-back guarantee, so there's no real risk in trying it.
+  </p>
+  <p style="margin:0 0 32px;font-size:14px;color:#555">Just reply if you'd like me to set it up, or if you'd rather I leave you be — either way, no hard feelings, I hope business is booming.</p>
   <p style="margin:0 0 6px;font-size:14px">
     ${SENDER_NAME}<br/>
     <a href="https://gravyblock.com" style="color:#dc2626;text-decoration:none">${SENDER_TITLE}</a>
@@ -486,7 +525,7 @@ ${SENDER_TITLE} — https://gravyblock.com`;
 export async function sendProspectEmail(
   prospect: Prospect,
   toEmail: string,
-  senderContext?: { agencyName?: string; industryLabel?: string; preScan?: ProspectPreScan | null; attributionToken?: string | null },
+  senderContext?: { agencyName?: string; industryLabel?: string; preScan?: ProspectPreScan | null; attributionToken?: string | null; variant?: InitialVariant },
 ): Promise<SendEmailResult> {
   const cfg = resendConfig();
 
@@ -515,11 +554,12 @@ export async function sendProspectEmail(
   // run-outreach-batch.ts — it skips rather than falling back when pre-scan
   // fails, so the plain buildScanUrl path below is effectively unused today).
   const preScan = rawPreScan ? { ...rawPreScan, reportUrl: withAttribution(rawPreScan.reportUrl, attributionToken) } : null;
+  const variant = senderContext?.variant ?? "A";
 
   // Report variant when we pre-ran their scan; invite variant as fallback
-  const subject = preScan ? buildReportSubject(prospect, preScan) : buildSubjectLine(prospect);
-  const text = preScan ? buildReportText(prospect, preScan) : buildTextEmail(prospect, industryLabel);
-  const html = preScan ? buildReportHtml(prospect, preScan) : buildHtmlEmail(prospect, industryLabel);
+  const subject = preScan ? buildReportSubject(prospect, preScan, variant) : buildSubjectLine(prospect);
+  const text = preScan ? buildReportText(prospect, preScan, variant) : buildTextEmail(prospect, industryLabel);
+  const html = preScan ? buildReportHtml(prospect, preScan, variant) : buildHtmlEmail(prospect, industryLabel);
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -537,6 +577,7 @@ export async function sendProspectEmail(
         { name: "type", value: "cold_outreach" },
         { name: "city", value: prospect.city.toLowerCase().replace(/\s+/g, "_") },
         { name: "industry", value: industryLabel.toLowerCase().replace(/\s+/g, "_") },
+        { name: "variant", value: variant },
       ],
     }),
   });

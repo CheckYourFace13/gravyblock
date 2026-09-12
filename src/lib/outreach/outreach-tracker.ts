@@ -2,7 +2,7 @@
 // Uses the jobs table with type = "cold_outreach_sent" and payload = { placeId, businessName }.
 // No outreachTargets table exists in schema — this is the correct fallback.
 
-import { getDb, jobs } from "@/lib/db";
+import { getDb, jobs, reports } from "@/lib/db";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 
 const OUTREACH_JOB_TYPE = "cold_outreach_sent";
@@ -37,7 +37,7 @@ export async function recordOutreachSent(
   contactSource?: string,
   contactConfidence?: string,
   resendEmailId?: string,
-  extra?: { industry?: string; attributionToken?: string; discoverySourceUrl?: string | null; isNamed?: boolean },
+  extra?: { industry?: string; attributionToken?: string; discoverySourceUrl?: string | null; isNamed?: boolean; variant?: "A" | "B" },
 ): Promise<void> {
   const db = getDb();
   if (!db) {
@@ -60,9 +60,25 @@ export async function recordOutreachSent(
       ...(extra?.attributionToken ? { attributionToken: extra.attributionToken } : {}),
       ...(extra?.discoverySourceUrl ? { discoverySourceUrl: extra.discoverySourceUrl } : {}),
       ...(extra?.isNamed !== undefined ? { isNamed: extra.isNamed } : {}),
+      ...(extra?.variant ? { variant: extra.variant } : {}),
     },
     status: "done",
   });
+}
+
+/** Real top finding + score for an existing report — lets follow-up/breakup emails
+ * reference the SAME finding as the initial email instead of re-running a scan. */
+export async function getReportSummary(reportPublicId: string): Promise<{ findingTitle: string | null; score: number | null } | null> {
+  const db = getDb();
+  if (!db) return null;
+  const [row] = await db
+    .select({ payload: reports.payload, overallScore: reports.overallScore })
+    .from(reports)
+    .where(eq(reports.publicId, reportPublicId))
+    .limit(1);
+  if (!row) return null;
+  const payload = row.payload as { prioritizedFixes?: Array<{ title?: string }> } | null;
+  return { findingTitle: payload?.prioritizedFixes?.[0]?.title ?? null, score: row.overallScore ?? null };
 }
 
 // ── Follow-up (email #2) tracking ────────────────────────────────────────────
@@ -74,7 +90,7 @@ export async function getFollowupCandidates(
   minDaysAgo = 3,
   maxDaysAgo = 21,
   limit = 20,
-): Promise<Array<{ placeId: string; businessName: string; email: string; city: string }>> {
+): Promise<Array<{ placeId: string; businessName: string; email: string; city: string; reportPublicId?: string }>> {
   const db = getDb();
   if (!db) return [];
 
@@ -110,6 +126,7 @@ export async function getFollowupCandidates(
         email: (p?.email as string) ?? "",
         city: (p?.city as string) ?? "",
         contactSource: p?.contactSource as string | undefined,
+        reportPublicId: p?.reportPublicId as string | undefined,
       };
     })
     .filter((c) => c.placeId && c.email && !alreadyFollowedUp.has(c.placeId))
@@ -151,7 +168,7 @@ export async function getBreakupCandidates(
   minDaysAgo = 5,
   maxDaysAgo = 30,
   limit = 40,
-): Promise<Array<{ placeId: string; businessName: string; email: string; city: string }>> {
+): Promise<Array<{ placeId: string; businessName: string; email: string; city: string; reportPublicId?: string }>> {
   const db = getDb();
   if (!db) return [];
 
@@ -184,15 +201,23 @@ export async function getBreakupCandidates(
       .map((p) => p.placeId as string)
       .filter(Boolean),
   );
+  const reportPublicIdByPlaceId = new Map(
+    originalSendJobs
+      .map((j) => j.payload as Record<string, unknown>)
+      .filter((p) => p?.placeId && p?.reportPublicId)
+      .map((p) => [p.placeId as string, p.reportPublicId as string]),
+  );
 
   return followupJobs
     .map((j) => {
       const p = j.payload as Record<string, unknown>;
+      const placeId = (p?.placeId as string) ?? "";
       return {
-        placeId: (p?.placeId as string) ?? "",
+        placeId,
         businessName: (p?.businessName as string) ?? "",
         email: (p?.email as string) ?? "",
         city: (p?.city as string) ?? "",
+        reportPublicId: reportPublicIdByPlaceId.get(placeId),
       };
     })
     .filter((c) => verifiedPlaceIds.has(c.placeId))
