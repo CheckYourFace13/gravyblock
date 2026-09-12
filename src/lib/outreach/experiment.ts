@@ -131,17 +131,26 @@ export async function evaluateExperiment(): Promise<ExperimentState> {
     return state; // not enough data yet — keep the current split, try again next batch
   }
 
-  const bWinsClearly =
-    stats.B.visits >= MIN_WINNING_VISITS &&
-    (stats.A.rate === 0 ? stats.B.visits >= MIN_WINNING_VISITS : stats.B.rate >= WINNING_RATE_MULTIPLE * stats.A.rate);
+  // Symmetric — whichever variant clearly beats the other wins, regardless
+  // of which one started as the "control." A clear win means: the winner
+  // has enough real visits that one accidental click can't decide it, and
+  // its rate beats the other side by at least 2x (or the other side has a
+  // literal zero rate on a real sample).
+  const clearlyBeats = (winner: VariantStats, loser: VariantStats) =>
+    winner.visits >= MIN_WINNING_VISITS && (loser.rate === 0 ? true : winner.rate >= WINNING_RATE_MULTIPLE * loser.rate);
 
-  if (bWinsClearly) {
+  const winnerVariant: "A" | "B" | null = clearlyBeats(stats.B, stats.A) ? "B" : clearlyBeats(stats.A, stats.B) ? "A" : null;
+
+  if (winnerVariant) {
+    const winnerStats = stats[winnerVariant];
+    const loserVariant = winnerVariant === "B" ? "A" : "B";
+    const loserStats = stats[loserVariant];
     const newState: ExperimentState = {
-      variantBAllocation: 1 - POST_PROMOTION_CONTROL_ALLOCATION,
+      variantBAllocation: winnerVariant === "B" ? 1 - POST_PROMOTION_CONTROL_ALLOCATION : POST_PROMOTION_CONTROL_ALLOCATION,
       promoted: true,
-      promotedVariant: "B",
+      promotedVariant: winnerVariant,
       promotedAt: new Date().toISOString(),
-      promotedReason: `B delivered->report-visit ${(stats.B.rate * 100).toFixed(2)}% (${stats.B.visits}/${stats.B.delivered}) vs A ${(stats.A.rate * 100).toFixed(2)}% (${stats.A.visits}/${stats.A.delivered}) — B kept as default with a ${(POST_PROMOTION_CONTROL_ALLOCATION * 100).toFixed(0)}% A control allocation.`,
+      promotedReason: `${winnerVariant} delivered->report-visit ${(winnerStats.rate * 100).toFixed(2)}% (${winnerStats.visits}/${winnerStats.delivered}) vs ${loserVariant} ${(loserStats.rate * 100).toFixed(2)}% (${loserStats.visits}/${loserStats.delivered}) — ${winnerVariant} kept as default with a ${(POST_PROMOTION_CONTROL_ALLOCATION * 100).toFixed(0)}% ${loserVariant} control allocation.`,
     };
     await persistExperimentState(newState);
     return newState;
