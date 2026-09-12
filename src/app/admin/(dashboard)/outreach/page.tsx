@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getOutreachSettings, getSentEmails, getBatchHistory, getOutreachCounts, getOutreachFunnel, getEmailHealth, getExperimentSummary, type FunnelPeriodStats } from "./actions";
+import { getOutreachSettings, getSentEmails, getBatchHistory, getOutreachCounts, getOutreachFunnel, getEmailHealth, getExperimentSummary, getPriorityBreakdown, type FunnelPeriodStats } from "./actions";
 import { WebhookTestForm } from "./webhook-test-form";
 import { ControlledOutreachTestForm } from "./controlled-outreach-test-form";
 import { getCalendarPreview, getTodaysOutreachTarget, getOutreachTargetForOffset, daysSinceEpoch, OUTREACH_WINDOW_OFFSETS } from "@/lib/outreach/outreach-calendar";
@@ -16,7 +16,7 @@ const WEEKEND_TARGETS = [
 ];
 
 export default async function OutreachPage() {
-  const [settings, sentEmails, batches, counts, funnel, health, experiment] = await Promise.all([
+  const [settings, sentEmails, batches, counts, funnel, health, experiment, priority] = await Promise.all([
     getOutreachSettings(),
     getSentEmails(200),
     getBatchHistory(30),
@@ -24,6 +24,7 @@ export default async function OutreachPage() {
     getOutreachFunnel(),
     getEmailHealth(),
     getExperimentSummary(),
+    getPriorityBreakdown(),
   ]);
 
   const todaysTarget = getTodaysOutreachTarget();
@@ -126,6 +127,29 @@ export default async function OutreachPage() {
           <div>
             <p className="text-xs uppercase tracking-wide text-zinc-500">Paying subscribers</p>
             <p className="font-semibold text-zinc-900">{experiment.payingSubscribers}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5 text-sm border-t border-zinc-100 pt-4">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Priority — high</p>
+            <p className="font-semibold text-zinc-900">{priority.byBand.high}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Priority — medium</p>
+            <p className="font-semibold text-zinc-900">{priority.byBand.medium}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Priority — low</p>
+            <p className="font-semibold text-zinc-900">{priority.byBand.low}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Named contact</p>
+            <p className="font-semibold text-zinc-900">{priority.namedCount}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Generic contact</p>
+            <p className="font-semibold text-zinc-900">{priority.genericCount}</p>
           </div>
         </div>
       </section>

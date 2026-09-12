@@ -38,7 +38,17 @@ export async function recordOutreachSent(
   contactSource?: string,
   contactConfidence?: string,
   resendEmailId?: string,
-  extra?: { industry?: string; attributionToken?: string; discoverySourceUrl?: string | null; isNamed?: boolean; variant?: "A" | "B" },
+  extra?: {
+    industry?: string;
+    attributionToken?: string;
+    discoverySourceUrl?: string | null;
+    isNamed?: boolean;
+    variant?: "A" | "B";
+    priorityScore?: number;
+    priorityBand?: "high" | "medium" | "low";
+    findingStrength?: "strong" | "medium";
+    topFindingId?: string | null;
+  },
 ): Promise<void> {
   const db = getDb();
   if (!db) {
@@ -62,6 +72,10 @@ export async function recordOutreachSent(
       ...(extra?.discoverySourceUrl ? { discoverySourceUrl: extra.discoverySourceUrl } : {}),
       ...(extra?.isNamed !== undefined ? { isNamed: extra.isNamed } : {}),
       ...(extra?.variant ? { variant: extra.variant } : {}),
+      ...(extra?.priorityScore !== undefined ? { priorityScore: extra.priorityScore } : {}),
+      ...(extra?.priorityBand ? { priorityBand: extra.priorityBand } : {}),
+      ...(extra?.findingStrength ? { findingStrength: extra.findingStrength } : {}),
+      ...(extra?.topFindingId ? { topFindingId: extra.topFindingId } : {}),
     },
     status: "done",
   });

@@ -1,16 +1,29 @@
 import { randomUUID } from "node:crypto";
-import { findWeakBusinesses } from "./prospect-finder";
+import { findWeakBusinesses, type Prospect } from "./prospect-finder";
 import { sendProspectEmail } from "./outreach-emailer";
 import { hasBeenContacted, recordOutreachSent } from "./outreach-tracker";
-import { runProspectPreScan } from "./prospect-prescan";
+import { runProspectPreScan, type ProspectPreScan } from "./prospect-prescan";
 import { isOptedOut } from "@/lib/email/optout";
-import { discoverContactEmail } from "./discover-contact-email";
+import { discoverContactEmail, type DiscoveredContact } from "./discover-contact-email";
 import { recordOutreachSendRow } from "./outreach-sends";
 import { recordOutreachSendFailure } from "./outreach-health";
 import { isEligibleForOutreach } from "./finding-quality";
 import { evaluateExperiment, pickVariant } from "./experiment";
+import { computeProspectPriority, type ProspectPriority } from "./prospect-priority";
 
 const DEFAULT_MAX_EMAILS = 25; // 25 per batch × 4 weekday windows = ~100/day
+// How many eligible candidates to evaluate (contact discovery + pre-scan)
+// before picking which `cap` of them actually get emailed. Bounded on
+// purpose — this is a re-ranking of an already-eligible pool, not a reason
+// to pre-scan the entire prospect list every batch.
+const EVALUATION_MULTIPLIER = 2;
+
+type EligibleCandidate = {
+  prospect: Prospect;
+  contact: DiscoveredContact & { email: string };
+  preScan: ProspectPreScan;
+  priority: ProspectPriority;
+};
 
 export async function runOutreachBatch(params: {
   city: string;
@@ -34,12 +47,16 @@ export async function runOutreachBatch(params: {
   // variants for this batch. See experiment.ts for the decision rule.
   const experimentState = await evaluateExperiment();
 
-  let sent = 0;
   let skipped = 0;
+  const evaluationLimit = Math.min(prospects.length, cap * EVALUATION_MULTIPLIER);
+  const seenNames = new Set<string>();
+  const eligible: EligibleCandidate[] = [];
 
-  for (const prospect of prospects) {
-    if (sent >= cap) break;
-
+  // Phase 1 — discover contact, pre-scan, and gate exactly as before. The
+  // only change from before is that a candidate that passes every existing
+  // check is COLLECTED instead of sent immediately, so it can be ranked
+  // against the rest of this batch's pool before anyone gets emailed.
+  for (const prospect of prospects.slice(0, evaluationLimit)) {
     const alreadyContacted = await hasBeenContacted(prospect.placeId);
     if (alreadyContacted) {
       skipped++;
@@ -93,19 +110,37 @@ export async function runOutreachBatch(params: {
       continue;
     }
 
+    const priority = computeProspectPriority(prospect, preScan, contact, seenNames);
+    eligible.push({ prospect, contact: { ...contact, email: candidateEmail }, preScan, priority });
+  }
+
+  // Phase 2 — highest-probability prospects first. Applies identically to
+  // whichever variant a given send ends up getting (pickVariant below is an
+  // independent draw against the same allocation regardless of rank), so
+  // ranking never biases the A/B comparison toward one variant getting
+  // better prospects than the other.
+  eligible.sort((a, b) => b.priority.score - a.priority.score);
+  const toSend = eligible.slice(0, cap);
+  // Anyone ranked below the cap this batch is simply not sent yet — they
+  // were never marked contacted, so they're picked up again (freshly
+  // re-evaluated) whenever this city/industry comes up in rotation next.
+
+  let sent = 0;
+
+  for (const { prospect, contact, preScan, priority } of toSend) {
     // Generated before the send so it can be embedded in the report link
     // itself — opaque, no PII, correlates this exact send back to campaign/
     // industry/city/contact-type/business once the observation window ends.
     const attributionToken = randomUUID();
     // Allocation is autonomous — see experiment.ts. Starts 80% B / 20% A;
-    // auto-promotes B (with a small A control slice) once it's clearly
-    // winning, or stops touching the split once neither variant clears the
-    // historical baseline (see evaluateExperiment's terminal states above).
+    // auto-promotes the clear winner (with a small control slice for the
+    // other side) once one is, or stops touching the split once neither
+    // variant clears the historical baseline (see evaluateExperiment).
     const variant = pickVariant(experimentState);
 
     let result: { ok: boolean; skipped?: boolean; reason?: string; resendEmailId?: string | null };
     try {
-      result = await sendProspectEmail(prospect, candidateEmail, {
+      result = await sendProspectEmail(prospect, contact.email, {
         agencyName,
         industryLabel: industryLabel ?? industry,
         preScan,
@@ -129,18 +164,28 @@ export async function runOutreachBatch(params: {
     await recordOutreachSent(
       prospect.placeId,
       prospect.businessName,
-      candidateEmail,
+      contact.email,
       prospect.city,
       preScan?.publicId,
       contact.source,
       contact.confidence,
       result.resendEmailId ?? undefined,
-      { industry: industryLabel ?? industry, attributionToken, discoverySourceUrl: contact.discoverySourceUrl, isNamed: contact.isNamed, variant },
+      {
+        industry: industryLabel ?? industry,
+        attributionToken,
+        discoverySourceUrl: contact.discoverySourceUrl,
+        isNamed: contact.isNamed,
+        variant,
+        priorityScore: priority.score,
+        priorityBand: priority.band,
+        findingStrength: priority.findingStrength,
+        topFindingId: priority.topFindingId,
+      },
     );
     await recordOutreachSendRow({
       resendEmailId: result.resendEmailId ?? null,
       placeId: prospect.placeId,
-      recipient: candidateEmail,
+      recipient: contact.email,
       campaign: "cold_outreach",
       sequenceStep: "initial",
       contactSource: contact.source,
@@ -148,16 +193,18 @@ export async function runOutreachBatch(params: {
     });
     console.info("[outreach-batch] Sent", {
       businessName: prospect.businessName,
-      email: candidateEmail,
+      email: contact.email,
       isNamed: contact.isNamed,
       discoverySourceUrl: contact.discoverySourceUrl,
       score: prospect.opportunityScore,
+      priorityScore: priority.score,
+      priorityBand: priority.band,
       preScanned: Boolean(preScan),
       reportScore: preScan?.score,
     });
     sent++;
   }
 
-  console.info("[outreach-batch] Done", { sent, skipped, prospects: prospects.length });
+  console.info("[outreach-batch] Done", { sent, skipped, prospects: prospects.length, evaluated: eligible.length });
   return { sent, skipped, prospects: prospects.length };
 }

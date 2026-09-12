@@ -629,3 +629,29 @@ export async function getExperimentSummary(): Promise<ExperimentSummary> {
   return { state, stats, payingSubscribers };
 }
 
+export type PriorityBreakdown = {
+  byBand: Record<"high" | "medium" | "low" | "unscored", number>;
+  namedCount: number;
+  genericCount: number;
+};
+
+/** Priority-ranking breakdown of initial sends made under prospect-priority.ts. */
+export async function getPriorityBreakdown(): Promise<PriorityBreakdown> {
+  const db = getDb();
+  const empty: PriorityBreakdown = { byBand: { high: 0, medium: 0, low: 0, unscored: 0 }, namedCount: 0, genericCount: 0 };
+  if (!db) return empty;
+
+  const rows = await db.select({ payload: jobs.payload }).from(jobs).where(eq(jobs.type, "cold_outreach_sent"));
+
+  const result: PriorityBreakdown = { byBand: { high: 0, medium: 0, low: 0, unscored: 0 }, namedCount: 0, genericCount: 0 };
+  for (const row of rows) {
+    const p = (row.payload ?? {}) as Record<string, unknown>;
+    const band = p.priorityBand;
+    if (band === "high" || band === "medium" || band === "low") result.byBand[band]++;
+    else result.byBand.unscored++;
+    if (p.isNamed === true) result.namedCount++;
+    else if (p.isNamed === false) result.genericCount++;
+  }
+  return result;
+}
+
