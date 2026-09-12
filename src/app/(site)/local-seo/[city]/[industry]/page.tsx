@@ -41,6 +41,9 @@ export default async function LocalSeoPage({ params }: Props) {
 
   const ind = industry.name.toLowerCase();
   const indPlural = industry.plural.toLowerCase();
+  // Vowel-SOUND, not vowel-letter — "HVAC" is pronounced "aitch-vee-ay-see"
+  // and needs "an", despite starting with the consonant letter H.
+  const article = /^(hvac)\b/i.test(ind) || /^[aeiou]/i.test(ind) ? "an" : "a";
 
   // FAQ content — also emitted as FAQPage schema for Google rich results
   const faqs = [
@@ -49,8 +52,8 @@ export default async function LocalSeoPage({ params }: Props) {
       a: `${industry.plural} rank in the ${city.name} map pack by combining a complete Google Business Profile, a steady flow of recent reviews, consistent name/address/phone across directories, and regular local content. GravyBlock automates all four — content publishing, citation audits, review requests, and GBP posts — so your ${ind} climbs the rankings without you doing the work manually.`,
     },
     {
-      q: `How much does local SEO cost for a ${ind} in ${city.name}?`,
-      a: `A ${city.name} SEO agency typically charges $1,000–$3,000/month and you still attend meetings. GravyBlock runs the same work automatically from $29.99/month introductory — content, Google Business Profile management, review monitoring, and citation audits included. You can start with a free scan, no credit card.`,
+      q: `How much does local SEO cost for ${article} ${ind} in ${city.name}?`,
+      a: `A ${city.name} SEO agency typically charges $1,000–$3,000/month and you still attend meetings. GravyBlock runs the same work automatically — content, Google Business Profile management, review monitoring, and citation audits included — starting at $74.99/month on the Scale plan, locked for as long as you stay subscribed. You can start with a free scan, no credit card.`,
     },
     {
       q: `How long until my ${ind} shows up in ${city.name} search results?`,
@@ -128,7 +131,7 @@ export default async function LocalSeoPage({ params }: Props) {
           {[
             {
               title: "Customers search locally first",
-              body: `When someone needs a ${industry.name.toLowerCase()} in ${city.name}, they search Google. The top 3 results capture most of the calls. Visibility in local search and map pack results is not optional.`,
+              body: `When someone needs ${article} ${ind} in ${city.name}, they search Google. The top 3 results capture most of the calls. Visibility in local search and map pack results is not optional.`,
             },
             {
               title: "AI assistants are the new word-of-mouth",

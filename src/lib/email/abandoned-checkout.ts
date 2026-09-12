@@ -31,6 +31,13 @@ function buildEmail(businessName: string, plan: string): { subject: string; html
   const planLabel = plan === "growth" ? "Scale" : plan === "pro" ? "Pro" : "Starter";
   const regularPrice = plan === "growth" ? "$149.99" : plan === "pro" ? "$299.99" : "$59.99";
   const introPrice = plan === "growth" ? "$74.99" : plan === "pro" ? "$149.99" : "$29.99";
+  // Growth's discount is a genuine locked-forever rate (GROWTH50), not a
+  // first-month-only one (INTRO50, used for Starter/Pro) — the copy and
+  // code must match which one actually applies at checkout.
+  const isGrowth = plan === "growth";
+  const promoLine = isGrowth
+    ? `Locked at ${introPrice}/mo for as long as your subscription stays active — not just the first month.`
+    : `Use code <strong>INTRO50</strong> at checkout for 50% off your first month.`;
 
   const subject = `You left ${businessName}'s plan unfinished`;
 
@@ -44,14 +51,14 @@ function buildEmail(businessName: string, plan: string): { subject: string; html
       Your workspace is ready and waiting. To activate ${planLabel} and start the autopilot, just complete checkout below.
     </p>
     <div style="margin:20px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
-      <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b">${planLabel} — ${introPrice} first month (reg. ${regularPrice}/mo)</p>
+      <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b">${planLabel} — ${introPrice}/mo${isGrowth ? "" : ` first month (reg. ${regularPrice}/mo)`}</p>
       <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">
-        Use code <strong>INTRO50</strong> at checkout for 50% off your first month.
+        ${promoLine}
         ${plan === "growth" ? "Includes weekly AI articles, Google Business Profile posts, backlink prospecting, and AI citation monitoring." : "Includes monthly visibility monitoring, citation audit, review queue, and content ideas."}
         No contract. Cancel any time.
       </p>
     </div>
-    ${btn(`${siteUrl}/scan?plan=${plan}`, `Complete ${planLabel} checkout`)}
+    ${btn(`${siteUrl}/scan?plan=${plan}${isGrowth ? "&promo=GROWTH50" : ""}`, `Complete ${planLabel} checkout`)}
     <p style="color:#71717a;font-size:13px;margin:20px 0 0">
       If you have questions before signing up, reply to this email. A real person will answer.
     </p>
@@ -89,19 +96,23 @@ async function recordAbandonedEmailSent(businessId: string, type = "abandoned_ch
 function buildFollowUpEmail(businessName: string, plan: string): { subject: string; html: string } {
   const planLabel = plan === "growth" ? "Scale" : plan === "pro" ? "Pro" : "Starter";
   const introPrice = plan === "growth" ? "$74.99" : plan === "pro" ? "$149.99" : "$29.99";
+  const isGrowth = plan === "growth";
   const subject = `still there? your GravyBlock workspace is waiting`;
+  const priceLine = isGrowth
+    ? `If the price was the issue: ${planLabel} is locked at ${introPrice}/mo for as long as your subscription stays active. That's full autopilot — weekly articles published to your site, citation monitoring, review requests, and rank tracking — all running without you lifting a finger.`
+    : `If the price was the issue: use code <strong>INTRO50</strong> at checkout and ${planLabel} drops to ${introPrice} for the first month.`;
   const html = wrap(`
     <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">Hey,</p>
     <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">
       You started GravyBlock for <strong>${businessName}</strong> a few days ago but didn't finish checkout. Just checking in — your workspace is still set up and ready.
     </p>
     <p style="color:#52525b;font-size:14px;margin:0 0 16px 0">
-      If the price was the issue: use code <strong>INTRO50</strong> at checkout and ${planLabel} drops to ${introPrice} for the first month. That's full autopilot — weekly articles published to your site, citation fixes, review requests, and rank tracking — all running without you lifting a finger.
+      ${priceLine}
     </p>
     <p style="color:#52525b;font-size:14px;margin:0 0 16px 0">
       If something else stopped you — just reply and tell me. I'll sort it out.
     </p>
-    ${btn(`${siteUrl}/scan?plan=${plan}`, "Complete checkout — code INTRO50")}
+    ${btn(`${siteUrl}/scan?plan=${plan}${isGrowth ? "&promo=GROWTH50" : ""}`, isGrowth ? "Complete checkout" : "Complete checkout — code INTRO50")}
     <p style="color:#71717a;font-size:13px;margin:20px 0 0">
       No pressure. If you're not interested, just ignore this — I won't send more.
     </p>

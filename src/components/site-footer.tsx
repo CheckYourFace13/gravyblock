@@ -12,13 +12,27 @@ export function SiteFooter() {
             location, multi-location, service-area, and online brands that need to rank higher and convert better.
           </p>
           <p className="mt-3 text-xs text-zinc-500">
-            <Link href="/support" className="font-medium text-zinc-700 hover:underline">
-              Support
+            <Link href="/about" className="font-medium text-zinc-700 hover:underline">
+              About
+            </Link>{" "}
+            ·{" "}
+            <Link href="/contact" className="font-medium text-zinc-700 hover:underline">
+              Contact
             </Link>{" "}
             ·{" "}
             <Link href="/faq" className="font-medium text-zinc-700 hover:underline">
               FAQ
+            </Link>{" "}
+            ·{" "}
+            <Link href="/pricing" className="font-medium text-zinc-700 hover:underline">
+              Pricing
             </Link>
+          </p>
+          <p className="mt-3 text-xs text-zinc-400">
+            Built by{" "}
+            <a href="https://iscreamstudio.com" target="_blank" rel="noopener" className="font-medium text-zinc-600 hover:underline">
+              iScream Studio
+            </a>
           </p>
         </div>
         <div className="flex flex-col gap-8 sm:flex-row sm:gap-10">

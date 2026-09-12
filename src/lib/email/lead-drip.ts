@@ -71,8 +71,8 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         GravyBlock fixes all of that automatically. Every week it publishes content, refreshes your listing signals, and queues citation and review tasks so you're always the freshest result on the page.
       </p>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Start Scale — $74.99 first month →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">Use code <strong>INTRO50</strong> at checkout for 50% off. No contract.</p>
+      ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start Scale — $74.99/mo →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Locked at $74.99/mo for as long as you stay subscribed. No contract.</p>
     `, email, leadId),
   },
   {
@@ -88,9 +88,9 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         GravyBlock tracks whether ${businessName} gets mentioned when AI assistants answer questions about your industry and city — and runs the work that improves your chances every week.
       </p>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Track my AI visibility — $74.99/mo →")}
+      ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Track my AI visibility — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:16px 0">
-        Scale includes AI visibility monitoring, weekly ranking refreshes, published content, and Google Business Profile posts. Code <strong>INTRO50</strong> = 50% off first month.
+        Scale includes AI visibility monitoring, weekly ranking refreshes, published content, and Google Business Profile posts. $74.99/mo, locked for as long as you stay subscribed.
       </p>
     `, email, leadId),
   },
@@ -111,8 +111,8 @@ const DRIP_SEQUENCE: DripEmail[] = [
         <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 4</p>
         <p style="margin:6px 0 0;font-size:13px;color:#52525b">Monthly visibility refresh. Score updates. You get a full summary of everything that ran and what's queued next month.</p>
       </div>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Start Scale — $74.99 first month →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">Code <strong>INTRO50</strong> at checkout. 50% off first month.</p>
+      ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start Scale — $74.99/mo →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Locked at $74.99/mo for as long as you stay subscribed.</p>
     `, email, leadId),
   },
   {
@@ -131,19 +131,19 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         Most local businesses don't do this at all. That's the opportunity.
       </p>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Start publishing content — $74.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">Code <strong>INTRO50</strong> = 50% off first month.</p>
+      ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start publishing content — $74.99/mo →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Locked at $74.99/mo for as long as you stay subscribed.</p>
     `, email, leadId),
   },
   {
     day: 6,
-    subject: ({ businessName }) => `50% off Scale for ${businessName} — this week only`,
+    subject: ({ businessName }) => `Scale for ${businessName} — $74.99/mo, locked while subscribed`,
     html: ({ name, businessName, email, leadId }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Limited Offer</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">$74.99 first month. Full autopilot.</h1>
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Pricing</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">$74.99/mo. Full autopilot.</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        Use code <strong>INTRO50</strong> at checkout — your first month of Scale drops from $149.99 to $74.99.
+        Scale is $149.99/mo regular, $74.99/mo with code <strong>GROWTH50</strong> — locked for as long as your subscription stays active, not just the first month.
       </p>
       <div style="margin:20px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
         <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b">Scale includes everything:</p>
@@ -156,8 +156,8 @@ const DRIP_SEQUENCE: DripEmail[] = [
           <li>AI search visibility monitoring (ChatGPT, Perplexity, Google AI)</li>
         </ul>
       </div>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Claim 50% off Scale — code INTRO50 →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">First month only. Renews at $149.99/month. Cancel any time.</p>
+      ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start Scale — $74.99/mo →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Cancel any time.</p>
     `, email, leadId),
   },
   {
@@ -211,8 +211,8 @@ const DRIP_SEQUENCE: DripEmail[] = [
           </div>
         </div>
       </div>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Start Scale — $74.99 first month →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">Code <strong>INTRO50</strong> at checkout.</p>
+      ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start Scale — $74.99/mo →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Locked at $74.99/mo for as long as you stay subscribed.</p>
     `, email, leadId),
   },
   {
@@ -253,29 +253,29 @@ const DRIP_SEQUENCE: DripEmail[] = [
         <li>Every week: visibility score refreshes, new content queues, outreach sends. Monthly digest shows everything that ran.</li>
       </ol>
       <p style="color:#52525b;font-size:14px;margin:12px 0">You don't need to learn SEO. It runs without you.</p>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Start full autopilot — $74.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">Code <strong>INTRO50</strong> at checkout = 50% off first month.</p>
+      ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start full autopilot — $74.99/mo →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">Locked at $74.99/mo for as long as you stay subscribed.</p>
     `, email, leadId),
   },
   {
     day: 14,
-    subject: ({ businessName }) => `Last email — INTRO50 expires for ${businessName}`,
+    subject: ({ businessName }) => `Last email about ${businessName}'s scan`,
     html: ({ name, businessName, reportUrl, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#dc2626">Final Notice</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Last chance at 50% off</h1>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Last one from this sequence</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        This is the last time GravyBlock will email you about this. The <strong>INTRO50</strong> code — 50% off your first month — is still valid, but this sequence ends today.
+        This is the last time GravyBlock will email you about this — the sequence ends today. Here's where things stand if you want to start:
       </p>
       <div style="margin:20px 0;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px">
-        <p style="margin:0;font-size:15px;font-weight:700;color:#166534">Scale — $74.99 first month (reg. $149.99)</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Weekly AI articles, Google Business Profile posts, citation checklists, review requests, backlink prospecting, and AI visibility monitoring. Fully automated. No contract.</p>
+        <p style="margin:0;font-size:15px;font-weight:700;color:#166534">Scale — $74.99/mo, locked while subscribed (reg. $149.99)</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Weekly AI articles, Google Business Profile posts, citation checklists, review requests, backlink prospecting, and AI visibility monitoring. No contract.</p>
       </div>
       <div style="margin:12px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
         <p style="margin:0;font-size:15px;font-weight:700;color:#991b1b">Starter — $29.99 first month (reg. $59.99)</p>
         <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Monthly visibility monitoring, citation audit, review queue, and content ideas. Good starting point for ${businessName}.</p>
       </div>
-      ${btn(`${siteUrl}/scan?plan=growth`, "Start Scale — use code INTRO50")}
+      ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start Scale — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:16px 0">
         Your report stays live: <a href="${reportUrl}" style="color:#dc2626">${reportUrl}</a>
       </p>

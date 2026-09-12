@@ -11,7 +11,7 @@ export default function ForPlumbersPage() {
     <VerticalLanding
       eyebrow="Plumbers"
       title="When a pipe bursts at midnight, homeowners call the first plumber they trust on Google. Be that plumber."
-      body="Emergency plumbing searches are immediate and high-value. Homeowners pick businesses with strong reviews and easy phone numbers. GravyBlock keeps your Google profile complete and up-to-date, helps you gather reviews, and fixes your citations—so you're more discoverable for emergency and planned jobs alike."
+      body="Emergency plumbing searches are immediate and high-value. Homeowners pick businesses with strong reviews and easy phone numbers. GravyBlock keeps your Google profile complete and up-to-date, helps you gather reviews, and audits your citations for inconsistencies—so you're more discoverable for emergency and planned jobs alike."
       bullets={[
         "Optimize your GBP for emergency plumbing, drain cleaning, water heater repair, and city-specific searches.",
         "Publish weekly content: DIY guides, prevention tips, city-specific plumbing guides that rank long-term.",

@@ -53,7 +53,7 @@ export default function CompareIndexPage() {
             "AI search visibility (ChatGPT, Perplexity, Gemini)",
             "Competitor ranking comparison built in",
             "Free visibility scan. Results in 60 seconds.",
-            "Starts at $29.99/mo intro. No agency needed.",
+            "Scale plan: $74.99/mo, locked while subscribed. No agency needed.",
           ].map((f) => (
             <div key={f} className="flex items-start gap-2">
               <span className="mt-0.5 shrink-0 font-bold text-red-600">✓</span>
@@ -69,7 +69,7 @@ export default function CompareIndexPage() {
             Start Scale — $74.99/mo
           </Link>
         </div>
-        <p className="mt-2 text-xs text-zinc-500">Code <strong className="text-zinc-700">INTRO50</strong> = 50% off your first month.</p>
+        <p className="mt-2 text-xs text-zinc-500">Scale plan: $74.99/mo, locked while subscribed.</p>
       </div>
 
       {/* Featured competitor comparisons */}

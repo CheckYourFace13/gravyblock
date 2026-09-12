@@ -1499,7 +1499,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           {tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
             <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
               <p className="text-sm font-semibold text-zinc-900">Scale</p>
-              <p className="text-xs text-zinc-600">$149.99/mo · intro $74.99/mo with INTRO50</p>
+              <p className="text-xs text-zinc-600">$149.99/mo · $74.99/mo locked while subscribed</p>
               <div className="mt-3">
                 <CheckoutButton
                   businessId={businessId}

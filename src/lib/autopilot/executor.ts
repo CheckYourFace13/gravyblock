@@ -373,8 +373,11 @@ export async function executeContentPublishPath(businessId: string) {
       console.warn("[executeContentPublishPath] AI generation returned null — skipping", { businessId, itemId: queuedItem.id });
       return { ok: false, reason: "ai_generation_failed" };
     }
-    if (containsPlaceholderArtifact(aiBody)) {
-      console.warn("[executeContentPublishPath] AI output contained an unfilled placeholder — skipping", { businessId, itemId: queuedItem.id });
+    // Body-only was checked here before — the title (already fixed at queue
+    // time, but never re-verified at publish time) is exactly where "online_
+    // brand Services in your area" and "[Your City]" leaked through live.
+    if (containsPlaceholderArtifact(aiBody) || containsPlaceholderArtifact(queuedItem.title)) {
+      console.warn("[executeContentPublishPath] AI output or title contained an unfilled placeholder — skipping", { businessId, itemId: queuedItem.id, title: queuedItem.title });
       return { ok: false, reason: "ai_generation_failed" };
     }
     let body = aiBody;
@@ -880,8 +883,8 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
             publishedUrls.push(`[skipped — AI unavailable]`);
             continue;
           }
-          if (containsPlaceholderArtifact(aiBody)) {
-            console.warn("[executor] AI output contained an unfilled placeholder — skipping publish", { businessId, queueId: queueRow.id, title: queueRow.title });
+          if (containsPlaceholderArtifact(aiBody) || containsPlaceholderArtifact(queueRow.title)) {
+            console.warn("[executor] AI output or title contained an unfilled placeholder — skipping publish", { businessId, queueId: queueRow.id, title: queueRow.title });
             publishedUrls.push(`[skipped — unfilled placeholder]`);
             continue;
           }

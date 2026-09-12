@@ -169,7 +169,9 @@ async function sendUpsellEmail(
   </div>
 
   <p style="color:#52525b;font-size:14px;margin:16px 0">
-    Upgrade to <strong>${nextFeatures.label}</strong> for $${nextFeatures.introPrice}/month introductory pricing (use code <strong>INTRO50</strong>).
+    ${nextTier === "growth"
+      ? `Upgrade to <strong>${nextFeatures.label}</strong> for $${nextFeatures.introPrice}/month, locked for as long as you stay subscribed (code <strong>GROWTH50</strong>).`
+      : `Upgrade to <strong>${nextFeatures.label}</strong> for $${nextFeatures.introPrice}/month introductory pricing (use code <strong>INTRO50</strong>).`}
   </p>
 
   <div style="margin:16px 0;padding:14px 16px;background:#fafafa;border:1px solid #e4e4e7;border-radius:10px">

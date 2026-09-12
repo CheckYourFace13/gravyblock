@@ -48,7 +48,7 @@ function buildEmail(attempt: number, ctx: { name: string; businessName: string; 
         <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Pricing Update</p>
         <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Hi ${name} — worth a second look</h1>
         <p style="color:#52525b;font-size:15px;margin:16px 0">
-          A while back you ran a free visibility scan for <strong>${businessName}</strong>. Since then we dropped Starter to <strong>$29.99/mo</strong> with code INTRO50 — the lowest starting price of any local SEO automation tool we've compared against.
+          A while back you ran a free visibility scan for <strong>${businessName}</strong>. Since then Starter dropped to <strong>$29.99/mo</strong> for your first month with code INTRO50.
         </p>
         <p style="color:#52525b;font-size:14px;margin:12px 0">
           It still runs the same way: visibility monitoring, a monthly fix list, citation checklist, and AI search checks — no manual work on your end.
@@ -68,7 +68,7 @@ function buildEmail(attempt: number, ctx: { name: string; businessName: string; 
         I've reached out about <strong>${businessName}</strong>'s visibility scan a couple of times now — this is the last one, I'll close it out after this.
       </p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        Starter is $29.99/mo if you ever want it handled automatically. Your original report is still here:
+        Starter is $29.99/mo for your first month if you want ongoing visibility monitoring without doing it yourself. Your original report is still here:
       </p>
       ${btn(reportUrl, "View report →")}
       <p style="color:#71717a;font-size:13px;margin:20px 0 0">No hard feelings either way — I hope business is going well.</p>

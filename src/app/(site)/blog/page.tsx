@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { desc, eq, and, inArray } from "drizzle-orm";
-import { getDb, publishedContent, businesses } from "@/lib/db";
 import { getAllBlogPosts } from "@/lib/blog/posts";
 
 export const dynamic = "force-dynamic";
@@ -18,68 +16,21 @@ export const metadata: Metadata = {
   },
 };
 
-async function getBlogPosts() {
-  const db = getDb();
-  if (!db) return [];
-  try {
+// This page used to also merge in autopilot-generated posts from the house
+// account (businessId = GRAVYBLOCK_SELF_BUSINESS_ID) at /published/[id].
+// Confirmed live in production (2026-09-12) that surface was carrying
+// broken/template content ("Why your area Residents Choose Gravy Block",
+// "online_brand Services in your area") straight into this indexed page.
+// The editorial blog is GravyBlock-written educational content — house-
+// account automation output belongs on /proof (as evidence of real
+// activity), never merged into the editorial index. See also the
+// strengthened containsPlaceholderArtifact guard in
+// src/lib/content-gen/quality-guard.ts, now applied to titles too, so
+// future house-account content can't reach "published" in this state
+// regardless of where it's surfaced.
 
-  const selfId = process.env.GRAVYBLOCK_SELF_BUSINESS_ID;
-
-  // Get published articles — either from GravyBlock's own business ID,
-  // or all internal_site published articles if the self-business is set
-  const rows = await db
-    .select({
-      id: publishedContent.id,
-      title: publishedContent.title,
-      body: publishedContent.body,
-      createdAt: publishedContent.createdAt,
-      coverImageUrl: publishedContent.coverImageUrl,
-      metaDescription: publishedContent.metaDescription,
-    })
-    .from(publishedContent)
-    .where(
-      and(
-        selfId ? eq(publishedContent.businessId, selfId) : inArray(publishedContent.channel, ["internal_site"]),
-        eq(publishedContent.status, "published"),
-        inArray(publishedContent.channel, ["internal_site", "wordpress", "webflow"]),
-      ),
-    )
-    .orderBy(desc(publishedContent.createdAt))
-    .limit(50);
-
-  return rows;
-  } catch {
-    return [];
-  }
-}
-
-function excerpt(body: string, length = 160): string {
-  return body
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/[*_`[\]()#>-]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, length)
-    .trim() + "…";
-}
-
-export default async function BlogPage() {
-  const [dynamicPosts, staticPosts] = await Promise.all([
-    getBlogPosts(),
-    Promise.resolve(getAllBlogPosts()),
-  ]);
-
-  // Merge: dynamic posts first, then static blog posts
-  type PostItem =
-    | { type: "dynamic"; id: string; title: string; body: string; createdAt: Date; coverImageUrl: string | null; metaDescription: string | null; href: string }
-    | { type: "static"; slug: string; title: string; metaDescription: string; publishedAt: string; href: string };
-
-  const allPosts: PostItem[] = [
-    ...dynamicPosts.map((p) => ({ type: "dynamic" as const, ...p, href: `/published/${p.id}` })),
-    ...staticPosts.map((p) => ({ type: "static" as const, ...p, href: `/blog/${p.slug}` })),
-  ];
-
-  const posts = allPosts;
+export default function BlogPage() {
+  const posts = getAllBlogPosts();
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
@@ -89,40 +40,23 @@ export default async function BlogPage() {
         <p className="max-w-2xl text-zinc-600">
           Practical guides, tips, and strategies for small business owners who want to rank higher in Google, show up in AI search, and grow without hiring an agency.
         </p>
-        <p className="text-xs text-zinc-400">Articles written and published automatically by GravyBlock autopilot.</p>
       </header>
 
       <div className="grid gap-8 sm:grid-cols-2">
         {posts.map((post) => {
-          const coverImageUrl = post.type === "dynamic" ? post.coverImageUrl : null;
-          const dateStr = post.type === "dynamic"
-            ? new Date(post.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-            : new Date(post.publishedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-          const desc2 = post.type === "dynamic"
-            ? (post.metaDescription ?? excerpt(post.body))
-            : post.metaDescription;
-          const key = post.type === "dynamic" ? post.id : post.slug;
+          const dateStr = new Date(post.publishedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+          const href = `/blog/${post.slug}`;
 
           return (
-            <article key={key} className="group flex flex-col rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-              {coverImageUrl ? (
-                <div className="h-40 overflow-hidden bg-zinc-100">
-                  <img
-                    src={coverImageUrl}
-                    alt={post.title}
-                    className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-              ) : (
-                <div className="h-2 bg-gradient-to-r from-red-500 to-red-700" />
-              )}
+            <article key={post.slug} className="group flex flex-col rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+              <div className="h-2 bg-gradient-to-r from-red-500 to-red-700" />
               <div className="flex flex-1 flex-col p-5">
                 <p className="text-xs text-zinc-400 mb-2">{dateStr}</p>
                 <h2 className="text-base font-semibold text-zinc-900 group-hover:text-red-700 transition-colors leading-snug">
-                  <Link href={post.href}>{post.title}</Link>
+                  <Link href={href}>{post.title}</Link>
                 </h2>
-                <p className="mt-2 flex-1 text-sm text-zinc-500 leading-relaxed">{desc2}</p>
-                <Link href={post.href} className="mt-4 text-xs font-semibold text-red-700 hover:text-red-800">
+                <p className="mt-2 flex-1 text-sm text-zinc-500 leading-relaxed">{post.metaDescription}</p>
+                <Link href={href} className="mt-4 text-xs font-semibold text-red-700 hover:text-red-800">
                   Read article →
                 </Link>
               </div>
