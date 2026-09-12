@@ -238,7 +238,7 @@ export default async function CityHubPage({ params }: Props) {
               </h3>
               <p className="mt-2 text-sm text-zinc-600">
                 Not anymore. GravyBlock replaces the work a local SEO agency would do — writing content,
-                building citations, requesting reviews, posting to Google Business Profile — at a fraction
+                auditing citations, keeping review growth on track, posting to Google Business Profile — at a fraction
                 of agency pricing. You get weekly automated work without managing a vendor.
               </p>
             </div>
