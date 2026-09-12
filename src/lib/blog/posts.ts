@@ -83,7 +83,7 @@ Google's local algorithm uses review count, review velocity (how often new revie
 
 **Bottom line:** The most reliable review strategy is a simple, consistent system: ask every happy customer, make it one tap, and respond to every review you receive.
 
-[GravyBlock automates review request emails every Wednesday for all paid customers →](/scan)`,
+[GravyBlock monitors your reviews, drafts AI replies, and reminds you weekly to keep asking →](/scan)`,
   },
   {
     slug: "local-seo-checklist",
@@ -867,7 +867,7 @@ However, in most competitive urban markets, 20+ reviews with a 4.3+ average is e
 
 **Bottom line:** You can rank without reviews by maximizing every other factor. But 25+ reviews remains the fastest path to consistent top-3 appearances. Make review generation your primary activity in months 1–3.
 
-[GravyBlock's review request system automates weekly review outreach to your customers →](/scan)`,
+[GravyBlock monitors your reviews, drafts AI replies, and reminds you weekly to keep asking →](/scan)`,
   },
 ];
 
