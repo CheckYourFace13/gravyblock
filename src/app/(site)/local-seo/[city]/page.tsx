@@ -75,7 +75,7 @@ export default async function CityHubPage({ params }: Props) {
         name: `Do I need a local SEO agency in ${city.name}?`,
         acceptedAnswer: {
           "@type": "Answer",
-          text: `Not anymore. GravyBlock replaces the work a local SEO agency would do — writing content, building citations, requesting reviews, posting to Google Business Profile — at a fraction of agency pricing. You get weekly automated work without managing a vendor.`,
+          text: `Not anymore. GravyBlock replaces the work a local SEO agency would do — writing content, auditing citations, keeping review growth on track, posting to Google Business Profile — at a fraction of agency pricing. You get weekly automated work without managing a vendor.`,
         },
       },
     ],
