@@ -267,7 +267,7 @@ function buildReportHtml(
 // ── Follow-up email (email #2 — free trial offer) ───────────────────────────
 
 function buildFollowupSubject(businessName: string): string {
-  return `${businessName} — one more note (+ a free month)`;
+  return `${businessName} — one more note ($74.99/mo, locked)`;
 }
 
 function buildFollowupText(businessName: string, scanUrl: string): string {
@@ -275,9 +275,9 @@ function buildFollowupText(businessName: string, scanUrl: string): string {
 
 I reached out about ${businessName}'s local search rankings and wanted to follow up once.
 
-I know you're busy, so I'll make this quick: first month is free (code EMAILFREE), no credit card charge, cancel any time.
+I know you're busy, so I'll make this quick: Autopilot is currently $74.99/mo, locked while you stay subscribed — it doesn't go up after month one. 30-day money-back guarantee, cancel any time.
 
-Run your free visibility score first (60 seconds), then apply the code at checkout if you want to try it:
+Run your free visibility score first (60 seconds), then see the plan at checkout if you want to try it:
 ${scanUrl}
 
 If the timing isn't right, I completely understand — I won't follow up again after this.
@@ -302,10 +302,10 @@ function buildFollowupHtml(businessName: string, scanUrl: string, emailTo: strin
   </p>
 
   <p style="margin:0 0 18px">
-    I'll make this quick: first month is free (code <strong>EMAILFREE</strong>), no charge, cancel any time.
+    I'll make this quick: Autopilot is currently <strong>$74.99/mo, locked</strong> while you stay subscribed — it doesn't go up after month one. 30-day money-back guarantee, cancel any time.
   </p>
 
-  <p style="margin:0 0 8px">Start with your free visibility score (60 seconds), then apply the code at checkout if you want to try it:</p>
+  <p style="margin:0 0 8px">Start with your free visibility score (60 seconds), then see the plan at checkout if you want to try it:</p>
 
   <p style="margin:0 0 24px;text-align:center">
     <a href="${scanUrl}"
@@ -352,7 +352,7 @@ export async function sendFollowupEmail(params: {
 
   const scanUrlParams = new URLSearchParams({ q: params.businessName, ...(params.city ? { city: params.city } : {}) });
   scanUrlParams.set("e", Buffer.from(params.email.toLowerCase()).toString("base64url"));
-  scanUrlParams.set("promo", "EMAILFREE");
+  scanUrlParams.set("promo", "GROWTH50");
   if (params.attributionToken) scanUrlParams.set("src", params.attributionToken);
   const scanUrl = `${SITE_URL}/scan?${scanUrlParams.toString()}`;
 
@@ -410,7 +410,7 @@ export async function sendBreakupEmail(params: {
 
   const scanUrlParams = new URLSearchParams({ q: params.businessName, ...(params.city ? { city: params.city } : {}) });
   scanUrlParams.set("e", Buffer.from(params.email.toLowerCase()).toString("base64url"));
-  scanUrlParams.set("promo", "EMAILFREE");
+  scanUrlParams.set("promo", "GROWTH50");
   if (params.attributionToken) scanUrlParams.set("src", params.attributionToken);
   const scanUrl = `${SITE_URL}/scan?${scanUrlParams.toString()}`;
 
@@ -422,7 +422,7 @@ I've reached out a couple of times about ${params.businessName}'s Google visibil
 
 This is my last email. I'll close your file after this.
 
-Before I do: the free month offer (code EMAILFREE) is still active if you ever want to see what automated local SEO looks like. The scan takes 60 seconds and the first month costs nothing:
+Before I do: Autopilot is $74.99/mo, locked for as long as you stay subscribed — not just the first month — with a 30-day money-back guarantee. The scan takes 60 seconds if you want to see where you stand first:
 
 ${scanUrl}
 
@@ -441,7 +441,7 @@ ${SENDER_TITLE} — https://gravyblock.com`;
   </p>
   <p style="margin:0 0 18px"><strong>This is my last email.</strong> I'll close your file after this.</p>
   <p style="margin:0 0 18px">
-    Before I do: the free month offer (code <strong>EMAILFREE</strong>) is still active if you ever want to see what automated local SEO looks like. The scan takes 60 seconds and the first month costs nothing.
+    Before I do: Autopilot is <strong>$74.99/mo, locked</strong> for as long as you stay subscribed — not just the first month — with a 30-day money-back guarantee. The scan takes 60 seconds if you want to see where you stand first.
   </p>
   <p style="margin:0 0 24px;text-align:center">
     <a href="${scanUrl}" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">
