@@ -474,7 +474,7 @@ export function ReportView({
                       href={workspacePlanHref("growth")}
                       className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                     >
-                      Growth: $74.99/mo introductory
+                      Scale: $74.99/mo locked
                     </Link>
                   ) : null}
                 </div>

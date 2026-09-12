@@ -337,7 +337,11 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             ) : null}
             <span className="rounded-full bg-red-100 px-3 py-1 text-red-950">
               Plan: {features.label}{" "}
-              {features.monthlyPrice > 0 ? `($${features.introPrice}/mo introductory)` : ""}
+              {features.monthlyPrice > 0
+                ? tier === "growth"
+                  ? `($${features.introPrice}/mo locked)`
+                  : `($${features.introPrice}/mo introductory)`
+                : ""}
             </span>
             <span className="rounded-full bg-zinc-100 border border-zinc-300 px-3 py-1">Refresh: {features.refreshCadenceLabel}</span>
             {selectedPlan ? (
