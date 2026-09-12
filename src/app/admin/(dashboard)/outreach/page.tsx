@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getOutreachSettings, getSentEmails, getBatchHistory, getOutreachCounts, getOutreachFunnel, getEmailHealth, type FunnelPeriodStats } from "./actions";
+import { getOutreachSettings, getSentEmails, getBatchHistory, getOutreachCounts, getOutreachFunnel, getEmailHealth, getExperimentSummary, type FunnelPeriodStats } from "./actions";
 import { WebhookTestForm } from "./webhook-test-form";
 import { ControlledOutreachTestForm } from "./controlled-outreach-test-form";
 import { getCalendarPreview, getTodaysOutreachTarget, getOutreachTargetForOffset, daysSinceEpoch, OUTREACH_WINDOW_OFFSETS } from "@/lib/outreach/outreach-calendar";
@@ -16,13 +16,14 @@ const WEEKEND_TARGETS = [
 ];
 
 export default async function OutreachPage() {
-  const [settings, sentEmails, batches, counts, funnel, health] = await Promise.all([
+  const [settings, sentEmails, batches, counts, funnel, health, experiment] = await Promise.all([
     getOutreachSettings(),
     getSentEmails(200),
     getBatchHistory(30),
     getOutreachCounts(),
     getOutreachFunnel(),
     getEmailHealth(),
+    getExperimentSummary(),
   ]);
 
   const todaysTarget = getTodaysOutreachTarget();
@@ -68,6 +69,66 @@ export default async function OutreachPage() {
           <>▶ OUTREACH RUNNING — initial, follow-up, breakup, lead-drip, lead-reengagement, and abandoned-checkout emails may all send.</>
         )}
       </div>
+
+      {/* ── AUTONOMOUS A/B EXPERIMENT ────────────────────────── */}
+      <section className={`rounded-2xl border-2 p-6 shadow-sm ${experiment.state.evaluatedNoWinner ? "border-amber-400 bg-amber-50" : experiment.state.promoted ? "border-emerald-300 bg-emerald-50" : "border-zinc-200 bg-white"}`}>
+        <h2 className="text-base font-semibold text-zinc-900 mb-1">🧪 Initial-email A/B experiment</h2>
+        <p className="text-sm text-zinc-500 mb-4">
+          Fully autonomous — evaluates itself on every outreach batch. Auto-promotes Variant B once it clearly beats
+          Variant A (≥30 delivered on B, ≥3 attributed report visits, rate at least 2× A&apos;s), or stops touching the
+          split once neither variant clears 2× the historical baseline. See src/lib/outreach/experiment.ts.
+        </p>
+
+        {experiment.state.promoted ? (
+          <p className="mb-4 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-900">
+            ✓ Auto-promoted {experiment.state.promotedVariant} on {experiment.state.promotedAt ? new Date(experiment.state.promotedAt).toLocaleString() : "—"}.{" "}
+            {experiment.state.promotedReason}
+          </p>
+        ) : experiment.state.evaluatedNoWinner ? (
+          <p className="mb-4 rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-900">
+            ⚠ OUTREACH ENGAGEMENT PROBLEM: TARGETING / CONTACT QUALITY (classified {experiment.state.evaluatedNoWinnerAt ? new Date(experiment.state.evaluatedNoWinnerAt).toLocaleString() : "—"}).{" "}
+            {experiment.state.evaluatedNoWinnerReason}
+          </p>
+        ) : null}
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 text-sm">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Current allocation</p>
+            <p className="font-semibold text-zinc-900">
+              A {Math.round((1 - experiment.state.variantBAllocation) * 100)}% · B {Math.round(experiment.state.variantBAllocation * 100)}%
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">A — delivered / visits</p>
+            <p className="font-semibold text-zinc-900">{experiment.stats.A.delivered} / {experiment.stats.A.visits}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">A — report-visit rate</p>
+            <p className="font-semibold text-zinc-900">{(experiment.stats.A.rate * 100).toFixed(2)}%</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">B — delivered / visits</p>
+            <p className="font-semibold text-zinc-900">{experiment.stats.B.delivered} / {experiment.stats.B.visits}</p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">B — report-visit rate</p>
+            <p className="font-semibold text-zinc-900">{(experiment.stats.B.rate * 100).toFixed(2)}%</p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 text-sm border-t border-zinc-100 pt-4">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Winning variant so far</p>
+            <p className="font-semibold text-zinc-900">
+              {experiment.state.promoted ? experiment.state.promotedVariant : "not yet decided"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-zinc-500">Paying subscribers</p>
+            <p className="font-semibold text-zinc-900">{experiment.payingSubscribers}</p>
+          </div>
+        </div>
+      </section>
 
       {/* ── WEBHOOK / EMAIL DELIVERY HEALTH ─────────────────── */}
       <section className={`rounded-2xl border-2 p-6 shadow-sm ${health.redAlert ? "border-red-400 bg-red-50" : health.webhookConfigured ? "border-emerald-200 bg-white" : "border-amber-400 bg-amber-50"}`}>

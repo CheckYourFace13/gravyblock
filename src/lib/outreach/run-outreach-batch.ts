@@ -8,6 +8,7 @@ import { discoverContactEmail } from "./discover-contact-email";
 import { recordOutreachSendRow } from "./outreach-sends";
 import { recordOutreachSendFailure } from "./outreach-health";
 import { isEligibleForOutreach } from "./finding-quality";
+import { evaluateExperiment, pickVariant } from "./experiment";
 
 const DEFAULT_MAX_EMAILS = 25; // 25 per batch × 4 weekday windows = ~100/day
 
@@ -27,6 +28,11 @@ export async function runOutreachBatch(params: {
 
   const prospects = await findWeakBusinesses({ city, state, industry });
   console.info("[outreach-batch] Prospects found", { count: prospects.length });
+
+  // Autonomous A/B allocation — checks whether the experiment should
+  // auto-promote a winner or get classified as stalled before picking
+  // variants for this batch. See experiment.ts for the decision rule.
+  const experimentState = await evaluateExperiment();
 
   let sent = 0;
   let skipped = 0;
@@ -91,11 +97,11 @@ export async function runOutreachBatch(params: {
     // itself — opaque, no PII, correlates this exact send back to campaign/
     // industry/city/contact-type/business once the observation window ends.
     const attributionToken = randomUUID();
-    // Simple 50/50 A/B split on the initial subject/opening only — see
-    // outreach-emailer.ts buildReportSubject/Text/Html. Persisted with the
-    // send (job payload + Resend tag) so delivered->report-visit can be
-    // compared per variant later. No experimentation framework, just a flag.
-    const variant: "A" | "B" = Math.random() < 0.5 ? "A" : "B";
+    // Allocation is autonomous — see experiment.ts. Starts 80% B / 20% A;
+    // auto-promotes B (with a small A control slice) once it's clearly
+    // winning, or stops touching the split once neither variant clears the
+    // historical baseline (see evaluateExperiment's terminal states above).
+    const variant = pickVariant(experimentState);
 
     let result: { ok: boolean; skipped?: boolean; reason?: string; resendEmailId?: string | null };
     try {

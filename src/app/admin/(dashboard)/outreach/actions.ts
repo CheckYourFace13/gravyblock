@@ -2,7 +2,8 @@
 
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { getDb, jobs, emailEvents, funnelEvents, leads } from "@/lib/db";
+import { getDb, jobs, emailEvents, funnelEvents, leads, businesses } from "@/lib/db";
+import { getExperimentStatus, type ExperimentState } from "@/lib/outreach/experiment";
 import { isAdminSession } from "@/lib/auth/admin-session";
 import { listResendWebhooks, checkWebhookSecretMatches, getResendEmailStatus } from "@/lib/integrations/resend-webhooks";
 import { recordOutreachSendRow } from "@/lib/outreach/outreach-sends";
@@ -600,5 +601,31 @@ export async function getWebhookTestTrace(resendEmailId: string) {
   const resendStatus = await getResendEmailStatus(resendEmailId);
 
   return { events, resendLastEvent: resendStatus.lastEvent, resendCheckError: resendStatus.error ?? null };
+}
+
+export type ExperimentSummary = {
+  state: ExperimentState;
+  stats: {
+    A: { delivered: number; visits: number; rate: number };
+    B: { delivered: number; visits: number; rate: number };
+  };
+  payingSubscribers: number;
+};
+
+/** Autonomous initial-email A/B experiment status — see src/lib/outreach/experiment.ts. */
+export async function getExperimentSummary(): Promise<ExperimentSummary> {
+  const { state, stats } = await getExperimentStatus();
+
+  const db = getDb();
+  let payingSubscribers = 0;
+  if (db) {
+    const [row] = await db
+      .select({ n: sql<number>`count(*)` })
+      .from(businesses)
+      .where(inArray(businesses.subscriptionStatus, ["active", "trialing"]));
+    payingSubscribers = Number(row?.n ?? 0);
+  }
+
+  return { state, stats, payingSubscribers };
 }
 
