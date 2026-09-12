@@ -28,7 +28,7 @@ async function latestReportFor(businessId: string) {
   const sql = getSqlClient();
   if (!sql) return null;
   const rows = await sql.unsafe(
-    `select r.public_id, r.overall_score, r.payload, r.created_at, b.name as business_name, b.city
+    `select r.public_id, r.overall_score, r.payload, r.created_at, b.name as business_name, s.lookup_location as city
      from reports r
      join scans s on s.id = r.scan_id
      join businesses b on b.id = s.business_id
@@ -80,8 +80,8 @@ export async function POST(req: Request) {
   const businessName = (report.business_name as string) || businessNameFallback;
   const score = report.overall_score as number;
   const publicId = report.public_id as string;
-  const payload = report.payload as { topFixes?: Array<{ title?: string; description?: string }> } | null;
-  const topFinding = payload?.topFixes?.[0];
+  const payload = report.payload as { prioritizedFixes?: Array<{ title?: string; description?: string }> } | null;
+  const topFinding = payload?.prioritizedFixes?.[0];
 
   const attributionToken = randomUUID();
   const reportUrl = `${SITE_URL}/report/${publicId}?src=${encodeURIComponent(attributionToken)}`;
