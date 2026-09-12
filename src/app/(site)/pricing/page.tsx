@@ -336,7 +336,7 @@ export default function PricingPage() {
                   ["Backlink outreach attempts/mo (real contacts only)", "—", "up to 8", "up to 16"],
                   ["Facebook + Instagram auto-posting", "—", "✓", "✓"],
                   ["Review inbox + AI reply drafts", "—", "✓", "✓"],
-                  ["Review request automation", "—", "✓", "✓"],
+                  ["Review reminders + AI reply drafts", "—", "✓", "✓"],
                   ["Citation checklist (industry-matched directories)", "Monthly", "Weekly", "Weekly"],
                   ["AI Citation Monitor (ChatGPT etc.)", "Basic", "Full", "Full"],
                   ["AEO / GEO / Entity scores", "—", "✓", "✓"],

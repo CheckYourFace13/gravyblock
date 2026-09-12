@@ -49,7 +49,7 @@ export default async function LocalSeoPage({ params }: Props) {
   const faqs = [
     {
       q: `How do ${indPlural} in ${city.name} rank higher on Google Maps?`,
-      a: `${industry.plural} rank in the ${city.name} map pack by combining a complete Google Business Profile, a steady flow of recent reviews, consistent name/address/phone across directories, and regular local content. GravyBlock automates all four — content publishing, citation audits, review requests, and GBP posts — so your ${ind} climbs the rankings without you doing the work manually.`,
+      a: `${industry.plural} rank in the ${city.name} map pack by combining a complete Google Business Profile, a steady flow of recent reviews, consistent name/address/phone across directories, and regular local content. GravyBlock automates three of those directly — content publishing, citation audits, and GBP posts — and keeps review growth moving with weekly reminders and AI-drafted replies, so your ${ind} climbs the rankings with far less manual work.`,
     },
     {
       q: `How much does local SEO cost for ${article} ${ind} in ${city.name}?`,
@@ -165,7 +165,7 @@ export default async function LocalSeoPage({ params }: Props) {
               `Generates and publishes local SEO articles targeting "${industry.name.toLowerCase()} in ${city.name}" and nearby neighborhoods`,
               `Publishes weekly Google Business Profile posts and photos so your listing stays active when ${city.name} locals search for ${industry.plural.toLowerCase()}`,
               `Monitors your AI search visibility: whether Perplexity or ChatGPT mentions your business when asked about ${industry.plural.toLowerCase()} in ${city.name}`,
-              `Runs review request campaigns and drafts AI responses to new reviews to improve reply rate`,
+              `Monitors your reviews, drafts AI responses to every new one, and reminds you weekly to ask your own customers`,
               `Builds a backlink queue from local ${city.name} directories, community sites, and industry publications`,
             ].map((step, idx) => (
               <li key={idx} className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-700">

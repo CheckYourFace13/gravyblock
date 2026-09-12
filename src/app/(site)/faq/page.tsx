@@ -38,7 +38,7 @@ const faqs = [
       },
       {
         q: "What is the INTRO50 discount?",
-        a: "INTRO50 is our launch promo code that gives you 50% off your first month. Starter drops to $29.99, Scale to $74.99, and Pro to $149.99. Apply the code at checkout. It's valid on all paid plans.",
+        a: "INTRO50 gives you 50% off your first month on Starter ($29.99) or Pro ($149.99) — after that, billing reverts to the regular price. Scale works differently: code GROWTH50 gives you 50% off every month for as long as your subscription stays active — $74.99/mo, not just the first one. Apply the relevant code at checkout.",
       },
       {
         q: "Is there a free plan?",
@@ -170,11 +170,11 @@ export default function FaqPage() {
             <Link href="/scan" className="rounded-full bg-white px-7 py-3 text-sm font-bold text-zinc-900 hover:bg-zinc-100">
               Get my free score
             </Link>
-            <Link href="/start?plan=growth" className="rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">
+            <Link href="/start?plan=growth&promo=GROWTH50" className="rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">
               Start Scale — $74.99/mo
             </Link>
           </div>
-          <p className="text-xs text-zinc-600">Code INTRO50 = 50% off month one · Cancel anytime</p>
+          <p className="text-xs text-zinc-600">$74.99/mo locked while subscribed · Cancel anytime</p>
         </div>
       </section>
     </div>

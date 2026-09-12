@@ -26,7 +26,7 @@ const PLAN_INFO = {
     monthly: 149.99,
     intro: 74.99,
     tagline: "Full autopilot — content, GBP posts, review replies, and social running every week.",
-    bullets: ["Weekly AI articles published to your site", "Auto Google Business Profile posts", "AI review reply drafts", "Facebook + Instagram posting", "Review request automation"],
+    bullets: ["Weekly AI articles published to your site", "Auto Google Business Profile posts", "AI review reply drafts", "Facebook + Instagram posting", "Weekly review reminders"],
     highlight: true,
   },
   pro: {

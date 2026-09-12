@@ -130,7 +130,7 @@ export default async function CityHubPage({ params }: Props) {
             },
             {
               title: "Reviews drive bookings",
-              body: `Businesses with 50+ Google reviews and a 4.5+ star rating convert 3× better than competitors with fewer reviews. GravyBlock automates review request campaigns so your count grows every month.`,
+              body: `Businesses with 50+ Google reviews and a 4.5+ star rating convert 3× better than competitors with fewer reviews. GravyBlock monitors your reviews, drafts AI replies for every new one, and sends you a weekly reminder to ask your own customers — so review growth doesn't slip.`,
             },
             {
               title: "AI assistants now recommend local businesses",
@@ -161,7 +161,7 @@ export default async function CityHubPage({ params }: Props) {
               `Writes and publishes local SEO articles targeting "${city.name}" + your service keywords`,
               `Publishes weekly Google Business Profile posts and photos so your listing stays active in ${city.name} searches`,
               `Monitors AI visibility — does ChatGPT or Perplexity mention your business when asked about ${city.name} services?`,
-              `Runs review request campaigns and drafts AI responses to every new Google review`,
+              `Monitors your reviews, drafts AI responses to every new one, and reminds you weekly to ask your own customers`,
               `Builds a backlink queue from ${city.name} directories, local blogs, and niche community sites`,
             ].map((step, idx) => (
               <li key={idx} className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-700">

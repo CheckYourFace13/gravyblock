@@ -790,7 +790,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                     done: latestReviewCount >= 20,
                     status: latestReviewCount >= 20
                       ? `${latestReviewCount} reviews ✓`
-                      : `${latestReviewCount} reviews so far — GravyBlock sends review requests weekly`,
+                      : `${latestReviewCount} reviews so far — GravyBlock reminds you weekly to ask your own customers`,
                     why: "AI assistants use review volume as a trust signal when deciding what to recommend.",
                   },
                   {
@@ -1468,7 +1468,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 ? ` · renews ${new Date(bundle.business.currentPeriodEnd).toLocaleDateString()}`
                 : ""}
             </p>
-            <p className="mt-1 text-xs text-zinc-500">Use code <strong>INTRO50</strong> at checkout for 50% off your first month.</p>
+            <p className="mt-1 text-xs text-zinc-500">Scale is locked at $74.99/mo while subscribed (code GROWTH50). Starter and Pro get 50% off the first month with code INTRO50.</p>
             {promoCode ? <p className="mt-1 text-xs font-medium text-zinc-700">Promo ready: {promoCode}</p> : null}
           </div>
           {hasBillingCustomer ? (
