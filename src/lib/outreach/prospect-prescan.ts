@@ -20,18 +20,31 @@
 import { createPublicId, generateReportFromPlace } from "@/lib/report/generator";
 import { recordScanRun } from "@/lib/report/repository";
 import type { Prospect } from "./prospect-finder";
+import { classifyFindingStrength } from "./finding-quality";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
 
-export type ProspectPreScanFix = { title: string; detail: string };
+export type ProspectPreScanFix = { id: string; title: string; detail: string };
 
 export type ProspectPreScan = {
   publicId: string;
   reportUrl: string;
   score: number;
-  /** Top prioritized fixes, most impactful first (max 3). */
+  /**
+   * Report fixes re-ranked for OUTREACH hook quality, not the report's own
+   * internal impact order. The report's #1 fix is almost always
+   * "Estimated map & local-query visibility is soft" — a modeled estimate,
+   * not a verified fact, and (confirmed via a 45-prospect audit) it was
+   * literally every prospect's #1 finding regardless of what else was true
+   * about the business. Re-ranking by strong > medium > weak (see
+   * finding-quality.ts) surfaces a real, verified, specific finding at [0]
+   * whenever one exists — e.g. a real "hours clarity is weak" crawl result —
+   * instead of always leading with the generic modeled one.
+   */
   topFixes: ProspectPreScanFix[];
 };
+
+const STRENGTH_RANK = { strong: 3, medium: 2, weak: 1 } as const;
 
 export async function runProspectPreScan(prospect: Prospect): Promise<ProspectPreScan | null> {
   try {
@@ -59,11 +72,17 @@ export async function runProspectPreScan(prospect: Prospect): Promise<ProspectPr
       focusArea: "local",
     });
 
+    // Re-rank by outreach-hook strength first, report impact as a tiebreaker
+    // within the same strength — see the topFixes doc comment above.
     const impactRank = { high: 0, medium: 1, low: 2 } as const;
     const topFixes = [...generated.payload.prioritizedFixes]
-      .sort((a, b) => (impactRank[a.impact] ?? 3) - (impactRank[b.impact] ?? 3))
+      .sort((a, b) => {
+        const strengthDiff = STRENGTH_RANK[classifyFindingStrength(b.id)] - STRENGTH_RANK[classifyFindingStrength(a.id)];
+        if (strengthDiff !== 0) return strengthDiff;
+        return (impactRank[a.impact] ?? 3) - (impactRank[b.impact] ?? 3);
+      })
       .slice(0, 3)
-      .map((f) => ({ title: f.title, detail: f.detail }));
+      .map((f) => ({ id: f.id, title: f.title, detail: f.detail }));
 
     return {
       publicId,

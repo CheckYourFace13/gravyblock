@@ -1,6 +1,5 @@
 /**
- * Breakup outreach batch — sends email #3 (the final "closing your file" touch)
- * to prospects who:
+ * Breakup outreach batch — sends email #3 (the short final touch) to prospects who:
  *   - Got the follow-up (email #2) 5–30 days ago
  *   - Never got a breakup email
  *   - Have not opted out
@@ -10,7 +9,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { getBreakupCandidates, recordBreakupSent, getReportSummary } from "./outreach-tracker";
+import { getBreakupCandidates, recordBreakupSent } from "./outreach-tracker";
 import { sendBreakupEmail } from "./outreach-emailer";
 import { recordOutreachSendRow } from "./outreach-sends";
 import { recordOutreachSendFailure } from "./outreach-health";
@@ -28,7 +27,6 @@ export async function runBreakupOutreachBatch(
     if (!c.email) { skipped++; continue; }
 
     const attributionToken = randomUUID();
-    const reportSummary = c.reportPublicId ? await getReportSummary(c.reportPublicId) : null;
     try {
       const result = await sendBreakupEmail({
         businessName: c.businessName,
@@ -36,7 +34,6 @@ export async function runBreakupOutreachBatch(
         city: c.city || undefined,
         attributionToken,
         reportPublicId: c.reportPublicId,
-        findingTitle: reportSummary?.findingTitle ?? null,
       });
 
       if (result.skipped) { skipped++; continue; }

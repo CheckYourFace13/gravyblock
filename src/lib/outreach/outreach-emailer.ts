@@ -2,6 +2,7 @@ import type { Prospect } from "./prospect-finder";
 import type { ProspectPreScan } from "./prospect-prescan";
 import { isOptedOut, coldOutreachFooter } from "@/lib/email/optout";
 import { assertOutreachSendingAllowed } from "./pause-guard";
+import { classifyFindingStrength, naturalFindingPhrase, findingSubjectPhrase } from "./finding-quality";
 
 type SendEmailResult = { ok: boolean; skipped?: boolean; reason?: string; resendEmailId?: string | null };
 
@@ -182,21 +183,49 @@ function buildHtmlEmail(prospect: Prospect & { emailTo?: string }, industryLabel
 type InitialVariant = "A" | "B";
 
 function buildReportSubject(prospect: Prospect, preScan: ProspectPreScan, variant: InitialVariant = "A"): string {
-  if (variant === "B") return `Quick note about ${prospect.businessName}'s Google visibility`;
+  if (variant === "B") {
+    const topFinding = preScan.topFixes[0];
+    const strength = classifyFindingStrength(topFinding?.id);
+    // Only a genuinely strong, specific finding earns a dedicated subject —
+    // otherwise lead with the neutral business-name subject rather than
+    // inventing drama out of a softer finding.
+    const specificSubject = strength === "strong" ? findingSubjectPhrase(topFinding?.id) : null;
+    return specificSubject ?? `Quick question about ${prospect.businessName}`;
+  }
   return `${prospect.businessName} scored ${preScan.score}/100 on Google visibility`;
 }
 
 function buildReportText(prospect: Prospect, preScan: ProspectPreScan, variant: InitialVariant = "A"): string {
   const { businessName, city } = prospect;
-  // Prospect-finder targets weak listings, so fixes essentially always exist —
-  // but a strong business must not get a broken empty list. Lead with the
-  // real finding, not an explanation of what GravyBlock is — the tool
-  // pitch comes after, briefly, not first.
   const topFinding = preScan.topFixes[0];
+
+  if (variant === "B") {
+    // Short, plain, human — the goal of email #1 is to get the report
+    // clicked, not to sell the subscription. One real finding, no jargon,
+    // no feature list, no score, no price.
+    const naturalIssue = topFinding ? naturalFindingPhrase(topFinding.id) ?? topFinding.title.toLowerCase() : null;
+    const noticedLine = naturalIssue
+      ? `I was looking at ${businessName} and noticed ${naturalIssue}.`
+      : `I was looking at ${businessName}'s Google presence and wanted to check a few things.`;
+
+    return `Hi,
+
+${noticedLine}
+
+I ran a quick visibility check because of it. I put the results here if you want to see them:
+${preScan.reportUrl}
+
+No signup needed.
+
+${SENDER_NAME}
+${SENDER_TITLE}
+
+P.S. If you'd rather I not email again, just reply no thanks.`;
+  }
+
+  // Variant A — existing score-led control.
   const openingLine = topFinding
-    ? variant === "B"
-      ? `I noticed something about ${businessName}'s Google presence: ${topFinding.title}.`
-      : `${topFinding.title} — that's the main thing holding ${businessName} back on Google in ${city} right now (scored ${preScan.score}/100).`
+    ? `${topFinding.title} — that's the main thing holding ${businessName} back on Google in ${city} right now (scored ${preScan.score}/100).`
     : `${businessName} actually scored well — ${preScan.score}/100 in ${city}. The report below shows where the remaining headroom is.`;
 
   return `Hi,
@@ -221,10 +250,56 @@ function buildReportHtml(
 ): string {
   const { businessName, city, emailTo = "" } = prospect;
   const topFinding = preScan.topFixes[0];
+
+  if (variant === "B") {
+    const naturalIssue = topFinding ? naturalFindingPhrase(topFinding.id) ?? topFinding.title.toLowerCase() : null;
+    const noticedLine = naturalIssue
+      ? `I was looking at <strong>${businessName}</strong> and noticed ${naturalIssue}.`
+      : `I was looking at <strong>${businessName}</strong>'s Google presence and wanted to check a few things.`;
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+</head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:#1a1a1a;max-width:560px;margin:0 auto;padding:32px 20px;background:#fff">
+
+  <p style="margin:0 0 18px">Hi,</p>
+
+  <p style="margin:0 0 18px">${noticedLine}</p>
+
+  <p style="margin:0 0 18px">I ran a quick visibility check because of it. I put the results here if you want to see them:</p>
+
+  <p style="margin:0 0 24px;text-align:center">
+    <a href="${preScan.reportUrl}"
+       style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">
+      See the results →
+    </a>
+  </p>
+
+  <p style="margin:0 0 18px;font-size:14px;color:#555">No signup needed.</p>
+
+  <p style="margin:0 0 6px;font-size:14px">
+    ${SENDER_NAME}<br/>
+    ${SENDER_TITLE}
+  </p>
+
+  <p style="margin:8px 0 0;font-size:13px;color:#888">
+    P.S. If you'd rather I not email again, just reply no thanks.
+  </p>
+
+  <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
+
+  ${coldOutreachFooter(emailTo)}
+
+</body>
+</html>`;
+  }
+
+  // Variant A — existing score-led control.
   const openingBlock = topFinding
-    ? variant === "B"
-      ? `<p style="margin:0 0 18px">I noticed something about <strong>${businessName}</strong>'s Google presence: <strong>${topFinding.title}</strong>.</p>`
-      : `<p style="margin:0 0 18px">
+    ? `<p style="margin:0 0 18px">
         <strong>${topFinding.title}</strong> — that's the main thing holding <strong>${businessName}</strong> back on Google
         in ${city} right now (scored <strong>${preScan.score}/100</strong>).
       </p>`
@@ -275,33 +350,34 @@ function buildReportHtml(
 // ── Follow-up email (email #2 — free trial offer) ───────────────────────────
 
 function buildFollowupSubject(businessName: string): string {
-  return `${businessName} — one more note ($74.99/mo, locked)`;
+  return `Following up — ${businessName}`;
 }
 
-function buildFollowupText(businessName: string, linkUrl: string, findingTitle: string | null): string {
-  const reminderLine = findingTitle
-    ? `I reached out about ${businessName}'s Google visibility — specifically, ${findingTitle.charAt(0).toLowerCase()}${findingTitle.slice(1)}. Wanted to follow up once.`
-    : `I reached out about ${businessName}'s local search rankings and wanted to follow up once.`;
+function buildFollowupText(businessName: string, linkUrl: string, findingId: string | null): string {
+  const findingPhrase = naturalFindingPhrase(findingId);
+  const reminderLine = findingPhrase
+    ? `Just following up on the note I sent about ${businessName} — specifically, ${findingPhrase}.`
+    : `Just following up on the note I sent about ${businessName}.`;
 
   return `Hi,
 
 ${reminderLine}
 
-Here's the report I ran, still up to date:
+Your report is here:
 ${linkUrl}
 
-I know you're busy, so I'll make this quick: Autopilot is currently $74.99/mo, locked while you stay subscribed — it doesn't go up after month one. 30-day money-back guarantee, cancel any time.
+If you'd rather have GravyBlock handle the ongoing work, Autopilot is currently $74.99/month, locked while you remain subscribed. There's a 30-day money-back guarantee and you can cancel anytime.
 
-If the timing isn't right, I completely understand — I won't follow up again after this.
+If you want, reply here and I'll help you get it running.
 
-${SENDER_NAME}
-${SENDER_TITLE} — https://gravyblock.com`;
+${SENDER_NAME}`;
 }
 
-function buildFollowupHtml(businessName: string, linkUrl: string, findingTitle: string | null, emailTo: string): string {
-  const reminderLine = findingTitle
-    ? `I reached out about <strong>${businessName}</strong>'s Google visibility — specifically, <strong>${findingTitle.charAt(0).toLowerCase()}${findingTitle.slice(1)}</strong>. Wanted to follow up once.`
-    : `I reached out about <strong>${businessName}</strong>'s local search rankings — wanted to follow up once before I move on.`;
+function buildFollowupHtml(businessName: string, linkUrl: string, findingId: string | null, emailTo: string): string {
+  const findingPhrase = naturalFindingPhrase(findingId);
+  const reminderLine = findingPhrase
+    ? `Just following up on the note I sent about <strong>${businessName}</strong> — specifically, ${findingPhrase}.`
+    : `Just following up on the note I sent about <strong>${businessName}</strong>.`;
 
   return `<!DOCTYPE html>
 <html>
@@ -315,26 +391,24 @@ function buildFollowupHtml(businessName: string, linkUrl: string, findingTitle: 
 
   <p style="margin:0 0 18px">${reminderLine}</p>
 
+  <p style="margin:0 0 8px">Your report is here:</p>
   <p style="margin:0 0 24px;text-align:center">
     <a href="${linkUrl}"
        style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">
       See the report →
     </a>
-    <br/>
-    <span style="font-size:12px;color:#666;margin-top:6px;display:block">Still up to date. ${linkUrl}</span>
   </p>
 
   <p style="margin:0 0 18px">
-    I'll make this quick: Autopilot is currently <strong>$74.99/mo, locked</strong> while you stay subscribed — it doesn't go up after month one. 30-day money-back guarantee, cancel any time.
+    If you'd rather have GravyBlock handle the ongoing work, Autopilot is currently <strong>$74.99/month</strong>, locked while you remain subscribed. There's a 30-day money-back guarantee and you can cancel anytime.
   </p>
 
   <p style="margin:0 0 32px;font-size:14px;color:#555">
-    If the timing isn't right, I completely understand — I won't follow up again after this.
+    If you want, reply here and I'll help you get it running.
   </p>
 
   <p style="margin:0 0 6px;font-size:14px">
-    ${SENDER_NAME}<br/>
-    <a href="https://gravyblock.com" style="color:#dc2626;text-decoration:none">${SENDER_TITLE}</a>
+    ${SENDER_NAME}
   </p>
 
   <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
@@ -351,7 +425,7 @@ export async function sendFollowupEmail(params: {
   city?: string;
   attributionToken?: string | null;
   reportPublicId?: string | null;
-  findingTitle?: string | null;
+  findingId?: string | null;
 }): Promise<SendEmailResult> {
   const cfg = resendConfig();
   if (!cfg.apiKey) return { ok: false, skipped: true, reason: "RESEND_API_KEY not set" };
@@ -381,10 +455,10 @@ export async function sendFollowupEmail(params: {
     linkUrl = `${SITE_URL}/scan?${scanUrlParams.toString()}`;
   }
 
-  const findingTitle = params.findingTitle ?? null;
+  const findingId = params.findingId ?? null;
   const subject = buildFollowupSubject(params.businessName);
-  const text = buildFollowupText(params.businessName, linkUrl, findingTitle);
-  const html = buildFollowupHtml(params.businessName, linkUrl, findingTitle, params.email);
+  const text = buildFollowupText(params.businessName, linkUrl, findingId);
+  const html = buildFollowupHtml(params.businessName, linkUrl, findingId, params.email);
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -421,7 +495,6 @@ export async function sendBreakupEmail(params: {
   city?: string;
   attributionToken?: string | null;
   reportPublicId?: string | null;
-  findingTitle?: string | null;
 }): Promise<SendEmailResult> {
   const cfg = resendConfig();
   if (!cfg.apiKey) return { ok: false, skipped: true, reason: "RESEND_API_KEY not set" };
@@ -447,50 +520,34 @@ export async function sendBreakupEmail(params: {
     linkUrl = `${SITE_URL}/scan?${scanUrlParams.toString()}`;
   }
 
-  const findingTitle = params.findingTitle ?? null;
-  const subject = `Last note on ${params.businessName}'s visibility`;
-
-  const openingLine = findingTitle
-    ? `I've reached out a couple of times about ${params.businessName}'s Google visibility — specifically ${findingTitle.charAt(0).toLowerCase()}${findingTitle.slice(1)} — and haven't heard back. Totally understand, you're running a business.`
-    : `I've reached out a couple of times about ${params.businessName}'s Google visibility and haven't heard back — totally understand, you're running a business.`;
+  const subject = `Last note about ${params.businessName}`;
 
   const text = `Hi,
 
-${openingLine}
-
-This is my last note — here's the report, still current, in case you want to look:
+Last note from me — I wanted to make sure you had the visibility report I ran for ${params.businessName}:
 ${linkUrl}
 
-If you want it handled automatically: Autopilot is $74.99/mo, locked for as long as you stay subscribed — not just the first month — with a 30-day money-back guarantee, so there's no real risk in trying it.
+Autopilot is $74.99/month, locked while subscribed, with a 30-day guarantee.
 
-Just reply if you'd like me to set it up, or if you'd rather I leave you be — either way, no hard feelings, I hope business is booming.
+If you'd like help getting it running, just reply.
 
-${SENDER_NAME}
-${SENDER_TITLE} — https://gravyblock.com`;
-
-  const openingBlockHtml = findingTitle
-    ? `I've reached out a couple of times about <strong>${params.businessName}</strong>'s Google visibility — specifically <strong>${findingTitle.charAt(0).toLowerCase()}${findingTitle.slice(1)}</strong> — and haven't heard back. Totally understand, you're running a business.`
-    : `I've reached out a couple of times about <strong>${params.businessName}</strong>'s Google visibility and haven't heard back — totally understand, you're running a business.`;
+${SENDER_NAME}`;
 
   const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:#1a1a1a;max-width:560px;margin:0 auto;padding:32px 20px;background:#fff">
   <p style="margin:0 0 18px">Hi,</p>
-  <p style="margin:0 0 18px">${openingBlockHtml}</p>
-  <p style="margin:0 0 18px"><strong>This is my last note</strong> — here's the report, still current, in case you want to look:</p>
+  <p style="margin:0 0 18px">Last note from me — I wanted to make sure you had the visibility report I ran for <strong>${params.businessName}</strong>:</p>
   <p style="margin:0 0 24px;text-align:center">
     <a href="${linkUrl}" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">
       See the report →
     </a>
   </p>
-  <p style="margin:0 0 18px">
-    If you want it handled automatically: Autopilot is <strong>$74.99/mo, locked</strong> for as long as you stay subscribed — not just the first month — with a 30-day money-back guarantee, so there's no real risk in trying it.
-  </p>
-  <p style="margin:0 0 32px;font-size:14px;color:#555">Just reply if you'd like me to set it up, or if you'd rather I leave you be — either way, no hard feelings, I hope business is booming.</p>
+  <p style="margin:0 0 18px">Autopilot is <strong>$74.99/month</strong>, locked while subscribed, with a 30-day guarantee.</p>
+  <p style="margin:0 0 32px;font-size:14px;color:#555">If you'd like help getting it running, just reply.</p>
   <p style="margin:0 0 6px;font-size:14px">
-    ${SENDER_NAME}<br/>
-    <a href="https://gravyblock.com" style="color:#dc2626;text-decoration:none">${SENDER_TITLE}</a>
+    ${SENDER_NAME}
   </p>
   <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
   ${coldOutreachFooter(params.email)}

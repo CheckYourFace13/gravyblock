@@ -4,6 +4,7 @@
 
 import { getDb, jobs, reports } from "@/lib/db";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { classifyFindingStrength } from "./finding-quality";
 
 const OUTREACH_JOB_TYPE = "cold_outreach_sent";
 
@@ -68,7 +69,9 @@ export async function recordOutreachSent(
 
 /** Real top finding + score for an existing report — lets follow-up/breakup emails
  * reference the SAME finding as the initial email instead of re-running a scan. */
-export async function getReportSummary(reportPublicId: string): Promise<{ findingTitle: string | null; score: number | null } | null> {
+export async function getReportSummary(
+  reportPublicId: string,
+): Promise<{ findingId: string | null; findingTitle: string | null; score: number | null } | null> {
   const db = getDb();
   if (!db) return null;
   const [row] = await db
@@ -77,8 +80,17 @@ export async function getReportSummary(reportPublicId: string): Promise<{ findin
     .where(eq(reports.publicId, reportPublicId))
     .limit(1);
   if (!row) return null;
-  const payload = row.payload as { prioritizedFixes?: Array<{ title?: string }> } | null;
-  return { findingTitle: payload?.prioritizedFixes?.[0]?.title ?? null, score: row.overallScore ?? null };
+  const payload = row.payload as { prioritizedFixes?: Array<{ id?: string; title?: string }> } | null;
+  const fixes = payload?.prioritizedFixes ?? [];
+  // Re-rank by outreach-hook strength, not the report's own impact order —
+  // same reasoning as prospect-prescan.ts: the report's #1 fix is almost
+  // always the generic modeled "estimated visibility is soft" finding, so a
+  // naive [0] would keep echoing that instead of a real, specific one.
+  const strengthRank = { strong: 3, medium: 2, weak: 1 } as const;
+  const best = [...fixes].sort(
+    (a, b) => strengthRank[classifyFindingStrength(b.id)] - strengthRank[classifyFindingStrength(a.id)],
+  )[0];
+  return { findingId: best?.id ?? null, findingTitle: best?.title ?? null, score: row.overallScore ?? null };
 }
 
 // ── Follow-up (email #2) tracking ────────────────────────────────────────────

@@ -37,7 +37,7 @@ export async function runFollowupOutreachBatch(
         city: c.city || undefined,
         attributionToken,
         reportPublicId: c.reportPublicId,
-        findingTitle: reportSummary?.findingTitle ?? null,
+        findingId: reportSummary?.findingId ?? null,
       });
 
       if (result.skipped) {

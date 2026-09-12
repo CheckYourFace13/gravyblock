@@ -7,6 +7,7 @@ import { isOptedOut } from "@/lib/email/optout";
 import { discoverContactEmail } from "./discover-contact-email";
 import { recordOutreachSendRow } from "./outreach-sends";
 import { recordOutreachSendFailure } from "./outreach-health";
+import { isEligibleForOutreach } from "./finding-quality";
 
 const DEFAULT_MAX_EMAILS = 25; // 25 per batch × 4 weekday windows = ~100/day
 
@@ -69,6 +70,19 @@ export async function runOutreachBatch(params: {
     const preScan = await runProspectPreScan(prospect);
     if (!preScan) {
       console.info("[outreach-batch] Skipped — pre-scan failed, no generic fallback sent", { businessName: prospect.businessName });
+      skipped++;
+      continue;
+    }
+
+    // Quality gate: only send when the top finding is specific/verified enough
+    // to make a real personalization hook (see finding-quality.ts). A weak,
+    // generic top finding isn't enough justification for a cold email — send
+    // fewer, better-targeted emails rather than more generic ones.
+    if (!isEligibleForOutreach(preScan.topFixes[0]?.id)) {
+      console.info("[outreach-batch] Skipped — top finding too weak/generic for outreach", {
+        businessName: prospect.businessName,
+        topFindingId: preScan.topFixes[0]?.id,
+      });
       skipped++;
       continue;
     }
