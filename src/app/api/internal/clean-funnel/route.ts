@@ -77,6 +77,14 @@ export async function GET(req: Request) {
       )
     : [];
 
+  const healthAlerts = await sql.unsafe(
+    `select id, type, created_at, payload from jobs
+     where type in ('outreach_health_bounce_rate','outreach_health_complaint_rate','outreach_health_webhook_silence','outreach_health_provider_errors','outreach_send_failed','cold_outreach_restart')
+       and created_at >= $1
+     order by created_at asc`,
+    [ATTRIBUTION_START],
+  );
+
   return Response.json({
     windowStart: ATTRIBUTION_START,
     generatedAt: new Date().toISOString(),
@@ -91,5 +99,6 @@ export async function GET(req: Request) {
     warmBusinesses,
     warmEmailEvents,
     warmFunnelEvents,
+    healthAlerts,
   });
 }
