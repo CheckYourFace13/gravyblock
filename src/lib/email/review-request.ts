@@ -7,7 +7,7 @@
  */
 
 import { and, eq, gte, inArray, ne, sql } from "drizzle-orm";
-import { getDb, businesses, jobs } from "@/lib/db";
+import { getDb, businesses, businessConfigs, reviewRequests, jobs } from "@/lib/db";
 import { normalizePlanTierFromDb } from "@/lib/plans";
 
 const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
@@ -125,6 +125,22 @@ export async function runReviewRequestBatch(): Promise<{ sent: number; skipped: 
       .limit(1);
 
     if (existing) { skipped++; continue; }
+
+    // Connector handles requests when a token exists AND completed customers are flowing in.
+    const [cfg] = await db
+      .select({ token: businessConfigs.transactionsToken })
+      .from(businessConfigs)
+      .where(eq(businessConfigs.businessId, biz.id))
+      .limit(1);
+    if (cfg?.token) {
+      const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const [flowing] = await db
+        .select({ id: reviewRequests.id })
+        .from(reviewRequests)
+        .where(and(eq(reviewRequests.businessId, biz.id), gte(reviewRequests.createdAt, monthAgo)))
+        .limit(1);
+      if (flowing) { skipped++; continue; }
+    }
 
     // Build the review URL
     const reviewUrl = biz.placeId

@@ -35,6 +35,12 @@ import { runMultiPlatformReviewBatch } from "@/lib/reviews/platform-sync";
 import { runLlmProbeBatch } from "@/lib/ai-visibility/llm-probes";
 import { runAuthorityBatch } from "@/lib/authority/engine";
 import { runTruthRefreshBatch } from "@/lib/truth";
+import { runExistingPageSeoBatch } from "@/lib/seo/existing-pages";
+import { runAutoRepairBatch } from "@/lib/watchdog/auto-repair";
+import { runCompetitorGapBatch } from "@/lib/competitors/gap-engine";
+import { runAeoActionBatch, runAeoRecheckBatch } from "@/lib/ai-visibility/aeo-actions";
+import { runConnectionReadinessBatch } from "@/lib/onboarding/connection-readiness";
+import { runReviewRequestSendBatch } from "@/lib/reviews/review-request-engine";
 import { runSiteWatchdogBatch } from "@/lib/watchdog/site-watchdog";
 import { runCitationEngineBatch } from "@/lib/citations/engine";
 import { runRepurposeBatch } from "@/lib/content-gen/repurpose";
@@ -672,6 +678,31 @@ async function tick() {
       console.info('[worker] site watchdog', watchdogSiteResult);
     } catch (error) {
       console.error('[worker] site watchdog failed', { error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  // Growth engines added for the closed loop. Each is isolated: a missing
+  // integration or a failure in one never blocks the others.
+  {
+    const h = new Date().getUTCHours();
+    const growthJobs: { name: string; hour: number | null; run: () => Promise<unknown> }[] = [
+      { name: 'existing_page_seo_batch', hour: 10, run: () => runExistingPageSeoBatch(5) },
+      { name: 'auto_repair_batch', hour: 8, run: () => runAutoRepairBatch(5) },
+      { name: 'competitor_gap_batch', hour: 11, run: () => runCompetitorGapBatch(4) },
+      { name: 'aeo_action_batch', hour: 12, run: async () => ({ act: await runAeoActionBatch(4), recheck: await runAeoRecheckBatch(4) }) },
+      { name: 'connection_readiness_batch', hour: 4, run: () => runConnectionReadinessBatch(10) },
+      { name: 'review_request_send_batch', hour: 16, run: () => runReviewRequestSendBatch(40) },
+    ];
+    for (const g of growthJobs) {
+      if (g.hour !== null && h !== g.hour) continue;
+      if (await hasJobRunToday(g.name)) continue;
+      try {
+        const result = await g.run();
+        await recordWorkerJob(g.name, (result ?? {}) as Record<string, unknown>);
+        console.info(`[worker] ${g.name}`, result);
+      } catch (error) {
+        console.error(`[worker] ${g.name} failed`, { error: error instanceof Error ? error.message : String(error) });
+      }
     }
   }
 

@@ -59,46 +59,25 @@ export function ReviewGatingSection({
     });
   }
 
-  const negativeResponses = data.responses.filter((r) => r.rating < 4);
-  const positiveResponses = data.responses.filter((r) => r.rating >= 4);
-  const avgRating = data.responses.length > 0
-    ? data.responses.reduce((sum, r) => sum + r.rating, 0) / data.responses.length
-    : null;
+  // Private feedback left by any visitor. Nothing is routed or withheld by rating.
+  const feedbackResponses = data.responses.filter((r) => r.feedback);
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">Review gating</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">Review link</h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Share this link with customers. Happy ones (4–5 ★) get sent to Google. Unhappy ones submit private feedback instead.
+            Share this link with customers. Everyone sees the same page: a link to leave a Google review, plus an optional private feedback box.
           </p>
         </div>
-        {data.responses.length > 0 && (
+        {feedbackResponses.length > 0 && (
           <div className="shrink-0 text-right">
-            <p className="text-xl font-semibold text-zinc-900">{data.responses.length}</p>
-            <p className="text-xs text-zinc-500">responses</p>
+            <p className="text-xl font-semibold text-zinc-900">{feedbackResponses.length}</p>
+            <p className="text-xs text-zinc-500">feedback notes</p>
           </div>
         )}
       </div>
-
-      {/* Stats row */}
-      {data.responses.length > 0 && (
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-center">
-            <p className="text-xl font-semibold text-zinc-900">{avgRating?.toFixed(1)}</p>
-            <p className="text-xs text-zinc-500">avg rating</p>
-          </div>
-          <div className="rounded-xl border border-green-100 bg-green-50 p-3 text-center">
-            <p className="text-xl font-semibold text-green-800">{positiveResponses.length}</p>
-            <p className="text-xs text-green-700">sent to Google</p>
-          </div>
-          <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-center">
-            <p className="text-xl font-semibold text-red-800">{negativeResponses.length}</p>
-            <p className="text-xs text-red-700">private feedback</p>
-          </div>
-        </div>
-      )}
 
       {/* Link card */}
       <div className="mt-4">
@@ -115,7 +94,7 @@ export function ReviewGatingSection({
               </button>
             </div>
             <p className="mt-2 text-xs text-zinc-500">
-              Share via text, email, receipt, or QR code. Happy customers (4+ stars) are redirected to Google.{" "}
+              Share via text, email, receipt, or QR code. Every customer is offered the same Google review link.{" "}
               {data.reviewUrl && (
                 <a href={data.reviewUrl} target="_blank" rel="noopener" className="font-medium text-red-700 hover:underline">
                   View your Google review page →
@@ -132,7 +111,7 @@ export function ReviewGatingSection({
           </div>
         ) : (
           <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center">
-            <p className="text-sm text-zinc-600">No active review gating link yet.</p>
+            <p className="text-sm text-zinc-600">No active review link yet.</p>
             <button
               onClick={handleCreate}
               disabled={isPending}
@@ -142,7 +121,7 @@ export function ReviewGatingSection({
             </button>
             {data.reviewUrl && (
               <p className="mt-2 text-xs text-zinc-500">
-                Will automatically route 4+ star customers to{" "}
+                Every visitor will be offered{" "}
                 <a href={data.reviewUrl} target="_blank" rel="noopener" className="font-medium text-red-700 hover:underline">
                   your Google review page
                 </a>
@@ -154,16 +133,16 @@ export function ReviewGatingSection({
       </div>
 
       {/* Private negative feedback */}
-      {negativeResponses.length > 0 && (
+      {feedbackResponses.length > 0 && (
         <div className="mt-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-800">
-            Private feedback ({negativeResponses.length})
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-700">
+            Private feedback ({feedbackResponses.length})
           </p>
           <ul className="mt-2 space-y-2">
-            {negativeResponses.map((r) => (
-              <li key={r.id} className="rounded-xl border border-red-100 bg-red-50 p-3">
+            {feedbackResponses.map((r) => (
+              <li key={r.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
                 <div className="flex items-center gap-2">
-                  <StarDisplay rating={r.rating} />
+                  {r.rating > 0 && <StarDisplay rating={r.rating} />}
                   <span className="text-xs text-zinc-500">
                     {new Date(r.submittedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                   </span>

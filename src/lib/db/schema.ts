@@ -697,6 +697,8 @@ export const businessConfigs = pgTable("business_configs", {
   facebookPageId: text("facebook_page_id"),
   facebookAccessToken: text("facebook_access_token"),
   instagramAccountId: text("instagram_account_id"),
+  /** Secret for the completed-customer webhook (review-request connector). */
+  transactionsToken: text("transactions_token"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -802,4 +804,103 @@ export const businessFacts = pgTable("business_facts", {
   status: text("status").notNull().default("current"),
   firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).defaultNow().notNull(),
   supersededAt: timestamp("superseded_at", { withTimezone: true }),
+  /** Time-sensitive facts (events, offers, news) stop being usable at this instant. */
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+});
+
+
+/** Per-URL fetch cache for the Business Truth crawler (conditional GET + content hash). */
+export const truthPages = pgTable("truth_pages", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  url: text("url").notNull(),
+  etag: text("etag"),
+  lastModified: text("last_modified"),
+  contentHash: text("content_hash"),
+  sitemapLastmod: timestamp("sitemap_lastmod", { withTimezone: true }),
+  lastFetchedAt: timestamp("last_fetched_at", { withTimezone: true }).defaultNow().notNull(),
+  lastChangedAt: timestamp("last_changed_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * Proof Ledger — the canonical record of externally VERIFIED work. A row exists
+ * only when GravyBlock confirmed the result at the external destination (page
+ * answered HTTP 200 on the customer's site, Google returned a post/media id, a
+ * link was found on another site, a re-measurement was taken). Queued, drafted
+ * or merely "sent" work never enters this table.
+ */
+export const proofLedger = pgTable("proof_ledger", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  /** content_published | page_improved | gbp_post | gbp_photo | review_reply | social_post | link_acquired | citation_verified | technical_fix | aeo_action | review_request_batch */
+  actionType: text("action_type").notNull(),
+  engine: text("engine").notNull(),
+  /** Category used for sales matching: content | ranking | backlink | gbp | technical | citation | review | aeo | social */
+  proofCategory: text("proof_category").notNull(),
+  destination: text("destination"),
+  summary: text("summary").notNull(),
+  beforeEvidence: jsonb("before_evidence"),
+  afterEvidence: jsonb("after_evidence"),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }).notNull(),
+  metricName: text("metric_name"),
+  metricBefore: doublePrecision("metric_before"),
+  metricAfter: doublePrecision("metric_after"),
+  /** e.g. "gsc_28d_vs_prior_28d" — how before/after were measured. */
+  methodVersion: text("method_version").notNull().default("v1"),
+  industry: text("industry"),
+  findingType: text("finding_type"),
+  /** Idempotency: the same verified event is only ever recorded once. */
+  dedupeKey: text("dedupe_key").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** Per-directory listing state — submitted value vs canonical Business Truth value, with real timestamps. */
+export const citationListings = pgTable("citation_listings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  directoryId: text("directory_id").notNull(),
+  directoryName: text("directory_name").notNull(),
+  /** A direct API | B authenticated connection | C free web submission | D one-time verification | E prohibited/impractical */
+  automationClass: text("automation_class").notNull(),
+  listingUrl: text("listing_url"),
+  submittedValue: text("submitted_value"),
+  canonicalValue: text("canonical_value"),
+  /** not_found | found_consistent | drift_detected | submitted | verified | needs_one_time_verification | unsupported */
+  status: text("status").notNull(),
+  verificationRequirement: text("verification_requirement"),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** Page/query performance snapshots from Search Console (28-day windows). */
+export const pagePerformance = pgTable("page_performance", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  pageUrl: text("page_url").notNull(),
+  query: text("query").notNull(),
+  clicks: integer("clicks").notNull().default(0),
+  impressions: integer("impressions").notNull().default(0),
+  ctr: doublePrecision("ctr").notNull().default(0),
+  position: doublePrecision("position").notNull().default(0),
+  periodStart: text("period_start").notNull(),
+  periodEnd: text("period_end").notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** Neutral review requests to real completed customers fed by the customer's own systems. */
+export const reviewRequests = pgTable("review_requests", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  /** Customer system's transaction id — makes the webhook idempotent. */
+  externalId: text("external_id").notNull(),
+  customerEmail: text("customer_email").notNull(),
+  customerName: text("customer_name"),
+  completedAt: timestamp("completed_at", { withTimezone: true }).notNull(),
+  /** pending | sent | followed_up | stopped | suppressed */
+  status: text("status").notNull().default("pending"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  followUpAt: timestamp("follow_up_at", { withTimezone: true }),
+  stoppedReason: text("stopped_reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

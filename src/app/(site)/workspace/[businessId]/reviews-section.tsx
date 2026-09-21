@@ -11,7 +11,12 @@ type Review = {
   publishTime: Date | null;
   suggestedReply: string | null;
   status: string;
+  /** google | yelp | tripadvisor */
+  source?: string;
 };
+
+const isGoogle = (r: Review) => (r.source ?? "google") === "google";
+const platformLabel = (s?: string) => (s === "yelp" ? "Yelp" : s === "tripadvisor" ? "TripAdvisor" : "this platform");
 
 function Stars({ rating }: { rating: number }) {
   return (
@@ -92,6 +97,13 @@ function ReviewCard({ review, onStatusChange }: { review: Review; onStatusChange
         </span>
       </div>
 
+      {!isGoogle(review) ? (
+        <div className="mt-3 border-t border-zinc-200/60 pt-3">
+          <p className="text-xs text-zinc-500">
+            Monitored from {platformLabel(review.source)}. Replies on that platform are not supported automatically.
+          </p>
+        </div>
+      ) : (
       <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-zinc-200/60 pt-3">
         {review.suggestedReply ? (
           <>
@@ -117,8 +129,9 @@ function ReviewCard({ review, onStatusChange }: { review: Review; onStatusChange
           {isPending ? "…" : isReplied ? "↩ Mark as new" : "✓ Mark replied"}
         </button>
       </div>
+      )}
 
-      {expanded && review.suggestedReply ? (
+      {expanded && review.suggestedReply && isGoogle(review) ? (
         <div className="mt-2">
           <p className="rounded-lg bg-white/70 px-3 py-2 text-sm text-zinc-700 italic border border-zinc-200">
             {review.suggestedReply}
@@ -129,7 +142,7 @@ function ReviewCard({ review, onStatusChange }: { review: Review; onStatusChange
           >
             {copied ? "Copied!" : "Copy reply"}
           </button>
-          <p className="mt-1 text-[10px] text-zinc-400">Paste into the review site to reply, then mark replied above. Google replies post automatically once Google is connected; Yelp and TripAdvisor do not allow automatic replies.</p>
+          <p className="mt-1 text-[10px] text-zinc-400">Google replies post automatically once Google is connected.</p>
         </div>
       ) : null}
     </li>
@@ -145,12 +158,12 @@ export function ReviewsSection({ reviews: initialReviews }: { reviews: Review[] 
   }
 
   const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : null;
-  const needsReplyCount = reviews.filter((r) => r.status !== "replied").length;
-  const repliedCount = reviews.filter((r) => r.status === "replied").length;
+  const needsReplyCount = reviews.filter((r) => isGoogle(r) && r.status !== "replied").length;
+  const repliedCount = reviews.filter((r) => isGoogle(r) && r.status === "replied").length;
 
   const displayed = reviews.filter((r) => {
-    if (filter === "needs_reply") return r.status !== "replied";
-    if (filter === "replied") return r.status === "replied";
+    if (filter === "needs_reply") return isGoogle(r) && r.status !== "replied";
+    if (filter === "replied") return isGoogle(r) && r.status === "replied";
     return true;
   });
 
@@ -160,7 +173,7 @@ export function ReviewsSection({ reviews: initialReviews }: { reviews: Review[] 
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">Review inbox</h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Latest reviews. Google replies are posted automatically once Google is connected; Yelp and TripAdvisor replies are drafted for you to paste.
+            Latest reviews. Google replies are posted automatically once Google is connected. Yelp and TripAdvisor reviews are monitored only; replies on those platforms are not supported automatically.
           </p>
         </div>
         {avgRating !== null ? (

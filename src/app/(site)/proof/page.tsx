@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { getPublicProof } from "@/lib/proof/ledger";
 import { getShowcaseBusinesses, type ProofActivity } from "@/lib/proof/get-showcase-businesses";
 
 export const dynamic = "force-dynamic";
@@ -76,6 +77,7 @@ function ProofActivityList({ activity }: { activity: ProofActivity }) {
 
 export default async function ProofPage() {
   const showcased = await getShowcaseBusinesses();
+  const ledger = await getPublicProof({ limit: 12 });
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6">
@@ -132,6 +134,25 @@ export default async function ProofPage() {
           ))}
         </div>
       )}
+
+      {ledger.length > 0 ? (
+        <section className="mt-12">
+          <h2 className="text-xl font-semibold text-zinc-900">Verified results log</h2>
+          <p className="mt-1 text-sm text-zinc-600">Each entry was checked at its external destination before it was recorded.</p>
+          <ul className="mt-4 space-y-3">
+            {ledger.map((p) => (
+              <li key={p.id} className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
+                <p className="font-medium text-zinc-900">{p.businessName}</p>
+                <p className="mt-1">{p.summary}</p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Verified {p.verifiedAt.toISOString().slice(0, 10)}
+                  {p.metricName && p.metricBefore != null && p.metricAfter != null ? ` · ${p.metricName}: ${p.metricBefore} to ${p.metricAfter}` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="mt-12 rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
         <p className="font-semibold text-zinc-900">Want the same thing running for your business?</p>

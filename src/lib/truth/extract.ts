@@ -22,7 +22,9 @@ export type FactKey =
   | "social_url"
   | "search_demand"
   | "owner_note"
-  | "image";
+  | "image"
+  | "event"
+  | "offer";
 
 export type ExtractedFact = {
   key: FactKey;
@@ -32,6 +34,8 @@ export type ExtractedFact = {
   sourceSystem: "website" | "sitemap" | "gbp" | "gsc" | "owner";
   sourceUrl: string | null;
   sourceUpdatedAt?: Date | null;
+  /** Time-sensitive facts stop being usable at this instant (events, offers, news). */
+  expiresAt?: Date | null;
 };
 
 /** Keys that hold exactly one true value at a time (a new value replaces the old one). */
@@ -187,15 +191,43 @@ export function factsFromHtml(html: string, url: string, opts: { isHomepage: boo
         if (typeof n === "string") push({ key: "service", value: cleanText(n, 100), confidence: 85, stability: "stable" });
       }
     }
-    if (types.some((t) => /(Article|BlogPosting|NewsArticle|Event)/i.test(t)) && typeof node.headline === "string") {
-      const published = asDate(node.datePublished ?? node.startDate);
+    if (types.some((t) => /(Article|BlogPosting|NewsArticle)/i.test(t)) && typeof node.headline === "string") {
+      const published = asDate(node.datePublished);
+      const updated = asDate(node.dateModified) ?? published;
       push({
         key: "recent_content",
         value: cleanText(node.headline, 160),
         confidence: 80,
         stability: "time_sensitive",
-        sourceUpdatedAt: asDate(node.dateModified) ?? published,
+        sourceUpdatedAt: updated,
+        expiresAt: new Date((updated ?? new Date()).getTime() + 90 * 86_400_000),
       });
+    }
+    // Events and offers are only ever "current" until their own stated end date.
+    if (types.some((t) => /^Event$/i.test(t)) && typeof node.name === "string") {
+      const start = asDate(node.startDate);
+      const end = asDate(node.endDate) ?? (start ? new Date(start.getTime() + 86_400_000) : null);
+      if (end) {
+        push({
+          key: "event",
+          value: cleanText(`${node.name}${start ? ` (starts ${start.toISOString().slice(0, 10)})` : ""}`, 160),
+          confidence: 82,
+          stability: "time_sensitive",
+          sourceUpdatedAt: start,
+          expiresAt: end,
+        });
+      }
+    }
+    const offerNodes = [
+      ...(types.some((t) => /^Offer$/i.test(t)) ? [node] : []),
+      ...(node.offers ? (Array.isArray(node.offers) ? node.offers : [node.offers]) : []),
+    ];
+    for (const o of offerNodes) {
+      const through = asDate(o?.validThrough);
+      const label = o?.name ?? o?.description;
+      if (through && typeof label === "string") {
+        push({ key: "offer", value: cleanText(`${label} (valid through ${through.toISOString().slice(0, 10)})`, 200), confidence: 80, stability: "time_sensitive", expiresAt: through });
+      }
     }
   }
 
@@ -254,6 +286,7 @@ export function factsFromHtml(html: string, url: string, opts: { isHomepage: boo
         stability: "time_sensitive",
         sourceSystem: "sitemap",
         sourceUpdatedAt: published,
+        expiresAt: new Date((published ?? new Date()).getTime() + 90 * 86_400_000),
       });
     }
   }

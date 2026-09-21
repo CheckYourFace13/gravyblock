@@ -24,7 +24,7 @@ export function isSafePublicUrl(raw: string): URL | null {
 
 export async function safeFetchText(
   rawUrl: string,
-  opts: { timeoutMs?: number; maxBytes?: number; accept?: string } = {},
+  opts: { timeoutMs?: number; maxBytes?: number; accept?: string; headers?: Record<string, string> } = {},
 ): Promise<SafeFetchResult> {
   const url = isSafePublicUrl(rawUrl);
   if (!url) return { ok: false, error: "unsafe_or_invalid_url" };
@@ -38,6 +38,7 @@ export async function safeFetchText(
       headers: {
         "user-agent": "GravyBlockBot/1.0 (+https://gravyblock.com/bot)",
         accept: opts.accept ?? "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.5",
+        ...(opts.headers ?? {}),
       },
     });
     // Re-check after redirects: a public URL must not bounce us to a private host.

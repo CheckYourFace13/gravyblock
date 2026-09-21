@@ -62,9 +62,7 @@ const plans = [
       "Schema markup injected into every published article",
       "AI visibility checks — monthly check of whether AI assistants mention your business",
     ],
-    notIncluded: [
-      "Multi-location support",
-    ],
+    notIncluded: [],
     cta: "Start Scale",
     href: "/start?plan=growth&promo=GROWTH50",
     ctaStyle: "bg-red-600 hover:bg-red-500 text-white",
@@ -76,11 +74,10 @@ const plans = [
     intro: 149.99,
     highlight: false,
     priceLocked: false,
-    tagline: "Double the output, more local pages, and up to 3 locations.",
+    tagline: "Double the output and more local pages for one business.",
     bullets: [
       "Everything in Scale, twice as often",
       "12 articles + 8 local SEO pages/month",
-      "Up to 3 locations included",
       "Priority support",
     ],
     notIncluded: [],
@@ -337,7 +334,7 @@ export default function PricingPage() {
                   ["AI visibility checks (monthly)", "✓", "✓", "✓"],
                   ["AEO / GEO / Entity scores", "—", "✓", "✓"],
                   ["Schema markup generator", "—", "✓", "✓"],
-                  ["Locations included", "1", "1", "3"],
+                  ["Business / location covered", "1", "1", "1"],
                   ["Price with promo code", "$29.99 first month (INTRO50)", "$74.99/mo, locked while subscribed (GROWTH50)", "$149.99 first month (INTRO50)"],
                 ].map(([feature, starter, scale, pro]) => (
                   <tr key={feature} className="hover:bg-white/60">
@@ -357,8 +354,8 @@ export default function PricingPage() {
       <section className="px-4 pb-4 sm:px-6">
         <div className="mx-auto max-w-4xl rounded-2xl border border-zinc-200 bg-zinc-50 p-6 text-center sm:text-left sm:flex sm:items-center sm:justify-between sm:gap-4">
           <div>
-            <p className="font-semibold text-zinc-900">Managing 4+ locations, or need a white-label option?</p>
-            <p className="mt-1 text-sm text-zinc-500">Talk to us about Agency pricing — daily content generation, multi-location support, and priority support.</p>
+            <p className="font-semibold text-zinc-900">Managing several locations, or need a white-label option?</p>
+            <p className="mt-1 text-sm text-zinc-500">Each GravyBlock plan covers one business location. Talk to us about how we can handle more than one.</p>
           </div>
           <a
             href="mailto:chris@gravyblock.com?subject=Agency%20plan%20inquiry"

@@ -121,7 +121,7 @@ function detectMention(response: string, businessName: string): {
   return { mentioned: true, sentiment, excerpt };
 }
 
-async function queryModel(model: string, prompt: string): Promise<string | null> {
+async function queryModel(model: string, prompt: string): Promise<{ text: string; citationUrl: string | null } | null> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
 
@@ -149,8 +149,17 @@ async function queryModel(model: string, prompt: string): Promise<string | null>
     });
 
     if (!res.ok) return null;
-    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    return json.choices?.[0]?.message?.content?.trim() ?? null;
+    const json = (await res.json()) as {
+      choices?: { message?: { content?: string; annotations?: { type?: string; url_citation?: { url?: string } }[] } }[];
+      citations?: unknown[];
+    };
+    const text = json.choices?.[0]?.message?.content?.trim();
+    if (!text) return null;
+    // Perplexity returns cited sources as top-level `citations` (or url_citation annotations).
+    const fromList = (json.citations ?? []).find((c): c is string => typeof c === "string" && /^https?:\/\//i.test(c));
+    const fromAnn = json.choices?.[0]?.message?.annotations?.find((a) => a.url_citation?.url)?.url_citation?.url;
+    const citationUrl = (fromList ?? fromAnn ?? null)?.slice(0, 1000) ?? null;
+    return { text, citationUrl };
   } catch {
     return null;
   }
@@ -196,8 +205,9 @@ export async function runLlmProbesForBusiness(businessId: string): Promise<{
   for (const { model, engine } of PROBE_ENGINES) {
     // Only use first 2 prompts per engine to keep costs low
     for (const prompt of prompts.slice(0, 2)) {
-      const response = await queryModel(model, prompt);
-      if (!response) continue;
+      const probe = await queryModel(model, prompt);
+      if (!probe) continue;
+      const response = probe.text;
 
       const { mentioned, sentiment, excerpt } = detectMention(response, biz.name);
       if (mentioned) mentions++;
@@ -208,7 +218,7 @@ export async function runLlmProbesForBusiness(businessId: string): Promise<{
         engine,
         mentionFound: mentioned ? "true" : "false",
         sentiment,
-        citationUrl: null,
+        citationUrl: probe.citationUrl,
         confidence: mentioned ? 85 : 60,
       });
 

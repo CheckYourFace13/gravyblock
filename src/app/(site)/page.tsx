@@ -40,7 +40,7 @@ const plans = [
     monthly: 299.99,
     intro: 149.99,
     highlight: false,
-    bullets: ["Everything in Scale, twice as often", "12 articles + 8 local SEO pages/mo", "Up to 3 locations included"],
+    bullets: ["Everything in Scale, twice as often", "12 articles + 8 local SEO pages/mo", "Priority support"],
     cta: "Start Pro",
     href: "/scan?plan=pro",
     ctaStyle: "bg-zinc-900 hover:bg-zinc-800 text-white",
@@ -117,7 +117,7 @@ const productSchema = {
     {
       "@type": "Product",
       name: "GravyBlock Pro",
-      description: "Everything in Scale twice as often, plus up to 3 locations.",
+      description: "Everything in Scale twice as often, plus priority support.",
       url: "https://gravyblock.com/scan?plan=pro",
       image: "https://gravyblock.com/brand/og.png",
       brand: { "@type": "Brand", name: "GravyBlock" },

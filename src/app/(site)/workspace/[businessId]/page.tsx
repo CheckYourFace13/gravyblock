@@ -10,6 +10,7 @@ import { requireBusinessAccess } from "@/lib/auth/customer-guards";
 import { getBusinessActivity, type ActivityItem } from "@/lib/workspace/activity-feed";
 import { getCustomerOnboardingSummary } from "@/lib/setup/onboarding-components";
 import { CheckoutButton, PortalButton } from "./billing-buttons";
+import { HomeSummary } from "./home-summary";
 import { LocationsSection } from "./locations-section";
 import { getLocationsForBusiness } from "./location-actions";
 import { ContentApprovalSection } from "./content-approval-section";
@@ -273,6 +274,8 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
   return (
     <div className="mx-auto max-w-6xl space-y-12 px-4 py-14 sm:px-6">
 
+      <HomeSummary businessId={businessId} />
+
       {/*
         Two DIFFERENT things, never conflated: whether setup is still actively
         running (temporary, disappears once done) vs. which components are
@@ -507,6 +510,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           ) : null}
 
           {/* Business profile — needed for content generation */}
+          <div id="business-profile">
           <BusinessProfileSection
             businessId={businessId}
             businessName={bundle.business.name}
@@ -514,6 +518,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             discoveredSocials={businessProfile?.discoveredSocials ?? []}
             businessAddress={businessProfile?.business.address ?? null}
           />
+          </div>
 
           {/* Content drafts to approve */}
           {features.contentDraftsPerMonth > 0 && queuedDrafts.length > 0 ? (
@@ -580,6 +585,9 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         </section>
       ) : null}
 
+      <details className="group rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <summary className="cursor-pointer text-lg font-semibold text-zinc-900">Advanced detail</summary>
+        <div className="mt-8 space-y-12">
       {/* ─── Snapshot: score history + automation status ──────────────────────── */}
       <section className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm lg:col-span-2">
@@ -609,7 +617,6 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <FeatureRow label="Local outreach (links counted only once verified)" on={features.blogOutreach} />
             <FeatureRow label="Outreach follow-up (one follow-up)" on={features.multiStepOutreach} />
             <FeatureRow label="Review monitoring + Google replies" on={features.reviewManagement} />
-            <FeatureRow label="Multi-location support" on={features.multiLocationReady} />
           </ul>
           <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs">
             <p className="font-semibold text-zinc-100">
@@ -658,6 +665,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           publishTime: r.publishTime,
           suggestedReply: r.suggestedReply,
           status: r.status,
+          source: r.source,
         }))} />
       ) : null}
 
@@ -1191,9 +1199,12 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
 
       {/* ─── Website fix list ────────────────────────────────────────────────── */}
       <IssueTrackerPanel businessId={businessId} />
+        </div>
+      </details>
 
       {/* ─── Integrations ────────────────────────────────────────────────────── */}
       {features.contentDraftsPerMonth > 0 ? (
+        <div id="publishing-connect">
         <IntegrationsSection
           businessId={businessId}
           initialTargets={publishingTargets.map((t) => ({
@@ -1203,9 +1214,11 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             active: t.active,
           }))}
         />
+        </div>
       ) : null}
 
       {/* ─── Google integrations ─────────────────────────────────────────────── */}
+      <div id="google-connect">
       <GoogleIntegrationsSection
         businessId={businessId}
         connected={Boolean(googleConn)}
@@ -1215,17 +1228,23 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         errorParam={query.google_error ?? null}
         successParam={Boolean(query.google_connected)}
       />
+      </div>
 
       {/* ─── Feature #9: Facebook + Instagram credentials ───────────────────── */}
       {features.redditPosting ? (
+        <div id="social-connect">
         <SocialCredentialsSection
           businessId={businessId}
           initial={socialCredentials}
         />
+        </div>
       ) : null}
 
-      {/* ─── Multi-location ──────────────────────────────────────────────────── */}
-      {features.multiLocationReady ? (
+      {/* Multi-location add-ons intentionally not rendered: locations are stored as
+          records only and no engine runs per location (engines are keyed by a single
+          businessId), so we do not offer or bill for them. The LocationsSection
+          component and location-actions are kept for a future real implementation. */}
+      {false && features.multiLocationReady ? (
         <LocationsSection
           businessId={businessId}
           initialLocations={initialLocations}

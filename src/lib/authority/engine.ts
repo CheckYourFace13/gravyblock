@@ -19,6 +19,7 @@
  * (evidence trail: when, what, exact URLs).
  */
 
+import { recordProof } from "@/lib/proof/ledger";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { backlinkOpportunities, businesses, getDb, jobs } from "@/lib/db";
@@ -475,6 +476,17 @@ export async function verifyAcquisitions(businessId: string, limit = 6): Promise
         .where(eq(backlinkOpportunities.id, r.id));
       await logEvent(db, businessId, r.id, "link_acquired", { acquiredUrl: check.pageUrl, href: check.href, rel: check.rel ?? null, targetUrl: r.targetUrl });
       acquired++;
+      await recordProof({
+        businessId,
+        actionType: "link_acquired",
+        engine: "authority",
+        proofCategory: "backlink",
+        destination: check.pageUrl ?? r.targetUrl,
+        summary: `GravyBlock earned a live backlink to the business's site from ${domainOf(check.pageUrl ?? r.targetUrl) ?? "a relevant local site"}, verified on the live page.`,
+        afterEvidence: { referringDomain: domainOf(check.pageUrl ?? r.targetUrl), pageUrl: check.pageUrl, href: check.href, rel: check.rel ?? null },
+        dedupeKey: `link_acquired:${r.id}`,
+        findingType: "backlink",
+      });
     } else if (check.mentionedWithoutLink) {
       await logEvent(db, businessId, r.id, "unlinked_mention_detected", { targetUrl: r.targetUrl });
     }

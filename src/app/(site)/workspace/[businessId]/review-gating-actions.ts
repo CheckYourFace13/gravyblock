@@ -4,7 +4,7 @@ import { eq, desc } from "drizzle-orm";
 import { getDb, reviewRequestLinks, reviewRequestResponses, businesses } from "@/lib/db";
 
 export type ReviewGatingData = {
-  link: { id: string; token: string; positiveRedirectUrl: string | null; threshold: number; active: boolean } | null;
+  link: { id: string; token: string; positiveRedirectUrl: string | null; active: boolean } | null;
   responses: { id: string; rating: number; feedback: string | null; submittedAt: Date }[];
   reviewUrl: string | null;
 };
@@ -54,7 +54,6 @@ export async function getReviewGatingData(businessId: string): Promise<ReviewGat
           id: existingLink.id,
           token: existingLink.token,
           positiveRedirectUrl: existingLink.positiveRedirectUrl,
-          threshold: existingLink.threshold,
           active: existingLink.active === "true",
         }
       : null,
@@ -84,7 +83,6 @@ export async function createReviewGatingLink(businessId: string): Promise<{ ok: 
     .values({
       businessId,
       positiveRedirectUrl: googleReviewUrl(biz?.placeId ?? null),
-      threshold: 4,
       active: "true",
     })
     .returning({ token: reviewRequestLinks.token });

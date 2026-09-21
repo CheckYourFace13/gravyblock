@@ -1,3 +1,4 @@
+import { recordProof } from "@/lib/proof/ledger";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
@@ -497,6 +498,20 @@ export async function executeContentPublishPath(businessId: string) {
       status: verified ? "completed" : "unverified",
       payload: { publishedContentId: artifactId, publicUrl, channel, verified, httpStatus: verifiedStatus, title: queuedItem.title },
     });
+
+    if (verified) {
+      await recordProof({
+        businessId,
+        actionType: "content_published",
+        engine: "content",
+        proofCategory: "content",
+        destination: publicUrl,
+        summary: `GravyBlock published "${queuedItem.title}" to the business's own website (${channel}) and confirmed the page is live (HTTP 200).`,
+        afterEvidence: { publicUrl, channel, httpStatus: verifiedStatus },
+        dedupeKey: `content_published:${artifactId}`,
+        findingType: "content",
+      });
+    }
 
     return { ok: true, publishJobId, contentQueueId: queuedItem.id, artifactId, publicUrl, verified };
   } catch (error) {

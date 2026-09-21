@@ -28,7 +28,7 @@ const UPSELL_PITCH: Record<string, { headline: string; bullets: string[] }> = {
     headline: "What Pro adds:",
     bullets: [
       "Twice the publishing volume",
-      "Up to 3 locations",
+      "Priority support",
       "Up to 16 outreach attempts a month",
     ],
   },

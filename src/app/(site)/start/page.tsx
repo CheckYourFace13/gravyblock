@@ -33,16 +33,16 @@ const PLAN_INFO = {
     label: "Pro",
     monthly: 299.99,
     intro: 149.99,
-    tagline: "Double the output, more local pages, and up to 3 locations.",
-    bullets: ["Everything in Scale, twice as often", "12 articles + 8 local pages/month", "Up to 3 locations"],
+    tagline: "Double the output and more local pages for one business.",
+    bullets: ["Everything in Scale, twice as often", "12 articles + 8 local pages/month", "Priority support"],
     highlight: false,
   },
   agency: {
     label: "Agency",
     monthly: 499.99,
     intro: 249.99,
-    tagline: "Daily output, multiple locations, and white-label ready.",
-    bullets: ["Daily content generation", "Multi-location support", "Full feature set", "Priority support"],
+    tagline: "Daily output and priority support.",
+    bullets: ["Daily content generation", "Full feature set", "Priority support"],
     highlight: false,
   },
 } as const;
@@ -50,7 +50,7 @@ const PLAN_INFO = {
 type PlanKey = keyof typeof PLAN_INFO;
 
 // Public, self-serve plans. Agency is a "contact us" upsell for Pro customers
-// needing more than 3 locations — not offered in the self-serve switcher.
+// needing custom or multi-business setups — not offered in the self-serve switcher.
 const PUBLIC_PLANS: PlanKey[] = ["starter", "growth", "pro"];
 
 function normalizePlan(raw: string | null | undefined): PlanKey {

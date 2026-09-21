@@ -167,7 +167,7 @@ export default function LaunchPage() {
                 label: "Pro",
                 regular: "$299.99",
                 ph: "$149.99",
-                desc: "Everything in Scale twice as often. Up to 3 locations.",
+                desc: "Everything in Scale twice as often, plus priority support.",
                 href: "/scan?plan=pro&promo=PRODUCTHUNT",
                 highlight: false,
               },

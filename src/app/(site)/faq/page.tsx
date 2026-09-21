@@ -50,7 +50,7 @@ const faqs = [
       },
       {
         q: "Does the Pro plan support multiple locations?",
-        a: "Yes. Pro includes up to 3 locations under one subscription. Additional locations can be added for a per-location fee. Enterprise and white-label pricing is available, contact us.",
+        a: "Not yet. Each GravyBlock subscription covers one business and one location. If you run several locations, you can start a separate subscription for each one. For custom or white-label setups, contact us.",
       },
     ],
   },
