@@ -231,11 +231,11 @@ function assessRelevance(html: string, vocab: string[], city: string | null, min
   return { relevant: false, note: `Prospect's site does not cover the business's topics (${hits.length} topic words matched)` };
 }
 
-async function qualifyProspects(db: Db, businessId: string, limit = 8, statuses: string[] = ["prospecting"]): Promise<number> {
+async function qualifyProspects(db: Db, businessId: string, limit = 8, statuses: string[] = ["prospecting"], onlyUnassessed = false): Promise<number> {
   const rows = await db
     .select()
     .from(backlinkOpportunities)
-    .where(and(eq(backlinkOpportunities.businessId, businessId), inArray(backlinkOpportunities.status, statuses)))
+    .where(and(eq(backlinkOpportunities.businessId, businessId), inArray(backlinkOpportunities.status, statuses), onlyUnassessed ? sql`${backlinkOpportunities.relevanceNote} is null` : sql`true`))
     .orderBy(desc(backlinkOpportunities.qualityScore))
     .limit(limit);
   if (rows.length === 0) return 0;
@@ -446,7 +446,7 @@ async function sendInitialOutreach(db: Db, businessId: string, truth: BusinessTr
   let sent = 0;
   for (const c of candidates) {
     if (sent >= allowance) break;
-    if (!c.contactEmail) continue;
+    if (!c.contactEmail || !c.relevanceNote) continue; // only prospects that passed the relevance gate are contacted
     const blocked = await preflight(c.contactEmail);
     if (blocked) {
       if (blocked === "opted_out") await db.update(backlinkOpportunities).set({ status: "unsubscribed" }).where(eq(backlinkOpportunities.id, c.id));
@@ -720,6 +720,8 @@ export async function runAuthorityBatch(opts: { maxBusinesses?: number } = {}): 
         out.found += (await discoverAuthorityProspects(b.id)).found;
       }
       out.qualified += await qualifyProspects(db, b.id);
+      // Prospects that qualified before the relevance gate existed are assessed before anything is sent.
+      await qualifyProspects(db, b.id, 30, ["qualified"], true);
       const v = await verifyAcquisitions(b.id);
       out.checked += v.checked;
       out.acquired += v.acquired;
