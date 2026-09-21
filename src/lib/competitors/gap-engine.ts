@@ -17,8 +17,7 @@ import { businessCompetitors, businesses, competitorSnapshots, contentQueue, get
 import { isSafePublicUrl, safeFetchText } from "@/lib/net/safe-fetch";
 import { parseSitemap } from "@/lib/truth/extract";
 import { ensureFreshTruth, type BusinessTruth } from "@/lib/truth";
-import { createHash } from "node:crypto";
-import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
+import { deriveCategory } from "@/lib/truth/category";
 
 const DAY = 86_400_000;
 const MAX_COMPETITORS = 5;
@@ -365,38 +364,6 @@ async function readOwnSite(website: string | null): Promise<{ schema: Set<string
 
 type Db = NonNullable<ReturnType<typeof getDb>>;
 
-/**
- * Category from the company's OWN description, when no structured category exists.
- * One cached model call (re-derived only if the description changes); the result is
- * accepted only if every word appears in the company's own text, so nothing is invented.
- */
-async function deriveCategory(db: Db, businessId: string, truth: BusinessTruth): Promise<string | null> {
-  const text = truth.description ?? "";
-  if (text.length < 40) return null;
-  const basis = createHash("sha256").update(text).digest("hex").slice(0, 16);
-  const [prior] = await db
-    .select({ payload: jobs.payload })
-    .from(jobs)
-    .where(and(eq(jobs.businessId, businessId), eq(jobs.type, "category_derived")))
-    .orderBy(desc(jobs.createdAt))
-    .limit(1);
-  const p = prior?.payload as { basis?: string; category?: string | null } | undefined;
-  if (p?.basis === basis) return p.category ?? null;
-  const out = await openRouterChat({
-    model: MODELS.content,
-    maxTokens: 20,
-    temperature: 0,
-    messages: [{ role: "user", content: `Text from a company's own website:\n"${text.slice(0, 600)}"\n\nName the ONE primary kind of business this describes as a 1-3 word Google Maps search phrase (e.g. "boat rental"). Use only words that appear in the text. If unclear answer NONE. Output only the phrase.` }],
-  });
-  const cand = out?.trim().toLowerCase().replace(/[^a-z ]/g, "").trim() ?? "";
-  const lower = text.toLowerCase();
-  const stem = (w: string) => w.replace(/s$/, "");
-  const ok = cand && cand !== "none" && cand.split(/\s+/).length <= 3 && cand.split(/\s+/).every((w) => lower.includes(stem(w)));
-  const category = ok ? cand : null;
-  await db.insert(jobs).values({ businessId, type: "category_derived", status: "completed", payload: { basis, category } });
-  return category;
-}
-
 async function logRun(db: Db, businessId: string, status: string, payload: Record<string, unknown>) {
   await db.insert(jobs).values({ businessId, type: "competitor_gap_run", status, payload }).catch(() => undefined);
 }
@@ -409,7 +376,7 @@ export async function runCompetitorGapForBusiness(businessId: string): Promise<{
     if (!biz) return { status: "business_not_found", gaps: 0, queued: null };
     const truth = await ensureFreshTruth(businessId);
     const city = truth.verifiedCity;
-    const category = biz.primaryCategory || (biz.vertical && biz.vertical.toLowerCase() !== "other" ? biz.vertical : null) || truth.services[0] || (city ? await deriveCategory(db, businessId, truth) : null);
+    const category = biz.primaryCategory || (biz.vertical && biz.vertical.toLowerCase() !== "other" ? biz.vertical : null) || truth.services[0] || (city ? await deriveCategory(businessId, truth) : null);
     if (!city || !category) {
       await logRun(db, businessId, "skipped", { reason: "no_verified_location_or_category" });
       return { status: "skipped", gaps: 0, queued: null };

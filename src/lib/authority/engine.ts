@@ -232,12 +232,26 @@ function replyToFor(biz: { accountType: string; accountEmail: string | null; bil
   return biz.accountEmail || biz.billingEmail || truthEmail || null;
 }
 
+/** First sentence(s) of the company's own description, ending on a complete sentence or word (never mid-word). */
+function shortenAtSentence(text: string, max = 180): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  const sentences = t.match(/[^.!?]+[.!?]/g) ?? [];
+  let out = "";
+  for (const sen of sentences) {
+    if ((out + sen).trim().length > max) break;
+    out = (out + sen).trim() + " ";
+  }
+  if (out.trim()) return out.trim().replace(/^\.\s*/, "");
+  const cut = t.slice(0, max).replace(/\s+\S*$/, "");
+  return cut.replace(/[,;:\s]+$/, "") + ".";
+}
+
 function fallbackPitch(input: { business: string; prospect: string; sourceType: SourceType; asset: { url: string; title: string }; description: string | null; city: string | null }): string {
   const audience = AUDIENCE[input.sourceType];
   return [
     `Hello ${input.prospect} team,`,
     "",
-    `I'm writing on behalf of ${input.business}${input.city ? ` in ${input.city}` : ""}${input.description ? `. ${input.description.replace(/\s+/g, " ").slice(0, 180).replace(/[.!?]?$/, ".")}` : "."}`,
+    `I'm writing on behalf of ${input.business}${input.city && !input.business.toLowerCase().includes(input.city.toLowerCase()) ? ` in ${input.city}` : ""}${input.description ? `. ${shortenAtSentence(input.description)}` : "."}`,
     "",
     `We recently put together this page that may be useful to your ${audience}: ${input.asset.title} — ${input.asset.url}`,
     "",

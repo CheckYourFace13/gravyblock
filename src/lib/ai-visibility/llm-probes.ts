@@ -14,6 +14,8 @@
 
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb, businesses, businessConfigs, aiVisibilityChecks, jobs } from "@/lib/db";
+import { getBusinessTruth } from "@/lib/truth";
+import { deriveCategory } from "@/lib/truth/category";
 
 const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
 
@@ -32,6 +34,7 @@ function buildProbePrompts(biz: {
   vertical: string | null;
   focusArea?: string | null;
   targetScope?: string | null;
+  city?: string | null;
 }): string[] {
   const category = biz.vertical ?? biz.primaryCategory ?? "local business";
   const scope = biz.focusArea ?? "local";
@@ -58,7 +61,7 @@ function buildProbePrompts(biz: {
   }
 
   if (scope === "regional") {
-    const region = biz.targetScope ?? extractCity(biz.address) ?? "the region";
+    const region = biz.targetScope ?? biz.city ?? extractCity(biz.address) ?? "the region";
     return [
       `What are the best ${category} options in ${region}?`,
       `I'm looking for a highly-rated ${category} serving the ${region} area. Who do you recommend?`,
@@ -67,7 +70,7 @@ function buildProbePrompts(biz: {
   }
 
   // Default: local — use city
-  const city = extractCity(biz.address);
+  const city = biz.city ?? extractCity(biz.address);
   const location = city ? `in ${city}` : "nearby";
 
   return [
@@ -194,8 +197,21 @@ export async function runLlmProbesForBusiness(businessId: string): Promise<{
     .where(eq(businessConfigs.businessId, businessId))
     .limit(1);
 
+  // A meaningful category and (for local scope) a real city are required — a probe such
+  // as "best other near" measures nothing. Category/city come from the Business Truth layer.
+  const truth = await getBusinessTruth(businessId);
+  const structured = biz.vertical && !/^(other|unknown|)$/i.test(biz.vertical.trim()) ? biz.vertical : biz.primaryCategory && !/^(other|unknown|)$/i.test(biz.primaryCategory.trim()) ? biz.primaryCategory : null;
+  const category = structured ?? truth.services[0] ?? (await deriveCategory(businessId, truth));
+  const scope = cfg?.focusArea ?? biz.focusArea ?? "local";
+  const city = truth.verifiedCity ?? extractCity(biz.address);
+  if (!category || ((scope === "local" || !scope) && !city)) {
+    await db.insert(jobs).values({ businessId, type: "llm_probe_skipped", status: "skipped", payload: { reason: !category ? "no_verified_category" : "no_verified_city", scope } });
+    return { probesRun: 0, mentions: 0 };
+  }
   const prompts = buildProbePrompts({
     ...biz,
+    vertical: category,
+    city,
     focusArea: cfg?.focusArea ?? biz.focusArea,
     targetScope: cfg?.targetScope ?? biz.targetScope,
   });
