@@ -15,7 +15,7 @@ import { getDb, businesses, publishedContent, jobs } from "@/lib/db";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
 import { createGbpPost, isGbpConnected } from "@/lib/integrations/gbp-write";
 import { normalizePlanTierFromDb } from "@/lib/plans";
-import { ensureFreshTruth } from "@/lib/truth";
+import { ensureFreshTruth, promotableContent } from "@/lib/truth";
 import { containsPlaceholderArtifact } from "@/lib/content-gen/quality-guard";
 
 const ELIGIBLE_TIERS = ["growth", "pro", "agency"];
@@ -130,9 +130,7 @@ export async function runGbpPostBatch(
         ))
         .orderBy(desc(publishedContent.createdAt))
         .limit(1);
-      const recentFact = truth.facts
-        .filter((f) => f.key === "recent_content")
-        .sort((a, b) => (b.sourceUpdatedAt ?? b.fetchedAt).getTime() - (a.sourceUpdatedAt ?? a.fetchedAt).getTime())[0];
+      const recentFact = promotableContent(truth.facts)[0];
       const topic = article
         ? { title: article.title, excerpt: article.body, url: article.publicUrl }
         : recentFact

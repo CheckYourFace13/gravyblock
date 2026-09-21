@@ -432,9 +432,11 @@ async function tick() {
 
   // One-time: retire work items from the old template engine before any new work is planned.
   try {
-    const { runLegacyCleanupOnce } = await import("@/lib/autopilot/legacy-cleanup");
+    const { runLegacyCleanupOnce, runLegacyCleanupV2Once } = await import("@/lib/autopilot/legacy-cleanup");
     const cleanup = await runLegacyCleanupOnce();
     if (cleanup.ran) console.info("[worker] legacy cleanup", cleanup);
+    const cleanup2 = await runLegacyCleanupV2Once();
+    if (cleanup2.ran) console.info("[worker] legacy cleanup v2", cleanup2);
   } catch (error) {
     console.error("[worker] legacy cleanup failed", { error: error instanceof Error ? error.message : String(error) });
   }

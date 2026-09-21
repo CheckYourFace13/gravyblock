@@ -599,13 +599,7 @@ export async function recordScanRun(input: {
     // (checkBusinessVisibilityInAI, run on schedule) populate these tables
     // honestly. The UI already renders a correct empty state until they do.
 
-    await tx.insert(citationMonitors).values({
-      businessId,
-      sourceName: "Google profile vs site consistency",
-      listingUrl: input.profile.googleMapsUri ?? null,
-      status: "pending",
-      mismatchNote: "Initial baseline pending first recurring monitor run.",
-    });
+    // Citation status rows are written by the citation engine (src/lib/citations), not seeded as 'pending' here.
 
     // No seeded owner to-do list: GravyBlock does this work itself. Items that
     // truly need the owner are surfaced individually as they arise.

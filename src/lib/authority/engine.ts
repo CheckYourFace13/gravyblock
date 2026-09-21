@@ -22,7 +22,7 @@
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { backlinkOpportunities, businesses, getDb, jobs } from "@/lib/db";
-import { ensureFreshTruth, type BusinessTruth } from "@/lib/truth";
+import { ensureFreshTruth, promotableContent, type BusinessTruth } from "@/lib/truth";
 import { discoverContactEmail } from "@/lib/outreach/discover-contact-email";
 import { isOptedOut, coldOutreachFooter } from "@/lib/email/optout";
 import { assertOutreachSendingAllowed } from "@/lib/outreach/pause-guard";
@@ -105,9 +105,7 @@ async function searchPlaces(textQuery: string): Promise<NewPlace[]> {
 
 /** The single most useful page on the company's OWN site to share, chosen from verified facts. */
 function chooseAsset(truth: BusinessTruth, website: string | null): { url: string; title: string } | null {
-  const recent = truth.facts
-    .filter((f) => f.key === "recent_content" && f.sourceUrl)
-    .sort((a, b) => (b.sourceUpdatedAt ?? b.fetchedAt).getTime() - (a.sourceUpdatedAt ?? a.fetchedAt).getTime())[0];
+  const recent = promotableContent(truth.facts)[0];
   if (recent?.sourceUrl) return { url: recent.sourceUrl, title: recent.value };
   const service = truth.facts.filter((f) => f.key === "service" && f.sourceUrl)[0];
   if (service?.sourceUrl) return { url: service.sourceUrl, title: service.value };

@@ -225,9 +225,10 @@ export async function refreshBusinessTruth(businessId: string): Promise<{ ok: bo
   }
 
   // Owner-supplied (explicit, highest trust).
-  if (cfg?.serviceDescription) facts.push({ key: "description", value: cfg.serviceDescription.slice(0, 500), confidence: 95, stability: "stable", sourceSystem: "owner", sourceUrl: null });
-  if (cfg?.uniqueSellingPoints) facts.push({ key: "owner_note", value: cfg.uniqueSellingPoints.slice(0, 500), confidence: 95, stability: "stable", sourceSystem: "owner", sourceUrl: null });
-  if (cfg?.source === "owner_form") {
+  const ownerSupplied = cfg?.source === "owner_form";
+  if (ownerSupplied && cfg?.serviceDescription) facts.push({ key: "description", value: cfg.serviceDescription.slice(0, 500), confidence: 95, stability: "stable", sourceSystem: "owner", sourceUrl: null });
+  if (ownerSupplied && cfg?.uniqueSellingPoints) facts.push({ key: "owner_note", value: cfg.uniqueSellingPoints.slice(0, 500), confidence: 95, stability: "stable", sourceSystem: "owner", sourceUrl: null });
+  if (ownerSupplied) {
     const city = firstToken(cfg.targetScope);
     if (city && !/^(united states|global|worldwide)$/i.test(city)) facts.push({ key: "city", value: city, confidence: 92, stability: "stable", sourceSystem: "owner", sourceUrl: null });
   }
@@ -372,7 +373,7 @@ export async function getBusinessTruth(businessId: string): Promise<BusinessTrut
     .slice(0, 5);
   if (recent.length) {
     lines.push(
-      `Recent things the company published (current information): ${recent
+      `Recent pages on the company's website (some sites republish third-party news or alerts; never present these as company announcements, awards or accomplishments): ${recent
         .map((f) => `"${f.value}"${f.sourceUpdatedAt ? ` (${f.sourceUpdatedAt.toISOString().slice(0, 10)})` : ""}`)
         .join("; ")}`,
     );
@@ -454,4 +455,18 @@ export async function runTruthRefreshBatch(batchSize = 6): Promise<{ refreshed: 
     }
   }
   return { refreshed };
+}
+
+const ALERT_WORDS = /\b(warning|advisory|watch|alert|cancel(?:l)?ed|closure|closed|recall|obituary|arrest|lawsuit)\b/i;
+const OWN_VOICE_PATH = /\/(blog|projects?|portfolio|gallery|case-stud(?:y|ies)|events?|updates?|stories|articles?)\//i;
+
+/**
+ * Recent pages that are safe to PROMOTE in the company's own voice (social,
+ * Google posts, outreach). Excludes /news/ pages (many sites republish
+ * third-party news feeds) and anything that reads as an alert or warning.
+ */
+export function promotableContent(facts: TruthFact[]): TruthFact[] {
+  return facts
+    .filter((f) => f.key === "recent_content" && f.sourceUrl && OWN_VOICE_PATH.test(f.sourceUrl) && !ALERT_WORDS.test(f.value))
+    .sort((a, b) => (b.sourceUpdatedAt ?? b.fetchedAt).getTime() - (a.sourceUpdatedAt ?? a.fetchedAt).getTime());
 }

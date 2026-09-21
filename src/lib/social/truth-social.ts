@@ -8,7 +8,7 @@
 
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { businessConfigs, contentQueue, getDb } from "@/lib/db";
-import { ensureFreshTruth } from "@/lib/truth";
+import { ensureFreshTruth, promotableContent } from "@/lib/truth";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
 import { containsPlaceholderArtifact } from "@/lib/content-gen/quality-guard";
 
@@ -47,9 +47,7 @@ export async function planTruthGroundedSocial(businessId: string): Promise<{ que
   const used = new Set(everUsed.map((r) => norm(r.title)));
 
   const seeds: { label: string; url: string | null; kind: "recent" | "service" }[] = [];
-  const recentFacts = truth.facts
-    .filter((f) => f.key === "recent_content")
-    .sort((a, b) => (b.sourceUpdatedAt ?? b.fetchedAt).getTime() - (a.sourceUpdatedAt ?? a.fetchedAt).getTime());
+  const recentFacts = promotableContent(truth.facts);
   for (const f of recentFacts) seeds.push({ label: f.value, url: f.sourceUrl, kind: "recent" });
   for (const s of truth.services) seeds.push({ label: s, url: null, kind: "service" });
   const seed = seeds.find((s) => !used.has(norm(s.label)));

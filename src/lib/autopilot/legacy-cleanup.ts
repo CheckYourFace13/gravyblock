@@ -8,7 +8,8 @@
  */
 
 import { and, eq, inArray, ne } from "drizzle-orm";
-import { contentQueue, getDb, jobs, operatorTasks, publishingJobs } from "@/lib/db";
+import { citationMonitors, contentQueue, getDb, jobs, operatorTasks, publishedContent, publishingJobs } from "@/lib/db";
+import { sql } from "drizzle-orm";
 
 const MARKER = "legacy_cleanup_truth_v1";
 
@@ -43,4 +44,30 @@ export async function runLegacyCleanupOnce(): Promise<{ ran: boolean; tasks?: nu
 
   await db.insert(jobs).values({ type: MARKER, status: "completed", payload: { tasks: tasks.length, content: content.length, publishing: publishing.length } });
   return { ran: true, tasks: tasks.length, content: content.length, publishing: publishing.length };
+}
+
+const MARKER_V2 = "legacy_cleanup_truth_v2";
+
+/**
+ * Retracts already-published internal pages whose titles are visibly
+ * template artifacts ("Why your area Residents Choose ...") — the public
+ * /published/[id] route 404s anything not status=published — and removes the
+ * never-resolved scan-time "pending" citation baseline rows.
+ */
+export async function runLegacyCleanupV2Once(): Promise<{ ran: boolean; retracted?: number; monitors?: number }> {
+  const db = getDb();
+  if (!db) return { ran: false };
+  const [done] = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.type, MARKER_V2)).limit(1);
+  if (done) return { ran: false };
+  const retracted = await db
+    .update(publishedContent)
+    .set({ status: "retracted" })
+    .where(and(eq(publishedContent.channel, "internal_site"), sql`(${publishedContent.title} ~* 'your (area|city)' or ${publishedContent.title} ~* '^other[ _]' or ${publishedContent.title} ~ '[a-z]+_[a-z]+')`))
+    .returning({ id: publishedContent.id });
+  const monitors = await db
+    .delete(citationMonitors)
+    .where(and(eq(citationMonitors.sourceName, "Google profile vs site consistency"), eq(citationMonitors.status, "pending")))
+    .returning({ id: citationMonitors.id });
+  await db.insert(jobs).values({ type: MARKER_V2, status: "completed", payload: { retracted: retracted.length, monitors: monitors.length } });
+  return { ran: true, retracted: retracted.length, monitors: monitors.length };
 }
