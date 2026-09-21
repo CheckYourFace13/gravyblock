@@ -123,7 +123,8 @@ export function chooseAuthorityAsset(truth: BusinessTruth, website: string | nul
   return chooseAsset(truth, website);
 }
 function chooseAsset(truth: BusinessTruth, website: string | null): { url: string; title: string } | null {
-  const recent = promotableContent(truth.facts)[0];
+  // A single venue's event listing is a poor thing to ask an association to share; prefer editorial pages.
+  const recent = promotableContent(truth.facts).find((f) => f.sourceUrl && !//events?//i.test(f.sourceUrl));
   if (recent?.sourceUrl) return { url: recent.sourceUrl, title: recent.value };
   const service = truth.facts.filter((f) => f.key === "service" && f.sourceUrl)[0];
   if (service?.sourceUrl) return { url: service.sourceUrl, title: service.value };
@@ -201,7 +202,7 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
 }
 
 /** Reads a real published contact address for prospecting rows; nothing is ever guessed. */
-const STOP = new Set("the and for you your our with that this from are was have has will can not but all any get find best top guide local business businesses services service company website site page pages online more about into over than help helps helping provide provides across around near nearby made makes make one new use used using their they them who what when where which while also just like only some such other each every many most much very".split(" "));
+const STOP = new Set("software platform online competition competitions venue venues management signup signups payment payments tool tools event events player players team teams the and for you your our with that this from are was have has will can not but all any get find best top guide local business businesses services service company website site page pages online more about into over than help helps helping provide provides across around near nearby made makes make one new use used using their they them who what when where which while also just like only some such other each every many most much very".split(" "));
 
 /** The business's own topical vocabulary, taken from its verified description/services (never invented). */
 function topicVocabulary(truth: BusinessTruth, category: string | null): string[] {
@@ -451,7 +452,7 @@ async function sendInitialOutreach(db: Db, businessId: string, truth: BusinessTr
       continue;
     }
     const text = await buildPitch(truth, c, asset);
-    const subject = `A local resource for ${c.sourceName}`.slice(0, 120);
+    const subject = `A resource for ${c.sourceName}`.slice(0, 120);
     const res = await sendPitch({ to: c.contactEmail, business: truth.businessName, subject, text, replyTo: await replyAddressFor(c.id, replyTo) });
     if (!res.ok) {
       await logEvent(db, businessId, c.id, "send_failed", { error: res.error });
@@ -497,7 +498,7 @@ async function sendFollowUps(db: Db, businessId: string, truth: BusinessTruth, b
     if (!opp || opp.status !== "contacted" || !opp.contactEmail) continue; // acquired / unsubscribed / already followed up → stop
     if (await preflight(opp.contactEmail)) continue;
     const text = `Hello ${opp.sourceName} team,\n\nA quick follow-up on my note last week about ${asset.title} (${asset.url}) from ${truth.businessName}. If it would be useful to your ${AUDIENCE[opp.sourceType as SourceType] ?? "audience"}, we'd appreciate a mention; if not, no worries at all and I won't follow up again.\n\nThank you.`;
-    const res = await sendPitch({ to: opp.contactEmail, business: truth.businessName, subject: `Re: A local resource for ${opp.sourceName}`.slice(0, 120), text, replyTo: await replyAddressFor(opp.id, replyTo) });
+    const res = await sendPitch({ to: opp.contactEmail, business: truth.businessName, subject: `Re: A resource for ${opp.sourceName}`.slice(0, 120), text, replyTo: await replyAddressFor(opp.id, replyTo) });
     if (!res.ok) continue;
     await db.update(backlinkOpportunities).set({ status: "followed_up" }).where(eq(backlinkOpportunities.id, opp.id));
     await db.insert(jobs).values({ businessId, type: AUTHORITY_FOLLOWUP_JOB, status: "completed", payload: { opportunityId: opp.id, resendEmailId: res.id, to: opp.contactEmail } });
@@ -670,7 +671,7 @@ export async function previewAuthorityOutreach(businessId: string, limit = 2): P
   if (asset) {
     for (const r of rows) {
       if (!r.contactEmail) continue;
-      pitches.push({ to: r.contactEmail, prospect: r.sourceName, sourceType: r.sourceType, targetUrl: r.targetUrl, subject: `A local resource for ${r.sourceName}`, body: await buildPitch(truth, r, asset) });
+      pitches.push({ to: r.contactEmail, prospect: r.sourceName, sourceType: r.sourceType, targetUrl: r.targetUrl, subject: `A resource for ${r.sourceName}`, body: await buildPitch(truth, r, asset) });
     }
   }
   return { business: truth.businessName, asset, replyTo, pitches, blocked: !asset ? "no_linkable_asset" : !replyTo ? "no_reply_to" : undefined };

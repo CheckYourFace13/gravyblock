@@ -91,7 +91,7 @@ export async function handleAuthorityReply(input: { opportunityId: string; from:
       const asset = chooseAuthorityAsset(truth, biz?.website ?? null);
       if (truth.sufficient && truth.description && asset) {
         const text = `Hello,\n\nThanks for getting back to us. ${truth.businessName}: ${truth.description.replace(/\s+/g, " ").slice(0, 400)}\n\nThe page we mentioned: ${asset.title} (${asset.url}).\n\nIf anything else would help, just reply here.`;
-        const res = await sendAuthorityEmail({ businessId, to: opp.contactEmail ?? input.from, subject: `Re: ${input.subject ?? `A local resource for ${opp.sourceName}`}`.slice(0, 120), text });
+        const res = await sendAuthorityEmail({ businessId, to: opp.contactEmail ?? input.from, subject: `Re: ${input.subject ?? `A resource for ${opp.sourceName}`}`.slice(0, 120), text });
         if (res.ok) {
           await db.insert(jobs).values({ businessId, type: "authority_reply_sent", status: "completed", payload: { opportunityId: opp.id, resendEmailId: res.id } });
           await log("auto_reply_sent", { resendEmailId: res.id });
