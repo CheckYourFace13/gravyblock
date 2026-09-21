@@ -20,6 +20,7 @@
  */
 
 import { recordProof } from "@/lib/proof/ledger";
+import { getOperatingMode } from "@/lib/business-mode";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { backlinkOpportunities, businesses, getDb, jobs } from "@/lib/db";
@@ -105,6 +106,22 @@ async function searchPlaces(textQuery: string): Promise<NewPlace[]> {
 }
 
 /** The single most useful page on the company's OWN site to share, chosen from verified facts. */
+/** Set once a receiving domain is live; replies then route to the reply handler instead of a person's inbox. */
+export async function inboundReplyDomain(): Promise<string | null> {
+  const db = getDb();
+  if (!db) return null;
+  const [row] = await db.select({ payload: jobs.payload }).from(jobs).where(eq(jobs.type, "inbound_domain_ready")).orderBy(desc(jobs.createdAt)).limit(1);
+  return (row?.payload as { domain?: string } | null)?.domain ?? null;
+}
+
+async function replyAddressFor(opportunityId: string, fallback: string): Promise<string> {
+  const d = await inboundReplyDomain();
+  return d ? `reply+${opportunityId}@${d}` : fallback;
+}
+
+export function chooseAuthorityAsset(truth: BusinessTruth, website: string | null) {
+  return chooseAsset(truth, website);
+}
 function chooseAsset(truth: BusinessTruth, website: string | null): { url: string; title: string } | null {
   const recent = promotableContent(truth.facts)[0];
   if (recent?.sourceUrl) return { url: recent.sourceUrl, title: recent.value };
@@ -132,14 +149,22 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
 
   const [biz] = await db.select({ website: businesses.website }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
   const ownDomain = biz?.website ? domainOf(biz.website) : null;
-  const city = truth.verifiedCity;
-  const topic = truth.services[0] ?? null;
+  const bm = await getOperatingMode(businessId);
+  const city = bm.mode === "local" ? bm.city : null;
+  const topic = bm.category ?? truth.services[0] ?? null;
 
-  // City-bound queries only when the city is verified — never a guessed one.
+  // Queries follow the operating mode. Place-bound queries only with a verified place — never a guessed one.
   const queries: string[] = [];
-  if (city) queries.push(`chamber of commerce ${city}`, `${city} business association`, `${city} news`, `${city} community resources`);
-  if (city && topic) queries.push(`${topic} association ${city}`, `${topic} blog ${city}`);
-  if (!city && topic) queries.push(`${topic} association`);
+  if (bm.mode === "local" && city) {
+    queries.push(`chamber of commerce ${city}`, `${city} business association`, `${city} news`, `${city} community resources`);
+    if (topic) queries.push(`${topic} association ${city}`, `${topic} blog ${city}`);
+  } else if (bm.mode === "regional" && bm.placeLabel) {
+    queries.push(`${bm.placeLabel} business association`, `${bm.placeLabel} news`);
+    if (topic) queries.push(`${topic} association ${bm.placeLabel}`, `${topic} blog ${bm.placeLabel}`);
+  } else if (topic) {
+    // National / online: industry associations, resource directories and topical publications.
+    queries.push(`${topic} association`, `${topic} industry council`, `${topic} resources directory`, `${topic} magazine`, `${topic} blog guide`);
+  }
   if (queries.length === 0) return { found: 0, reason: "no_verified_location_or_topic_to_search" };
 
   const existing = await db.select({ targetUrl: backlinkOpportunities.targetUrl }).from(backlinkOpportunities).where(eq(backlinkOpportunities.businessId, businessId));
@@ -176,18 +201,61 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
 }
 
 /** Reads a real published contact address for prospecting rows; nothing is ever guessed. */
-async function qualifyProspects(db: Db, businessId: string, limit = 8): Promise<number> {
+const STOP = new Set("the and for you your our with that this from are was have has will can not but all any get find best top guide local business businesses services service company website site page pages online more about into over than help helps helping provide provides across around near nearby made makes make one new use used using their they them who what when where which while also just like only some such other each every many most much very".split(" "));
+
+/** The business's own topical vocabulary, taken from its verified description/services (never invented). */
+function topicVocabulary(truth: BusinessTruth, category: string | null): string[] {
+  const text = [truth.description ?? "", ...truth.services, category ?? "", truth.facts.filter((f) => f.key === "page_topic").map((f) => f.value).join(" ")].join(" ").toLowerCase();
+  const counts = new Map<string, number>();
+  for (const w of text.match(/[a-z]{4,}/g) ?? []) {
+    if (STOP.has(w)) continue;
+    const stem = w.replace(/(ing|es|s)$/, "");
+    counts.set(stem, (counts.get(stem) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 14).map(([w]) => w);
+}
+
+/**
+ * Real relevance, not just a name match: the prospect's own pages must actually touch the
+ * business's topic (>=2 distinct topic words), or be a community/resource listing that
+ * mentions the business's verified city AND at least one topic word.
+ */
+function assessRelevance(html: string, vocab: string[], city: string | null): { relevant: boolean; note: string } {
+  const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").toLowerCase();
+  const hits = vocab.filter((w) => new RegExp(`\\b${w}`).test(text));
+  const resourceSection = /(resources?|partners?|member (benefits|resources)|community links|useful links|directory)/i.test(text);
+  const cityHit = city ? text.includes(city.toLowerCase()) : false;
+  if (hits.length >= 2) return { relevant: true, note: `Prospect's own site covers: ${hits.slice(0, 5).join(", ")}` };
+  if (resourceSection && cityHit && hits.length >= 1) return { relevant: true, note: `Has a resource listing in ${city} and mentions: ${hits[0]}` };
+  return { relevant: false, note: `Prospect's site does not cover the business's topics (${hits.length} topic words matched)` };
+}
+
+async function qualifyProspects(db: Db, businessId: string, limit = 8, statuses: string[] = ["prospecting"]): Promise<number> {
   const rows = await db
     .select()
     .from(backlinkOpportunities)
-    .where(and(eq(backlinkOpportunities.businessId, businessId), eq(backlinkOpportunities.status, "prospecting")))
+    .where(and(eq(backlinkOpportunities.businessId, businessId), inArray(backlinkOpportunities.status, statuses)))
     .orderBy(desc(backlinkOpportunities.qualityScore))
     .limit(limit);
+  if (rows.length === 0) return 0;
+  const truth = await ensureFreshTruth(businessId);
+  const [catJob] = await db.select({ payload: jobs.payload }).from(jobs).where(and(eq(jobs.businessId, businessId), eq(jobs.type, "category_derived"))).orderBy(desc(jobs.createdAt)).limit(1);
+  const vocab = topicVocabulary(truth, (catJob?.payload as { category?: string | null } | null)?.category ?? null);
   let qualified = 0;
   for (const r of rows) {
     if (!r.targetUrl || !RELEVANT_SOURCE_TYPES.includes(r.sourceType as SourceType)) {
       await db.update(backlinkOpportunities).set({ status: "not_relevant" }).where(eq(backlinkOpportunities.id, r.id));
       continue;
+    }
+    if (vocab.length >= 3) {
+      const page = await safeFetchText(r.targetUrl, { timeoutMs: 9000 });
+      const rel = page.ok && page.status < 400 ? assessRelevance(page.body, vocab, truth.verifiedCity) : { relevant: false, note: "Prospect site could not be read" };
+      if (!rel.relevant) {
+        await db.update(backlinkOpportunities).set({ status: "not_relevant", relevanceNote: rel.note }).where(eq(backlinkOpportunities.id, r.id));
+        await logEvent(db, businessId, r.id, "not_relevant", { note: rel.note });
+        continue;
+      }
+      await db.update(backlinkOpportunities).set({ relevanceNote: rel.note }).where(eq(backlinkOpportunities.id, r.id));
     }
     const contact = await discoverContactEmail(r.targetUrl);
     if (!contact.email) {
@@ -203,6 +271,15 @@ async function qualifyProspects(db: Db, businessId: string, limit = 8): Promise<
     qualified++;
   }
   return qualified;
+}
+
+/** Re-run the current safety/relevance rules over prospects that qualified under older rules and have not been contacted. */
+export async function requalifyProspects(businessId: string): Promise<{ rechecked: number; stillQualified: number }> {
+  const db = getDb();
+  if (!db) return { rechecked: 0, stillQualified: 0 };
+  const rows = await db.select({ id: backlinkOpportunities.id }).from(backlinkOpportunities).where(and(eq(backlinkOpportunities.businessId, businessId), eq(backlinkOpportunities.status, "qualified")));
+  const n = await qualifyProspects(db, businessId, 30, ["qualified"]);
+  return { rechecked: rows.length, stillQualified: n };
 }
 
 /* ─────────────── 2. learning: which opportunity types actually produce links ─────────────── */
@@ -282,6 +359,17 @@ function fromAddress(): { name: string; email: string } | null {
   const raw = process.env.OUTREACH_FROM_EMAIL ?? process.env.RESEND_FROM_EMAIL ?? "";
   const m = raw.match(/<([^>]+)>/) ?? raw.match(/([^\s<>]+@[^\s<>]+)/);
   return m?.[1] ? { name: "", email: m[1] } : null;
+}
+
+export async function sendAuthorityEmail(input: { businessId: string; to: string; subject: string; text: string }): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const db = getDb();
+  if (!db) return { ok: false, error: "no_db" };
+  const [biz] = await db.select({ name: businesses.name, accountType: businesses.accountType, accountEmail: businesses.accountEmail, billingEmail: businesses.billingEmail }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1);
+  if (!biz) return { ok: false, error: "no_business" };
+  if (await preflight(input.to)) return { ok: false, error: "suppressed" };
+  const replyTo = biz.accountType === "house" ? "chris@gravyblock.com" : biz.accountEmail || biz.billingEmail;
+  if (!replyTo) return { ok: false, error: "no_reply_to" };
+  return sendPitch({ to: input.to, business: biz.name, subject: input.subject, text: input.text, replyTo });
 }
 
 async function sendPitch(input: { to: string; business: string; subject: string; text: string; replyTo: string }): Promise<{ ok: boolean; id?: string; error?: string }> {
@@ -364,7 +452,7 @@ async function sendInitialOutreach(db: Db, businessId: string, truth: BusinessTr
     }
     const text = await buildPitch(truth, c, asset);
     const subject = `A local resource for ${c.sourceName}`.slice(0, 120);
-    const res = await sendPitch({ to: c.contactEmail, business: truth.businessName, subject, text, replyTo });
+    const res = await sendPitch({ to: c.contactEmail, business: truth.businessName, subject, text, replyTo: await replyAddressFor(c.id, replyTo) });
     if (!res.ok) {
       await logEvent(db, businessId, c.id, "send_failed", { error: res.error });
       continue;
@@ -409,7 +497,7 @@ async function sendFollowUps(db: Db, businessId: string, truth: BusinessTruth, b
     if (!opp || opp.status !== "contacted" || !opp.contactEmail) continue; // acquired / unsubscribed / already followed up → stop
     if (await preflight(opp.contactEmail)) continue;
     const text = `Hello ${opp.sourceName} team,\n\nA quick follow-up on my note last week about ${asset.title} (${asset.url}) from ${truth.businessName}. If it would be useful to your ${AUDIENCE[opp.sourceType as SourceType] ?? "audience"}, we'd appreciate a mention; if not, no worries at all and I won't follow up again.\n\nThank you.`;
-    const res = await sendPitch({ to: opp.contactEmail, business: truth.businessName, subject: `Re: A local resource for ${opp.sourceName}`.slice(0, 120), text, replyTo });
+    const res = await sendPitch({ to: opp.contactEmail, business: truth.businessName, subject: `Re: A local resource for ${opp.sourceName}`.slice(0, 120), text, replyTo: await replyAddressFor(opp.id, replyTo) });
     if (!res.ok) continue;
     await db.update(backlinkOpportunities).set({ status: "followed_up" }).where(eq(backlinkOpportunities.id, opp.id));
     await db.insert(jobs).values({ businessId, type: AUTHORITY_FOLLOWUP_JOB, status: "completed", payload: { opportunityId: opp.id, resendEmailId: res.id, to: opp.contactEmail } });
@@ -477,7 +565,7 @@ export async function verifyAcquisitions(businessId: string, limit = 6): Promise
   const rows = await db
     .select()
     .from(backlinkOpportunities)
-    .where(and(eq(backlinkOpportunities.businessId, businessId), inArray(backlinkOpportunities.status, ["contacted", "followed_up", "expired"])))
+    .where(and(eq(backlinkOpportunities.businessId, businessId), inArray(backlinkOpportunities.status, ["contacted", "followed_up", "expired", "replied"])))
     .limit(limit);
   let acquired = 0;
   for (const r of rows) {
@@ -522,7 +610,7 @@ export async function verifyAcquisitions(businessId: string, limit = 6): Promise
 
 /* ─────────────── first-run review gate ─────────────── */
 
-const SEND_ENABLED_JOB = "authority_send_enabled";
+const SEND_PAUSED_JOB = "authority_send_paused";
 
 /**
  * Real third-party email starts only after the first pitches have been
@@ -530,16 +618,33 @@ const SEND_ENABLED_JOB = "authority_send_enabled";
  * (GravyBlock's engineer, one time, at rollout). After that it is fully
  * autonomous — this is a rollout safety gate, not a recurring approval step.
  */
+/** Global kill switch only. Sending is otherwise governed per business by authorization (below), health and the shared budget. */
 export async function authoritySendingEnabled(db: Db = getDb()!): Promise<boolean> {
-  const [row] = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.type, SEND_ENABLED_JOB)).limit(1);
-  return Boolean(row);
+  const [row] = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.type, SEND_PAUSED_JOB)).limit(1);
+  return !row;
 }
 
-export async function enableAuthoritySending(note: string): Promise<void> {
+/** Kept for compatibility; enabling is no longer required. */
+export async function enableAuthoritySending(_note: string): Promise<void> {}
+
+const AUTH_JOB = "outreach_authorization";
+
+/** One-time authorization given in the terms accepted at checkout; idempotent. */
+export async function recordOutreachAuthorization(businessId: string, source: string): Promise<void> {
   const db = getDb();
   if (!db) return;
-  if (await authoritySendingEnabled(db)) return;
-  await db.insert(jobs).values({ type: SEND_ENABLED_JOB, status: "completed", payload: { note, at: new Date().toISOString() } });
+  const [row] = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.businessId, businessId), eq(jobs.type, AUTH_JOB))).limit(1);
+  if (row) return;
+  await db.insert(jobs).values({ businessId, type: AUTH_JOB, status: "completed", payload: { source, termsVersion: "2026-09", at: new Date().toISOString() } });
+}
+
+/** House accounts are ours (policy authorization); customers need the one-time authorization from their terms. */
+export async function isOutreachAuthorized(db: Db, businessId: string): Promise<boolean> {
+  const [biz] = await db.select({ accountType: businesses.accountType }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
+  if (biz?.accountType === "house") return true;
+  const [row] = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.businessId, businessId), eq(jobs.type, AUTH_JOB))).limit(1);
+  const [revoked] = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.businessId, businessId), eq(jobs.type, "outreach_authorization_revoked"))).limit(1);
+  return Boolean(row) && !revoked;
 }
 
 /** Exactly what would be sent next — subject, recipient, body, reply-to — without sending anything. */
@@ -590,7 +695,7 @@ export async function runAuthorityBatch(opts: { maxBusinesses?: number } = {}): 
   const health = await checkOutreachHealth();
   const budget = { left: Math.min(6, await getRemainingSharedBudget()) };
   const enabled = await authoritySendingEnabled(db);
-  const sendingOk = enabled && health.healthy && budget.left > 0;
+  const sendingOk = enabled && health.healthy && budget.left > 0; // per-business authorization is checked below
 
   const biz = await db
     .select({ id: businesses.id })
@@ -616,7 +721,7 @@ export async function runAuthorityBatch(opts: { maxBusinesses?: number } = {}): 
       const v = await verifyAcquisitions(b.id);
       out.checked += v.checked;
       out.acquired += v.acquired;
-      if (sendingOk) {
+      if (sendingOk && (await isOutreachAuthorized(db, b.id))) {
         const truth = await ensureFreshTruth(b.id);
         if (truth.sufficient) {
           out.followUps += await sendFollowUps(db, b.id, truth, budget);

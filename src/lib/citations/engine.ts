@@ -19,7 +19,8 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { businessConfigs, businesses, citationMonitors, getDb, jobs, operatorTasks } from "@/lib/db";
 import { ensureFreshTruth, type BusinessTruth } from "@/lib/truth";
-import { targetsFor, type CitationTarget } from "./registry";
+import { targetsFor, automationClassFor, SUBMITTERS, type CitationTarget } from "./registry";
+import { citationListings } from "@/lib/db";
 
 type Db = NonNullable<ReturnType<typeof getDb>>;
 
@@ -56,6 +57,50 @@ async function upsert(db: Db, businessId: string, sourceName: string, status: st
     .limit(1);
   if (existing) await db.update(citationMonitors).set({ status, listingUrl, mismatchNote: stamp }).where(eq(citationMonitors.id, existing.id));
   else await db.insert(citationMonitors).values({ businessId, sourceName, status, listingUrl, mismatchNote: stamp });
+}
+
+function canonicalNap(truth: BusinessTruth): string {
+  const best = (k: string) => truth.facts.filter((f) => f.key === k).sort((a, b) => b.confidence - a.confidence)[0]?.value ?? "";
+  return [truth.businessName, best("phone"), best("address")].filter(Boolean).join(" | ");
+}
+
+/** Persist the actual listing state per directory with its A-E automation class. Nothing is marked submitted/verified unless an external check confirmed it. */
+async function persistListing(db: Db, businessId: string, t: CitationTarget, truth: BusinessTruth, result: { status: string; url: string | null; note: string }) {
+  const cls = automationClassFor(t);
+  let status: string;
+  if (cls === "E") status = "unsupported";
+  else if (result.status === "consistent") status = "found_consistent";
+  else if (result.status === "drift_detected") status = "drift_detected";
+  else if (result.status === "not_found") status = cls === "D" ? "needs_one_time_verification" : "not_found";
+  else if (result.status === "needs_one_time_authorization") status = "needs_one_time_authorization";
+  else status = cls === "D" ? "needs_one_time_verification" : "unsupported";
+  let submittedAt: Date | null = null;
+  let verifiedAt: Date | null = null;
+  // Class C: submit automatically where a handler exists; verified only after a re-check finds the listing.
+  if (cls === "C" && SUBMITTERS[t.id] && status !== "found_consistent") {
+    const sub = await SUBMITTERS[t.id]!({ name: truth.businessName, website: undefined }).catch(() => ({ ok: false }));
+    if (sub.ok) {
+      submittedAt = new Date();
+      status = "submitted";
+    }
+  }
+  if (status === "found_consistent" && t.id !== "own_site_vs_gbp") verifiedAt = new Date();
+  const values = {
+    businessId,
+    directoryId: t.id,
+    directoryName: t.name,
+    automationClass: cls,
+    listingUrl: result.url,
+    canonicalValue: canonicalNap(truth),
+    status,
+    verificationRequirement: cls === "D" ? t.reason : cls === "B" && status === "needs_one_time_authorization" ? "One-time connection" : null,
+    lastCheckedAt: new Date(),
+    ...(submittedAt ? { submittedAt } : {}),
+    ...(verifiedAt ? { verifiedAt } : {}),
+  };
+  const [existing] = await db.select({ id: citationListings.id }).from(citationListings).where(and(eq(citationListings.businessId, businessId), eq(citationListings.directoryId, t.id))).limit(1);
+  if (existing) await db.update(citationListings).set(values).where(eq(citationListings.id, existing.id));
+  else await db.insert(citationListings).values(values);
 }
 
 async function checkYelp(truth: BusinessTruth): Promise<{ status: string; url: string | null; note: string }> {
@@ -138,6 +183,7 @@ export async function runCitationEngineForBusiness(businessId: string): Promise<
       result = { status: "unsupported_no_touch", url: t.url || null, note: `${t.reason}${t.automation === "paid_provider" ? " (paid provider — not enabled)" : ""}` };
     }
     await upsert(db, businessId, t.name, result.status, result.url, result.note);
+    await persistListing(db, businessId, t, truth, result);
     if (result.status === "drift_detected") drift++;
     else if (result.status === "consistent") consistent++;
     else if (result.status === "unsupported_no_touch") unsupported++;

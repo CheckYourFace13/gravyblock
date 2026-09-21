@@ -17,7 +17,7 @@ import { businessCompetitors, businesses, competitorSnapshots, contentQueue, get
 import { isSafePublicUrl, safeFetchText } from "@/lib/net/safe-fetch";
 import { parseSitemap } from "@/lib/truth/extract";
 import { ensureFreshTruth, type BusinessTruth } from "@/lib/truth";
-import { deriveCategory } from "@/lib/truth/category";
+import { getOperatingMode, findWebCompetitors } from "@/lib/business-mode";
 
 const DAY = 86_400_000;
 const MAX_COMPETITORS = 5;
@@ -375,41 +375,67 @@ export async function runCompetitorGapForBusiness(businessId: string): Promise<{
     const [biz] = await db.select().from(businesses).where(eq(businesses.id, businessId)).limit(1);
     if (!biz) return { status: "business_not_found", gaps: 0, queued: null };
     const truth = await ensureFreshTruth(businessId);
-    const city = truth.verifiedCity;
-    const category = biz.primaryCategory || (biz.vertical && biz.vertical.toLowerCase() !== "other" ? biz.vertical : null) || truth.services[0] || (city ? await deriveCategory(businessId, truth) : null);
-    if (!city || !category) {
-      await logRun(db, businessId, "skipped", { reason: "no_verified_location_or_category" });
+    const bm = await getOperatingMode(businessId);
+    const category = bm.category;
+    const city = bm.city ?? bm.region ?? bm.placeLabel ?? "";
+    // Local/regional need a place; national/online businesses are worked by category alone.
+    if (!category || ((bm.mode === "local" || bm.mode === "regional") && !bm.placeLabel)) {
+      await logRun(db, businessId, "skipped", { reason: "no_verified_category_or_place", mode: bm.mode });
       return { status: "skipped", gaps: 0, queued: null };
     }
-    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-    if (!apiKey) {
-      await logRun(db, businessId, "skipped", { reason: "no_places_api_key" });
-      return { status: "skipped", gaps: 0, queued: null };
-    }
-
-    const query = `${category} in ${city}`;
-    const places = await searchPlaces(query, apiKey);
     const ownHost = host(biz.website);
-    const picked = places
-      .filter((p) => p.id !== biz.placeId && !(ownHost && host(p.websiteUri) === ownHost) && p.displayName?.text)
-      .slice(0, MAX_COMPETITORS);
-
-    const profiles: CompetitorProfile[] = picked.map((p) => ({
-      name: p.displayName!.text!,
-      placeId: p.id,
-      website: p.websiteUri ?? null,
-      rating: p.rating ?? null,
-      reviewCount: p.userRatingCount ?? null,
-      types: (p.types ?? []).slice(0, 6),
-      servicePages: [],
-      locationPages: [],
-      schemaTypes: [],
-      hasFaqSchema: false,
-      hasReviewSchema: false,
-      postsLast90d: 0,
-      topTitles: [],
-      fetches: 0,
-    }));
+    let query = "";
+    let profiles: CompetitorProfile[] = [];
+    if (bm.mode === "local" || bm.mode === "regional") {
+      const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+      if (!apiKey) {
+        await logRun(db, businessId, "skipped", { reason: "no_places_api_key", mode: bm.mode });
+        return { status: "skipped", gaps: 0, queued: null };
+      }
+      query = `${category} in ${bm.placeLabel}`;
+      const places = await searchPlaces(query, apiKey);
+      const picked = places.filter((p) => p.id !== biz.placeId && !(ownHost && host(p.websiteUri) === ownHost) && p.displayName?.text).slice(0, MAX_COMPETITORS);
+      profiles = picked.map((p) => ({
+        name: p.displayName!.text!,
+        placeId: p.id,
+        website: p.websiteUri ?? null,
+        rating: p.rating ?? null,
+        reviewCount: p.userRatingCount ?? null,
+        types: (p.types ?? []).slice(0, 6),
+        servicePages: [],
+        locationPages: [],
+        schemaTypes: [],
+        hasFaqSchema: false,
+        hasReviewSchema: false,
+        postsLast90d: 0,
+        topTitles: [],
+        fetches: 0,
+      }));
+    } else {
+      // National / online: search competitors, not map-pack competitors.
+      query = bm.placeLabel ? `${category} (${bm.placeLabel})` : category;
+      const web = await findWebCompetitors(category, bm.placeLabel, ownHost, MAX_COMPETITORS);
+      profiles = web.map((w) => ({
+        name: w.name,
+        placeId: `web:${host(w.website)}`,
+        website: w.website,
+        rating: null,
+        reviewCount: null,
+        types: [],
+        servicePages: [],
+        locationPages: [],
+        schemaTypes: [],
+        hasFaqSchema: false,
+        hasReviewSchema: false,
+        postsLast90d: 0,
+        topTitles: [],
+        fetches: 0,
+      }));
+    }
+    if (profiles.length === 0) {
+      await logRun(db, businessId, "skipped", { reason: "no_competitors_found", mode: bm.mode, query });
+      return { status: "skipped", gaps: 0, queued: null };
+    }
 
     // Persist snapshots + competitor rows (deduped).
     const recent = await db
@@ -468,13 +494,13 @@ export async function runCompetitorGapForBusiness(businessId: string): Promise<{
         const ns = norm(service);
         if (used.some((u) => u.includes(ns))) continue;
         const name = truth.businessName;
-        const title = `${service} in ${city} — ${name}`;
+        const title = city ? `${service} in ${city} — ${name}` : `${service} — ${name}`;
         await db.insert(contentQueue).values({
           businessId,
-          kind: "location_page",
+          kind: city ? "location_page" : "article",
           title,
-          outline: `A dedicated page for ${name}'s "${service}" in ${city}. Use ONLY verified facts about ${name} from its own website, Google profile or owner. Do not copy or paraphrase any competitor, and do not add services, prices, hours, awards or claims that are not in the verified facts.`,
-          targetKeyword: `${service} in ${city}`,
+          outline: `A dedicated page for ${name}'s "${service}"${city ? ` in ${city}` : ""}. Use ONLY verified facts about ${name} from its own website, Google profile or owner. Do not copy or paraphrase any competitor, and do not add services, prices, hours, awards or claims that are not in the verified facts.`,
+          targetKeyword: city ? `${service} in ${city}` : service,
           status: "queued",
           variant: "gap_action",
         });

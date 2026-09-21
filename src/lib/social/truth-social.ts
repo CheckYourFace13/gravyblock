@@ -7,8 +7,9 @@
  */
 
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
-import { businessConfigs, contentQueue, getDb } from "@/lib/db";
-import { ensureFreshTruth, promotableContent } from "@/lib/truth";
+import { businessConfigs, contentQueue, getDb, jobs } from "@/lib/db";
+import { createHash } from "node:crypto";
+import { ensureFreshTruth, promotableContent, currentOffers } from "@/lib/truth";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
 import { containsPlaceholderArtifact } from "@/lib/content-gen/quality-guard";
 
@@ -38,24 +39,33 @@ export async function planTruthGroundedSocial(businessId: string): Promise<{ que
   const truth = await ensureFreshTruth(businessId);
   if (!truth.sufficient) return { queued: 0, reason: `insufficient_truth:${truth.insufficientReason}` };
 
-  const everUsed = await db
-    .select({ title: contentQueue.title })
-    .from(contentQueue)
-    .where(and(eq(contentQueue.businessId, businessId), inArray(contentQueue.kind, ["facebook_post", "instagram_caption"])))
-    .orderBy(desc(contentQueue.createdAt))
-    .limit(200);
-  const used = new Set(everUsed.map((r) => norm(r.title)));
+  // Event-driven: a NEW verified fact (offer/event/own-voice page) is promoted once per channel,
+  // only while it is fresh (offers until they expire, pages for 60 days). Already-promoted facts
+  // are tracked per fact and channel, so nothing is reposted and channels get different copy.
+  const factId = (kind: string, value: string) => createHash("sha256").update(`${kind}|${norm(value)}`).digest("hex").slice(0, 24);
+  const promoted = await db
+    .select({ payload: jobs.payload })
+    .from(jobs)
+    .where(and(eq(jobs.businessId, businessId), eq(jobs.type, "fact_promotion")));
+  const done = new Set(promoted.map((j) => `${(j.payload as { factId?: string }).factId}|${(j.payload as { channel?: string }).channel}`));
 
-  const seeds: { label: string; url: string | null; kind: "recent" | "service" }[] = [];
-  const recentFacts = promotableContent(truth.facts);
-  for (const f of recentFacts) seeds.push({ label: f.value, url: f.sourceUrl, kind: "recent" });
-  for (const s of truth.services) seeds.push({ label: s, url: null, kind: "service" });
-  const seed = seeds.find((s) => !used.has(norm(s.label)));
-  if (!seed) return { queued: 0, reason: "no_unused_verified_topic" };
+  type Seed = { label: string; url: string | null; kind: "offer" | "event" | "recent"; id: string };
+  const seeds: Seed[] = [];
+  for (const f of currentOffers(truth.facts)) seeds.push({ label: f.value, url: f.sourceUrl, kind: f.key === "event" ? "event" : "offer", id: factId(f.key, f.value) });
+  for (const f of promotableContent(truth.facts)) seeds.push({ label: f.value, url: f.sourceUrl, kind: "recent", id: factId("recent_content", f.value) });
 
-  const channels: { kind: "facebook_post" | "instagram_caption"; hint: string }[] = [];
-  if (!haveFb) channels.push({ kind: "facebook_post", hint: "a Facebook post (2-4 short sentences, friendly, may end with the link)" });
-  if (!haveIg && cfg.ig) channels.push({ kind: "instagram_caption", hint: "an Instagram caption (1-3 short sentences, 3-5 relevant hashtags, no link)" });
+  const channelsWanted: { kind: "facebook_post" | "instagram_caption"; hint: string; key: string }[] = [];
+  if (!haveFb) channelsWanted.push({ kind: "facebook_post", key: "facebook", hint: "a Facebook post (2-4 short sentences, friendly, may end with the link)" });
+  if (!haveIg && cfg.ig) channelsWanted.push({ kind: "instagram_caption", key: "instagram", hint: "an Instagram caption (1-3 short sentences, 3-5 relevant hashtags, no link)" });
+
+  const seed = seeds.find((sd) => channelsWanted.some((c) => !done.has(`${sd.id}|${c.key}`)));
+  if (!seed) return { queued: 0, reason: "no_new_verified_fact_to_promote" };
+  const channels = channelsWanted.filter((c) => !done.has(`${seed.id}|${c.key}`));
+
+  // A new own-voice page is also a candidate asset for authority outreach.
+  if (seed.kind === "recent" && seed.url) {
+    await db.insert(jobs).values({ businessId, type: "authority_asset_candidate", status: "completed", payload: { url: seed.url, title: seed.label, factId: seed.id } });
+  }
 
   let queued = 0;
   for (const ch of channels) {
@@ -81,6 +91,7 @@ export async function planTruthGroundedSocial(businessId: string): Promise<{ que
       status: "queued",
       variant: "verified_truth",
     });
+    await db.insert(jobs).values({ businessId, type: "fact_promotion", status: "queued", payload: { factId: seed.id, factKind: seed.kind, channel: ch.key, label: seed.label, url: seed.url, queuedAt: new Date().toISOString() } });
     queued++;
   }
   return { queued, reason: queued ? "planned" : "generation_failed" };

@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, emailEvents } from "@/lib/db";
 import { verifyResendSignature } from "@/lib/integrations/verify-resend-signature";
+import { handleAuthorityReply, opportunityIdFromAddress } from "@/lib/authority/replies";
 import { applyWebhookEventToOutreachSend } from "@/lib/outreach/outreach-sends";
 import { reloadEnvFromDisk } from "@/lib/env/reload-env";
 import { newWebhookDiagnostic, persistWebhookDiagnostic, type WebhookDiagnosticRecord } from "@/lib/integrations/webhook-diagnostics";
@@ -168,6 +169,26 @@ async function handleVerifiedWebhook(
 
   const db = getDb();
   if (!db) return await respond({ ok: true }, 200); // no DB, silently accept
+
+  // Inbound replies to authority pitches (Reply-To reply+<opportunityId>@<receiving domain>).
+  if (payload.type === "email.received") {
+    try {
+      const d = payload.data as { email_id?: string; to?: string[] | string; from?: string; subject?: string; text?: string };
+      const oppId = opportunityIdFromAddress(d.to);
+      if (!oppId) return await respond({ ok: true, ignored: "not_authority_reply" }, 200);
+      let text = d.text ?? "";
+      if (!text && d.email_id && process.env.RESEND_API_KEY) {
+        const r = await fetch(`https://api.resend.com/emails/receiving/${d.email_id}`, { headers: { authorization: `Bearer ${process.env.RESEND_API_KEY}` }, signal: AbortSignal.timeout(8000) }).catch(() => null);
+        const j = r && r.ok ? ((await r.json().catch(() => null)) as { text?: string; html?: string } | null) : null;
+        text = j?.text ?? (j?.html ?? "").replace(/<[^>]+>/g, " ");
+      }
+      const out = await handleAuthorityReply({ opportunityId: oppId, from: d.from ?? "", subject: d.subject, text });
+      return await respond({ ok: true, ...out }, 200);
+    } catch (err) {
+      console.error("[resend-webhook] inbound handling failed", { error: err instanceof Error ? err.message : String(err) });
+      return await respond({ ok: true, error: "inbound_handler_failed" }, 200);
+    }
+  }
 
   const eventType = payload.type?.replace("email.", "") ?? "unknown"; // "opened", "clicked", etc.
   const emailId = payload.data?.email_id ?? null;

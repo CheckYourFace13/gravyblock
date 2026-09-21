@@ -57,3 +57,24 @@ export function targetsFor(category: string | null | undefined, country = "US"):
       (t.industries.length === 0 || t.industries.some((k) => cat.includes(k))),
   );
 }
+
+export type AutomationClass = "A" | "B" | "C" | "D" | "E";
+
+/**
+ * A = direct API, fully automatable. B = authenticated integration (one-time connection, then automatic).
+ * C = legitimate free public submission GravyBlock can automate (none enumerated yet; the engine calls
+ *     SUBMITTERS[targetId] when one is added). D = needs one-time business verification (postcard/phone/login):
+ *     GravyBlock prepares everything and groups the unavoidable step into ONE item. E = cannot legitimately
+ *     be automated (captcha/terms/paid) — skipped, never a customer task.
+ */
+export function automationClassFor(t: CitationTarget): AutomationClass {
+  if (t.id === "own_site_vs_gbp") return "A";
+  if (t.id === "google_business_profile" || t.id === "facebook_page") return "B";
+  if (t.id === "yelp") return "D"; // detection is automatic (A); claiming/editing needs the owner's login
+  if (t.automation === "paid_provider" || t.automation === "terms_prohibit_automation") return "E";
+  if (t.automation === "verification_required") return "D";
+  return "E";
+}
+
+/** Free public submission handlers (class C). Intentionally empty until a directory with an open, captcha-free, terms-compliant path is verified. */
+export const SUBMITTERS: Record<string, (input: { name: string; phone?: string; address?: string; website?: string }) => Promise<{ ok: boolean; listingUrl?: string }>> = {};
