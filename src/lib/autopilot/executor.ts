@@ -305,7 +305,7 @@ export async function executeContentPublishPath(businessId: string) {
       and(
         eq(publishingTargets.businessId, businessId),
         eq(publishingTargets.active, "true"),
-        inArray(publishingTargets.adapter, ["wordpress", "webflow", "shopify"]),
+        inArray(publishingTargets.adapter, ["wordpress", "webflow", "shopify", "managed_feed"]),
       ),
     )
     .orderBy(publishingTargets.createdAt)
@@ -411,7 +411,7 @@ export async function executeContentPublishPath(businessId: string) {
 
     const artifactId = randomUUID();
     let publicUrl: string | null = null;
-    let channel: "wordpress" | "webflow" | "shopify" | null = null;
+    let channel: "wordpress" | "webflow" | "shopify" | "managed_feed" | null = null;
     let publishError = "";
 
     const schemaBlock = buildSchemaScriptBlock({
@@ -457,6 +457,16 @@ export async function executeContentPublishPath(businessId: string) {
       }
     }
 
+    if (target.adapter === "managed_feed") {
+      const cfg = (target.config ?? {}) as { siteOrigin?: string; basePath?: string };
+      if (!cfg.siteOrigin) publishError = "invalid_managed_feed_config";
+      else {
+        const slug = `${queuedItem.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60)}-${artifactId.slice(0, 6)}`;
+        publicUrl = `${cfg.siteOrigin.replace(/\/$/, "")}${cfg.basePath ?? "/insights"}/${slug}`;
+        channel = "managed_feed";
+      }
+    }
+
     if (!channel || !publicUrl) {
       await failItem(`External publish failed: ${publishError || "unknown"}`);
       return { ok: false, reason: "publish_failed" as const, publishJobId, contentQueueId: queuedItem.id };
@@ -484,9 +494,14 @@ export async function executeContentPublishPath(businessId: string) {
     let verified = false;
     let verifiedStatus: number | null = null;
     if (channel !== "webflow") {
-      const check = await safeFetchText(publicUrl, { timeoutMs: 10000 });
-      verifiedStatus = check.ok ? check.status : null;
-      verified = check.ok && check.status === 200;
+      // A connected first-party site pulls the signed feed on a short cache, so allow it a minute or two to show the page.
+      const attempts = channel === "managed_feed" ? 6 : 1;
+      for (let i = 0; i < attempts && !verified; i++) {
+        if (i > 0) await new Promise((r) => setTimeout(r, 20_000));
+        const check = await safeFetchText(publicUrl, { timeoutMs: 10000 });
+        verifiedStatus = check.ok ? check.status : null;
+        verified = check.ok && check.status === 200 && (channel !== "managed_feed" || check.body.toLowerCase().includes((queuedItem.title.match(/[A-Za-z]{5,}/)?.[0] ?? "").toLowerCase()));
+      }
     }
     await db
       .update(publishingJobs)

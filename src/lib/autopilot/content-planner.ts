@@ -17,7 +17,7 @@ import { contentQueue, getDb, jobs, publishingTargets } from "@/lib/db";
 import { ensureFreshTruth } from "@/lib/truth";
 import { containsPlaceholderArtifact } from "@/lib/content-gen/quality-guard";
 
-export const EXTERNAL_ADAPTERS = ["wordpress", "webflow", "shopify"] as const;
+export const EXTERNAL_ADAPTERS = ["wordpress", "webflow", "shopify", "managed_feed"] as const;
 
 function norm(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();

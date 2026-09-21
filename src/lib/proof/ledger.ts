@@ -95,7 +95,7 @@ export async function getPublicProof(opts: { limit?: number; categories?: ProofC
 /** Proof categories most relevant to a report finding id (sales matching). */
 export function proofCategoriesForFinding(findingId: string | null | undefined): ProofCategory[] {
   const id = findingId ?? "";
-  if (/crawl-(schema|meta|title|h1|noindex|mobile|tel|cta|hours|location)/.test(id)) return ["technical", "content"];
+  if (/crawl-(schema|meta|title|h1|noindex|mobile|tel|cta|hours|location|og|description|no-structured|social)/.test(id)) return ["technical", "content"];
   if (/place-review|rating/.test(id)) return ["review", "gbp"];
   if (/social/.test(id)) return ["social"];
   if (/canonical-estimated|lr-cross|gsc-position/.test(id)) return ["ranking", "gbp", "content", "backlink"];

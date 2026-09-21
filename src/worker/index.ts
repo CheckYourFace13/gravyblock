@@ -40,6 +40,8 @@ import { runAutoRepairBatch } from "@/lib/watchdog/auto-repair";
 import { runCompetitorGapBatch } from "@/lib/competitors/gap-engine";
 import { runAeoActionBatch, runAeoRecheckBatch } from "@/lib/ai-visibility/aeo-actions";
 import { runConnectionReadinessBatch } from "@/lib/onboarding/connection-readiness";
+import { runBasicSeoBatch, verifyBasicSeoActions } from "@/lib/seo/basic-autopilot";
+import { autoConnectManagedSites } from "@/lib/site-publish/adapters";
 import { runReviewRequestSendBatch } from "@/lib/reviews/review-request-engine";
 import { prepareProofCandidates, generateCaseStudies } from "@/lib/proof/sales";
 import { runSiteWatchdogBatch } from "@/lib/watchdog/site-watchdog";
@@ -693,9 +695,18 @@ async function tick() {
       { name: 'aeo_action_batch', hour: 12, run: async () => ({ act: await runAeoActionBatch(4), recheck: await runAeoRecheckBatch(4) }) },
       { name: 'connection_readiness_batch', hour: 4, run: () => runConnectionReadinessBatch(10) },
       { name: 'review_request_send_batch', hour: 16, run: () => runReviewRequestSendBatch(40) },
+      { name: 'managed_site_connect_batch', hour: 2, run: () => autoConnectManagedSites(20) },
+      { name: 'basic_seo_batch', hour: 9, run: () => runBasicSeoBatch(6) },
       { name: 'proof_candidate_batch', hour: 3, run: () => prepareProofCandidates(200) },
       { name: 'case_study_batch', hour: 13, run: () => generateCaseStudies(20) },
     ];
+    // Confirm applied site changes on the live pages every tick (cheap when nothing is pending).
+    try {
+      const v = await verifyBasicSeoActions();
+      if (v.verified || v.reverted) console.info('[worker] basic seo verify', v);
+    } catch (error) {
+      console.error('[worker] basic seo verify failed', { error: error instanceof Error ? error.message : String(error) });
+    }
     for (const g of growthJobs) {
       if (g.hour !== null && h !== g.hour) continue;
       if (await hasJobRunToday(g.name)) continue;
