@@ -156,6 +156,7 @@ export async function GET(req: Request) {
     bizRows: await q("biz", `select id, name, account_type, plan_tier, vertical, primary_category, address, place_id, website, showcase_opt_in from businesses where id in ${ids}`),
     cfgRows: await q("cfg", `select business_id, source, target_scope, focus_area, left(service_description,80) sd from business_configs where business_id in ${ids}`),
     scanLoc: await q("scan", `select s.business_id, s.lookup_location, s.created_at from scans s where s.business_id in ${ids} order by s.created_at desc limit 6`),
+    reportIds: await q("rep", `select public_id from reports order by created_at desc limit 2`),
     proofLedger: await q("proof", `select business_id, action_type, engine, proof_category, left(summary,160) summary, verified_at from proof_ledger order by verified_at desc limit 20`),
     jobs24h: await q("jobs", `select b.name, j.type, j.status, count(*)::int n, max(j.created_at) last_at from jobs j join businesses b on b.id=j.business_id where j.business_id in ${ids} and j.created_at > now() - interval '24 hours' group by 1,2,3 order by 1,2,3`),
     jobSamples: await q("samples", `select distinct on (b.name, j.type) b.name, j.type, j.status, left(j.payload::text, 420) payload from jobs j join businesses b on b.id=j.business_id where j.business_id in ${ids} and j.created_at > now() - interval '24 hours' order by b.name, j.type, j.created_at desc`),
