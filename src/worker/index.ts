@@ -41,6 +41,7 @@ import { runCompetitorGapBatch } from "@/lib/competitors/gap-engine";
 import { runAeoActionBatch, runAeoRecheckBatch } from "@/lib/ai-visibility/aeo-actions";
 import { runConnectionReadinessBatch } from "@/lib/onboarding/connection-readiness";
 import { runBasicSeoBatch, verifyBasicSeoActions } from "@/lib/seo/basic-autopilot";
+import { ensureInboundReceiving } from "@/lib/authority/inbound-setup";
 import { autoConnectManagedSites } from "@/lib/site-publish/adapters";
 import { runReviewRequestSendBatch } from "@/lib/reviews/review-request-engine";
 import { prepareProofCandidates, generateCaseStudies } from "@/lib/proof/sales";
@@ -700,6 +701,12 @@ async function tick() {
       { name: 'proof_candidate_batch', hour: 3, run: () => prepareProofCandidates(200) },
       { name: 'case_study_batch', hour: 13, run: () => generateCaseStudies(20) },
     ];
+    try {
+      const inb = await ensureInboundReceiving();
+      if (inb.state === 'ready' || inb.state.startsWith('domain_') === false) { /* quiet */ }
+    } catch (error) {
+      console.error('[worker] inbound setup failed', { error: error instanceof Error ? error.message : String(error) });
+    }
     // Confirm applied site changes on the live pages every tick (cheap when nothing is pending).
     try {
       const v = await verifyBasicSeoActions();

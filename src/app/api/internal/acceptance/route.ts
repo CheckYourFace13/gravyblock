@@ -13,6 +13,7 @@ import { classifyReply, handleAuthorityReply } from "@/lib/authority/replies";
 import { getOperatingMode } from "@/lib/business-mode";
 import { runSiteWatchdogForBusiness } from "@/lib/watchdog/site-watchdog";
 import { getConnectionReadiness, getNeedsYou } from "@/lib/onboarding/connection-readiness";
+import { ensureInboundReceiving } from "@/lib/authority/inbound-setup";
 import { autoConnectManagedSites } from "@/lib/site-publish/adapters";
 import { runBasicSeoForBusiness, verifyBasicSeoActions } from "@/lib/seo/basic-autopilot";
 import { planTruthGroundedSocial } from "@/lib/social/truth-social";
@@ -190,6 +191,33 @@ async function run(engine: string, id: string) {
       const b = await sql.unsafe(`delete from proof_ledger where business_id=$1 and action_type='content_published' returning id`, [id] as never[]);
       const c = await sql.unsafe(`update content_queue set status='skipped' where business_id=$1 and variant='primary_market' and status in ('queued','ready','awaiting_connection') returning id`, [id] as never[]);
       return { retracted: a.length, proofRowsRemoved: b.length, queueHeld: c.length };
+    }
+    case "inbound_ensure":
+      return ensureInboundReceiving();
+    case "reply_test_setup": {
+      const sql = getSqlClient()!;
+      const r = await sql.unsafe(`insert into backlink_opportunities (business_id, source_name, source_type, target_url, status, contact_email, contact_source, relevance_note, quality_score) values ($1,'GravyBlock reply-loop TEST','association','https://example.org','contacted','delivered@resend.dev','test','TEST row for reply-loop verification',50) returning id`, [id] as never[]);
+      return r;
+    }
+    case "reply_test_send": {
+      const key = process.env.RESEND_API_KEY;
+      const sql = getSqlClient()!;
+      const opp = (await sql.unsafe(`select id from backlink_opportunities where business_id=$1 and source_name='GravyBlock reply-loop TEST' order by created_at desc limit 1`, [id] as never[])) as unknown as { id: string }[];
+      const from = (process.env.OUTREACH_FROM_EMAIL ?? process.env.RESEND_FROM_EMAIL ?? "").match(/<([^>]+)>/)?.[1] ?? process.env.RESEND_FROM_EMAIL ?? "";
+      const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ from, to: [`reply+${opp[0]!.id}@reply.gravyblock.com`], subject: "Re: A resource for TEST", text: "Thanks for reaching out. Can you tell me more about what your website offers?" }) });
+      return { status: r.status, opp: opp[0]!.id, body: (await r.text()).slice(0, 200) };
+    }
+    case "reply_test_result": {
+      const sql = getSqlClient()!;
+      const opp = await sql.unsafe(`select id, status from backlink_opportunities where business_id=$1 and source_name='GravyBlock reply-loop TEST' order by created_at desc limit 1`, [id] as never[]);
+      const ev = await sql.unsafe(`select type, status, left(payload::text,300) payload, created_at from jobs where business_id=$1 and type in ('authority_reply','authority_reply_sent','authority_needs_you') order by created_at desc limit 5`, [id] as never[]);
+      return { opp, ev };
+    }
+    case "reply_test_cleanup": {
+      const sql = getSqlClient()!;
+      const b = await sql.unsafe(`delete from jobs where business_id=$1 and payload->>'opportunityId' in (select id::text from backlink_opportunities where business_id=$1 and source_name='GravyBlock reply-loop TEST') returning id`, [id] as never[]);
+      const a = await sql.unsafe(`delete from backlink_opportunities where business_id=$1 and source_name='GravyBlock reply-loop TEST' returning id`, [id] as never[]);
+      return { opps: a.length, jobs: b.length };
     }
     case "social":
       return planTruthGroundedSocial(id);
