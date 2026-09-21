@@ -38,15 +38,19 @@ export default async function ReportPage({ params, searchParams }: Props) {
     ? raw
     : raw === "base" || raw === "entry" ? "starter" : null) as "starter" | "growth" | "pro" | "agency" | null;
   const promoCode = normalizePromoCodeIntent(query.promo);
-  const topFixId = record.payload.prioritizedFixes?.[0]?.id ?? null;
-  const proof = await proofPointForFinding(topFixId).catch(() => null);
+  // First of the top findings for which the Proof Ledger holds a matching, verified result.
+  let proof: Awaited<ReturnType<typeof proofPointForFinding>> = null;
+  for (const fix of (record.payload.prioritizedFixes ?? []).slice(0, 4)) {
+    proof = await proofPointForFinding(fix.id).catch(() => null);
+    if (proof) break;
+  }
   return (
     <>
       <FunnelBeacon eventType="report_landed" businessId={record.businessId} reportPublicId={publicId} proofType={proof?.category ?? "none"} />
       {proof ? (
         <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6">
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
-            <p className="font-semibold">Seen this before</p>
+            <p className="font-semibold">A related result GravyBlock verified</p>
             <p className="mt-1">{proof.text}</p>
             <p className="mt-1 text-xs text-emerald-800">Verified result from GravyBlock&apos;s own activity log.</p>
           </div>

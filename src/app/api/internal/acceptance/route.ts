@@ -228,6 +228,10 @@ async function run(engine: string, id: string) {
       const r = await sql.unsafe(`delete from jobs where type='proof_candidate' and (payload->>'ledgerId' is null or payload->>'ledgerId' not in (select id::text from proof_ledger)) returning id`);
       return { purged: r.length };
     }
+    case "report_with_fix": {
+      const sql = getSqlClient()!;
+      return sql.unsafe(`select public_id from reports where payload->'prioritizedFixes'->0->>'id' = 'fix-crawl-meta-description' order by created_at desc limit 2`);
+    }
     case "social":
       return planTruthGroundedSocial(id);
     default:
