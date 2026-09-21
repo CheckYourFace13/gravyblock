@@ -176,7 +176,9 @@ export async function collectPages(website: string, maxPages = 30): Promise<Page
     const r = await safeFetchText(url, { timeoutMs: 9000 });
     if (!r.ok || r.status >= 400) continue;
     if (!/<html|<!doctype/i.test(r.body.slice(0, 500))) continue;
-    out.push(snapshotPage(r.finalUrl, r.body, r.status));
+    const snap = snapshotPage(r.finalUrl, r.body, r.status);
+    if (out.some((o) => o.path === snap.path)) continue; // same page reached via two URL spellings
+    out.push(snap);
   }
   return out;
 }

@@ -8,7 +8,9 @@ import { runCompetitorGapForBusiness } from "@/lib/competitors/gap-engine";
 import { runLlmProbesForBusiness } from "@/lib/ai-visibility/llm-probes";
 import { runAeoActionForBusiness } from "@/lib/ai-visibility/aeo-actions";
 import { runCitationEngineForBusiness } from "@/lib/citations/engine";
-import { discoverAndQualify, previewAuthorityOutreach } from "@/lib/authority/engine";
+import { discoverAndQualify, previewAuthorityOutreach, requalifyProspects, runAuthorityBatch } from "@/lib/authority/engine";
+import { classifyReply, handleAuthorityReply } from "@/lib/authority/replies";
+import { getOperatingMode } from "@/lib/business-mode";
 import { runSiteWatchdogForBusiness } from "@/lib/watchdog/site-watchdog";
 import { getConnectionReadiness, getNeedsYou } from "@/lib/onboarding/connection-readiness";
 import { autoConnectManagedSites } from "@/lib/site-publish/adapters";
@@ -118,6 +120,31 @@ async function run(engine: string, id: string) {
       return runBasicSeoForBusiness(id);
     case "basic_seo_verify":
       return verifyBasicSeoActions(id);
+    case "fix_proof_count": {
+      const sql = getSqlClient()!;
+      const r = await sql.unsafe(`update proof_ledger set summary = replace(summary, '12 live pages', '11 live pages'), metric_after = 11,
+        before_evidence = jsonb_set(before_evidence, '{of}', '24'),
+        after_evidence = jsonb_set(jsonb_set(jsonb_set(after_evidence, '{value}', '11'), '{livePagesConfirmed}', '11'), '{of}', '24') || jsonb_build_object('correction', 'Original count double-counted the home page (two URL spellings); corrected to distinct pages.')
+        where business_id = $1 and action_type = 'seo_basic_no_social_image' and metric_after = 12 returning id`, [id] as never[]);
+      return { corrected: r.length };
+    }
+    case "mode":
+      return getOperatingMode(id);
+    case "requalify":
+      return requalifyProspects(id);
+    case "authority_batch":
+      return runAuthorityBatch({ maxBusinesses: 10 });
+    case "classify_reply":
+      return ["Thanks, happy to add it to our resources page", "Not interested, thank you", "Please remove me from your list", "Out of office until Monday", "Can you tell me more about what your site offers?"].map((t) => ({ t, c: classifyReply(t) }));
+    case "resend_status": {
+      const key = process.env.RESEND_API_KEY;
+      if (!key) return { error: "no_key" };
+      const h = { authorization: `Bearer ${key}` };
+      const d = await fetch("https://api.resend.com/domains", { headers: h }).then((r) => r.json()).catch(() => null);
+      const w = await fetch("https://api.resend.com/webhooks", { headers: h }).then((r) => r.json()).catch(() => null);
+      const strip = (o: unknown) => JSON.parse(JSON.stringify(o ?? null, (k, v) => (k === "signing_secret" || k === "secret" ? undefined : v)));
+      return { domains: strip(d), webhooks: strip(w) };
+    }
     case "social":
       return planTruthGroundedSocial(id);
     default:
