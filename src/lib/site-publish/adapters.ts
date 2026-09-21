@@ -74,10 +74,13 @@ export async function detectConnector(website: string): Promise<{ businessId: st
  * The marker must name THIS business, so a site can never be attached to someone else's account.
  * House accounts are ours; customers get the same path once they add the connector snippet.
  */
-export async function autoConnectManagedSites(limit = 20): Promise<{ checked: number; connected: number }> {
+export async function autoConnectManagedSites(limit = 20, onlyBusinessId?: string): Promise<{ checked: number; connected: number }> {
   const db = getDb();
   if (!db) return { checked: 0, connected: 0 };
-  const bizRows = await db.select({ id: businesses.id, website: businesses.website }).from(businesses).limit(400);
+  // House accounts first, then paying customers; free scan-only records are never probed.
+  const bizRows = (await db.select({ id: businesses.id, website: businesses.website, accountType: businesses.accountType, planTier: businesses.planTier }).from(businesses).limit(2000))
+    .filter((b) => (onlyBusinessId ? b.id === onlyBusinessId : b.accountType === "house" || b.planTier !== "free"))
+    .sort((a, b) => Number(b.accountType === "house") - Number(a.accountType === "house"));
   let checked = 0;
   let connected = 0;
   for (const b of bizRows) {

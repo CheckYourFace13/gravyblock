@@ -113,7 +113,7 @@ async function run(engine: string, id: string) {
       return { queueRetracted: a.length, jobsSuperseded: b.length };
     }
     case "connect_sites":
-      return autoConnectManagedSites(20);
+      return autoConnectManagedSites(20, id);
     case "basic_seo":
       return runBasicSeoForBusiness(id);
     case "basic_seo_verify":
