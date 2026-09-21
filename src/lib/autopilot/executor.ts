@@ -1,4 +1,5 @@
 import { recordProof } from "@/lib/proof/ledger";
+import { markdownToHtml, wordCount } from "@/lib/site-publish/markdown";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import {
@@ -395,6 +396,12 @@ export async function executeContentPublishPath(businessId: string) {
       await failItem("Rejected: output or title contained an unfilled placeholder.");
       return { ok: false, reason: "ai_generation_failed" as const };
     }
+    // Substance gate: thin restatements of a site's own headings are not published anywhere.
+    if (wordCount(aiBody) < 350) {
+      await failItem(`Held: generated article too thin to publish (${wordCount(aiBody)} words).`);
+      await db.insert(jobs).values({ businessId, type: "content_held_quality", status: "completed", payload: { title: queuedItem.title, words: wordCount(aiBody), reason: "too_thin" } });
+      return { ok: false, reason: "ai_generation_failed" as const };
+    }
     let body = aiBody;
 
     body = await addInternalLinks({ body, businessId, currentTitle: queuedItem.title }).catch(() => body);
@@ -464,6 +471,7 @@ export async function executeContentPublishPath(businessId: string) {
         const slug = `${queuedItem.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60)}-${artifactId.slice(0, 6)}`;
         publicUrl = `${cfg.siteOrigin.replace(/\/$/, "")}${cfg.basePath ?? "/insights"}/${slug}`;
         channel = "managed_feed";
+        body = markdownToHtml(body);
       }
     }
 

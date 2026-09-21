@@ -184,6 +184,13 @@ async function run(engine: string, id: string) {
       for (const [fixId, reportId] of byFix) out.push({ fixId, reportId, proof: await proofPointForFinding(fixId) });
       return out;
     }
+    case "retract_managed_content": {
+      const sql = getSqlClient()!;
+      const a = await sql.unsafe(`update published_content set status='retracted' where business_id=$1 and channel='managed_feed' and status='published' returning id`, [id] as never[]);
+      const b = await sql.unsafe(`delete from proof_ledger where business_id=$1 and action_type='content_published' returning id`, [id] as never[]);
+      const c = await sql.unsafe(`update content_queue set status='skipped' where business_id=$1 and variant='primary_market' and status in ('queued','ready','awaiting_connection') returning id`, [id] as never[]);
+      return { retracted: a.length, proofRowsRemoved: b.length, queueHeld: c.length };
+    }
     case "social":
       return planTruthGroundedSocial(id);
     default:
