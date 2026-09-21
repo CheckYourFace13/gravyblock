@@ -69,7 +69,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
         When someone searches for a business like ${businessName}, they compare 3–5 options in about 90 seconds. The winners have complete profiles, recent reviews, and fresh content. The losers have outdated listings and missing information — even if they're the better business.
       </p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        GravyBlock fixes all of that automatically. Every week it publishes content, refreshes your listing signals, and queues citation and review tasks so you're always the freshest result on the page.
+        GravyBlock runs part of that work on a schedule: it writes and publishes website content from your own site's facts, posts to your Google Business Profile, replies to your Google reviews, and checks that your business details agree across your website and Google.
       </p>
       ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start Scale — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Locked at $74.99/mo for as long as you stay subscribed. No contract.</p>
@@ -103,13 +103,13 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
         <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 1</p>
-        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">GravyBlock scans ${businessName}, scores all visibility signals, and queues the first citation and review tasks.</p>
+        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">GravyBlock scans ${businessName} and scores all visibility signals.</p>
         <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 2</p>
-        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">First AI-written article goes live on your site. Google Business Profile posts start going out. Review request campaign queued.</p>
+        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">Once your website and Google account are connected, the first article goes live on your site and Google Business Profile posts start going out.</p>
         <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 3</p>
-        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">Backlink opportunities queued. Second article drafted. Citation mismatches surfaced and flagged for correction.</p>
+        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">Personalized outreach to relevant local organizations begins. Any mismatch in your business details is flagged to you.</p>
         <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 4</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#52525b">Monthly visibility refresh. Score updates. You get a full summary of everything that ran and what's queued next month.</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#52525b">Monthly visibility refresh and score update, with a summary of what ran.</p>
       </div>
       ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start Scale — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Locked at $74.99/mo for as long as you stay subscribed.</p>
@@ -126,7 +126,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
         Google rewards businesses that publish relevant, local content consistently. ${vertical ? `For ${vertical.toLowerCase()}s, t` : "T"}hat means articles about your services, your city, your customers' questions, and what makes you different from the 4 other results on the same page.
       </p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        GravyBlock writes and publishes these for ${businessName} automatically — targeting the exact keywords your customers search in your city. It also keeps your Google Business Profile active with weekly posts and photos.
+        GravyBlock writes articles and service pages for ${businessName} from your own website's information and publishes them to your connected website. It also posts weekly to your Google Business Profile and adds your own images, once Google is connected.
       </p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         Most local businesses don't do this at all. That's the opportunity.
@@ -140,20 +140,21 @@ const DRIP_SEQUENCE: DripEmail[] = [
     subject: ({ businessName }) => `Scale for ${businessName} — $74.99/mo, locked while subscribed`,
     html: ({ name, businessName, email, leadId }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Pricing</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">$74.99/mo. Full autopilot.</h1>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">$74.99/mo with GROWTH50, locked while subscribed.</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         Scale is $149.99/mo regular, $74.99/mo with code <strong>GROWTH50</strong> — locked for as long as your subscription stays active, not just the first month.
       </p>
       <div style="margin:20px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
-        <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b">Scale includes everything:</p>
+        <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b">Scale includes:</p>
         <ul style="margin:8px 0 0;padding-left:20px;color:#3f3f46;font-size:13px;line-height:1.9">
           <li>Weekly visibility refreshes and score tracking</li>
-          <li>AI-written articles published to your site automatically</li>
+          <li>Articles written from your own website's facts, published to your connected site</li>
           <li>Weekly Google Business Profile posts and photos</li>
-          <li>12 citation tasks and 8 review tasks per month</li>
-          <li>8 backlink opportunities queued monthly</li>
-          <li>AI search visibility monitoring (ChatGPT, Perplexity, Google AI)</li>
+          <li>Automatic replies to your Google reviews once Google is connected</li>
+          <li>Facebook and Instagram posting once your Page is connected</li>
+          <li>Up to 8 personalized outreach attempts per month (links are never guaranteed)</li>
+          <li>Monthly AI search visibility checks</li>
         </ul>
       </div>
       ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start Scale — $74.99/mo →")}
@@ -169,7 +170,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
         You haven't started a plan for ${businessName} yet — totally fine. Just didn't want the report to get buried.
       </p>
       <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">
-        If the price is the sticking point: Starter is $29.99 for the first month with code <strong>INTRO50</strong>. That's less than most businesses spend on a single Google Ads click — and this keeps running every week without you touching it.
+        If the price is the sticking point: Starter is $29.99 for the first month with code <strong>INTRO50</strong>. Cancel any time.
       </p>
       <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">
         If you're not sure it'll work for your type of business — just reply to this email and tell me what ${businessName} does. I'll give you a straight answer.
@@ -187,7 +188,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         ${score !== null ? `${businessName} scored ${score}/100 when you scanned.` : `Your scan found gaps in ${businessName}'s local visibility.`}
-        Here's what changes after one month of GravyBlock running in the background:
+        Here's what GravyBlock aims to change after one month running in the background (results are not guaranteed):
       </p>
       <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
@@ -195,7 +196,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
             <p style="margin:0;font-size:12px;font-weight:700;color:#71717a;text-transform:uppercase">Right now</p>
             <ul style="margin:8px 0 0;padding-left:18px;color:#71717a;font-size:13px;line-height:1.9">
               <li>No new content being published</li>
-              <li>Citation mismatches unfixed</li>
+              <li>Business details not checked across sites</li>
               <li>Reviews going unanswered</li>
               <li>Not mentioned in AI search</li>
             </ul>
@@ -204,9 +205,9 @@ const DRIP_SEQUENCE: DripEmail[] = [
             <p style="margin:0;font-size:12px;font-weight:700;color:#16a34a;text-transform:uppercase">30 days in</p>
             <ul style="margin:8px 0 0;padding-left:18px;color:#3f3f46;font-size:13px;line-height:1.9">
               <li>2–4 local articles live</li>
-              <li>Citation gaps fixed</li>
-              <li>AI reply drafts for every review</li>
-              <li>AI visibility monitored weekly</li>
+              <li>Citation consistency checked, with alerts if details drift</li>
+              <li>Google reviews replied to automatically</li>
+              <li>AI visibility checked monthly</li>
             </ul>
           </div>
         </div>
@@ -231,7 +232,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
         <p style="margin:0;font-size:14px;font-weight:700;color:#18181b">3. Add specific services to your Google Business Profile</p>
         <p style="margin:6px 0 0;font-size:13px;color:#52525b">Most profiles just list a category. Adding individual services (e.g. "drain cleaning," "water heater installation") helps Google match you to more specific searches.</p>
       </div>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">GravyBlock automates all three for ${businessName} — but if you want to start manually, these are the highest-leverage moves.</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">GravyBlock replies to Google reviews and checks your business details for you, but adding services to your profile is something you do yourself. These are high-leverage moves either way.</p>
       ${btn(reportUrl, "View my full report →")}
     `, email, leadId),
   },
@@ -243,17 +244,17 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">The first 30 days, step by step</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        Here's exactly what happens when ${businessName} goes live on GravyBlock — no ongoing work required after setup:
+        Here's what happens when ${businessName} goes live on GravyBlock — after a one-time setup connecting your website, Google account and Facebook Page:
       </p>
       <ol style="margin:12px 0;padding-left:22px;color:#3f3f46;font-size:14px;line-height:2.2">
         <li>Scans your Google listing, website, and nearby competitors. Scores all visibility signals.</li>
         <li>Writes the first ${vertical ? vertical.toLowerCase() : "local"} article targeting your city and publishes it to your site.</li>
-        <li>Builds a citation checklist for the directories that matter in your industry, with your exact business data ready to copy, and flags inconsistencies.</li>
-        <li>New reviews get an AI-drafted reply in your inbox. You copy and post in 10 seconds.</li>
-        <li>Every week: visibility score refreshes, new content queues, outreach sends. Monthly digest shows everything that ran.</li>
+        <li>Checks that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook, and alerts you if they drift.</li>
+        <li>New Google reviews get a reply posted automatically. Yelp and TripAdvisor replies are drafted for you to paste.</li>
+        <li>On a schedule: visibility score refreshes, content is published, and outreach goes out. A monthly digest summarizes what ran.</li>
       </ol>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">You don't need to learn SEO. It runs without you.</p>
-      ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start full autopilot — $74.99/mo →")}
+      <p style="color:#52525b;font-size:14px;margin:12px 0">You don't need to learn SEO. After setup it runs on a schedule.</p>
+      ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start Scale — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Locked at $74.99/mo for as long as you stay subscribed.</p>
     `, email, leadId),
   },
@@ -269,11 +270,11 @@ const DRIP_SEQUENCE: DripEmail[] = [
       </p>
       <div style="margin:20px 0;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px">
         <p style="margin:0;font-size:15px;font-weight:700;color:#166534">Scale — $74.99/mo, locked while subscribed (reg. $149.99)</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Weekly AI articles, Google Business Profile posts, citation checklists, review requests, backlink prospecting, and AI visibility monitoring. No contract.</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Website articles, weekly Google Business Profile posts, automatic Google review replies, personalized local outreach, citation consistency checks, and AI visibility checks. No contract.</p>
       </div>
       <div style="margin:12px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
         <p style="margin:0;font-size:15px;font-weight:700;color:#991b1b">Starter — $29.99 first month (reg. $59.99)</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Monthly visibility monitoring, citation audit, review queue, and content ideas. Good starting point for ${businessName}.</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Monthly visibility monitoring, citation consistency checks, review alerts, and content ideas. Good starting point for ${businessName}.</p>
       </div>
       ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start Scale — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:16px 0">

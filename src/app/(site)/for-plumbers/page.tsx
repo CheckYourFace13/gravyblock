@@ -11,13 +11,13 @@ export default function ForPlumbersPage() {
     <VerticalLanding
       eyebrow="Plumbers"
       title="When a pipe bursts at midnight, homeowners call the first plumber they trust on Google. Be that plumber."
-      body="Emergency plumbing searches are immediate and high-value. Homeowners pick businesses with strong reviews and easy phone numbers. GravyBlock keeps your Google profile complete and up-to-date, helps you gather reviews, and audits your citations for inconsistencies—so you're more discoverable for emergency and planned jobs alike."
+      body="Emergency plumbing searches are immediate and high-value. Homeowners pick businesses with strong reviews and easy phone numbers. GravyBlock keeps your Google profile active with weekly posts, monitors your reviews, and checks that your name, phone and address agree across your website and Google, to help you be discoverable for emergency and planned jobs alike."
       bullets={[
-        "Optimize your GBP for emergency plumbing, drain cleaning, water heater repair, and city-specific searches.",
+        "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Publish weekly content: DIY guides, prevention tips, city-specific plumbing guides that rank long-term.",
         "Track Google Map rankings for 'plumber near me,' 'emergency plumber,' and specific service searches.",
-        "Build review count on Google. It's the single biggest ranking factor for local plumbing searches.",
-        "Send backlink outreach to local home improvement, real estate, and neighborhood content sites.",
+        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor replies are drafted for you to paste. GravyBlock also emails you a weekly reminder and a shareable review link to send to your own customers.",
+        "Send personalized outreach to relevant local organizations. A link only counts once verified live; links are never guaranteed.",
         "Track AI visibility for home emergency searches. More homeowners ask ChatGPT first now.",
       ]}
       ctaHref="/scan"

@@ -33,7 +33,10 @@ import { runLeadReengagementBatch } from "@/lib/email/lead-reengagement";
 import { runCitationAuditBatch } from "@/lib/citations/citation-audit";
 import { runMultiPlatformReviewBatch } from "@/lib/reviews/platform-sync";
 import { runLlmProbeBatch } from "@/lib/ai-visibility/llm-probes";
-import { runBacklinkProspectBatch } from "@/lib/backlinks/prospect-finder";
+import { runAuthorityBatch } from "@/lib/authority/engine";
+import { runTruthRefreshBatch } from "@/lib/truth";
+import { runSiteWatchdogBatch } from "@/lib/watchdog/site-watchdog";
+import { runCitationEngineBatch } from "@/lib/citations/engine";
 import { runRepurposeBatch } from "@/lib/content-gen/repurpose";
 import { runGbpQaOptimizerBatch } from "@/lib/gbp/qa-optimizer";
 import { runDirectoryProfileBatch } from "@/lib/directories/profile-generator";
@@ -427,6 +430,15 @@ async function tick() {
   const startedAt = new Date().toISOString();
   console.info("[worker] tick start", { startedAt, jobsPerTick: JOBS_PER_TICK });
 
+  // One-time: retire work items from the old template engine before any new work is planned.
+  try {
+    const { runLegacyCleanupOnce } = await import("@/lib/autopilot/legacy-cleanup");
+    const cleanup = await runLegacyCleanupOnce();
+    if (cleanup.ran) console.info("[worker] legacy cleanup", cleanup);
+  } catch (error) {
+    console.error("[worker] legacy cleanup failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
   try {
     const snapshotResult = await runPendingRecurringSnapshotJobs(JOBS_PER_TICK);
     console.info("[worker] snapshot jobs", snapshotResult);
@@ -616,13 +628,49 @@ async function tick() {
     console.error("[worker] llm probes failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
-  try {
-    const backlinkResult = await runBacklinkProspectBatch(2);
-    if (backlinkResult.totalFound > 0) {
-      console.info("[worker] backlink prospects", backlinkResult);
+  // Business Truth refresh — daily, first-party facts (website/sitemap/GBP/GSC/owner) with provenance.
+  if (new Date().getUTCHours() === 5 && !(await hasJobRunToday('truth_refresh_batch'))) {
+    try {
+      const truthResult = await runTruthRefreshBatch(8);
+      await recordWorkerJob('truth_refresh_batch', truthResult);
+      console.info('[worker] truth refresh', truthResult);
+    } catch (error) {
+      console.error('[worker] truth refresh failed', { error: error instanceof Error ? error.message : String(error) });
     }
-  } catch (error) {
-    console.error("[worker] backlink prospect failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  // Authority engine — weekdays 15:00 UTC (US business hours): discover, qualify,
+  // pitch, follow up, and VERIFY whether links were actually acquired.
+  {
+    const now = new Date();
+    const weekday = now.getUTCDay() >= 1 && now.getUTCDay() <= 5;
+    if (weekday && now.getUTCHours() === 15 && !(await hasJobRunToday('authority_batch'))) {
+      try {
+        const authorityResult = await runAuthorityBatch({ maxBusinesses: 10 });
+        console.info('[worker] authority engine', authorityResult);
+      } catch (error) {
+        console.error('[worker] authority engine failed', { error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+  }
+
+  // Citation engine (monthly per business, internally gated) and site watchdog (weekly).
+  if (new Date().getUTCHours() === 9) {
+    try {
+      const citationResult = await runCitationEngineBatch(5);
+      if (citationResult.ran > 0) console.info('[worker] citation engine', citationResult);
+    } catch (error) {
+      console.error('[worker] citation engine failed', { error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+  if (new Date().getUTCHours() === 8 && !(await hasJobRunToday('site_watchdog_batch'))) {
+    try {
+      const watchdogSiteResult = await runSiteWatchdogBatch(6);
+      await recordWorkerJob('site_watchdog_batch', watchdogSiteResult);
+      console.info('[worker] site watchdog', watchdogSiteResult);
+    } catch (error) {
+      console.error('[worker] site watchdog failed', { error: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   try {

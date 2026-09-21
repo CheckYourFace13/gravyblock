@@ -12,13 +12,13 @@ export default function ForBreweriesPage() {
     <VerticalLanding
       eyebrow="Breweries & taprooms"
       title="Tourists and locals search for the best taprooms nearby. Show up before the chain wins the click."
-      body="Breweries compete on experience, not just beer. The ones that win on Google have active profiles, fresh event content, and strong review counts. GravyBlock keeps all of that running automatically, so your taproom shows up when beer lovers search, plan trips, and ask AI assistants for recommendations."
+      body="Breweries compete on experience, not just beer. The ones that win on Google have active profiles, fresh event content, and strong review counts. GravyBlock runs that work on a schedule, so your taproom is better placed to show up when beer lovers search, plan trips, and ask AI assistants for recommendations."
       bullets={[
-        "Optimize your Google Business Profile for taproom hours, events, food options, and pet/family policies.",
+        "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Publish weekly content: new releases, event recaps, brewery guides, local beer tourism.",
         "Track Google Map rankings for ‘craft brewery near me’ and city-specific beer searches.",
-        "Monitor reviews on Google, Untappd, and Yelp. Key trust signals for brewery visitors.",
-        "Turn your best reviews into social posts and keep your profile active with weekly GBP posts.",
+        "Monitor reviews on Google, Yelp and TripAdvisor, and reply to Google reviews automatically once Google is connected.",
+        "Share your real reviews on your connected Facebook Page and keep your profile active with weekly Google Business Profile posts.",
         "Check AI search visibility. Travelers increasingly ask ChatGPT for taproom recommendations.",
       ]}
       ctaHref="/scan"

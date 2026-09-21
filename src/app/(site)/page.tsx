@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/" },
   title: "GravyBlock — Automated Local SEO for Small Businesses | Free Scan",
   description:
-    "GravyBlock automates local SEO for small businesses: publishes content, manages reviews, audits citations, and tracks visibility — so you get discovered on Google Maps and Google Search. Autopilot from $74.99/mo, locked while subscribed. Free scan.",
+    "GravyBlock automates local SEO for small businesses: publishes website content, replies to Google reviews, checks citation consistency, and tracks visibility — so you get discovered on Google Maps and Google Search. Autopilot from $74.99/mo, locked while subscribed. Free scan.",
 };
 
 const siteUrl = "https://gravyblock.com";
@@ -18,7 +18,7 @@ const plans = [
     monthly: 59.99,
     intro: 29.99,
     highlight: false,
-    bullets: ["Monthly visibility score + trend history", "4 AI content ideas/mo", "Citation & review fix queue", "AI search check (ChatGPT, Perplexity, Google AI)", "Monthly progress email"],
+    bullets: ["Monthly visibility score + trend history", "4 AI content ideas/mo", "Citation consistency checks + review alerts", "AI search check (ChatGPT, Perplexity, Google AI)", "Monthly progress email"],
     cta: "Start Starter",
     href: "/scan?plan=starter",
     ctaStyle: "bg-zinc-900 hover:bg-zinc-800 text-white",
@@ -29,7 +29,7 @@ const plans = [
     monthly: 149.99,
     intro: 74.99,
     highlight: true,
-    bullets: ["Weekly AI articles published to your site", "Weekly Google Business Profile posts & photos", "8 backlink outreach emails/mo", "Facebook + Instagram auto-posting", "Review inbox with AI reply drafts"],
+    bullets: ["Weekly AI articles published to your site", "Weekly Google Business Profile posts & photos", "Up to 8 local outreach pitches/mo", "Facebook + Instagram auto-posting", "Google review replies posted automatically"],
     cta: "Start Scale",
     href: "/start?plan=growth&promo=GROWTH50",
     ctaStyle: "bg-red-600 hover:bg-red-500 text-white",
@@ -40,7 +40,7 @@ const plans = [
     monthly: 299.99,
     intro: 149.99,
     highlight: false,
-    bullets: ["Everything in Scale, twice as often", "12 articles + 8 local SEO pages/mo", "Programmatic pages for every city you serve", "Lead pipeline: finds & pitches weak competitors", "Up to 3 locations included"],
+    bullets: ["Everything in Scale, twice as often", "12 articles + 8 local SEO pages/mo", "Up to 3 locations included"],
     cta: "Start Pro",
     href: "/scan?plan=pro",
     ctaStyle: "bg-zinc-900 hover:bg-zinc-800 text-white",
@@ -61,7 +61,7 @@ const steps = [
   {
     n: "3",
     title: "Let it run every week",
-    desc: "Connect your site and turn on a plan. GravyBlock publishes content, keeps your Google Business Profile active, sends backlink outreach, monitors reviews, and refreshes your score — automatically.",
+    desc: "Connect your site and turn on a plan. GravyBlock publishes content, posts to your Google Business Profile, sends personalized outreach to local organizations, monitors reviews, and refreshes your score.",
   },
 ];
 
@@ -71,7 +71,7 @@ const orgSchema = {
   name: "GravyBlock",
   url: "https://gravyblock.com",
   logo: "https://gravyblock.com/brand/favicon.png",
-  description: "GravyBlock is an automated local SEO platform for small businesses. It publishes AI-written content, keeps your Google Business Profile active, sends backlink outreach, monitors reviews, and tracks Google rankings — automatically every week.",
+  description: "GravyBlock is an automated local SEO platform for small businesses. It publishes website content written from your own site's facts, posts to your Google Business Profile, sends personalized local outreach, monitors reviews, and tracks Google rankings.",
   contactPoint: {
     "@type": "ContactPoint",
     contactType: "customer support",
@@ -87,7 +87,7 @@ const productSchema = {
     {
       "@type": "Product",
       name: "GravyBlock Starter",
-      description: "Monthly local SEO monitoring with visibility score, content ideas, citation and review fix queue, and AI search check.",
+      description: "Monthly local SEO monitoring with visibility score, content ideas, citation consistency checks, review alerts, and AI search check.",
       url: "https://gravyblock.com/scan?plan=starter",
       image: "https://gravyblock.com/brand/og.png",
       brand: { "@type": "Brand", name: "GravyBlock" },
@@ -102,7 +102,7 @@ const productSchema = {
     {
       "@type": "Product",
       name: "GravyBlock Scale",
-      description: "Weekly AI articles published to your site, Google Business Profile posts, backlink outreach, Facebook and Instagram auto-posting, and review inbox with AI reply drafts.",
+      description: "Weekly AI articles published to your site, Google Business Profile posts, personalized local outreach, Facebook and Instagram posting, and automatic Google review replies.",
       url: "https://gravyblock.com/scan?plan=growth",
       image: "https://gravyblock.com/brand/og.png",
       brand: { "@type": "Brand", name: "GravyBlock" },
@@ -117,7 +117,7 @@ const productSchema = {
     {
       "@type": "Product",
       name: "GravyBlock Pro",
-      description: "Everything in Scale twice as often, plus programmatic city pages, lead pipeline, and up to 3 locations.",
+      description: "Everything in Scale twice as often, plus up to 3 locations.",
       url: "https://gravyblock.com/scan?plan=pro",
       image: "https://gravyblock.com/brand/og.png",
       brand: { "@type": "Brand", name: "GravyBlock" },
@@ -213,19 +213,19 @@ export default function HomePage() {
       {/* ── WHAT IT DOES ───────────────────────────────────── */}
       <section className="border-y border-zinc-100 bg-zinc-50 px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-5xl">
-          <p className="mb-6 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">What runs automatically, every single week</p>
+          <p className="mb-6 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">What runs on a schedule</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { icon: "✍️", title: "Content published", desc: "AI-written local SEO articles go live on your website automatically, with schema markup injected into every one" },
-              { icon: "📍", title: "GBP posts published", desc: "Weekly Google Business Profile posts, photo uploads, and Q&A seeding — with your Google account connected" },
-              { icon: "⭐", title: "Reviews answered", desc: "New reviews synced from Google, Yelp & TripAdvisor with AI replies — posted automatically to Google or ready to paste" },
+              { icon: "✍️", title: "Content published", desc: "Articles and service pages written from your own website's facts are published to your connected WordPress, Webflow or Shopify site, then checked live" },
+              { icon: "📍", title: "GBP posts published", desc: "A weekly Google Business Profile post and your own website images added to your profile — with your Google account connected" },
+              { icon: "⭐", title: "Reviews answered", desc: "New reviews monitored from Google, Yelp & TripAdvisor — replies posted automatically to Google; Yelp and TripAdvisor replies drafted for you to paste" },
               { icon: "📈", title: "Rankings checked", desc: "Real Google Maps pack positions checked weekly, plus daily keyword data when Search Console is connected" },
-              { icon: "🔗", title: "Backlinks outreached", desc: "Local link prospects found and personalized outreach emails sent, every month" },
+              { icon: "🔗", title: "Local outreach", desc: "Personalized pitches to real published contacts of relevant local organizations, one follow-up, and a link counted only once verified live" },
               { icon: "🤖", title: "AI search checked", desc: "We probe ChatGPT, Perplexity & Gemini monthly to see if they mention your business" },
-              { icon: "📊", title: "Social posts drafted", desc: "Every article repurposed into Facebook & Instagram posts — approve once, we publish them" },
-              { icon: "📁", title: "Citations organized", desc: "A monthly directory checklist matched to your industry, with your exact business data ready to copy and consistency gaps flagged" },
+              { icon: "📊", title: "Social posts published", desc: "Posts to your connected Facebook Page and Instagram from your website's own content, with no per-post approval" },
+              { icon: "📁", title: "Citations checked", desc: "Your name, phone and address compared across your website, Google, and where connected Yelp and Facebook, with alerts when they drift" },
               { icon: "🛡️", title: "Listing protected", desc: "Weekly watchdog catches Google's silent edits to your hours, phone, or name — and alerts you with exactly what changed" },
-              { icon: "💬", title: "Reviews spotlighted", desc: "Your best 5-star reviews turned into ready-to-approve social posts that thank the customer and invite the next one" },
+              { icon: "💬", title: "Reviews spotlighted", desc: "Your real 5-star reviews shared on your connected Facebook Page, with no per-post approval" },
               { icon: "⚡", title: "Search engines notified", desc: "New pages pinged to Bing via IndexNow; Google sitemap resubmitted on Scale+ plans with Search Console connected" },
             ].map((item) => (
               <div key={item.title} className="rounded-xl border border-zinc-200 bg-white p-4">

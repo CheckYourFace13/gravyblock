@@ -368,3 +368,13 @@ export async function sendOutreachEmail(payload: OutreachEmailPayload) {
            <p>Thanks,<br/>${payload.businessName}</p>`,
   });
 }
+
+export async function sendSiteWatchdogAlertEmail(payload: { to: string; businessName: string; issues: string[]; workspaceUrl: string }) {
+  const items = payload.issues.map((i) => `<li>${i.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</li>`).join("");
+  return sendEmail({
+    to: payload.to,
+    subject: `${payload.businessName}: GravyBlock found a problem on your website`,
+    html: `<p>GravyBlock checks your website every week. Since the last check, we found:</p><ul>${items}</ul><p>These are things that can quietly cost you calls and search visibility. <a href="${payload.workspaceUrl}">Open your workspace</a> for details.</p>`,
+    tags: [{ name: "type", value: "site_watchdog_alert" }],
+  });
+}

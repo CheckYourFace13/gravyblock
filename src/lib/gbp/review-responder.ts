@@ -11,7 +11,8 @@
  */
 
 import { inArray } from "drizzle-orm";
-import { getDb, businesses } from "@/lib/db";
+import { getDb, businesses, jobs } from "@/lib/db";
+import { containsPlaceholderArtifact } from "@/lib/content-gen/quality-guard";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
 import { listPendingReviews, replyToReview, isGbpConnected } from "@/lib/integrations/gbp-write";
 import { normalizePlanTierFromDb } from "@/lib/plans";
@@ -25,7 +26,8 @@ const STYLE_RULES = `Reply rules:
 - Keep it under 80 words.
 - Thank them by first name if available.
 - For 1-2 star reviews: acknowledge the concern briefly, invite them to contact directly — no excuses.
-- For 3-5 star reviews: express genuine thanks, reference something specific from the review.`;
+- For 3-5 star reviews: express genuine thanks, reference something specific from the review.
+- Never promise refunds, discounts, or specific remedies, and never state facts about the business (services, prices, staff, hours) that the review itself does not mention.`;
 
 async function generateReviewReply(params: {
   businessName: string;
@@ -93,11 +95,18 @@ export async function runGbpReviewReplyBatch(
         reviewText: review.comment ?? "",
       });
 
-      if (!replyText) continue;
+      if (!replyText || containsPlaceholderArtifact(replyText)) continue;
 
       const result = await replyToReview(biz.id, review.name, replyText.trim());
       if (result.ok) {
         replied++;
+        // Durable proof: Google is the only other record of this reply, so log it here.
+        await db.insert(jobs).values({
+          businessId: biz.id,
+          type: "gbp_review_reply",
+          status: "completed",
+          payload: { reviewName: review.name, stars: review.starRating, replyText: replyText.trim().slice(0, 400) },
+        });
         console.info("[gbp-review-responder] replied to review", {
           businessId: biz.id,
           reviewName: review.name,

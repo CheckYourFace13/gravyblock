@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "About — GravyBlock",
   description:
-    "GravyBlock is an automated local SEO platform: weekly content, Google Business Profile management, citation monitoring, and visibility tracking — built and personally operated by one team, committed to truthful measurement.",
+    "GravyBlock is an automated local SEO platform: website content, Google Business Profile posts, citation consistency checks, and visibility tracking — built and personally operated by one team, committed to truthful measurement.",
   alternates: { canonical: "https://gravyblock.com/about" },
 };
 
@@ -18,7 +18,7 @@ const schema = {
     name: "GravyBlock",
     url: "https://gravyblock.com",
     description:
-      "Automated local SEO platform for small and local businesses: weekly content publishing, Google Business Profile management, citation monitoring, and visibility tracking.",
+      "Automated local SEO platform for small and local businesses: website content publishing, Google Business Profile posts, citation consistency checks, and visibility tracking.",
   },
 };
 
@@ -31,12 +31,12 @@ export default function AboutPage() {
         <div className="mx-auto max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-800">About GravyBlock</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
-            Local SEO, handled — automatically, every week.
+            Local SEO work, run on a schedule.
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-zinc-600">
             GravyBlock is an automated local SEO platform. It runs the ongoing work that gets a business found on
-            Google Maps and Google Search — content, profile management, citation monitoring, and visibility
-            tracking — without you having to do it yourself every week.
+            Google Maps and Google Search — website content, Google Business Profile posts, citation consistency checks,
+            and visibility tracking — without you having to do it yourself every week.
           </p>
         </div>
       </section>
@@ -56,11 +56,11 @@ export default function AboutPage() {
           <h2 className="text-lg font-semibold text-zinc-900 mb-3">How the automation works</h2>
           <p className="text-zinc-600 leading-relaxed">
             You run a free scan, which pulls your real Google listing and scores it across measurable ranking
-            factors. On a paid plan, GravyBlock keeps working on that score every week: publishing AI-written
-            content to your site, posting to your Google Business Profile once it's connected, monitoring your
-            citations for mismatches, and tracking your visibility over time. Some of it runs fully automatically;
-            some of it — connecting your Google Business Profile, approving a draft, adding missing information —
-            needs a quick action from you. Your workspace always shows which is which, not a vague "everything is
+            factors. On a paid plan, GravyBlock keeps working on that score: publishing content written from your
+            own website's facts to your connected site, posting to your Google Business Profile once it's connected,
+            checking your citations for mismatches, and tracking your visibility over time. Some of it runs on a
+            schedule after a one-time setup; some of it — connecting your website, Google account and Facebook Page,
+            adding missing information — needs a quick action from you. Your workspace always shows which is which, not a vague "everything is
             automatic" claim.
           </p>
         </div>

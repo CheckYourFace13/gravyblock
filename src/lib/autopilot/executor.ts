@@ -15,8 +15,10 @@ import {
   reports,
   visibilitySnapshots,
 } from "@/lib/db";
-import { sendAutomationSummaryEmail, sendOutreachEmail } from "@/lib/integrations/resend";
-import { discoverContactEmail } from "@/lib/outreach/discover-contact-email";
+import { sendAutomationSummaryEmail } from "@/lib/integrations/resend";
+import { planTruthGroundedContent } from "./content-planner";
+import { ensureFreshTruth } from "@/lib/truth";
+import { safeFetchText } from "@/lib/net/safe-fetch";
 import { publishToWordPress, type WordPressConfig } from "@/lib/integrations/wordpress";
 import { publishToWebflow, extractWebflowConfig } from "@/lib/publishing/adapters/webflow";
 import { publishToShopify, extractShopifyConfig } from "@/lib/publishing/adapters/shopify";
@@ -26,7 +28,7 @@ import { runSiteCrawlAudit } from "@/lib/audit/site-crawl";
 import { syncBusinessIssues } from "@/lib/audit/issue-tracker";
 import type { WebsiteAuditFinding, WebsiteAuditSummary } from "@/lib/report/types";
 import { buildSocialPresence } from "@/lib/social/discover";
-import { generateArticleBody, generateLocalPageBody, generateOutreachPitch, generateMetaTags } from "@/lib/content/generator";
+import { generateArticleBody, generateLocalPageBody, generateMetaTags } from "@/lib/content/generator";
 import { addInternalLinks } from "@/lib/content/internal-linker";
 import { getArticlePhoto } from "@/lib/integrations/unsplash";
 import { businessConfigs } from "@/lib/db";
@@ -278,10 +280,13 @@ export async function executeContentPublishPath(businessId: string) {
     throw new Error("DATABASE_URL is required for content execution path");
   }
 
+  // Only website content is published here. Social/GBP kinds have their own
+  // posters; the old query took the oldest queued row of ANY kind and
+  // regenerated it as an article.
   const [queuedItem] = await db
     .select()
     .from(contentQueue)
-    .where(and(eq(contentQueue.businessId, businessId), eq(contentQueue.status, "queued")))
+    .where(and(eq(contentQueue.businessId, businessId), eq(contentQueue.status, "queued"), inArray(contentQueue.kind, ["article", "location_page"])))
     .orderBy(contentQueue.createdAt)
     .limit(1);
 
@@ -289,12 +294,32 @@ export async function executeContentPublishPath(businessId: string) {
     return { ok: false, reason: "no_queued_content" as const };
   }
 
+  // A real external destination is required: GravyBlock publishes to the
+  // customer's OWN website. (It used to fall back to a noindex page on
+  // gravyblock.com and count that as "published".)
   const [target] = await db
     .select()
     .from(publishingTargets)
-    .where(and(eq(publishingTargets.businessId, businessId), eq(publishingTargets.active, "true")))
+    .where(
+      and(
+        eq(publishingTargets.businessId, businessId),
+        eq(publishingTargets.active, "true"),
+        inArray(publishingTargets.adapter, ["wordpress", "webflow", "shopify"]),
+      ),
+    )
     .orderBy(publishingTargets.createdAt)
     .limit(1);
+
+  if (!target || !target.config) {
+    await db.update(contentQueue).set({ status: "awaiting_connection" }).where(eq(contentQueue.id, queuedItem.id));
+    return { ok: false, reason: "no_publishing_target" as const, contentQueueId: queuedItem.id };
+  }
+
+  // Never write about the business from anything but verified first-party facts.
+  const truth = await ensureFreshTruth(businessId);
+  if (!truth.sufficient) {
+    return { ok: false, reason: "insufficient_truth" as const, detail: truth.insufficientReason, contentQueueId: queuedItem.id };
+  }
 
   await db.update(contentQueue).set({ status: "ready" }).where(eq(contentQueue.id, queuedItem.id));
 
@@ -302,19 +327,15 @@ export async function executeContentPublishPath(businessId: string) {
   await db.insert(publishingJobs).values({
     id: publishJobId,
     queueId: queuedItem.id,
-    targetId: target?.id ?? null,
+    targetId: target.id,
     status: "pending",
     responseLog: "Publish attempt started by autopilot executor.",
   });
 
-  if (!target) {
-    await db
-      .update(publishingJobs)
-      .set({ status: "failed", responseLog: "No active publishing target configured." })
-      .where(eq(publishingJobs.id, publishJobId));
+  const failItem = async (message: string) => {
     await db.update(contentQueue).set({ status: "failed" }).where(eq(contentQueue.id, queuedItem.id));
-    return { ok: false, reason: "no_publishing_target" as const, publishJobId, contentQueueId: queuedItem.id };
-  }
+    await db.update(publishingJobs).set({ status: "failed", responseLog: message }).where(eq(publishingJobs.id, publishJobId));
+  };
 
   try {
     const [biz] = await db
@@ -332,29 +353,23 @@ export async function executeContentPublishPath(businessId: string) {
       .where(eq(businesses.id, businessId))
       .limit(1);
 
-    // Feature #3: fetch full config for content generation
     const [bizConfig] = await db
       .select({
         brandVoice: businessConfigs.brandVoice,
         serviceDescription: businessConfigs.serviceDescription,
         uniqueSellingPoints: businessConfigs.uniqueSellingPoints,
         tone: businessConfigs.tone,
-        targetScope: businessConfigs.targetScope,
         focusArea: businessConfigs.focusArea,
       })
       .from(businessConfigs)
       .where(eq(businessConfigs.businessId, businessId))
       .limit(1);
 
-    const configuredCity = bizConfig?.targetScope?.split(",")[0]?.trim();
-    // Empty string (not a fallback word like "your area") signals "no real city
-    // known" to the prompt builder, which then writes without naming a place
-    // instead of injecting a fake-sounding location.
-    const resolvedCity = configuredCity || cityFromAddress(biz?.address);
+    // City comes only from verified facts; empty = write without naming a place.
     const generatorParams = {
-      businessName: biz?.name ?? "Local business",
-      city: resolvedCity === "your area" ? "" : resolvedCity,
-      vertical: biz?.vertical ?? null,
+      businessName: truth.businessName || biz?.name || "Local business",
+      city: truth.verifiedCity ?? "",
+      vertical: biz?.vertical && !/^other$/i.test(biz.vertical) ? biz.vertical : null,
       title: queuedItem.title,
       outline: queuedItem.outline ?? "",
       targetKeyword: queuedItem.targetKeyword ?? null,
@@ -364,53 +379,43 @@ export async function executeContentPublishPath(businessId: string) {
       uniqueSellingPoints: bizConfig?.uniqueSellingPoints ?? null,
       tone: bizConfig?.tone ?? null,
       focusArea: bizConfig?.focusArea ?? "local",
+      truthBlock: truth.promptBlock,
     };
     const aiBody = queuedItem.kind === "location_page"
       ? await generateLocalPageBody(generatorParams)
       : await generateArticleBody(generatorParams);
-    // Never publish hollow or unfilled-placeholder content — skip and retry on next tick
     if (!aiBody) {
-      console.warn("[executeContentPublishPath] AI generation returned null — skipping", { businessId, itemId: queuedItem.id });
-      return { ok: false, reason: "ai_generation_failed" };
+      // Transient (model unavailable) — leave queued and retry next tick.
+      await db.update(contentQueue).set({ status: "queued" }).where(eq(contentQueue.id, queuedItem.id));
+      await db.update(publishingJobs).set({ status: "failed", responseLog: "AI generation returned nothing; will retry." }).where(eq(publishingJobs.id, publishJobId));
+      return { ok: false, reason: "ai_generation_failed" as const };
     }
-    // Body-only was checked here before — the title (already fixed at queue
-    // time, but never re-verified at publish time) is exactly where "online_
-    // brand Services in your area" and "[Your City]" leaked through live.
     if (containsPlaceholderArtifact(aiBody) || containsPlaceholderArtifact(queuedItem.title)) {
-      console.warn("[executeContentPublishPath] AI output or title contained an unfilled placeholder — skipping", { businessId, itemId: queuedItem.id, title: queuedItem.title });
-      return { ok: false, reason: "ai_generation_failed" };
+      await failItem("Rejected: output or title contained an unfilled placeholder.");
+      return { ok: false, reason: "ai_generation_failed" as const };
     }
     let body = aiBody;
 
-    // Feature #4: smart internal linking
-    body = await addInternalLinks({
-      body,
-      businessId,
-      currentTitle: queuedItem.title,
-    }).catch(() => body); // non-fatal
+    body = await addInternalLinks({ body, businessId, currentTitle: queuedItem.title }).catch(() => body);
 
-    // Feature #2: generate meta tags
     const metaTags = await generateMetaTags({
       title: queuedItem.title,
       body,
       targetKeyword: queuedItem.targetKeyword ?? null,
-      businessName: biz?.name ?? "Local business",
-      city: cityFromAddress(biz?.address),
+      businessName: generatorParams.businessName,
+      city: truth.verifiedCity ?? "",
     }).catch(() => null);
 
-    // Feature #5: fetch cover image from Unsplash
-    const photo = await getArticlePhoto(
-      queuedItem.targetKeyword ?? queuedItem.title,
-    ).catch(() => null);
+    const photo = await getArticlePhoto(queuedItem.targetKeyword ?? queuedItem.title).catch(() => null);
 
     const artifactId = randomUUID();
-    let publicUrl = `/published/${artifactId}`;
-    let channel = "internal_site";
+    let publicUrl: string | null = null;
+    let channel: "wordpress" | "webflow" | "shopify" | null = null;
+    let publishError = "";
 
-    // Build schema block once — injected into all external platform posts
     const schemaBlock = buildSchemaScriptBlock({
       business: {
-        name: biz?.name ?? "Local Business",
+        name: generatorParams.businessName,
         address: biz?.address ?? null,
         phone: biz?.phone ?? null,
         website: biz?.website ?? null,
@@ -423,38 +428,37 @@ export async function executeContentPublishPath(businessId: string) {
       publishedAt: new Date(),
     });
 
-    if (target?.adapter === "wordpress" && target.config) {
-      const wpConfig = target.config as unknown as WordPressConfig;
-      const bodyWithSchema = injectSchemaIntoHtml(body, schemaBlock);
-      const wpResult = await publishToWordPress({ config: wpConfig, title: queuedItem.title, body: bodyWithSchema });
+    if (target.adapter === "wordpress") {
+      const wpResult = await publishToWordPress({ config: target.config as unknown as WordPressConfig, title: queuedItem.title, body: injectSchemaIntoHtml(body, schemaBlock) });
       if (wpResult.ok) {
         publicUrl = wpResult.postUrl;
         channel = "wordpress";
-      } else {
-        console.warn("[executor] WordPress publish failed, falling back to internal", { error: wpResult.error });
-      }
-    } else if (target?.adapter === "webflow" && target.config) {
+      } else publishError = wpResult.error ?? "wordpress_publish_failed";
+    } else if (target.adapter === "webflow") {
       const wfConfig = extractWebflowConfig(target.config);
-      if (wfConfig) {
+      if (!wfConfig) publishError = "invalid_webflow_config";
+      else {
         const wfResult = await publishToWebflow(wfConfig, { title: queuedItem.title, content: injectSchemaIntoHtml(body, schemaBlock) });
         if (wfResult.ok) {
           publicUrl = `https://webflow.com/item/${wfResult.itemId}`;
           channel = "webflow";
-        } else {
-          console.warn("[executor] Webflow publish failed, falling back to internal", { error: wfResult.error });
-        }
+        } else publishError = wfResult.error ?? "webflow_publish_failed";
       }
-    } else if (target?.adapter === "shopify" && target.config) {
+    } else if (target.adapter === "shopify") {
       const sfConfig = extractShopifyConfig(target.config);
-      if (sfConfig) {
+      if (!sfConfig) publishError = "invalid_shopify_config";
+      else {
         const sfResult = await publishToShopify(sfConfig, { title: queuedItem.title, content: injectSchemaIntoHtml(body, schemaBlock) });
         if (sfResult.ok) {
           publicUrl = sfResult.url;
           channel = "shopify";
-        } else {
-          console.warn("[executor] Shopify publish failed, falling back to internal", { error: sfResult.error });
-        }
+        } else publishError = sfResult.error ?? "shopify_publish_failed";
       }
+    }
+
+    if (!channel || !publicUrl) {
+      await failItem(`External publish failed: ${publishError || "unknown"}`);
+      return { ok: false, reason: "publish_failed" as const, publishJobId, contentQueueId: queuedItem.id };
     }
 
     await db.insert(publishedContent).values({
@@ -467,38 +471,36 @@ export async function executeContentPublishPath(businessId: string) {
       channel,
       publicUrl,
       status: "published",
-      // Feature #2: auto meta tags
       metaTitle: metaTags?.metaTitle ?? null,
       metaDescription: metaTags?.metaDescription ?? null,
-      // Feature #5: cover image
       coverImageUrl: photo?.url ?? null,
       coverImageCredit: photo?.credit ?? null,
     });
-
     await db.update(contentQueue).set({ status: "published" }).where(eq(contentQueue.id, queuedItem.id));
-    await db
-      .update(publishingJobs)
-      .set({ status: "published", responseLog: `Published to ${publicUrl}` })
-      .where(eq(publishingJobs.id, publishJobId));
 
-    // Notify Bing/Yandex via IndexNow. Only for internal_site pages — those live
-    // on gravyblock.com, the one domain we hold a verified IndexNow key for.
-    // WordPress/Webflow/Shopify pages live on the customer's own domain, which
-    // would need its own verified key before it could be pinged honestly.
-    if (channel === "internal_site") {
-      const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-      const absoluteUrl = `${base.replace(/\/$/, "")}${publicUrl}`;
-      await pingIndexNowForGravyblock([absoluteUrl]);
+    // Verify the page is actually live on the customer's own domain — an API
+    // "success" is not proof. Webflow item URLs are CMS admin URLs, not public pages.
+    let verified = false;
+    let verifiedStatus: number | null = null;
+    if (channel !== "webflow") {
+      const check = await safeFetchText(publicUrl, { timeoutMs: 10000 });
+      verifiedStatus = check.ok ? check.status : null;
+      verified = check.ok && check.status === 200;
     }
-
-    return { ok: true, publishJobId, contentQueueId: queuedItem.id, artifactId, publicUrl };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "unknown publish failure";
-    await db.update(contentQueue).set({ status: "failed" }).where(eq(contentQueue.id, queuedItem.id));
     await db
       .update(publishingJobs)
-      .set({ status: "failed", responseLog: message })
+      .set({ status: "published", responseLog: `Published to ${publicUrl} (${channel}); live check: ${verified ? "HTTP 200 verified" : verifiedStatus ? `HTTP ${verifiedStatus}` : "not publicly verifiable"}` })
       .where(eq(publishingJobs.id, publishJobId));
+    await db.insert(jobs).values({
+      businessId,
+      type: "content_publish_verified",
+      status: verified ? "completed" : "unverified",
+      payload: { publishedContentId: artifactId, publicUrl, channel, verified, httpStatus: verifiedStatus, title: queuedItem.title },
+    });
+
+    return { ok: true, publishJobId, contentQueueId: queuedItem.id, artifactId, publicUrl, verified };
+  } catch (error) {
+    await failItem(error instanceof Error ? error.message : "unknown publish failure");
     return { ok: false, reason: "publish_failed" as const, publishJobId, contentQueueId: queuedItem.id };
   }
 }
@@ -603,8 +605,9 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
       const snapshotId = randomUUID();
       const runProfile = profileForJobType(job.type);
       const completedAt = new Date().toISOString();
-      let publishedThisRun = 0;
-      let outreachSentThisRun = 0;
+      const publishedThisRun = 0;
+      const outreachSentThisRun = 0;
+      let aiChecksThisRun = 0;
       const [business] = await db
         .select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier, accountType: businesses.accountType, vertical: businesses.vertical, address: businesses.address })
         .from(businesses)
@@ -744,6 +747,7 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
           // cycle and let the next recurring run try again — the same
           // "skip and retry" pattern already used for failed content generation.
           if (realChecks.length > 0) {
+            aiChecksThisRun = Math.min(realChecks.length, runProfile.aiChecks);
             await db.insert(aiVisibilityChecks).values(
               realChecks.slice(0, runProfile.aiChecks).map((check) => ({
                 businessId,
@@ -761,320 +765,22 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         }
       }
 
-      const queuedContentIds: string[] = [];
-      const publishedUrls: string[] = [];
-      const bizName = business?.name ?? "Local business";
-      const bizCity = cityFromAddress(business?.address);
-      const bizVertical = business?.vertical ?? "local service";
-      // Article title/outline templates — real SEO copy, not stubs
-      const articleTemplates = [
-        {
-          title: `Why ${bizCity} Residents Choose ${bizName}`,
-          outline: `Write a 700-word local SEO article explaining why customers in ${bizCity} choose ${bizName} for ${bizVertical} services. Cover: what makes the business stand out locally, real benefits for ${bizCity} residents, common customer questions answered, and a clear call to action. Use a friendly, conversational tone.`,
-          keyword: `${bizVertical} ${bizCity}`,
-        },
-        {
-          title: `${bizName}: The ${bizCity} ${bizVertical} Guide`,
-          outline: `Write a 700-word guide covering everything ${bizCity} customers need to know about getting ${bizVertical} services from ${bizName}. Include: what services are offered, what to expect, how to get started, and why choosing a local business matters. Mention ${bizCity} specifically throughout.`,
-          keyword: `best ${bizVertical} in ${bizCity}`,
-        },
-        {
-          title: `Top ${bizVertical} Questions Answered — ${bizName} in ${bizCity}`,
-          outline: `Write a 700-word FAQ-style article where ${bizName} answers the most common questions ${bizCity} customers have about ${bizVertical}. Cover at least 5 specific questions with detailed, helpful answers. End with a clear call to action.`,
-          keyword: `${bizVertical} questions ${bizCity}`,
-        },
-        {
-          title: `How ${bizName} Serves the ${bizCity} Community`,
-          outline: `Write a 700-word local story about how ${bizName} has become part of the ${bizCity} community. Cover: local roots, how it meets local needs differently than national chains, what customers experience, and how to get in touch. Warm, community-focused tone.`,
-          keyword: `${bizName} ${bizCity}`,
-        },
-      ];
-      const locationTemplates = [
-        {
-          title: `${bizVertical} Services in ${bizCity} — ${bizName}`,
-          outline: `Write a 500-word location page for ${bizName} serving customers in ${bizCity}. Cover: specific services offered in this area, why local customers trust this business, service area coverage, and contact or booking information. Optimize for "${bizVertical} in ${bizCity}" searches.`,
-          keyword: `${bizVertical} in ${bizCity}`,
-        },
-        {
-          title: `Serving ${bizCity}: ${bizName}'s Local ${bizVertical} Promise`,
-          outline: `Write a 500-word location landing page for ${bizName} in ${bizCity}. Focus on: the specific neighborhoods and areas served, what makes their ${bizVertical} service right for ${bizCity} residents, testimonials context, and a direct call to action.`,
-          keyword: `${bizName} near ${bizCity}`,
-        },
-      ];
-      const contentItems = Array.from({ length: runProfile.contentIdeas }).map((_, idx) => {
-        const id = randomUUID();
-        queuedContentIds.push(id);
-        const isLocationPage = idx < runProfile.localPages;
-        const template = isLocationPage
-          ? locationTemplates[idx % locationTemplates.length]!
-          : articleTemplates[(idx - runProfile.localPages) % articleTemplates.length]!;
-        return {
-          id,
-          businessId,
-          kind: isLocationPage ? "location_page" : "article",
-          title: template.title,
-          status: "generated",
-          variant: isLocationPage ? "geo_variant" : "primary_market",
-          outline: template.outline,
-          targetKeyword: template.keyword,
-        };
+      // Content is planned from verified first-party facts only (Business
+      // Truth layer) and published to the customer's own website by
+      // executeContentPublishPath on the worker tick. Nothing is published
+      // inline here, and no internal noindex pages are created — see
+      // content-planner.ts for why.
+      const contentPlan = await planTruthGroundedContent({
+        businessId,
+        maxItems: runProfile.contentIdeas,
+        maxLocationPages: runProfile.localPages,
+      }).catch((err) => {
+        console.error("[autopilot] content planning failed", { businessId, error: err instanceof Error ? err.message : String(err) });
+        return { state: "nothing_new" as const, queued: 0, titles: [] as string[] };
       });
-      await db.insert(contentQueue).values(contentItems);
 
-      if (runProfile.publishingJobs > 0) {
-        const publishNowQueueIds = queuedContentIds.slice(0, runProfile.publishingJobs);
-        const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-        for (const queueId of publishNowQueueIds) {
-          const queueRow = contentItems.find((x) => x.id === queueId);
-          if (!queueRow) continue;
-          await db.update(contentQueue).set({ status: "ready" }).where(eq(contentQueue.id, queueId));
-          const publishJobId = randomUUID();
-          await db.insert(publishingJobs).values({
-            id: publishJobId,
-            queueId,
-            targetId: null,
-            status: "queued",
-            responseLog: "Internal public publish target queued by recurring automation.",
-          });
-          const artifactId = randomUUID();
-          const publicPath = `/published/${artifactId}`;
-          const publicUrl = `${base.replace(/\/$/, "")}${publicPath}`;
-          publishedUrls.push(publicUrl);
-          // Fetch full config for content generation
-          const [recurringBizConfig] = await db
-            .select({
-              brandVoice: businessConfigs.brandVoice,
-              targetScope: businessConfigs.targetScope,
-              focusArea: businessConfigs.focusArea,
-              serviceDescription: businessConfigs.serviceDescription,
-              uniqueSellingPoints: businessConfigs.uniqueSellingPoints,
-              tone: businessConfigs.tone,
-            })
-            .from(businessConfigs)
-            .where(eq(businessConfigs.businessId, businessId))
-            .limit(1);
-          // Use the customer's configured service area city, fall back to Google address.
-          // Empty string (not "your area") tells the prompt builder to write
-          // without naming a specific place instead of injecting a fake-sounding one.
-          const configuredCity = recurringBizConfig?.targetScope?.split(",")[0]?.trim();
-          const resolvedRecurringCity = configuredCity || cityFromAddress(business?.address);
-          const generatorParams = {
-            businessName: business?.name ?? "Local business",
-            city: resolvedRecurringCity === "your area" ? "" : resolvedRecurringCity,
-            vertical: business?.vertical ?? null,
-            title: queueRow.title,
-            outline: queueRow.outline ?? "",
-            targetKeyword: queueRow.targetKeyword ?? null,
-            changeSummary: changeResult.summary,
-            address: business?.address ?? null,
-            brandVoice: recurringBizConfig?.brandVoice ?? null,
-            focusArea: recurringBizConfig?.focusArea ?? "local",
-            serviceDescription: recurringBizConfig?.serviceDescription ?? null,
-            uniqueSellingPoints: recurringBizConfig?.uniqueSellingPoints ?? null,
-            tone: recurringBizConfig?.tone ?? null,
-          };
-          const aiBody = queueRow.kind === "location_page"
-            ? await generateLocalPageBody(generatorParams)
-            : await generateArticleBody(generatorParams);
-          // If AI generation failed or left an unfilled placeholder, skip this item
-          // rather than publish broken content. It will be retried on the next worker tick.
-          if (!aiBody) {
-            console.warn("[executor] AI generation returned null — skipping publish", { businessId, queueId: queueRow.id, title: queueRow.title });
-            publishedUrls.push(`[skipped — AI unavailable]`);
-            continue;
-          }
-          if (containsPlaceholderArtifact(aiBody) || containsPlaceholderArtifact(queueRow.title)) {
-            console.warn("[executor] AI output or title contained an unfilled placeholder — skipping publish", { businessId, queueId: queueRow.id, title: queueRow.title });
-            publishedUrls.push(`[skipped — unfilled placeholder]`);
-            continue;
-          }
-          let body = aiBody;
-          // Feature #4: smart internal linking
-          body = await addInternalLinks({
-            body,
-            businessId,
-            currentTitle: queueRow.title,
-          }).catch(() => body);
-          // Feature #2: auto meta tags
-          const recurringMetaTags = await generateMetaTags({
-            title: queueRow.title,
-            body,
-            targetKeyword: queueRow.targetKeyword ?? null,
-            businessName: business?.name ?? "Local business",
-            city: cityFromAddress(business?.address),
-          }).catch(() => null);
-          // Feature #5: cover image
-          const recurringPhoto = await getArticlePhoto(
-            queueRow.targetKeyword ?? queueRow.title,
-          ).catch(() => null);
-          await db.insert(publishedContent).values({
-            id: artifactId,
-            businessId,
-            locationId: null,
-            queueId,
-            title: queueRow.title,
-            body,
-            channel: "internal_site",
-            publicUrl,
-            status: "published",
-            metaTitle: recurringMetaTags?.metaTitle ?? null,
-            metaDescription: recurringMetaTags?.metaDescription ?? null,
-            coverImageUrl: recurringPhoto?.url ?? null,
-            coverImageCredit: recurringPhoto?.credit ?? null,
-          });
-          await db.update(contentQueue).set({ status: "published" }).where(eq(contentQueue.id, queueId));
-          await db
-            .update(publishingJobs)
-            .set({ status: "published", responseLog: `Published automatically to ${publicUrl}` })
-            .where(eq(publishingJobs.id, publishJobId));
-          // publicUrl here is already absolute and always on gravyblock.com for
-          // this recurring path — safe to notify Bing/Yandex via IndexNow.
-          await pingIndexNowForGravyblock([publicUrl]);
-          publishedThisRun += 1;
-        }
-      }
-
-      // Previously inserted runProfile.citationTasks synthetic rows here
-      // ("Listing consistency monitor 1/2/3...", no real per-directory check
-      // behind any of them) purely to hit a target count for the customer-
-      // facing "citation/listing tasks queued" number and the sitewide
-      // "citation ops" admin stat — the same fabricated-activity pattern
-      // already removed from backlinkOpportunities/aiVisibilityChecks below.
-      // No real recurring per-directory NAP check exists yet (only the
-      // one-time Google-profile-vs-site baseline row created at scan time),
-      // so nothing is inserted here until that's genuinely built.
-
-      // Backlink opportunities are discovered by the real prospect-finder (monthly batch job)
-      // which finds actual local chambers, associations, and directories via Google Places.
-      // No synthetic placeholder rows — only real prospects show here.
-
-      const actionItems: Array<{
-        id: string;
-        businessId: string;
-        title: string;
-        detail: string;
-        queue: string;
-        status: string;
-      }> = [
-        {
-          id: randomUUID(),
-          businessId,
-          title: "Monthly website audit re-check",
-          detail: "Re-check CTA visibility, service-area clarity, and trust signal gaps from homepage crawl.",
-          queue: "local_trust_ops",
-          status: "queued",
-        },
-        {
-          id: randomUUID(),
-          businessId,
-          title: "Monthly listing and social re-check",
-          detail: "Review listing consistency and social profile coverage across public sources.",
-          queue: "citation_ops",
-          status: "queued",
-        },
-        {
-          id: randomUUID(),
-          businessId,
-          title: "Prioritized action plan refresh",
-          detail: "Update the top three next actions using latest score and queue context.",
-          queue: "general",
-          status: "queued",
-        },
-      ];
-      if (runProfile.reviewTasks > 0) {
-        actionItems.push(
-          ...Array.from({ length: runProfile.reviewTasks }).map((_, idx) => ({
-            id: randomUUID(),
-            businessId,
-            title: `Review and reputation task ${idx + 1}`,
-            detail: "Respond to recent reviews and request fresh social proof from recent customers.",
-            queue: "review_ops",
-            status: "queued",
-          })),
-        );
-      }
-      if (runProfile.outreachDrafts > 0) {
-        // Use real prospects from the prospect-finder (not synthetic rows)
-        const realProspects = await db
-          .select({ id: backlinkOpportunities.id, sourceName: backlinkOpportunities.sourceName, targetUrl: backlinkOpportunities.targetUrl })
-          .from(backlinkOpportunities)
-          .where(and(eq(backlinkOpportunities.businessId, businessId), eq(backlinkOpportunities.status, "draft_generated")))
-          .orderBy(desc(backlinkOpportunities.qualityScore))
-          .limit(runProfile.outreachDrafts);
-
-        if (realProspects.length > 0) {
-          const businessName = business?.name ?? "GravyBlock customer";
-          const publishedReference = publishedUrls[0] ?? (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
-          const outreachTasks = realProspects.map((opportunity, idx) => {
-            const pitch = `We just published a fresh local story update and would like to contribute a relevant resource entry for your audience. ${changeResult.summary}`;
-            return {
-              id: randomUUID(),
-              businessId,
-              title: `Outreach draft ${idx + 1}`,
-              detail: `Target ${opportunity.targetUrl ?? "community source"} | angle local relevance update | pitch: ${pitch}`,
-              queue: "outreach_ops",
-              status: "draft_generated",
-            };
-          });
-          await db.insert(operatorTasks).values(outreachTasks);
-          for (let idx = 0; idx < outreachTasks.length; idx += 1) {
-            const task = outreachTasks[idx];
-            const opportunity = realProspects[idx];
-            if (!opportunity) continue;
-            if (!opportunity.targetUrl) continue;
-            // Never guess an address (e.g. the old `partnerships@{host}` pattern) — only
-            // send when the target site itself publishes a contact email. lead?.email
-            // (the customer's own contact) must never be used as a stand-in for a
-            // partner site's address, so there is no fallback here.
-            const contact = await discoverContactEmail(opportunity.targetUrl);
-            await db
-              .update(backlinkOpportunities)
-              .set({ contactEmail: contact.email, contactSource: contact.source })
-              .where(eq(backlinkOpportunities.id, opportunity.id));
-            if (!contact.email) {
-              await db
-                .update(operatorTasks)
-                .set({ status: "draft_generated", detail: `${task.detail} | no published contact found on target site` })
-                .where(eq(operatorTasks.id, task.id));
-              continue;
-            }
-            try {
-              const aiPitch = await generateOutreachPitch({
-                businessName,
-                city: cityFromAddress(business?.address),
-                targetName: opportunity.sourceName,
-                targetUrl: opportunity.targetUrl ?? "",
-                referenceUrl: publishedReference,
-                changeSummary: changeResult.summary,
-              });
-              const pitch = aiPitch ??
-                "We have a newly refreshed local visibility page and can provide an audience-relevant contribution tied to current service-area demand.";
-              const sendResult = await sendOutreachEmail({
-                to: contact.email,
-                businessName,
-                targetName: opportunity.sourceName,
-                angle: "Local resource collaboration",
-                pitch,
-                referenceUrl: publishedReference,
-              });
-              if (sendResult.ok && !sendResult.skipped) {
-                await db.update(operatorTasks).set({ status: "sent" }).where(eq(operatorTasks.id, task.id));
-                await db.update(backlinkOpportunities).set({ status: "awaiting_response" }).where(eq(backlinkOpportunities.id, opportunity.id));
-                outreachSentThisRun += 1;
-              }
-            } catch (error) {
-              await db
-                .update(operatorTasks)
-                .set({
-                  status: "draft_generated",
-                  detail: `${task.detail} | send_error: ${error instanceof Error ? error.message : "unknown"}`,
-                })
-              .where(eq(operatorTasks.id, task.id));
-            }
-          }
-        } // end if (realProspects.length > 0)
-      }
-      actionItems.push({
+      // Re-observe the public footprint (informational activity log entry, not a task).
+      await db.insert(operatorTasks).values({
         id: randomUUID(),
         businessId,
         title: "Public-footprint refresh",
@@ -1082,7 +788,6 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
         queue: "change_detection",
         status: "completed",
       });
-      await db.insert(operatorTasks).values(actionItems.slice(0, Math.max(runProfile.actionItems, actionItems.length)));
 
       await db
         .update(jobs)
@@ -1093,14 +798,12 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
             completedAt,
             snapshotId,
             runSummary: {
-              contentIdeas: runProfile.contentIdeas,
-              draftsGenerated: runProfile.drafts,
-              publishingJobsQueued: runProfile.publishingJobs,
-              reviewTasksQueued: runProfile.reviewTasks,
-              backlinkOpportunitiesQueued: runProfile.backlinkOpportunities,
-              aiChecksCompleted: runProfile.aiChecks,
-              monthlyActionItemsQueued: runProfile.actionItems,
-              outreachDraftsGenerated: runProfile.outreachDrafts,
+              // Real outcomes only — these used to echo the plan's target
+              // counts (e.g. "2 outreach drafts generated") regardless of
+              // whether anything actually happened.
+              contentQueuedFromVerifiedFacts: contentPlan.queued,
+              contentEngineState: contentPlan.state,
+              aiChecksCompleted: aiChecksThisRun,
               publishedThisRun,
               outreachSentThisRun,
               // Automation Activity — total work completed to date, never a
@@ -1142,10 +845,13 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
           completedAt,
           highlights: [
             "Visibility score refreshed and history updated.",
-            `${runProfile.aiChecks} AI visibility checks completed.`,
-            `${runProfile.contentIdeas} content ideas queued${runProfile.drafts ? `, ${runProfile.drafts} drafts generated` : ""}.`,
-            `${runProfile.reviewTasks} review tasks, ${runProfile.backlinkOpportunities} authority opportunities queued.`,
-            `${runProfile.outreachDrafts} outreach drafts generated. ${changeResult.summary}`,
+            aiChecksThisRun > 0 ? `${aiChecksThisRun} AI visibility checks completed.` : "AI visibility checks run monthly (none due this cycle).",
+            contentPlan.queued > 0
+              ? `${contentPlan.queued} new page${contentPlan.queued === 1 ? "" : "s"} planned from your website's own information.`
+              : contentPlan.state === "awaiting_publishing_connection"
+                ? "Connect your website once so GravyBlock can publish for you."
+                : "No new content was needed this cycle.",
+            changeResult.summary,
           ],
           workspaceUrl,
         });

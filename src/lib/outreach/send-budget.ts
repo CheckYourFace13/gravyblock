@@ -14,6 +14,8 @@ import { getDb, jobs } from "@/lib/db";
 const COLD_JOB_TYPE = "cold_outreach_sent";
 const FOLLOWUP_JOB_TYPE = "cold_outreach_followup_sent";
 const BREAKUP_JOB_TYPE = "cold_outreach_breakup_sent";
+const AUTHORITY_JOB_TYPE = "authority_outreach_sent";
+const AUTHORITY_FOLLOWUP_JOB_TYPE = "authority_followup_sent";
 const RESTART_JOB_TYPE = "cold_outreach_restart";
 
 /** One combined ceiling for cold + follow-up + breakup sends per UTC day. */
@@ -35,13 +37,18 @@ async function countJobsToday(jobType: string): Promise<number> {
   return row?.n ?? 0;
 }
 
-export async function getTodaysSendCounts(): Promise<{ cold: number; followup: number; breakup: number; total: number }> {
-  const [cold, followup, breakup] = await Promise.all([
+export async function getTodaysSendCounts(): Promise<{ cold: number; followup: number; breakup: number; authority: number; total: number }> {
+  const [cold, followup, breakup, authoritySent, authorityFollowup] = await Promise.all([
     countJobsToday(COLD_JOB_TYPE),
     countJobsToday(FOLLOWUP_JOB_TYPE),
     countJobsToday(BREAKUP_JOB_TYPE),
+    countJobsToday(AUTHORITY_JOB_TYPE),
+    countJobsToday(AUTHORITY_FOLLOWUP_JOB_TYPE),
   ]);
-  return { cold, followup, breakup, total: cold + followup + breakup };
+  // Customer authority outreach shares the same sending domain, so it counts
+  // against the same 100/day ceiling as GravyBlock's own acquisition email.
+  const authority = authoritySent + authorityFollowup;
+  return { cold, followup, breakup, authority, total: cold + followup + breakup + authority };
 }
 
 /** Budget left against the shared ceiling right now — never negative. */

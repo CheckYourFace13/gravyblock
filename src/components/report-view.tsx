@@ -240,7 +240,7 @@ export function ReportView({
             <section className="rounded-2xl border border-red-200 bg-red-50/50 p-5 shadow-sm">
               <h2 className="text-lg font-semibold text-zinc-900">Here&apos;s what&apos;s holding {payload.business.name} back.</h2>
               <p className="mt-1 text-sm text-zinc-700">
-                Let GravyBlock start working on these — weekly content, citations, review monitoring, and backlink outreach. Scan your own business to get started free.
+                Let GravyBlock start working on these — website content, Google posts, citation consistency checks, review monitoring, and local outreach. Scan your own business to get started free.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Link
@@ -483,7 +483,7 @@ export function ReportView({
                   <div className="mt-3 rounded-lg border border-red-200 bg-white p-3">
                     <p className="text-sm font-semibold text-zinc-900">Are you sure you want to skip Growth?</p>
                     <p className="mt-1 text-xs text-zinc-600">
-                      Scale adds the full execution layer: AI drafts, Reddit posting, multi-step outreach, and backlink queue.
+                      Scale adds the scheduled work: website content, weekly Google Business Profile posts, automatic Google review replies, Facebook and Instagram posting, and personalized local outreach.
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Link

@@ -51,7 +51,7 @@ function buildEmail(attempt: number, ctx: { name: string; businessName: string; 
           A while back you ran a free visibility scan for <strong>${businessName}</strong>. Since then Starter dropped to <strong>$29.99/mo</strong> for your first month with code INTRO50.
         </p>
         <p style="color:#52525b;font-size:14px;margin:12px 0">
-          It still runs the same way: visibility monitoring, a monthly fix list, citation checklist, and AI search checks — no manual work on your end.
+          It still runs the same way: visibility monitoring, a monthly fix list, citation consistency checks, and AI search checks.
         </p>
         ${btn(reportUrl, "See your report again →")}
         <p style="color:#71717a;font-size:13px;margin:20px 0 0">If it's not a fit, no worries — reply "no thanks" and you won't hear from me again.</p>

@@ -11,13 +11,13 @@ export default function ForRealEstateAgentsPage() {
     <VerticalLanding
       eyebrow="Real estate agents"
       title="Buyers and sellers Google agents in their area before they reach out to anyone. Win that first impression."
-      body="Real estate is the most local of all local businesses. Buyers search by neighborhood, by school district, by zip code. The agent who ranks first in those searches gets the call. GravyBlock builds your content, grows your reviews, and keeps your profile sharp so you look like the obvious local expert."
+      body="Real estate is the most local of all local businesses. Buyers search by neighborhood, by school district, by zip code. The agent who ranks first in those searches gets the call. GravyBlock publishes content from your own website's facts, monitors your reviews, and keeps your Google profile active with weekly posts."
       bullets={[
-        "Optimize your GBP and website for buyer, seller, and neighborhood-specific search terms.",
+        "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Publish weekly neighborhood guides, market update articles, and local area content that rank for city searches.",
         "Track Google rankings for 'real estate agent near me' and neighborhood-specific searches.",
-        "Monitor reviews on Google and Zillow, the two biggest trust signals for buyers and sellers.",
-        "Send backlink outreach to local news, community boards, and real estate directories.",
+        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor replies are drafted for you to paste.",
+        "Send personalized outreach to relevant local organizations. A link only counts once verified live; links are never guaranteed.",
         "Track AI search visibility. Home buyers increasingly use ChatGPT and Perplexity to find agents.",
       ]}
       ctaHref="/scan"

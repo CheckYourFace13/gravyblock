@@ -10,11 +10,13 @@
  * Runs once per week per business — gated by hasJobRunThisWeek per businessId.
  */
 
-import { eq, and, inArray, desc, gte } from "drizzle-orm";
+import { eq, and, inArray, desc, gte, ne } from "drizzle-orm";
 import { getDb, businesses, publishedContent, jobs } from "@/lib/db";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
 import { createGbpPost, isGbpConnected } from "@/lib/integrations/gbp-write";
 import { normalizePlanTierFromDb } from "@/lib/plans";
+import { ensureFreshTruth } from "@/lib/truth";
+import { containsPlaceholderArtifact } from "@/lib/content-gen/quality-guard";
 
 const ELIGIBLE_TIERS = ["growth", "pro", "agency"];
 
@@ -26,33 +28,36 @@ const STYLE_RULES = `Writing rules:
 
 async function generateGbpPost(params: {
   businessName: string;
-  city: string;
-  articleTitle: string;
-  articleExcerpt: string;
+  city: string | null;
+  topicTitle: string;
+  topicExcerpt: string;
+  truthBlock: string;
 }): Promise<string | null> {
   return openRouterChat({
     model: MODELS.content,
     messages: [{
       role: "user",
-      content: `Write a Google Business Profile post for ${params.businessName} in ${params.city}.
+      content: `${params.truthBlock}
 
-Topic: "${params.articleTitle}"
-Article excerpt:
-${params.articleExcerpt.slice(0, 1500)}
+Write a Google Business Profile post for ${params.businessName}${params.city ? ` in ${params.city}` : ""}.
+
+Topic (from the company's own website): "${params.topicTitle}"
+Source text:
+${params.topicExcerpt.slice(0, 1500)}
 
 ${STYLE_RULES}
 
 Requirements:
-- 150-250 words
-- Start with an engaging local hook (mention ${params.city})
-- Share one useful insight from the article
-- End with a soft CTA like "Learn more on our website" or "Call us today"
-- No markdown formatting, no hashtags, plain text paragraphs
+- 80-200 words, plain text paragraphs
+- Use ONLY the verified facts above and the source text; do not invent offers, prices, dates, staff or claims
+- Start with a natural hook${params.city ? ` (mention ${params.city} only because it is a verified fact above)` : ""}
+- End with a soft CTA like "Learn more on our website"
+- No markdown formatting, no hashtags
 
 Write the Google post now.`,
     }],
     maxTokens: 350,
-    temperature: 0.75,
+    temperature: 0.5,
   });
 }
 
@@ -110,42 +115,58 @@ export async function runGbpPostBatch(
     processed++;
 
     try {
-      // Get their latest published article
+      // Topic comes from what the company itself published: a page GravyBlock
+      // published to their real website, else the newest page on their own site
+      // (Business Truth layer), else a service they list. Never invented.
+      const truth = await ensureFreshTruth(biz.id);
+      if (!truth.sufficient) continue;
       const [article] = await db
-        .select({ title: publishedContent.title, body: publishedContent.body })
+        .select({ title: publishedContent.title, body: publishedContent.body, publicUrl: publishedContent.publicUrl })
         .from(publishedContent)
         .where(and(
           eq(publishedContent.businessId, biz.id),
           eq(publishedContent.status, "published"),
+          ne(publishedContent.channel, "internal_site"),
         ))
         .orderBy(desc(publishedContent.createdAt))
         .limit(1);
+      const recentFact = truth.facts
+        .filter((f) => f.key === "recent_content")
+        .sort((a, b) => (b.sourceUpdatedAt ?? b.fetchedAt).getTime() - (a.sourceUpdatedAt ?? a.fetchedAt).getTime())[0];
+      const topic = article
+        ? { title: article.title, excerpt: article.body, url: article.publicUrl }
+        : recentFact
+          ? { title: recentFact.value, excerpt: recentFact.value, url: recentFact.sourceUrl }
+          : truth.services[0]
+            ? { title: truth.services[0], excerpt: truth.services[0], url: null as string | null }
+            : null;
+      if (!topic) continue;
 
-      if (!article) continue;
-
-      const city = cityFromAddress(biz.address);
       const postText = await generateGbpPost({
-        businessName: biz.name,
-        city,
-        articleTitle: article.title,
-        articleExcerpt: article.body,
+        businessName: truth.businessName || biz.name,
+        city: truth.verifiedCity,
+        topicTitle: topic.title,
+        topicExcerpt: topic.excerpt,
+        truthBlock: truth.promptBlock,
       });
 
-      if (!postText) continue;
+      if (!postText || containsPlaceholderArtifact(postText)) continue;
 
+      const ctaUrl = topic.url ?? biz.website ?? undefined;
       const result = await createGbpPost(biz.id, {
         summary: postText.trim(),
-        callToActionType: biz.website ? "LEARN_MORE" : undefined,
-        callToActionUrl: biz.website ?? undefined,
+        callToActionType: ctaUrl ? "LEARN_MORE" : undefined,
+        callToActionUrl: ctaUrl,
       });
 
       if (result.ok) {
         posted++;
         // Record per-business so we don't re-post this week
         await db.insert(jobs).values({
+          businessId: biz.id,
           type: `gbp_post_${biz.id}`,
           status: "completed",
-          payload: { businessId: biz.id, postName: result.postName, articleTitle: article.title },
+          payload: { businessId: biz.id, postName: result.postName, articleTitle: topic.title, topicUrl: topic.url },
         });
         console.info("[gbp-post-publisher] published GBP post", {
           businessId: biz.id,

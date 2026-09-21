@@ -116,7 +116,7 @@ function getSeoTips(score: number | null): ImprovementTip[] {
   if (score < 80) tips.push({ text: "GravyBlock publishes weekly SEO articles with local keywords — each one signals to Google that your business is active", automated: true, priority: "high" });
   if (score < 70) tips.push({ text: "Get to 20+ Google reviews — review velocity is one of the top 3 local ranking factors", automated: false, priority: "high" });
   if (score < 65) tips.push({ text: "Claim listings on Yelp, Bing Places, Apple Maps, and BBB — citation signals directly lift your SEO score", automated: false, priority: "high" });
-  if (score < 60) tips.push({ text: "GravyBlock generates directory profile copy and claim links for you — check your Action Items below", automated: true, priority: "medium" });
+  if (score < 60) tips.push({ text: "Claim your business on directories yourself — GravyBlock does not submit to directories", automated: false, priority: "medium" });
   if (score < 55) tips.push({ text: "Connect Google Search Console to see which keywords you rank for and track improvement over time", automated: false, priority: "medium" });
   if (score < 50) tips.push({ text: "Fix technical SEO issues flagged in your Tech Audit section below (missing schema, slow load, etc.)", automated: false, priority: "high" });
   return tips.slice(0, 5);
@@ -148,11 +148,11 @@ function getGeoTips(score: number | null): ImprovementTip[] {
 function getEntityTips(score: number | null): ImprovementTip[] {
   if (score === null) return [];
   const tips: ImprovementTip[] = [];
-  if (score < 80) tips.push({ text: "GravyBlock runs monthly citation audits to flag NAP inconsistencies across Yelp, BBB, Apple Maps, and more", automated: true, priority: "high" });
+  if (score < 80) tips.push({ text: "GravyBlock checks that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook, and alerts you when they drift", automated: true, priority: "high" });
   if (score < 60) tips.push({ text: "Claim your Yelp, Apple Maps, Bing Places, and Facebook Business pages — each one adds 8–15 points to entity score", automated: false, priority: "high" });
   if (score < 50) tips.push({ text: "Make sure your Name, Address, and Phone are identical everywhere — even formatting differences (St vs Street) hurt this score", automated: false, priority: "high" });
   if (score < 40) tips.push({ text: "Add Instagram or Facebook profile to your Business Profile below — social presence adds significant entity signals", automated: false, priority: "medium" });
-  if (score < 30) tips.push({ text: "GravyBlock generates pre-written directory profile copy you can paste — check Action Items for your claim links", automated: true, priority: "medium" });
+  if (score < 30) tips.push({ text: "Add matching business details when you claim each listing", automated: false, priority: "medium" });
   return tips.slice(0, 4);
 }
 
@@ -195,9 +195,9 @@ export function ScoresOverviewSection({
 
   const topAction = (() => {
     if ((geoScore ?? 0) === 0 && probesRun === 0) return "Set your Market Scope in Business Profile — wrong scope means AI probes ask the wrong questions and always return 0";
-    if ((geoScore ?? 0) === 0) return "GEO is 0 — AI hasn't mentioned you yet. GravyBlock is publishing citation-worthy content. First mentions typically appear after 60–90 days.";
+    if ((geoScore ?? 0) === 0) return "GEO is 0 — AI hasn't mentioned you yet. GravyBlock publishes content from your own website's facts. Mentions are not guaranteed and can take 60–90 days.";
     if ((entityScore ?? 100) < 30) return "Entity score is low — claim your Yelp, BBB, and Apple Maps listings to fix it fast";
-    if ((seoScore ?? 100) < 50) return "SEO score needs work — focus on reviews and directory citations this month";
+    if ((seoScore ?? 100) < 50) return "SEO score needs work — focus on reviews and consistent business details this month";
     return null;
   })();
 
@@ -285,7 +285,7 @@ export function ScoresOverviewSection({
           {(entityScore ?? 100) < 40 && (
             <li className="flex items-start gap-2">
               <span className="mt-0.5 shrink-0 text-amber-500">○</span>
-              <span className="text-amber-800 font-medium">Entity score needs your attention — check Action Items for directory claim links</span>
+              <span className="text-amber-800 font-medium">Entity score needs your attention — check that your business details match everywhere</span>
             </li>
           )}
           {(geoScore ?? 100) === 0 && probesRun > 0 && (

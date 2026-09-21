@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/pricing" },
   title: "Pricing — GravyBlock Local SEO Automation",
   description:
-    "GravyBlock pricing: Starter $59.99/mo (intro $29.99, first month), Scale $149.99/mo ($74.99/mo locked for as long as you stay subscribed), Pro $299.99/mo (intro $149.99, first month). No contracts, cancel anytime.",
+    "GravyBlock pricing: Starter $59.99/mo (INTRO50: $29.99 for the first month), Scale $149.99/mo (GROWTH50: $74.99/mo, locked for as long as you stay subscribed), Pro $299.99/mo (INTRO50: $149.99 for the first month). No contracts, cancel anytime.",
 };
 
 const plans = [
@@ -20,16 +20,16 @@ const plans = [
     bullets: [
       "Monthly visibility score + trend history",
       "4 AI content ideas/mo with outlines",
-      "Monthly citation checklist — industry-matched directory list with your exact business data ready to copy",
+      "Citation consistency checks — your name, phone and address compared across your website, Google, and (where connected) Yelp and Facebook, with drift alerts",
       "Listing watchdog — weekly alerts when Google silently edits your hours, phone, or name",
-      "Review fix queue with flagged unanswered reviews",
+      "Review monitoring with alerts for new and negative reviews",
       "AI search check (ChatGPT, Perplexity, Google AI)",
       "Monthly progress email with score delta",
       "Full workspace dashboard",
     ],
     notIncluded: [
       "Auto-publishing content to your site",
-      "Backlink outreach emails",
+      "Local outreach pitches",
       "Social media posting",
     ],
     cta: "Start Starter",
@@ -47,25 +47,23 @@ const plans = [
     // applies to every renewal, not just month one (unlike INTRO50 on the
     // other two plans). priceLocked drives the true copy below.
     priceLocked: true,
-    tagline: "Full autopilot — content, outreach, and social running every week.",
+    tagline: "Content, Google posts, review replies, outreach, and social running on a schedule.",
     bullets: [
       "Everything in Starter",
       "Weekly AI articles written and published to your site",
-      "Weekly Google Business Profile posts, photo uploads & Q&A — with Google connected",
-      "Review replies posted to Google automatically (or ready to paste for Yelp & TripAdvisor)",
+      "Weekly Google Business Profile posts and your own website images added to your profile — with Google connected",
+      "Review replies posted to Google automatically (Yelp & TripAdvisor replies are drafted for you to paste)",
       "Real Google Maps ranking checks every week",
-      "Review spotlights — your best reviews turned into ready-to-approve social posts",
-      "Up to 8 backlink outreach attempts/month to local sites — only to a real published contact, never a guessed address",
-      "Facebook + Instagram auto-posting",
+      "Review spotlights — your real 5-star reviews shared on your connected Facebook Page",
+      "Up to 8 personalized outreach attempts/month to relevant local organizations — only to a real published contact, never a guessed address. Links are never guaranteed and only counted once verified live",
+      "Facebook + Instagram posting with no per-post approval — once your Facebook Page is connected",
       "Weekly visibility refreshes (vs. monthly on Starter)",
       "AEO, GEO, and Entity scores alongside your SEO score",
       "Schema markup injected into every published article",
-      "AI Citation Monitor — tracks whether ChatGPT mentions your business",
+      "AI visibility checks — monthly check of whether AI assistants mention your business",
     ],
     notIncluded: [
-      "Programmatic city pages",
       "Multi-location support",
-      "Lead pipeline (competitor outreach)",
     ],
     cta: "Start Scale",
     href: "/start?plan=growth&promo=GROWTH50",
@@ -78,12 +76,10 @@ const plans = [
     intro: 149.99,
     highlight: false,
     priceLocked: false,
-    tagline: "Double the output, programmatic pages, and competitor lead pipeline.",
+    tagline: "Double the output, more local pages, and up to 3 locations.",
     bullets: [
       "Everything in Scale, twice as often",
       "12 articles + 8 local SEO pages/month",
-      "Programmatic pages for every city you serve",
-      "Lead pipeline: finds and pitches weak local competitors",
       "Up to 3 locations included",
       "Priority support",
     ],
@@ -97,7 +93,7 @@ const plans = [
 const faqs = [
   {
     q: "What does 'automated' actually mean?",
-    a: "GravyBlock runs on a schedule — you do not have to log in each week. Articles are written and published to your site automatically. Google Business Profile posts go out. Backlink outreach goes out to real, published contacts on local sites when one can be found. Review alerts surface in your inbox. Your visibility score refreshes. All without you initiating anything.",
+    a: "GravyBlock runs on a schedule — you do not have to log in each week. Articles are written from your own website's facts and published to your connected site automatically. Google Business Profile posts go out. Google review replies are posted automatically. Outreach goes to real, published contacts of relevant local organizations when one can be found, and a link is only counted once it is verified live. Review alerts surface in your inbox. Your visibility score refreshes. All without you initiating anything.",
   },
   {
     q: "Do I need to know anything about SEO?",
@@ -113,11 +109,11 @@ const faqs = [
   },
   {
     q: "What do I need to connect for content to publish automatically?",
-    a: "For WordPress, you install the GravyBlock plugin and connect it in your workspace. For other platforms (Webflow, Squarespace, Wix), you can copy and paste drafted content or connect via webhook. Publishing without a connection defaults to 'internal draft' — you get the content, you publish it.",
+    a: "You connect your WordPress, Webflow or Shopify website once in your workspace. For other platforms (Squarespace, Wix and others), content is not published automatically: you get drafted content to paste in yourself.",
   },
   {
     q: "How is GravyBlock different from BrightLocal or Yext?",
-    a: "BrightLocal is built for SEO agencies managing many clients — it produces reports you still have to act on. Yext is an enterprise listing sync tool. GravyBlock does the work automatically: writes and publishes content, sends outreach, monitors reviews, and tracks rankings. No agency needed.",
+    a: "BrightLocal and Yext are established tools that today offer listing management, review tools and reporting, generally priced for agencies and larger businesses. GravyBlock is a lower-cost option focused on publishing content from your own website's facts, weekly Google Business Profile posts, Google review replies, local outreach, and rank tracking, without an agency.",
   },
   {
     q: "Is the free scan really free?",
@@ -194,7 +190,7 @@ export default function PricingPage() {
                   <p className="text-xs text-zinc-400 line-through">${plan.monthly}/mo regular</p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-4xl font-black text-zinc-900">${plan.intro}</span>
-                    <span className="text-sm text-zinc-500">/mo</span>
+                    <span className="text-sm text-zinc-500">{plan.priceLocked ? "/mo" : " first month"}</span>
                   </div>
                   <p className="text-[11px] font-semibold text-emerald-600 mt-0.5">
                     {plan.priceLocked
@@ -232,7 +228,7 @@ export default function PricingPage() {
                   href={plan.href}
                   className={`mt-6 flex justify-center rounded-full px-4 py-2.5 text-sm font-bold transition ${plan.ctaStyle}`}
                 >
-                  {plan.cta} — ${plan.intro}/mo
+                  {plan.cta} — ${plan.intro}{plan.priceLocked ? "/mo" : " first month"}
                 </Link>
                 <Link
                   href={`${plan.href}&interval=annual`}
@@ -288,16 +284,16 @@ export default function PricingPage() {
                     <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">The agency — usually with contracts and slow turnaround</td>
                   </tr>
                   <tr>
-                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-zinc-100">Reporting tools <span className="text-zinc-400 font-normal">(BrightLocal, Semrush)</span></td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">$29–$50</td>
+                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-zinc-100">Reporting tools <span className="text-zinc-400 font-normal">(BrightLocal, Semrush and similar)</span></td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Varies (plans start from roughly $30–$50)</td>
                     <td className="px-4 py-3.5 text-red-600 font-medium border-t border-zinc-100">5+ hrs/week</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Still you — they report problems, you fix them</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Varies by tool and plan; typically you or an agency configure and run the work</td>
                   </tr>
                   <tr className="bg-red-50/60">
                     <td className="px-4 py-3.5 font-bold text-zinc-900 border-t border-red-100">GravyBlock</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">$29.99–$299</td>
+                    <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">$59.99–$299.99</td>
                     <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">~0 hrs/week</td>
-                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-red-100">GravyBlock — content published, GBP managed, reviews handled, automatically</td>
+                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-red-100">GravyBlock — website content published, Google posts and Google review replies handled on a schedule</td>
                   </tr>
                 </tbody>
               </table>
@@ -328,23 +324,21 @@ export default function PricingPage() {
                   ["Visibility score + history", "Monthly", "Weekly", "Weekly"],
                   ["Content ideas/mo", "4", "Unlimited", "Unlimited"],
                   ["AI articles published to your site", "—", "Weekly", "2× weekly"],
-                  ["Google Business Profile posts, photos & Q&A", "—", "Weekly", "Weekly"],
+                  ["Google Business Profile posts and photos", "—", "Weekly", "Weekly"],
                   ["Google review replies posted automatically", "—", "✓", "✓"],
                   ["Real Google Maps ranking checks", "—", "Weekly", "Weekly"],
                   ["Listing watchdog (Google edit alerts)", "Weekly", "Weekly", "Weekly"],
-                  ["Review spotlight social posts", "—", "✓", "✓"],
-                  ["Backlink outreach attempts/mo (real contacts only)", "—", "up to 8", "up to 16"],
-                  ["Facebook + Instagram auto-posting", "—", "✓", "✓"],
-                  ["Review inbox + AI reply drafts", "—", "✓", "✓"],
-                  ["Review reminders + AI reply drafts", "—", "✓", "✓"],
-                  ["Citation checklist (industry-matched directories)", "Monthly", "Weekly", "Weekly"],
-                  ["AI Citation Monitor (ChatGPT etc.)", "Basic", "Full", "Full"],
+                  ["Review spotlight posts to your Facebook Page", "—", "✓", "✓"],
+                  ["Local outreach attempts/mo (real contacts only, links not guaranteed)", "—", "up to 8", "up to 16"],
+                  ["Facebook + Instagram posting (no per-post approval)", "—", "✓", "✓"],
+                  ["Review monitoring (Google, Yelp, TripAdvisor)", "✓", "✓", "✓"],
+                  ["Weekly review reminder + shareable review link (sent to you)", "—", "✓", "✓"],
+                  ["Citation consistency checks + drift alerts", "✓", "✓", "✓"],
+                  ["AI visibility checks (monthly)", "✓", "✓", "✓"],
                   ["AEO / GEO / Entity scores", "—", "✓", "✓"],
                   ["Schema markup generator", "—", "✓", "✓"],
-                  ["Programmatic city pages", "—", "—", "✓"],
-                  ["Lead pipeline (competitor outreach)", "—", "—", "✓"],
                   ["Locations included", "1", "1", "3"],
-                  ["Price (intro, first month)", "$29.99", "$74.99", "$149.99"],
+                  ["Price with promo code", "$29.99 first month (INTRO50)", "$74.99/mo, locked while subscribed (GROWTH50)", "$149.99 first month (INTRO50)"],
                 ].map(([feature, starter, scale, pro]) => (
                   <tr key={feature} className="hover:bg-white/60">
                     <td className="py-3 pr-4 text-zinc-700">{feature}</td>

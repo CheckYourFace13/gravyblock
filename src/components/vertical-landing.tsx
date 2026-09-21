@@ -1,14 +1,9 @@
 import Link from "next/link";
+import { localPageCapabilityBullets } from "@/lib/capabilities";
 
 const siteUrl = "https://gravyblock.com";
 
-const automationFeatures = [
-  "Weekly AI-written articles published to your website",
-  "8 backlink outreach emails per month, sent automatically",
-  "Facebook + Instagram auto-posting",
-  "Google ranking tracking + weekly visibility refreshes",
-  "AI search monitoring (ChatGPT, Perplexity, Gemini)",
-];
+const automationFeatures = localPageCapabilityBullets();
 
 export function VerticalLanding({
   eyebrow,
@@ -71,7 +66,7 @@ export function VerticalLanding({
       <p className="mt-3 text-xs text-zinc-500">Free scan, no credit card. Scale plan: $74.99/mo, locked while subscribed.</p>
 
       <div className="mt-12 rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-800">What GravyBlock automates on Scale ($74.99/mo)</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-800">What GravyBlock does on Scale ($149.99/mo, or $74.99/mo with GROWTH50, locked while subscribed)</p>
         <ul className="mt-4 grid gap-2 sm:grid-cols-2">
           {automationFeatures.map((f) => (
             <li key={f} className="flex items-start gap-2 text-sm text-zinc-700">
@@ -81,7 +76,7 @@ export function VerticalLanding({
           ))}
         </ul>
         <p className="mt-4 text-sm text-zinc-500">
-          Everything above runs automatically, every week. No logins, no instructions, no agency required.{" "}
+          After a one-time connection of your website, Google account and Facebook Page, this runs on a schedule. No agency required.{" "}
           <Link href="/scan" className="font-semibold text-red-800 hover:underline">Start with a free scan →</Link>
         </p>
       </div>

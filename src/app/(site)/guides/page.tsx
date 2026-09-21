@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Local SEO guides — how to rank higher on Google Maps & AI search | GravyBlock",
   description:
-    "Free local SEO guides for small business owners: how to rank on Google Maps, get more reviews, show up in AI search, build backlinks, and convert local visitors into customers.",
+    "Free local SEO guides for small business owners: how to rank on Google Maps, get more reviews, show up in AI search, earn local links, and convert local visitors into customers.",
   alternates: { canonical: "https://gravyblock.com/guides" },
 };
 
@@ -17,7 +17,7 @@ const guides = [
   {
     href: "/guides/local-citation-sites-usa",
     title: "Local citation sites USA — complete list for 2026",
-    description: "The top US directories to build NAP consistency: Tier 1 essentials, industry-specific sites, and how to keep them accurate automatically.",
+    description: "The top US directories to build NAP consistency: Tier 1 essentials, industry-specific sites, and how to keep them accurate.",
   },
   {
     href: "/guides/multi-location-local-seo",

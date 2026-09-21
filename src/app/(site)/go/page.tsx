@@ -4,15 +4,15 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Automated Local SEO for Small Businesses | GravyBlock",
   description:
-    "Stop paying an agency. GravyBlock publishes content, sends backlink outreach, monitors reviews, and tracks your Google rankings every week — automatically. Free scan, no credit card.",
+    "Stop paying an agency. GravyBlock publishes website content, posts to your Google Business Profile, replies to Google reviews, and tracks your Google rankings on a schedule. Free scan, no credit card.",
   robots: { index: false }, // Paid traffic page — keep SEO equity on homepage
 };
 
 const wins = [
-  { icon: "✍️", text: "AI articles published to your site every week" },
-  { icon: "🔗", text: "Backlink outreach emails sent monthly, automatically" },
-  { icon: "⭐", text: "Reviews monitored, AI reply drafts ready in your inbox" },
-  { icon: "📍", text: "Google Business Profile scored and fix queue updated" },
+  { icon: "✍️", text: "Articles written from your own website and published to your connected site" },
+  { icon: "🔗", text: "Personalized outreach to relevant local organizations; links counted only once verified live" },
+  { icon: "⭐", text: "Google review replies posted automatically once Google is connected" },
+  { icon: "📍", text: "Weekly Google Business Profile posts, using your own website images" },
   { icon: "🤖", text: "ChatGPT, Perplexity, Gemini checked for your business" },
   { icon: "📊", text: "Competitor comparison with review gap in every scan report" },
 ];
@@ -35,7 +35,7 @@ export default function GoPage() {
               Stop doing SEO.<br />Let it run itself.
             </h1>
             <p className="mt-5 text-lg text-zinc-600 leading-relaxed">
-              Local SEO agencies charge $1,000–$3,000/month. GravyBlock does the same work automatically for a fraction of the cost — publishing content, building backlinks, monitoring reviews, and tracking your Google rankings every single week.
+              Local SEO agencies charge $1,000–$3,000/month. GravyBlock is a lower-cost option that runs a defined set of that work on a schedule — publishing website content, posting to Google, replying to Google reviews, running local outreach, and tracking your Google rankings.
             </p>
 
             <ul className="mt-8 space-y-3">
@@ -58,7 +58,7 @@ export default function GoPage() {
               </div>
               <div className="border-t border-zinc-200 pt-2 flex justify-between text-sm">
                 <span className="font-semibold text-red-700">GravyBlock Scale</span>
-                <span className="font-bold text-emerald-700">$74.99/mo, hands-free</span>
+                <span className="font-bold text-emerald-700">$74.99/mo with GROWTH50, locked while subscribed</span>
               </div>
             </div>
           </div>

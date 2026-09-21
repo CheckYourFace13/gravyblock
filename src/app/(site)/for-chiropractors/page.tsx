@@ -11,13 +11,13 @@ export default function ForChiropractorsPage() {
     <VerticalLanding
       eyebrow="Chiropractors"
       title="Patients searching for back pain relief call the first chiropractor they trust on Google. Be that practice."
-      body="Chiropractic searches are high-intent and highly local. Someone searching 'chiropractor near me' is ready to book. GravyBlock keeps your Google profile optimized, your reviews growing, and your content publishing automatically, so new patients find you before they find your competitors."
+      body="Chiropractic searches are high-intent and highly local. Someone searching 'chiropractor near me' is ready to book. GravyBlock keeps your Google profile active with weekly posts, monitors your reviews, and publishes content from your own website's facts, to help new patients find you."
       bullets={[
-        "Optimize your GBP for back pain, neck pain, sports injury, auto accident, and pediatric chiropractic searches.",
+        "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Publish weekly patient-friendly content: condition guides, treatment FAQs, wellness tips, and local health articles.",
         "Track Google Map rankings for 'chiropractor near me' and condition-specific searches in your city.",
-        "Monitor reviews on Google and Healthgrades, the top trust signals for new chiropractic patients.",
-        "Send backlink outreach to local health, wellness, and sports community websites.",
+        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor replies are drafted for you to paste.",
+        "Send personalized outreach to relevant local organizations. A link only counts once verified live; links are never guaranteed.",
         "Track AI search mentions for health and pain relief queries in your area.",
       ]}
       ctaHref="/scan"

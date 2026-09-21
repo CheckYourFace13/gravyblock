@@ -15,22 +15,21 @@ const NEXT_TIER: Record<PlanTier, PlanTier | null> = {
 
 const UPSELL_PITCH: Record<string, { headline: string; bullets: string[] }> = {
   starter: {
-    headline: "Scale would have also done this week:",
+    headline: "What Scale adds:",
     bullets: [
-      "Written and published 1 SEO article to your site",
-      "Published 2 Google Business Profile posts to keep your listing active",
-      "Sent outreach to 2 local blogs or directories",
-      "Queued 2 backlink opportunities",
-      "Sent a 3-step follow-up sequence to warm leads",
+      "Articles and service pages written from your own website's facts and published to your connected site",
+      "A weekly Google Business Profile post and your own images added to your profile (once Google is connected)",
+      "Automatic replies to your Google reviews",
+      "Facebook and Instagram posting (once your Page is connected)",
+      "Up to 8 personalized outreach attempts a month to relevant local organizations (links are never guaranteed)",
     ],
   },
   growth: {
-    headline: "Pro would have also done this week:",
+    headline: "What Pro adds:",
     bullets: [
-      "Built 2 programmatic SEO pages targeting your city + service combos",
-      "Synced and posted to Google Business Profile",
-      "Monitored all 3 of your business locations",
-      "Queued 5 citation fixes and 5 review tasks",
+      "Twice the publishing volume",
+      "Up to 3 locations",
+      "Up to 16 outreach attempts a month",
     ],
   },
 };
@@ -157,7 +156,7 @@ async function sendUpsellEmail(
     <ul style="margin:8px 0 0;padding-left:20px;color:#3f3f46;font-size:14px;line-height:1.8">
       <li><strong>${activity.contentQueued}</strong> content ideas queued</li>
       <li><strong>${activity.articlesPublished}</strong> articles published</li>
-      <li><strong>${activity.tasksDone}</strong> tasks completed (citations, reviews)</li>
+      <li><strong>${activity.tasksDone}</strong> tasks logged</li>
     </ul>
   </div>
 
@@ -171,14 +170,14 @@ async function sendUpsellEmail(
   <p style="color:#52525b;font-size:14px;margin:16px 0">
     ${nextTier === "growth"
       ? `Upgrade to <strong>${nextFeatures.label}</strong> for $${nextFeatures.introPrice}/month, locked for as long as you stay subscribed (code <strong>GROWTH50</strong>).`
-      : `Upgrade to <strong>${nextFeatures.label}</strong> for $${nextFeatures.introPrice}/month introductory pricing (use code <strong>INTRO50</strong>).`}
+      : `Upgrade to <strong>${nextFeatures.label}</strong> for $${nextFeatures.introPrice} for the first month (code <strong>INTRO50</strong>), then the regular price.`}
   </p>
 
   <div style="margin:16px 0;padding:14px 16px;background:#fafafa;border:1px solid #e4e4e7;border-radius:10px">
     <p style="margin:0;font-size:12px;font-weight:700;color:#52525b;text-transform:uppercase;letter-spacing:0.1em">Competitor insight</p>
     <p style="margin:6px 0 0;font-size:13px;color:#3f3f46;line-height:1.6">
-      BrightLocal charges $29–$79/month just for citation tracking. Yext charges $199+/year just for listing sync.
-      GravyBlock automates citations, content, reviews, AND tracks your AI search visibility — all in one.
+      BrightLocal, Yext and similar tools offer listing management and reporting. GravyBlock is a lower-cost option focused on
+      website content, Google Business Profile posts, Google review replies, and AI search visibility checks.
     </p>
   </div>
   <div style="display:flex;gap:12px;flex-wrap:wrap">

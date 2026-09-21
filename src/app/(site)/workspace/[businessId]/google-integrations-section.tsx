@@ -91,9 +91,8 @@ export function GoogleIntegrationsSection({
             <p className="font-semibold text-zinc-900">What you get</p>
             <ul className="mt-2 space-y-1 text-xs text-zinc-600">
               <li>✓ Real keyword rankings, clicks, and impressions from Search Console</li>
-              <li>✓ AI-written GBP posts published directly, no copy-pasting</li>
-              <li>✓ Automated review replies drafted and sent</li>
-              <li>✓ Q&As posted to your profile automatically</li>
+              <li>✓ A weekly GBP post published directly, plus your own website images</li>
+              <li>✓ Replies to your Google reviews posted automatically</li>
             </ul>
           </div>
 
@@ -111,9 +110,8 @@ export function GoogleIntegrationsSection({
             <p className="font-semibold text-zinc-900">What you get after connecting</p>
             <ul className="mt-2 space-y-1 text-xs text-zinc-600">
               <li>✓ Real keyword rankings from Search Console (not estimates)</li>
-              <li>✓ GBP posts published directly from your automation queue</li>
-              <li>✓ Review replies sent automatically</li>
-              <li>✓ Q&As added to your Google Business Profile</li>
+              <li>✓ A weekly GBP post published directly, plus your own website images</li>
+              <li>✓ Google review replies posted automatically</li>
             </ul>
           </div>
           <a

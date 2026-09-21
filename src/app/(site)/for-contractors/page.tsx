@@ -11,13 +11,13 @@ export default function ForContractorsPage() {
     <VerticalLanding
       eyebrow="Contractors"
       title="Most homeowners call the first contractor they find and trust on Google. Be that contractor."
-      body="Contractor leads are local and high-value. Homeowners search, compare the first 3 results, and call whoever looks most trustworthy. GravyBlock keeps your Google Business Profile optimized, publishes service-area content for every city you work in, and tracks your ranking. All automatically."
+      body="Contractor leads are local and high-value. Homeowners search, compare the first 3 results, and call whoever looks most trustworthy. GravyBlock keeps your Google Business Profile active with weekly posts, publishes service-area content from your own website's facts, and tracks your ranking."
       bullets={[
-        "Optimize your GBP for every service: roofing, HVAC, electrical, plumbing, remodeling, and more.",
+        "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Publish weekly content: project spotlights, how-to guides, city-specific service pages.",
         "Track Google Map rankings for high-intent searches like 'contractor near me' by city and service.",
-        "Build review volume. GravyBlock monitors count and recency on Google and HomeAdvisor.",
-        "Send backlink outreach to local home improvement blogs, realty sites, and neighborhood boards.",
+        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor replies are drafted for you to paste.",
+        "Send personalized outreach to relevant local organizations. A link only counts once verified live; links are never guaranteed.",
         "Track AI search visibility so your business gets mentioned when homeowners ask for contractor recommendations.",
       ]}
       ctaHref="/scan"

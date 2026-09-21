@@ -1,5 +1,5 @@
-import { desc, eq, inArray } from "drizzle-orm";
-import { getDb, businesses, publishedContent, visibilitySnapshots } from "@/lib/db";
+import { and, desc, eq, inArray, like, sql } from "drizzle-orm";
+import { getDb, businesses, publishedContent, visibilitySnapshots, jobs, citationMonitors, backlinkOpportunities } from "@/lib/db";
 
 export type ShowcaseBusiness = {
   id: string;
@@ -10,8 +10,22 @@ export type ShowcaseBusiness = {
   scoreDelta: number | null;
   /** True when the latest snapshot uses a newer scoring methodology than the previous one — no comparable trend exists yet. */
   baselineJustEstablished: boolean;
-  articleCount: number;
-  recentArticles: Array<{ title: string; publicUrl: string }>;
+  /** Verified work only — a category appears only if real evidence exists for it. */
+  activity: ProofActivity;
+};
+
+export type ProofActivity = {
+  /** Pages published to the business's OWN website and confirmed live (HTTP 200). */
+  pagesLive: Array<{ title: string; publicUrl: string }>;
+  pagesLiveCount: number;
+  gbpPosts: number;
+  gbpPhotos: number;
+  socialPosts: number;
+  reviewReplies: number;
+  listingChecks: { checked: number; drift: number } | null;
+  authority: { outreachSent: number; followUps: number; liveLinks: Array<{ sourceName: string; url: string | null }> } | null;
+  siteChecks: { lastCheckedAt: string; healthy: boolean } | null;
+  factsRefreshedAt: string | null;
 };
 
 function cityFromAddress(address: string | null): string | null {
@@ -77,63 +91,105 @@ export async function getShowcaseBusinesses(): Promise<ShowcaseBusiness[]> {
       ).map((s) => ({ ...s, scoreMethodVersion: null as string | null })),
     );
 
-  const [snapshots, articles] = await Promise.all([
-    snapshotsQuery,
-    db
-      .select({
-        businessId: publishedContent.businessId,
-        title: publishedContent.title,
-        publicUrl: publishedContent.publicUrl,
-        status: publishedContent.status,
-        channel: publishedContent.channel,
-        createdAt: publishedContent.createdAt,
-      })
-      .from(publishedContent)
-      .where(inArray(publishedContent.businessId, ids))
-      .orderBy(desc(publishedContent.createdAt))
-      .limit(300),
-  ]);
+  const snapshots = await snapshotsQuery;
 
-  // A pre-fix content-gen bug (since corrected — see executor.ts's
-  // cityFromAddress fallback guard) left some already-published articles
-  // with a literal unsubstituted "your area" placeholder, or a generic
-  // "other Services..." title from an unset vertical, baked into the title
-  // itself. Old rows, can't be un-published retroactively without
-  // regenerating content — so exclude only the visibly-broken titles from
-  // this showcase rather than show them as "proof."
-  const BROKEN_TITLE_MARKERS = [/\byour area\b/i, /^other\s/i];
-  const isBrokenTitle = (title: string) => BROKEN_TITLE_MARKERS.some((re) => re.test(title));
+  return Promise.all(
+    visible.map(async (b) => {
+      const snaps = snapshots.filter((s) => s.businessId === b.id);
+      const latest = snaps[0]?.overallScore ?? null;
+      const previous = snaps[1]?.overallScore ?? null;
+      // A trend delta is only meaningful when both snapshots were produced by
+      // the same scoring formula.
+      const sameMethod =
+        snaps[0]?.scoreMethodVersion != null && snaps[0].scoreMethodVersion === snaps[1]?.scoreMethodVersion;
+      const scoreDelta = sameMethod && latest !== null && previous !== null ? latest - previous : null;
+      const baselineJustEstablished = !sameMethod && snaps[0]?.scoreMethodVersion != null && snaps.length > 0;
+      return {
+        id: b.id,
+        vertical: b.vertical && b.vertical.toLowerCase() !== "other" ? b.vertical : null,
+        name: b.name,
+        city: cityFromAddress(b.address),
+        score: latest,
+        scoreDelta,
+        baselineJustEstablished,
+        activity: await loadActivity(db, b.id),
+      };
+    }),
+  );
+}
 
-  return visible.map((b) => {
-    const snaps = snapshots.filter((s) => s.businessId === b.id);
-    // Count is real work — keep it even for broken-title rows. Only the
-    // linked title list below hides specific broken titles.
-    const published = articles.filter(
-      (a) => a.businessId === b.id && a.status === "published" && a.channel === "internal_site" && a.publicUrl,
-    );
-    const displayable = published.filter((a) => !isBrokenTitle(a.title));
-    const latest = snaps[0]?.overallScore ?? null;
-    const previous = snaps[1]?.overallScore ?? null;
-    // A trend delta is only meaningful when both snapshots were produced by
-    // the same scoring formula — comparing across a methodology change (e.g.
-    // the legacy "previousScore + 2" formula vs. visibility-v2) would show a
-    // fabricated-looking jump/drop that has nothing to do with real change.
-    const sameMethod =
-      snaps[0]?.scoreMethodVersion != null && snaps[0].scoreMethodVersion === snaps[1]?.scoreMethodVersion;
-    const scoreDelta = sameMethod && latest !== null && previous !== null ? latest - previous : null;
-    const baselineJustEstablished = !sameMethod && snaps[0]?.scoreMethodVersion != null && snaps.length > 0;
-    return {
-      id: b.id,
-      // "other" is Google's own fallback primary-category value, not a real
-      // category — showing it verbatim reads as broken, not honest.
-      vertical: b.vertical && b.vertical.toLowerCase() !== "other" ? b.vertical : null,
-      name: b.name,
-      city: cityFromAddress(b.address),
-      score: latest,
-      scoreDelta,
-      baselineJustEstablished,
-      articleCount: published.length,
-      recentArticles: displayable.slice(0, 3).map((a) => ({ title: a.title, publicUrl: a.publicUrl! })),
-    };
-  });
+type Db = NonNullable<ReturnType<typeof getDb>>;
+
+/**
+ * Evidence, not activity logs: every number here is backed by an external
+ * fact GravyBlock verified (page answered HTTP 200, Google returned a media
+ * or post id, a link was found on the other site). Queued, drafted, planned
+ * or "sent" work is never counted as completed work.
+ */
+async function loadActivity(db: Db, businessId: string): Promise<ProofActivity> {
+  const count = async (type: string, extra?: ReturnType<typeof sql>) => {
+    const [r] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(jobs)
+      .where(and(eq(jobs.businessId, businessId), like(jobs.type, type), extra ?? sql`true`));
+    return r?.n ?? 0;
+  };
+
+  // Pages verified live on the business's own website.
+  const verified = await db
+    .select({ payload: jobs.payload })
+    .from(jobs)
+    .where(and(eq(jobs.businessId, businessId), eq(jobs.type, "content_publish_verified"), eq(jobs.status, "completed")))
+    .orderBy(desc(jobs.createdAt))
+    .limit(50);
+  const pagesLive = verified
+    .map((v) => v.payload as { title?: string; publicUrl?: string })
+    .filter((p): p is { title: string; publicUrl: string } => Boolean(p.title && p.publicUrl));
+
+  const social = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(publishedContent)
+    .where(and(eq(publishedContent.businessId, businessId), inArray(publishedContent.channel, ["facebook", "instagram"]), eq(publishedContent.status, "published")));
+
+  const monitors = await db.select({ status: citationMonitors.status }).from(citationMonitors).where(eq(citationMonitors.businessId, businessId));
+  const checkedMonitors = monitors.filter((m) => m.status === "consistent" || m.status === "drift_detected" || m.status === "not_found");
+
+  const opps = await db
+    .select({ sourceName: backlinkOpportunities.sourceName, note: backlinkOpportunities.relevanceNote, status: backlinkOpportunities.status })
+    .from(backlinkOpportunities)
+    .where(and(eq(backlinkOpportunities.businessId, businessId), eq(backlinkOpportunities.status, "acquired")));
+  const outreachSent = await count("authority_outreach_sent");
+  const followUps = await count("authority_followup_sent");
+
+  const [site] = await db
+    .select({ createdAt: jobs.createdAt, status: jobs.status })
+    .from(jobs)
+    .where(and(eq(jobs.businessId, businessId), eq(jobs.type, "site_watchdog")))
+    .orderBy(desc(jobs.createdAt))
+    .limit(1);
+  const [truth] = await db
+    .select({ createdAt: jobs.createdAt })
+    .from(jobs)
+    .where(and(eq(jobs.businessId, businessId), eq(jobs.type, "truth_refresh")))
+    .orderBy(desc(jobs.createdAt))
+    .limit(1);
+
+  return {
+    pagesLive: pagesLive.slice(0, 3),
+    pagesLiveCount: pagesLive.length,
+    gbpPosts: await count(`gbp_post_${businessId}`),
+    gbpPhotos: await count("gbp_photo_upload"),
+    socialPosts: social[0]?.n ?? 0,
+    reviewReplies: await count("gbp_review_reply"),
+    listingChecks: checkedMonitors.length ? { checked: checkedMonitors.length, drift: checkedMonitors.filter((m) => m.status === "drift_detected").length } : null,
+    authority: outreachSent + opps.length > 0
+      ? {
+          outreachSent,
+          followUps,
+          liveLinks: opps.map((o) => ({ sourceName: o.sourceName, url: (o.note ?? "").match(/https?:\/\/\S+/)?.[0] ?? null })),
+        }
+      : null,
+    siteChecks: site ? { lastCheckedAt: site.createdAt.toISOString(), healthy: site.status === "healthy" } : null,
+    factsRefreshedAt: truth ? truth.createdAt.toISOString() : null,
+  };
 }

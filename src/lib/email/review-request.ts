@@ -48,7 +48,7 @@ function buildReviewRequestHtml(businessName: string, reviewUrl: string, workspa
 </td></tr>
 <tr><td style="padding:32px 40px;">
   <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#111;line-height:1.3;">
-    One small action that helps ${businessName} rank higher
+    One small action that can help ${businessName} get more reviews
   </h1>
   <p style="margin:0 0 16px;font-size:15px;color:#444;line-height:1.6;">
     Google reviews are one of the strongest signals for local search. Even a handful of new reviews this week can move your ranking.

@@ -607,43 +607,8 @@ export async function recordScanRun(input: {
       mismatchNote: "Initial baseline pending first recurring monitor run.",
     });
 
-    await tx.insert(operatorTasks).values([
-      {
-        businessId,
-        title: "Approve first 30-day content queue",
-        detail: "Review queued assets and set publish cadence.",
-        queue: "content_ops",
-        status: "queued",
-      },
-      {
-        businessId,
-        title: "Launch backlink outreach wave 1",
-        detail: "Validate quality targets and start outreach.",
-        queue: "authority_ops",
-        status: "queued",
-      },
-      {
-        businessId,
-        title: "Resolve first citation consistency check",
-        detail: "Review baseline listing mismatch note and confirm canonical business details.",
-        queue: "citation_ops",
-        status: "queued",
-      },
-      {
-        businessId,
-        title: "Review/reputation cadence kickoff",
-        detail: "Identify the first set of review response and request actions.",
-        queue: "review_ops",
-        status: "queued",
-      },
-      {
-        businessId,
-        title: "Local trust signal pass",
-        detail: "Confirm hours, service area, and contact clarity across key pages.",
-        queue: "local_trust_ops",
-        status: "queued",
-      },
-    ]);
+    // No seeded owner to-do list: GravyBlock does this work itself. Items that
+    // truly need the owner are surfaced individually as they arise.
 
     if (input.rankingChecks.length) {
       await tx.insert(rankingChecks).values(

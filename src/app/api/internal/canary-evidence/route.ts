@@ -1,7 +1,12 @@
 import { timingSafeEqual, createHmac } from "node:crypto";
 import { getSqlClient } from "@/lib/db";
+import { refreshBusinessTruth, getBusinessTruth } from "@/lib/truth";
+import { runCitationEngineForBusiness } from "@/lib/citations/engine";
+import { runSiteWatchdogForBusiness } from "@/lib/watchdog/site-watchdog";
+import { planTruthGroundedContent } from "@/lib/autopilot/content-planner";
+import { discoverAndQualify, previewAuthorityOutreach, enableAuthoritySending, getAuthorityStats } from "@/lib/authority/engine";
 
-/** TEMPORARY, secret-gated, read-only. 30-day production evidence for canary businesses. Remove after use. */
+/** TEMPORARY, secret-gated. Rollout verification for the canary businesses. Remove after use. */
 function authorized(req: Request): boolean {
   const expected = process.env.ADMIN_SECRET ?? "";
   const provided = req.headers.get("x-admin-secret") ?? "";
@@ -11,11 +16,18 @@ function authorized(req: Request): boolean {
   return timingSafeEqual(a, b);
 }
 
+async function canaries() {
+  const sql = getSqlClient();
+  if (!sql) return [];
+  return (await sql.unsafe(
+    `select id, name from businesses where name ilike '%league pour%' or name ilike '%boating chicago%'`,
+  )) as unknown as Array<{ id: string; name: string }>;
+}
+
 export async function GET(req: Request) {
   if (!authorized(req)) return Response.json({ error: "unauthorized" }, { status: 401 });
   const sql = getSqlClient();
   if (!sql) return Response.json({ error: "no_db" }, { status: 500 });
-
   const q = async (label: string, text: string, params: unknown[] = []) => {
     try {
       return await sql.unsafe(text, params as never[]);
@@ -23,59 +35,62 @@ export async function GET(req: Request) {
       return [{ error: `${label}: ${e instanceof Error ? e.message : String(e)}` }];
     }
   };
-
-  const businesses = (await q(
-    "businesses",
-    `select id, name, plan_tier, account_type, subscription_status, website, created_at from businesses
-     where name ilike '%league pour%' or name ilike '%boating chicago%' or website ilike '%leaguepour%' or website ilike '%boatingchicago%'`,
-  )) as unknown as Array<{ id: string; name: string }>;
-
-  const out: Record<string, unknown> = { generatedAt: new Date().toISOString(), businesses };
-
-  out.globalJobs30d = await q(
-    "globalJobs30d",
-    `select type, status, count(*)::int as n, max(created_at) as last_at from jobs
-     where created_at > now() - interval '30 days' and type not like 'cold_outreach%' and type not like 'email_optout'
-     group by type, status order by type, status`,
+  const out: Record<string, unknown> = { generatedAt: new Date().toISOString() };
+  out.globalJobs7d = await q(
+    "globalJobs7d",
+    `select type, status, count(*)::int n, max(created_at) last_at from jobs where created_at > now() - interval '7 days'
+       and (type like 'truth_%' or type like 'authority_%' or type like 'citation_engine%' or type like 'site_watchdog%' or type like 'content_engine_%' or type like 'content_publish_%' or type in ('gbp_review_reply','gbp_photo_upload','rank_tracking_batch','local_pack_tracking_batch','pro_recurring_refresh'))
+     group by 1,2 order by 1,2`,
   );
-
-  const perBiz: Record<string, unknown> = {};
-  for (const b of businesses) {
-    if (!b.id) continue;
-    const id = b.id;
-    const p = [id];
-    perBiz[b.name] = {
-      jobs30d: await q("jobs", `select type, status, count(*)::int n, max(created_at) last_at from jobs where business_id=$1 and created_at > now() - interval '30 days' group by 1,2 order by 1,2`, p),
-      jobSamples: await q(
-        "jobSamples",
-        `select distinct on (type) type, status, created_at, left(payload::text, 320) as payload from jobs where business_id=$1 and created_at > now() - interval '30 days' order by type, created_at desc`,
-        p,
-      ),
-      contentQueue30d: await q("contentQueue", `select kind, status, count(*)::int n, max(created_at) last_at from content_queue where business_id=$1 and created_at > now() - interval '30 days' group by 1,2 order by 1,2`, p),
-      publishingJobs30d: await q(
-        "publishingJobs",
-        `select pj.status, count(*)::int n, max(pj.created_at) last_at from publishing_jobs pj join content_queue cq on cq.id=pj.queue_id where cq.business_id=$1 and pj.created_at > now() - interval '30 days' group by 1`,
-        p,
-      ),
-      publishingJobSamples: await q(
-        "publishingJobSamples",
-        `select pj.status, pj.created_at, left(pj.response_log, 200) as response_log from publishing_jobs pj join content_queue cq on cq.id=pj.queue_id where cq.business_id=$1 order by pj.created_at desc limit 5`,
-        p,
-      ),
-      publishingTargets: await q("publishingTargets", `select adapter, active, label from publishing_targets where business_id=$1`, p),
-      publishedContent30d: await q("publishedContent", `select channel, status, count(*)::int n, max(created_at) last_at from published_content where business_id=$1 and created_at > now() - interval '30 days' group by 1,2 order by 1,2`, p),
-      publishedContentSamples: await q("publishedSamples", `select title, channel, status, public_url, created_at, (meta_title is not null) as has_meta from published_content where business_id=$1 order by created_at desc limit 6`, p),
-      backlinks: await q("backlinks", `select status, contact_source, count(*)::int n, max(created_at) last_at from backlink_opportunities where business_id=$1 group by 1,2 order by 1,2`, p),
-      aiChecks30d: await q("aiChecks", `select engine, mention_found, count(*)::int n, max(created_at) last_at from ai_visibility_checks where business_id=$1 and created_at > now() - interval '30 days' group by 1,2 order by 1,2`, p),
-      citations: await q("citations", `select status, count(*)::int n, max(created_at) last_at from citation_monitors where business_id=$1 group by 1`, p),
-      operatorTasks: await q("operatorTasks", `select queue, status, count(*)::int n, max(created_at) last_at from operator_tasks where business_id=$1 group by 1,2 order by 1,2`, p),
-      reviews: await q("reviews", `select source, status, count(*)::int n, count(replied_at)::int replied, max(created_at) last_at from business_reviews where business_id=$1 group by 1,2 order by 1,2`, p),
-      keywordRankings: await q("keywordRankings", `select source, count(*)::int n, max(date) last_date, sum(impressions)::int impressions from keyword_rankings where business_id=$1 and date >= to_char(now() - interval '30 days','YYYY-MM-DD') group by 1`, p),
-      rankingChecks30d: await q("rankingChecks", `select count(*)::int n, max(created_at) last_at from ranking_checks where business_id=$1 and created_at > now() - interval '30 days'`, p),
-      googleConnection: await q("googleConn", `select (gbp_location_name is not null) as has_gbp_location, (search_console_property is not null) as has_gsc, google_email is not null as has_email, updated_at from google_oauth_connections where business_id=$1`, p),
-      recommendations: await q("recommendations", `select status, count(*)::int n from recommendations where business_id=$1 group by 1`, p),
+  const per: Record<string, unknown> = {};
+  for (const b of await canaries()) {
+    const p = [b.id];
+    per[b.name] = {
+      factsByKey: await q("facts", `select fact_key, count(*)::int n, max(confidence) max_conf from business_facts where business_id=$1 and status='current' group by 1 order by 1`, p),
+      factSamples: await q("factSamples", `select fact_key, left(fact_value,110) v, source_system, source_url, fetched_at, source_updated_at, confidence, stability from business_facts where business_id=$1 and status='current' and fact_key in ('name','city','address','phone','email','description','service','recent_content','service_area','hours') order by fact_key, confidence desc limit 40`, p),
+      backlinkStatuses: await q("backlinks", `select status, source_type, count(*)::int n from backlink_opportunities where business_id=$1 group by 1,2 order by 1,2`, p),
+      authorityEvents: await q("authEvents", `select payload->>'event' ev, count(*)::int n from jobs where business_id=$1 and type='authority_event' group by 1`, p),
+      citationMonitors: await q("citations", `select source_name, status, left(mismatch_note,160) note from citation_monitors where business_id=$1 order by source_name`, p),
+      contentEngine: await q("contentEngine", `select type, count(*)::int n, max(created_at) last_at, max(left(payload::text,220)) sample from jobs where business_id=$1 and (type like 'content_engine_%' or type like 'content_publish_%') group by 1`, p),
+      contentQueue: await q("cq", `select kind, status, count(*)::int n from content_queue where business_id=$1 group by 1,2 order by 1,2`, p),
+      operatorTasksOpen: await q("tasks", `select queue, status, count(*)::int n from operator_tasks where business_id=$1 group by 1,2 order by 1,2`, p),
+      siteWatchdog: await q("watchdog", `select status, created_at, left(payload::text, 300) p from jobs where business_id=$1 and type='site_watchdog' order by created_at desc limit 2`, p),
     };
   }
-  out.perBusiness = perBiz;
+  out.perBusiness = per;
+  out.authorityStatsGlobal = await getAuthorityStats().catch((e) => ({ error: String(e) }));
   return Response.json(out);
+}
+
+export async function POST(req: Request) {
+  if (!authorized(req)) return Response.json({ error: "unauthorized" }, { status: 401 });
+  const body = (await req.json().catch(() => ({}))) as { action?: string };
+  const results: Record<string, unknown> = {};
+  for (const b of await canaries()) {
+    try {
+      if (body.action === "refresh_truth") {
+        results[b.name] = await refreshBusinessTruth(b.id);
+      } else if (body.action === "truth_summary") {
+        const t = await getBusinessTruth(b.id);
+        results[b.name] = { sufficient: t.sufficient, reason: t.insufficientReason, city: t.verifiedCity, services: t.services, description: t.description, lastWebsiteCrawlAt: t.lastWebsiteCrawlAt, promptBlock: t.promptBlock };
+      } else if (body.action === "citations") {
+        results[b.name] = await runCitationEngineForBusiness(b.id);
+      } else if (body.action === "watchdog") {
+        results[b.name] = await runSiteWatchdogForBusiness(b.id);
+      } else if (body.action === "plan_content") {
+        results[b.name] = await planTruthGroundedContent({ businessId: b.id, maxItems: 3, maxLocationPages: 1 });
+      } else if (body.action === "authority_discover") {
+        results[b.name] = await discoverAndQualify(b.id);
+      } else if (body.action === "authority_preview") {
+        results[b.name] = await previewAuthorityOutreach(b.id, 3);
+      }
+    } catch (e) {
+      results[b.name] = { error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+  if (body.action === "authority_enable") {
+    await enableAuthoritySending("Enabled after first-run review of previewed pitches at rollout.");
+    results.enabled = true;
+  }
+  return Response.json({ action: body.action, results });
 }

@@ -1,15 +1,78 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getShowcaseBusinesses } from "@/lib/proof/get-showcase-businesses";
+import type { ReactNode } from "react";
+import { getShowcaseBusinesses, type ProofActivity } from "@/lib/proof/get-showcase-businesses";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Proof: we run GravyBlock on our own businesses | GravyBlock",
   description:
-    "Live, verifiable results from businesses we operate ourselves on the exact same automation paying customers get. Real scores, real published content — not testimonials.",
+    "Verified activity from businesses we operate ourselves on the same automation paying customers get. Only work confirmed to have happened is shown, not testimonials and not queued or drafted work.",
   alternates: { canonical: "https://gravyblock.com/proof" },
 };
+
+const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+
+function ProofActivityList({ activity }: { activity: ProofActivity }) {
+  const rows: Array<{ label: string; detail?: ReactNode }> = [];
+
+  if (activity.pagesLiveCount > 0) {
+    rows.push({
+      label: `${activity.pagesLiveCount} ${plural(activity.pagesLiveCount, "page", "pages")} published to the business's own website and confirmed live`,
+      detail: (
+        <ul className="mt-1 space-y-1">
+          {activity.pagesLive.map((p) => (
+            <li key={p.publicUrl} className="truncate">
+              <a href={p.publicUrl} className="text-red-800 underline underline-offset-2" target="_blank" rel="noopener">
+                {p.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      ),
+    });
+  }
+  if (activity.gbpPosts > 0) rows.push({ label: `${activity.gbpPosts} Google Business Profile ${plural(activity.gbpPosts, "post", "posts")} published (Google returned a post id)` });
+  if (activity.gbpPhotos > 0) rows.push({ label: `${activity.gbpPhotos} ${plural(activity.gbpPhotos, "photo", "photos")} added to the Google profile` });
+  if (activity.socialPosts > 0) rows.push({ label: `${activity.socialPosts} Facebook/Instagram ${plural(activity.socialPosts, "post", "posts")} published` });
+  if (activity.reviewReplies > 0) rows.push({ label: `${activity.reviewReplies} Google review ${plural(activity.reviewReplies, "reply", "replies")} posted` });
+  if (activity.listingChecks) {
+    rows.push({
+      label: `${activity.listingChecks.checked} listing consistency ${plural(activity.listingChecks.checked, "check", "checks")}, ${activity.listingChecks.drift} ${plural(activity.listingChecks.drift, "mismatch", "mismatches")} found`,
+    });
+  }
+  if (activity.authority) {
+    const n = activity.authority.liveLinks.length;
+    rows.push({
+      label: `${activity.authority.outreachSent} outreach ${plural(activity.authority.outreachSent, "pitch", "pitches")} sent, ${n} live ${plural(n, "link", "links")} verified on other sites`,
+    });
+  }
+  if (activity.siteChecks) {
+    rows.push({
+      label: `Website last checked ${new Date(activity.siteChecks.lastCheckedAt).toLocaleDateString()}: ${activity.siteChecks.healthy ? "healthy" : "issue found"}`,
+    });
+  }
+
+  if (rows.length === 0) {
+    return (
+      <p className="mt-4 text-sm text-zinc-500">
+        No externally verified work to show yet. This page only lists work GravyBlock has confirmed happened (pages live on the
+        customer&apos;s own site, posts Google accepted, links found on other sites), never anything queued or drafted.
+      </p>
+    );
+  }
+  return (
+    <ul className="mt-4 space-y-2 text-sm text-zinc-700">
+      {rows.map((r) => (
+        <li key={r.label}>
+          <span className="font-medium text-zinc-900">{r.label}</span>
+          {r.detail}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default async function ProofPage() {
   const showcased = await getShowcaseBusinesses();
@@ -21,20 +84,20 @@ export default async function ProofPage() {
         We run GravyBlock on our own businesses.
       </h1>
       <p className="mt-4 max-w-2xl text-lg text-zinc-600">
-        These are real businesses operated by GravyBlock&apos;s founder, running the exact same automation
-        paying customers get — same plans, same worker, same schedule. The numbers below are pulled live
-        from the same database that powers customer workspaces. No stock photos, no paid testimonials.
+        These are real businesses operated by GravyBlock&apos;s founder, running the same automation paying customers get.
+        The numbers below are pulled live from the same database that powers customer workspaces, and a category appears
+        only when there is external evidence for it.
       </p>
 
       {showcased.length === 0 ? (
         <div className="mt-10 rounded-2xl border border-zinc-200 bg-zinc-50 p-8 text-center">
           <p className="text-sm text-zinc-600">
-            We&apos;re assembling this page right now — live business data appears here as each house business
-            is connected. In the meantime, the{" "}
+            We&apos;re assembling this page right now. Live business data appears here as each house business is connected. In
+            the meantime, the{" "}
             <Link href="/examples/sample-local-growth-report" className="font-semibold text-red-800 underline">
               sample report
             </Link>{" "}
-            shows exactly what the automation produces.
+            shows what the automation produces.
           </p>
         </div>
       ) : (
@@ -54,7 +117,8 @@ export default async function ProofPage() {
                     <p className="text-[10px] uppercase tracking-wide text-zinc-500">visibility</p>
                     {b.scoreDelta !== null && b.scoreDelta !== 0 ? (
                       <p className={`text-[11px] font-semibold ${b.scoreDelta > 0 ? "text-emerald-600" : "text-red-600"}`}>
-                        {b.scoreDelta > 0 ? "+" : ""}{b.scoreDelta} vs last check
+                        {b.scoreDelta > 0 ? "+" : ""}
+                        {b.scoreDelta} vs last check
                       </p>
                     ) : b.baselineJustEstablished ? (
                       <p className="text-[11px] font-medium text-zinc-400">Baseline established</p>
@@ -63,22 +127,7 @@ export default async function ProofPage() {
                 ) : null}
               </div>
 
-              <p className="mt-4 text-sm text-zinc-600">
-                <strong className="text-zinc-900">{b.articleCount}</strong> article{b.articleCount === 1 ? "" : "s"} written
-                and published automatically.
-              </p>
-
-              {b.recentArticles.length > 0 ? (
-                <ul className="mt-3 space-y-1.5">
-                  {b.recentArticles.map((a) => (
-                    <li key={a.publicUrl} className="truncate text-sm">
-                      <a href={a.publicUrl} className="text-red-800 underline underline-offset-2 hover:text-red-900" target="_blank" rel="noopener">
-                        {a.title}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
+              <ProofActivityList activity={b.activity} />
             </article>
           ))}
         </div>
@@ -86,7 +135,7 @@ export default async function ProofPage() {
 
       <div className="mt-12 rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
         <p className="font-semibold text-zinc-900">Want the same thing running for your business?</p>
-        <p className="mt-1 text-sm text-zinc-600">Start with the free 60-second scan — no account, no credit card.</p>
+        <p className="mt-1 text-sm text-zinc-600">Start with the free 60-second scan. No account, no credit card.</p>
         <Link
           href="/scan"
           className="mt-4 inline-block rounded-full bg-red-600 px-7 py-3 text-sm font-semibold text-white hover:bg-red-500"

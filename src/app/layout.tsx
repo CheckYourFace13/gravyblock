@@ -26,10 +26,10 @@ export const metadata: Metadata = {
     template: "%s | GravyBlock",
   },
   description:
-    "GravyBlock automates local SEO for small businesses. Publish content, build backlinks, manage reviews, keep your Google Business Profile active, and monitor AI search visibility. Start with a free business scan.",
+    "GravyBlock automates local SEO for small businesses. Publish website content written from your own site's facts, post weekly to your Google Business Profile, reply to Google reviews, run personalized local outreach, and check AI search visibility. Start with a free business scan.",
   openGraph: {
     title: "GravyBlock: Local SEO Autopilot",
-    description: "Automated local SEO for small businesses. Content, reviews, backlinks, Google Business Profile posts, and AI search monitoring on autopilot.",
+    description: "Automated local SEO for small businesses. Website content, Google Business Profile posts, review replies, local outreach, and AI search checks.",
     url: siteUrl,
     siteName: "GravyBlock",
     locale: "en_US",
@@ -66,7 +66,7 @@ const schemaOrg = {
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       description:
-        "GravyBlock automates local SEO for small businesses. Publish AI-written content, build backlinks, manage reviews, keep your Google Business Profile active, and monitor AI search visibility. All on autopilot.",
+        "GravyBlock automates local SEO for small businesses. Publish website content written from your own site's facts, post weekly to your Google Business Profile, reply to Google reviews, run personalized local outreach, and check AI search visibility.",
       offers: {
         "@type": "AggregateOffer",
         priceCurrency: "USD",
@@ -77,11 +77,11 @@ const schemaOrg = {
       featureList: [
         "AI content writing and publishing",
         "Google Search Console rank tracking",
-        "Google Business Profile posts, photos, and Q&A",
+        "Google Business Profile posts and photos",
         "Facebook and Instagram auto-posting",
-        "Backlink outreach automation",
-        "Review monitoring and AI reply drafts",
-        "Citation and listing audit",
+        "Personalized outreach to relevant local organizations; a link is counted only once verified live",
+        "Review monitoring and automatic Google review replies",
+        "Citation consistency checks and drift alerts",
         "GEO audit score for AI search visibility",
         "Site tech audit",
         "Brand voice configuration",

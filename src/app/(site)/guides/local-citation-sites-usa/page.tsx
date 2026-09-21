@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/guides/local-citation-sites-usa" },
   openGraph: {
     title: "Local Citation Sites USA — Complete List for 2026",
-    description: "Top US citation directories for local SEO. Get listed, stay consistent, rank higher.",
+    description: "Top US citation directories for local SEO. Get listed, stay consistent.",
   },
 };
 
@@ -187,9 +187,9 @@ export default function LocalCitationSitesUSAPage() {
           automate this in different ways:
         </p>
         <ul>
-          <li><strong>Yext / Uberall</strong> — sync your data to their publisher network. Works, but expensive ($199+/year) and stops syncing if you cancel.</li>
-          <li><strong>BrightLocal / Whitespark</strong> — citation building services. Manual submission, $3–$7 per citation.</li>
-          <li><strong>GravyBlock</strong> — audits citations automatically, queues fixes, and handles submission as part of the weekly automation cycle. Included in the Growth plan alongside content, reviews, and rank tracking.</li>
+          <li><strong>Yext / Uberall</strong> — sync your data to their publisher network; pricing has generally started around $199/year. Check current plans.</li>
+          <li><strong>BrightLocal / Whitespark</strong> — citation building and management services and tools. Check current pricing.</li>
+          <li><strong>GravyBlock</strong> — checks that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook, and alerts you when they drift. It does not submit or fix listings on directories.</li>
         </ul>
       </GuideShell>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />

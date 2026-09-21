@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findCity, CITIES, INDUSTRIES } from "@/lib/local-seo/markets";
+import { localPageCapabilityBullets } from "@/lib/capabilities";
 
 export const dynamicParams = true;
 
@@ -18,13 +19,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: `Local SEO Services in ${city.name}, ${city.state} — GravyBlock`,
-    description: `GravyBlock automates local SEO for small businesses in ${city.name}. Rank higher on Google Maps, publish content weekly, manage reviews, and track AI visibility. Free scan — no credit card.`,
+    description: `GravyBlock runs scheduled local SEO work for small businesses in ${city.name}: website content, Google Business Profile posts, Google review replies, and local outreach. Free scan — no credit card.`,
     alternates: {
       canonical: `/local-seo/${citySlug}`,
     },
     openGraph: {
       title: `Local SEO Services in ${city.name}, ${city.state}`,
-      description: `Automated local SEO for ${city.name} businesses — content, reviews, rankings, and AI visibility.`,
+      description: `Scheduled local SEO for ${city.name} businesses — website content, Google posts, review replies, and AI visibility checks.`,
     },
   };
 }
@@ -40,7 +41,7 @@ export default async function CityHubPage({ params }: Props) {
     "@context": "https://schema.org",
     "@type": "WebPage",
     name: `Local SEO Services in ${city.name}, ${city.state}`,
-    description: `Automated local SEO for small businesses in ${city.name}. Rank higher on Google, get more reviews, and grow faster.`,
+    description: `Scheduled local SEO work for small businesses in ${city.name}: website content, Google Business Profile posts, and Google review replies.`,
     url: `${siteUrl}/local-seo/${citySlug}`,
     mainEntity: {
       "@type": "Service",
@@ -59,7 +60,7 @@ export default async function CityHubPage({ params }: Props) {
         name: `How much does local SEO cost for a ${city.name} business?`,
         acceptedAnswer: {
           "@type": "Answer",
-          text: `Local SEO agencies in ${city.name} typically charge $500–$3,000/month. GravyBlock automates the same work — content publishing, citation management, review growth, and rank tracking — starting at $74.99/month on the Scale plan, locked for as long as you stay subscribed.`,
+          text: `Local SEO agencies in ${city.name} typically charge $500–$3,000/month. GravyBlock is a lower-cost option that runs part of that work on a schedule — website content, Google Business Profile posts, Google review replies, citation consistency checks, and rank tracking. Scale is $149.99/month, or $74.99/month with code GROWTH50, locked for as long as you stay subscribed.`,
         },
       },
       {
@@ -67,7 +68,7 @@ export default async function CityHubPage({ params }: Props) {
         name: `How long does it take to rank higher on Google in ${city.name}?`,
         acceptedAnswer: {
           "@type": "Answer",
-          text: `Most businesses in ${city.name} see measurable improvement in their Google Maps rankings within 60–90 days of consistent local SEO work: optimized Google Business Profile, fresh content, growing reviews, and citation cleanup. GravyBlock runs this automatically every week.`,
+          text: `Most businesses in ${city.name} see measurable improvement in their Google Maps rankings within 60–90 days of consistent local SEO work: an active Google Business Profile, fresh content, growing reviews, and consistent business details. GravyBlock runs part of this on a schedule; results are never guaranteed.`,
         },
       },
       {
@@ -75,7 +76,7 @@ export default async function CityHubPage({ params }: Props) {
         name: `Do I need a local SEO agency in ${city.name}?`,
         acceptedAnswer: {
           "@type": "Answer",
-          text: `Not anymore. GravyBlock replaces the work a local SEO agency would do — writing content, auditing citations, keeping review growth on track, posting to Google Business Profile — at a fraction of agency pricing. You get weekly automated work without managing a vendor.`,
+          text: `It depends on what you need. GravyBlock handles a defined set of the work an agency might do — writing website content, posting to Google Business Profile, replying to Google reviews, checking citation consistency — at a lower price, without managing a vendor. It does not do everything an agency can.`,
         },
       },
     ],
@@ -95,9 +96,9 @@ export default async function CityHubPage({ params }: Props) {
             Local SEO services in {city.name}
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-zinc-600">
-            GravyBlock automates local SEO for small businesses in {city.name}, {city.state}. Rank higher
-            on Google Maps, publish content every week, grow your reviews, and show up when AI assistants
-            answer questions about your industry — all on autopilot.
+            GravyBlock runs scheduled local SEO work for small businesses in {city.name}, {city.state}. Publish website content,
+            post to your Google Business Profile, reply to Google reviews, and check whether AI assistants
+            mention your business — on a schedule, after a one-time setup.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -113,7 +114,7 @@ export default async function CityHubPage({ params }: Props) {
               See plans
             </Link>
           </div>
-          <p className="mt-3 text-xs text-zinc-500">Scale: $74.99/mo, locked while subscribed · No agency needed · Cancel anytime</p>
+          <p className="mt-3 text-xs text-zinc-500">Scale: $74.99/mo with GROWTH50, locked while subscribed · Cancel anytime</p>
         </div>
       </section>
 
@@ -130,15 +131,15 @@ export default async function CityHubPage({ params }: Props) {
             },
             {
               title: "Reviews drive bookings",
-              body: `Businesses with 50+ Google reviews and a 4.5+ star rating convert 3× better than competitors with fewer reviews. GravyBlock monitors your reviews, drafts AI replies for every new one, and sends you a weekly reminder to ask your own customers — so review growth doesn't slip.`,
+              body: `Businesses with 50+ Google reviews and a 4.5+ star rating convert 3× better than competitors with fewer reviews. GravyBlock monitors your reviews, replies to Google reviews automatically once Google is connected, and emails you a weekly reminder and a shareable review link to send to your own customers.`,
             },
             {
               title: "AI assistants now recommend local businesses",
-              body: `ChatGPT, Perplexity, and Google AI Overviews answer "best [service] in ${city.name}" queries with specific business names. GravyBlock tracks whether you're being mentioned — and publishes content that improves your chances.`,
+              body: `ChatGPT, Perplexity, and Google AI Overviews answer "best [service] in ${city.name}" queries with specific business names. GravyBlock checks monthly whether you're being mentioned and reports the result.`,
             },
             {
               title: "Content = long-term rankings",
-              body: `${city.name} businesses that publish weekly SEO articles rank for hundreds of long-tail searches their competitors ignore. GravyBlock writes and publishes these automatically every week.`,
+              body: `${city.name} businesses that publish weekly SEO articles rank for hundreds of long-tail searches their competitors ignore. GravyBlock writes them from your own website's information and publishes them to your connected website.`,
             },
           ].map((card) => (
             <article key={card.title} className="rounded-2xl border border-zinc-200 bg-white p-5">
@@ -153,16 +154,11 @@ export default async function CityHubPage({ params }: Props) {
       <section className="border-y border-zinc-200 bg-zinc-50">
         <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
           <h2 className="text-2xl font-semibold text-zinc-900">
-            What GravyBlock does for {city.name} businesses every week
+            What GravyBlock does for {city.name} businesses
           </h2>
           <ol className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              `Audits your Google Business Profile and queues fixes for missing categories, photos, and service areas`,
-              `Writes and publishes local SEO articles targeting "${city.name}" + your service keywords`,
-              `Publishes weekly Google Business Profile posts and photos so your listing stays active in ${city.name} searches`,
-              `Monitors AI visibility — does ChatGPT or Perplexity mention your business when asked about ${city.name} services?`,
-              `Monitors your reviews, drafts AI responses to every new one, and reminds you weekly to ask your own customers`,
-              `Builds a backlink queue from ${city.name} directories, local blogs, and niche community sites`,
+              ...localPageCapabilityBullets(),
             ].map((step, idx) => (
               <li key={idx} className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-700">
                 <p className="text-xs font-semibold text-red-700">0{idx + 1}</p>
@@ -253,7 +249,7 @@ export default async function CityHubPage({ params }: Props) {
             Get a free local SEO scan for your {city.name} business
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-600">
-            See your current Google visibility score, top issues, and what GravyBlock would fix first.
+            See your current Google visibility score and top issues.
             Takes under 2 minutes. No credit card.
           </p>
           <Link

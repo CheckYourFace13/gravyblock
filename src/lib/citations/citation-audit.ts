@@ -75,77 +75,16 @@ type CitationAuditBusiness = {
  * runCitationAuditBatch below: gated on the monthly window).
  */
 export async function runCitationAuditForBusiness(biz: CitationAuditBusiness): Promise<{ tasksCreated: number }> {
+  // The per-directory 'Verify listing on X' owner checklist is gone — see
+  // citation-engine (registry + real checks, unsupported targets recorded
+  // as unsupported instead of assigned to the customer). No tasks are created.
+  const { runCitationEngineForBusiness } = await import('./engine');
+  await runCitationEngineForBusiness(biz.id);
   const db = getDb();
-  if (!db) return { tasksCreated: 0 };
-
-  const category = biz.vertical ?? biz.primaryCategory ?? null;
-  const directories = directoriesForCategory(category);
-  const nap = canonicalNap(biz);
-
-  // Create one task per directory to verify
-  const taskRows = directories.map((dir) => ({
-    businessId: biz.id,
-    queue: "citation_ops" as const,
-    title: `Verify listing on ${dir}`,
-    detail: `Check that ${biz.name} is listed with correct NAP: ${nap}`,
-    status: "pending" as const,
-    priority: dir === "Google Business Profile" ? 1 : 2,
-  }));
-
-  // Also flag internal inconsistencies
-  if (!biz.address) {
-    taskRows.unshift({
-      businessId: biz.id,
-      queue: "citation_ops",
-      title: "Missing address on business record",
-      detail: `${biz.name} has no address saved. Add it to enable citation consistency checks.`,
-      status: "pending",
-      priority: 1,
-    });
+  if (db) {
+    await db.insert(jobs).values({ type: 'citation_audit_run', status: 'completed', payload: { businessId: biz.id, tasksCreated: 0, engine: 'citation_engine' } });
   }
-
-  if (!biz.phone) {
-    taskRows.unshift({
-      businessId: biz.id,
-      queue: "citation_ops",
-      title: "Missing phone number on business record",
-      detail: `${biz.name} has no phone number. Consistent phone across all citations is critical for local rankings.`,
-      status: "pending",
-      priority: 1,
-    });
-  }
-
-  // Check website domain matches what's on GBP (stored as business.website)
-  if (!biz.website) {
-    taskRows.unshift({
-      businessId: biz.id,
-      queue: "citation_ops",
-      title: "No website linked on GBP",
-      detail: `${biz.name} has no website URL recorded. Add a website to the GBP listing to improve rankings.`,
-      status: "pending",
-      priority: 1,
-    });
-  }
-
-  if (taskRows.length > 0) {
-    await db.insert(operatorTasks).values(
-      taskRows.map((t) => ({
-        businessId: t.businessId,
-        queue: t.queue,
-        title: t.title,
-        detail: t.detail,
-        status: t.status,
-      })),
-    );
-  }
-
-  await db.insert(jobs).values({
-    type: "citation_audit_run",
-    status: "completed",
-    payload: { businessId: biz.id, tasksCreated: taskRows.length },
-  });
-
-  return { tasksCreated: taskRows.length };
+  return { tasksCreated: 0 };
 }
 
 export async function runCitationAuditBatch(batchSize = 5): Promise<{ audited: number; skipped: number }> {

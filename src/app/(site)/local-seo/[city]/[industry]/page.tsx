@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findCity, findIndustry, getStaticCombos, CITIES, INDUSTRIES } from "@/lib/local-seo/markets";
+import { localPageCapabilityBullets } from "@/lib/capabilities";
 
 export const dynamicParams = true;
 
@@ -19,13 +20,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: `Local SEO for ${industry.plural} in ${city.name}, ${city.state} | GravyBlock`,
-    description: `GravyBlock automates local SEO, content publishing, review management, and AI visibility for ${industry.plural} in ${city.name}. Free scan — no credit card.`,
+    description: `GravyBlock runs scheduled website content, Google Business Profile posts, Google review replies, and AI visibility checks for ${industry.plural} in ${city.name}. Free scan — no credit card.`,
     alternates: {
       canonical: `/local-seo/${citySlug}/${industrySlug}`,
     },
     openGraph: {
       title: `Local SEO for ${industry.plural} in ${city.name}`,
-      description: `Automated local growth for ${industry.plural} in ${city.name}, ${city.state}.`,
+      description: `Scheduled local SEO work for ${industry.plural} in ${city.name}, ${city.state}.`,
     },
   };
 }
@@ -49,19 +50,19 @@ export default async function LocalSeoPage({ params }: Props) {
   const faqs = [
     {
       q: `How do ${indPlural} in ${city.name} rank higher on Google Maps?`,
-      a: `${industry.plural} rank in the ${city.name} map pack by combining a complete Google Business Profile, a steady flow of recent reviews, consistent name/address/phone across directories, and regular local content. GravyBlock automates three of those directly — content publishing, citation audits, and GBP posts — and keeps review growth moving with weekly reminders and AI-drafted replies, so your ${ind} climbs the rankings with far less manual work.`,
+      a: `${industry.plural} rank in the ${city.name} map pack by combining a complete Google Business Profile, a steady flow of recent reviews, consistent name/address/phone across directories, and regular local content. GravyBlock handles part of that on a schedule — website content, weekly Google Business Profile posts, Google review replies, and citation consistency checks — and emails you a weekly reminder and a shareable review link to send to your own customers. Rankings are never guaranteed.`,
     },
     {
       q: `How much does local SEO cost for ${article} ${ind} in ${city.name}?`,
-      a: `A ${city.name} SEO agency typically charges $1,000–$3,000/month and you still attend meetings. GravyBlock runs the same work automatically — content, Google Business Profile management, review monitoring, and citation audits included — starting at $74.99/month on the Scale plan, locked for as long as you stay subscribed. You can start with a free scan, no credit card.`,
+      a: `A ${city.name} SEO agency typically charges $1,000–$3,000/month and you still attend meetings. GravyBlock is a lower-cost option that runs part of that work on a schedule — website content, Google Business Profile posts, Google review replies, and citation consistency checks. Scale is $149.99/month, or $74.99/month with code GROWTH50, locked for as long as you stay subscribed. You can start with a free scan, no credit card.`,
     },
     {
       q: `How long until my ${ind} shows up in ${city.name} search results?`,
-      a: `Most ${indPlural} see movement within 30–60 days of consistent optimization, with top-3 map pack rankings typically taking 3–6 months in competitive ${city.name} markets. GravyBlock publishes content and builds signals every week, so improvement compounds over time rather than stalling after a one-time audit.`,
+      a: `Most ${indPlural} see movement within 30–60 days of consistent optimization, with top-3 map pack rankings typically taking 3–6 months in competitive ${city.name} markets. GravyBlock publishes content and Google posts on a schedule, so work continues over time rather than stopping after a one-time audit. Results are not guaranteed.`,
     },
     {
       q: `Will my ${ind} show up when people ask ChatGPT for recommendations in ${city.name}?`,
-      a: `Increasingly, customers ask ChatGPT and Perplexity "who's the best ${ind} in ${city.name}?" AI assistants pull from your Google profile, reviews, and web content. GravyBlock probes these AI engines monthly to track whether you're mentioned, and publishes the structured, citation-friendly content that gets ${indPlural} recommended.`,
+      a: `Increasingly, customers ask ChatGPT and Perplexity "who's the best ${ind} in ${city.name}?" AI assistants pull from your Google profile, reviews, and web content. GravyBlock checks monthly whether AI assistants mention your business and reports the result; it does not yet act on those results automatically.`,
     },
   ];
 
@@ -72,7 +73,7 @@ export default async function LocalSeoPage({ params }: Props) {
       {
         "@type": "WebPage",
         name: `Local SEO for ${industry.plural} in ${city.name}, ${city.state}`,
-        description: `Automated local SEO and marketing for ${industry.plural} in ${city.name}.`,
+        description: `Scheduled local SEO work for ${industry.plural} in ${city.name}.`,
         url: `${baseUrl}/local-seo/${citySlug}/${industrySlug}`,
         mainEntity: {
           "@type": "Service",
@@ -103,8 +104,8 @@ export default async function LocalSeoPage({ params }: Props) {
             Local SEO for {industry.plural} in {city.name}
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-zinc-600">
-            GravyBlock automates content, outreach, reviews, and AI visibility for {industry.plural.toLowerCase()} in{" "}
-            {city.name}, {city.state}, so you show up when customers search and when AI assistants answer.
+            GravyBlock publishes website content, posts to Google, replies to Google reviews, and runs local outreach for {industry.plural.toLowerCase()} in{" "}
+            {city.name}, {city.state}, to help you show up when customers search.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -143,7 +144,7 @@ export default async function LocalSeoPage({ params }: Props) {
             },
             {
               title: "Consistent citations build trust signals",
-              body: `Google cross-references business name, address, and phone across hundreds of directories. ${industry.plural} with mismatched or missing listings rank lower. GravyBlock monitors your listing consistency automatically and flags what needs fixing.`,
+              body: `Google cross-references business name, address, and phone across hundreds of directories. ${industry.plural} with mismatched or missing listings rank lower. GravyBlock checks that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook, and alerts you when they drift. It does not build or fix listings on hundreds of directories.`,
             },
           ].map((card) => (
             <article key={card.title} className="rounded-2xl border border-zinc-200 bg-white p-5">
@@ -161,12 +162,7 @@ export default async function LocalSeoPage({ params }: Props) {
           </h2>
           <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              `Scans your Google Business Profile listing for gaps and mismatches specific to ${industry.name.toLowerCase()} categories`,
-              `Generates and publishes local SEO articles targeting "${industry.name.toLowerCase()} in ${city.name}" and nearby neighborhoods`,
-              `Publishes weekly Google Business Profile posts and photos so your listing stays active when ${city.name} locals search for ${industry.plural.toLowerCase()}`,
-              `Monitors your AI search visibility: whether Perplexity or ChatGPT mentions your business when asked about ${industry.plural.toLowerCase()} in ${city.name}`,
-              `Monitors your reviews, drafts AI responses to every new one, and reminds you weekly to ask your own customers`,
-              `Builds a backlink queue from local ${city.name} directories, community sites, and industry publications`,
+              ...localPageCapabilityBullets(),
             ].map((step, idx) => (
               <li key={idx} className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-700">
                 <p className="text-xs font-semibold text-red-700">0{idx + 1}</p>
@@ -184,7 +180,7 @@ export default async function LocalSeoPage({ params }: Props) {
           </h2>
           <p className="mt-2 text-sm text-zinc-600">
             Find your business on Google, get a score and top findings in under two minutes. No credit card.
-            Unlock the full report and see exactly what to fix first.
+            Unlock the full report to see your top findings.
           </p>
           <Link
             href={`/scan?vertical=${encodeURIComponent(industry.name)}&location=${encodeURIComponent(city.name + " " + city.state)}`}

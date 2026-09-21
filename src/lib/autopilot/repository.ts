@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import {
   aiVisibilityChecks,
   backlinkOpportunities,
@@ -101,12 +101,16 @@ export async function getAutopilotWorkspace(businessId: string) {
           `select id,prompt,mention_found as "mentionFound",confidence,created_at as "createdAt" from ai_visibility_checks where business_id='${safeBusinessId}' order by created_at desc limit 20`,
         ),
         sql.unsafe(
-          `select id,title,detail,queue,status,created_at as "createdAt" from operator_tasks where business_id='${safeBusinessId}' order by created_at desc limit 20`,
+          `select id,title,detail,queue,status,created_at as "createdAt" from operator_tasks where business_id='${safeBusinessId}' and status <> 'superseded' order by created_at desc limit 20`,
         ),
         sql.unsafe(
           `select id,type,status,payload,run_after as "runAfter",created_at as "createdAt" from jobs where business_id='${safeBusinessId}' order by created_at desc limit 20`,
         ),
-        sql`select id,status,response_log as "responseLog",created_at as "createdAt" from publishing_jobs order by created_at desc limit 20`,
+        // Scoped to THIS business via its queue rows — this used to list the latest
+        // publishing jobs across every customer.
+        sql.unsafe(
+          `select pj.id,pj.status,pj.response_log as "responseLog",pj.created_at as "createdAt" from publishing_jobs pj join content_queue cq on cq.id = pj.queue_id where cq.business_id='${safeBusinessId}' order by pj.created_at desc limit 20`,
+        ),
         sql.unsafe(
           `select id,title,channel,status,public_url as "publicUrl",created_at as "createdAt" from published_content where business_id='${safeBusinessId}' order by created_at desc limit 20`,
         ),
@@ -128,7 +132,7 @@ export async function getAutopilotWorkspace(businessId: string) {
           .where(eq(aiVisibilityChecks.businessId, businessId))
           .orderBy(desc(aiVisibilityChecks.createdAt))
           .limit(20),
-        db.select().from(operatorTasks).where(eq(operatorTasks.businessId, businessId)).orderBy(desc(operatorTasks.createdAt)).limit(20),
+        db.select().from(operatorTasks).where(and(eq(operatorTasks.businessId, businessId), ne(operatorTasks.status, "superseded"))).orderBy(desc(operatorTasks.createdAt)).limit(20),
         db
           .select({ id: jobs.id, type: jobs.type, status: jobs.status, payload: jobs.payload, runAfter: jobs.runAfter, createdAt: jobs.createdAt })
           .from(jobs)
@@ -138,6 +142,8 @@ export async function getAutopilotWorkspace(businessId: string) {
         db
           .select({ id: publishingJobs.id, status: publishingJobs.status, responseLog: publishingJobs.responseLog, createdAt: publishingJobs.createdAt })
           .from(publishingJobs)
+          .innerJoin(contentQueue, eq(contentQueue.id, publishingJobs.queueId))
+          .where(eq(contentQueue.businessId, businessId))
           .orderBy(desc(publishingJobs.createdAt))
           .limit(20),
         db

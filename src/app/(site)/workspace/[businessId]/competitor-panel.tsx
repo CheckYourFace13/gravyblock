@@ -251,7 +251,7 @@ export async function CompetitorPanel({ businessId }: { businessId: string }) {
               <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">
                 <span className="font-semibold">{fastestGrowing.name}</span> picked up{" "}
                 <span className="font-semibold">+{fastestGrowing.gained} review{fastestGrowing.gained !== 1 ? "s" : ""}</span>{" "}
-                since your last scan. Keep your review request cadence up.
+                since your last scan. Keep asking your own customers for reviews.
               </div>
             ) : null}
             {leader ? (

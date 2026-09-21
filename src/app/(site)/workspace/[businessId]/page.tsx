@@ -474,7 +474,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                   </span>
                   <div>
                     <p className={`text-sm font-semibold ${features.contentDraftsPerMonth > 0 ? "text-zinc-900" : "text-zinc-400"}`}>
-                      {features.contentDraftsPerMonth > 0 ? "Approve your first article" : "Approve your first article (Scale plan)"}
+                      {features.contentDraftsPerMonth > 0 ? "Your first article" : "Your first article (Scale plan)"}
                     </p>
                     <p className="text-xs text-zinc-500 mt-0.5">
                       {features.contentDraftsPerMonth > 0
@@ -554,9 +554,9 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           {/* Free directory listings */}
           {pendingDirectoryTasks.length > 0 ? (
             <div className="rounded-2xl border border-green-100 bg-green-50/40 p-5 shadow-sm">
-              <h3 className="text-base font-semibold text-zinc-900">Free directory listings: claim your spots</h3>
+              <h3 className="text-base font-semibold text-zinc-900">Directory listings that need you</h3>
               <p className="mt-1 text-sm text-zinc-600">
-                Each directory below sends trust signals and backlinks to Google. About 5 minutes each.
+                GravyBlock does not submit listings to directories that require owner verification. These need you to act.
               </p>
               <ul className="mt-4 space-y-4">
                 {pendingDirectoryTasks.map((task) => (
@@ -606,10 +606,9 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <FeatureRow label="Monthly summary email" on={features.monthlySummaryEmail} />
             <FeatureRow label={`Content ideas (${features.contentIdeasPerMonth}/mo)`} on={features.contentIdeasPerMonth > 0} />
             <FeatureRow label="AI content drafts + publishing" on={features.contentDraftsPerMonth > 0} />
-            <FeatureRow label="GBP posts + backlink outreach" on={features.redditPosting} />
-            <FeatureRow label="Multi-step outreach sequences" on={features.multiStepOutreach} />
-            <FeatureRow label="Review monitoring + AI replies" on={features.reviewManagement} />
-            <FeatureRow label="Programmatic SEO pages" on={features.programmaticSEO} />
+            <FeatureRow label="Local outreach (links counted only once verified)" on={features.blogOutreach} />
+            <FeatureRow label="Outreach follow-up (one follow-up)" on={features.multiStepOutreach} />
+            <FeatureRow label="Review monitoring + Google replies" on={features.reviewManagement} />
             <FeatureRow label="Multi-location support" on={features.multiLocationReady} />
           </ul>
           <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs">
@@ -642,10 +641,10 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         <KpiCard label="Drafts generated" value={String(draftsThisMonth)} note="ready for review" />
         <KpiCard label="Queued for publishing" value={String(publishingQueuedThisMonth)} note="this month" />
         <KpiCard label="AI checks" value={String(aiChecksThisMonth)} note="completed this month" />
-        <KpiCard label="Citation tasks" value={String(citationQueuedThisMonth)} note="listing cleanup" />
+        <KpiCard label="Citation tasks" value={String(citationQueuedThisMonth)} note="listing checks" />
         <KpiCard label="Review tasks" value={String(reviewQueuedThisMonth)} note="reputation work" />
         <KpiCard label="Outreach drafted" value={String(outreachTasks.filter((item) => isThisMonth(item.createdAt)).length)} note="this month" />
-        <KpiCard label="Backlink opportunities" value={String(backlinkQueuedThisMonth)} note="identified this month" />
+        <KpiCard label="Outreach prospects" value={String(backlinkQueuedThisMonth)} note="identified this month" />
         <KpiCard label="Local pages queued" value={String(localPagesThisMonth)} note="service-area pages" />
       </section>
 
@@ -754,10 +753,10 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 <p className="text-sm font-semibold text-emerald-900 mb-2">✓ What GravyBlock is already doing for you</p>
                 <ul className="space-y-1.5">
                   {[
-                    "Publishing articles in direct-answer format — the style AI engines prefer to cite",
+                    "Publishing articles written from your own website's facts to your connected site",
                     "Injecting LocalBusiness + Article schema markup into every article published",
                     "Running monthly AI probes to track exactly when you first get mentioned",
-                    "Generating directory listing copy to build citation footprint AI engines index",
+                    "Checking that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-2 text-sm text-emerald-800">
                       <span className="shrink-0 mt-0.5 text-emerald-600">✓</span>
@@ -803,7 +802,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                     done: autopilot.citationIssues.length >= 5,
                     status: autopilot.citationIssues.length >= 5
                       ? "5+ citations found ✓"
-                      : "GravyBlock is generating your directory profile copy — check Action Items below",
+                      : "Claim these listings yourself — GravyBlock does not submit to directories",
                     why: "Citations on Yelp, BBB, Apple Maps, and industry directories are indexed by Perplexity directly.",
                   },
                 ];
@@ -1121,8 +1120,8 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       {/* ─── Authority + backlink queue ──────────────────────────────────────── */}
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-zinc-900">Backlink opportunities</h3>
-          <p className="mt-1 text-xs text-zinc-500">Identified and queued. These are opportunities, not links already placed.</p>
+          <h3 className="text-base font-semibold text-zinc-900">Outreach prospects</h3>
+          <p className="mt-1 text-xs text-zinc-500">Identified and queued. These are prospects, not links already placed; a link only counts once verified live.</p>
           <ul className="mt-3 space-y-2 text-sm">
             {autopilot.backlinkQueue.slice(0, 8).map((item) => (
               <li key={item.id} className="rounded-lg bg-zinc-50 px-3 py-2">

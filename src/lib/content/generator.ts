@@ -38,6 +38,8 @@ type GenerateParams = {
   tone?: string | null;
   /** Geographic focus — changes how city/location are used in content */
   focusArea?: "local" | "regional" | "national" | "online" | string | null;
+  /** Verified first-party facts (Business Truth layer). When present, every claim about the business must come from it. */
+  truthBlock?: string | null;
 };
 
 /** True when no real city is known — write without naming a specific place instead of injecting a fake-sounding fallback like "your city". */
@@ -61,7 +63,7 @@ ${cityKnown
   ? `City: ${params.city}`
   : `Geographic focus: no specific city on file — write for a general local/regional audience without naming a specific city`}
 Industry: ${params.vertical ?? "local business"}${params.serviceDescription ? `\nAbout this business: ${params.serviceDescription}` : ""}${params.uniqueSellingPoints ? `\nWhat makes them different (use these specifics, don't invent your own): ${params.uniqueSellingPoints}` : ""}
-Article title: ${params.title}
+${params.truthBlock ? `${params.truthBlock}\n\n` : ""}Article title: ${params.title}
 Target keyword: ${params.targetKeyword ?? "local services"}
 Angle / outline: ${params.outline}${params.changeSummary ? `\nRecent context: ${params.changeSummary}` : ""}${params.tone ? `\nTone: ${params.tone}` : ""}${params.brandVoice ? `\nBrand voice: ${params.brandVoice}` : ""}
 
@@ -94,7 +96,7 @@ export async function generateLocalPageBody(params: GenerateParams): Promise<str
 Business name: ${params.businessName}
 ${cityKnown ? `City: ${params.city}` : `Geographic focus: no specific city on file — write for the general service area without naming a specific city`}${params.address ? `\nAddress: ${params.address}` : ""}
 Industry: ${params.vertical ?? "local business"}${params.serviceDescription ? `\nAbout this business: ${params.serviceDescription}` : ""}${params.uniqueSellingPoints ? `\nWhat makes them different (use these specifics, don't invent your own): ${params.uniqueSellingPoints}` : ""}
-Page title: ${params.title}
+${params.truthBlock ? `${params.truthBlock}\n\n` : ""}Page title: ${params.title}
 Angle / outline: ${params.outline}${params.tone ? `\nTone: ${params.tone}` : ""}${params.brandVoice ? `\nBrand voice: ${params.brandVoice}` : ""}
 
 Required structure (in order):

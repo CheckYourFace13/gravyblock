@@ -83,7 +83,7 @@ Google's local algorithm uses review count, review velocity (how often new revie
 
 **Bottom line:** The most reliable review strategy is a simple, consistent system: ask every happy customer, make it one tap, and respond to every review you receive.
 
-[GravyBlock monitors your reviews, drafts AI replies, and reminds you weekly to keep asking →](/scan)`,
+[GravyBlock monitors your reviews, replies to Google reviews automatically, and emails you a weekly reminder and shareable review link →](/scan)`,
   },
   {
     slug: "local-seo-checklist",
@@ -168,7 +168,7 @@ ChatGPT, Perplexity, Google AI Overviews, and Microsoft Copilot all pull local b
 
 **Bottom line:** AI search optimization isn't a new discipline — it's local SEO done properly. Businesses that rank in Google's top 3 today will be mentioned in AI search results tomorrow.
 
-[GravyBlock scores your AI search visibility and automates the fixes →](/scan)`,
+[GravyBlock checks monthly whether AI assistants mention your business →](/scan)`,
   },
   {
     slug: "google-maps-top-3-ranking",
@@ -203,7 +203,7 @@ Most businesses see meaningful movement (moving from position 7–15 to position
 
 **Bottom line:** The businesses in the Google Maps top 3 aren't there by accident — they have complete profiles, strong review velocity, consistent citations, and regular content. Fix all four and you'll get there.
 
-[GravyBlock automates all of this for under $80/month →](/scan)`,
+[GravyBlock handles part of this on a schedule, starting at $74.99/month with code GROWTH50 →](/scan)`,
   },
   {
     slug: "local-seo-vs-google-ads",
@@ -291,7 +291,7 @@ Post 10 questions and answers yourself — common customer questions about prici
 
 **Bottom line:** A fully optimized GBP takes about 2 hours to set up and 15 minutes per week to maintain. That investment puts you ahead of 80% of your local competitors.
 
-[GravyBlock handles weekly GBP posting, Q&A, and photo uploads automatically →](/scan)`,
+[GravyBlock publishes weekly Google Business Profile posts and adds your own images once Google is connected →](/scan)`,
   },
   {
     slug: "what-is-nap-consistency-local-seo",
@@ -326,7 +326,7 @@ When Google finds your business listed as "Mike's Plumbing" in one place and "Mi
 
 **Bottom line:** NAP consistency is tedious to fix but permanently valuable once done. A single afternoon of auditing and updating your 10 most important directories can move your local ranking within 30 days.
 
-[GravyBlock's citation audit identifies every inconsistency automatically →](/scan)`,
+[GravyBlock checks your name, phone and address across your website, Google, and where connected Yelp and Facebook →](/scan)`,
   },
   {
     slug: "local-seo-for-service-area-businesses",
@@ -365,7 +365,7 @@ Get listed in local chambers of commerce, city business directories, and local n
 
 **Bottom line:** Service area businesses can absolutely rank in multiple cities — it just requires more deliberate content and citation building than single-location businesses.
 
-[GravyBlock generates location pages for every city you serve automatically →](/scan)`,
+[GravyBlock writes service-area pages from your own website's information and publishes them to your connected site →](/scan)`,
   },
   {
     slug: "how-to-respond-to-negative-google-reviews",
@@ -409,7 +409,7 @@ Report it to Google (three dots → Flag as inappropriate) and do not respond pu
 
 **Bottom line:** Every negative review is a public audition of your customer service skills. Handle it professionally and many readers will trust you more, not less.
 
-[GravyBlock monitors your reviews and drafts responses automatically →](/scan)`,
+[GravyBlock monitors your reviews and replies to Google reviews automatically once Google is connected →](/scan)`,
   },
   {
     slug: "local-seo-for-restaurants",
@@ -444,7 +444,7 @@ Restaurants have an advantage: you interact with dozens of customers per day. A 
 
 **Bottom line:** Restaurant local SEO is won with photos, menu completeness, review velocity, and weekly posts. Businesses doing all four consistently dominate their local market.
 
-[GravyBlock automates weekly GBP posts and review monitoring for restaurants →](/scan)`,
+[GravyBlock publishes weekly Google Business Profile posts and monitors reviews for restaurants →](/scan)`,
   },
   {
     slug: "local-seo-for-dentists",
@@ -482,7 +482,7 @@ Visual results are the highest-converting content for dental practices. A weekly
 
 **Bottom line:** Dental local SEO is a long-term investment with extremely high returns. The combination of complete GBP, health directory citations, service pages, and a consistent review system puts most practices in the top 3 within 6 months.
 
-[GravyBlock manages dental practice SEO automatically for $80/month →](/scan)`,
+[GravyBlock runs scheduled website content, Google posts and review replies for dental practices →](/scan)`,
   },
   {
     slug: "local-seo-for-plumbers",
@@ -520,7 +520,7 @@ Encourage customers to mention your response time in reviews: "They arrived in 4
 
 **Bottom line:** Plumbing local SEO is won by speed and trust signals. Emergency availability in your GBP, service-specific pages, fast response testimonials, and weekly photo content will put you in the top 3 in most markets within 90 days.
 
-[GravyBlock handles weekly posts, Q&A, and content for plumbing businesses automatically →](/scan)`,
+[GravyBlock runs weekly Google posts and website content for plumbing businesses →](/scan)`,
   },
   {
     slug: "citation-building-local-seo",
@@ -572,7 +572,7 @@ Beyond the core directories, add citations to the platforms your customers use:
 
 **Bottom line:** Citation building is a one-time investment with lasting returns. Getting fully listed on 15–20 high-authority directories puts most businesses in the top 3 for their target keywords.
 
-[GravyBlock generates your directory profile copy and creates your claim task list automatically →](/scan)`,
+[GravyBlock checks that your listings agree across your website, Google, and where connected Yelp and Facebook →](/scan)`,
   },
   {
     slug: "content-marketing-local-business",
@@ -612,56 +612,54 @@ For most local businesses:
 
 **Bottom line:** Local content marketing works when it targets specific problems and search terms your customers actually use. Generic advice articles don't rank; specific, locally-relevant answers do.
 
-[GravyBlock publishes 4+ locally-targeted articles per month automatically for every paid customer →](/scan)`,
+[GravyBlock writes articles from your own website's information and publishes them to your connected site →](/scan)`,
   },
   {
     slug: "local-seo-tools-comparison",
     title: "Best Local SEO Tools for Small Businesses in 2026 (Honest Comparison)",
     metaDescription: "Comparing BrightLocal, Yext, Semrush Local, and GravyBlock for small business local SEO in 2026 — including price, features, and who each tool is best for.",
     publishedAt: "2026-05-31",
-    body: `The local SEO tool market ranges from $30/month reporting dashboards to $500+/month agency platforms. Here's an honest comparison of the options for small businesses.
+    body: `The local SEO tool market ranges from low-cost reporting dashboards to enterprise platforms. Here's an overview of the options for small businesses. Features and prices change often, so check each vendor's current plans.
 
 ## What to Look for in a Local SEO Tool
 
-The best local SEO tools for small businesses do three things:
+Useful local SEO tools for small businesses generally do some mix of three things:
 1. **Show you where you stand** — rankings, scores, competitor comparison
 2. **Tell you what to fix** — specific, prioritized action items
-3. **Automate the work** — actually implement fixes without requiring agency fees
-
-Most tools do the first two. Very few do the third.
+3. **Handle part of the work** — publishing, posting or listing management, depending on the vendor
 
 ## The Main Tools Compared
 
-### BrightLocal ($29–$49/month)
+### BrightLocal (plans have generally started from around $39/month)
 **Best for:** Agencies managing multiple clients, businesses that want detailed reporting
 
-BrightLocal is the most established local SEO reporting tool. Strong rank tracking, citation audit, and review monitoring. Weakness: it's a reporting dashboard, not an automation platform. Everything it tells you to fix still requires manual work or hiring an agency.
+BrightLocal is one of the most established local SEO platforms, known for rank tracking, citation and listing tools, review tools and reporting, and today it also offers automation features. It is popular with agencies.
 
-### Yext ($199–$449/month)
+### Yext (published plans have generally started from around $199/year)
 **Best for:** Enterprise brands, franchise networks, multi-location businesses
 
-Yext pushes your business data to 70+ directories through their publisher network. High accuracy, but extremely expensive for small businesses. The monthly fee continues indefinitely — cancel and your listings revert. Also doesn't handle content, reviews, or GBP optimization.
+Yext syncs your business data to a large publisher network and also offers review, page and search tools. It is generally aimed at larger and multi-location businesses; check current plans and terms.
 
-### Semrush Local ($50/month add-on)
+### Semrush Local (an add-on to Semrush plans)
 **Best for:** Businesses already using Semrush for broader SEO
 
-Semrush's local features are solid for keyword research and rank tracking, but thin on local-specific features like GBP management, review monitoring, or citation building. Best as a supplement, not a standalone solution.
+Semrush is a broad SEO suite with a local toolkit that includes listing management. It is a good fit for people who already use Semrush for keyword research and rank tracking.
 
-### GravyBlock ($79–$499/month)
-**Best for:** Local service businesses that want automation, not just reporting
+### GravyBlock (Starter $59.99, Scale $149.99, Pro $299.99 per month; promo codes are available)
+**Best for:** Owner-operated local businesses that want a small set of scheduled tasks handled
 
-GravyBlock is built differently — instead of showing you what's wrong and leaving you to fix it, it fixes things automatically. Weekly SEO content published to your website, GBP posts published weekly, review replies written and posted, directory listings claimed, citations audited. The goal is replacing the work you'd otherwise pay an agency to do.
+GravyBlock is a lower-cost option focused on a defined set of scheduled work: articles and service pages written from your own website's information and published to your connected WordPress, Webflow or Shopify site, weekly Google Business Profile posts, automatic replies to Google reviews (Yelp and TripAdvisor replies are drafted for you to paste), personalized local outreach, and citation consistency checks with drift alerts. It does not build or fix listings on hundreds of directories.
 
 ## Which Tool Should You Choose?
 
 | If you want... | Use... |
 |---|---|
 | Detailed reporting and you have someone to act on it | BrightLocal |
-| Automatic directory sync across 70+ listings | Yext |
+| Listing sync across a large publisher network | Yext |
 | Keyword research alongside local SEO | Semrush |
-| Everything done automatically without an agency | GravyBlock |
+| A lower-cost option that runs scheduled content, Google posts and review replies | GravyBlock |
 
-**Bottom line:** If you have an in-house marketing person or work with an agency, BrightLocal gives you the best reporting. If you're a small business owner who wants results without ongoing manual work, GravyBlock is built specifically for you.
+**Bottom line:** If you have an in-house marketing person or work with an agency, BrightLocal gives you the best reporting. If you're a small business owner who wants a lower-cost option that runs a defined set of tasks on a schedule, GravyBlock may fit. Results are not guaranteed.
 
 [Start your free GravyBlock scan and see your visibility score in 60 seconds →](/scan)`,
   },
@@ -710,7 +708,7 @@ GBP posts expire after 7 days unless they're Event or Offer posts (which run unt
 
 **Bottom line:** GBP posts take 5 minutes per week and directly improve your search rankings. There is almost no other 5-minute weekly action with comparable ROI for local SEO.
 
-[GravyBlock writes and publishes your weekly GBP posts automatically →](/scan)`,
+[GravyBlock publishes a weekly Google Business Profile post once Google is connected →](/scan)`,
   },
   {
     slug: "local-seo-mistakes-small-businesses",
@@ -753,7 +751,7 @@ Local SEO takes 3–6 months to show significant results. Most businesses that t
 
 **Bottom line:** Most of these mistakes are fixable in a single afternoon. Fixing all 10 consistently moves most local businesses from page 2 into the top 3 within 90 days.
 
-[GravyBlock scans for all 10 of these mistakes and tracks your fix progress automatically →](/scan)`,
+[GravyBlock's free scan checks many of these items →](/scan)`,
   },
   {
     slug: "schema-markup-local-business",
@@ -831,7 +829,7 @@ Rank Math and Yoast SEO both generate LocalBusiness schema automatically from yo
 
 **Bottom line:** Schema markup takes about an hour to implement correctly and provides lasting ranking benefits. For AI search optimization specifically, LocalBusiness and Article schema are non-negotiable.
 
-[GravyBlock automatically injects schema markup into every article it publishes to your website →](/scan)`,
+[GravyBlock adds schema markup to the articles it publishes to your connected website →](/scan)`,
   },
   {
     slug: "rank-google-maps-without-reviews",
@@ -867,7 +865,7 @@ However, in most competitive urban markets, 20+ reviews with a 4.3+ average is e
 
 **Bottom line:** You can rank without reviews by maximizing every other factor. But 25+ reviews remains the fastest path to consistent top-3 appearances. Make review generation your primary activity in months 1–3.
 
-[GravyBlock monitors your reviews, drafts AI replies, and reminds you weekly to keep asking →](/scan)`,
+[GravyBlock monitors your reviews, replies to Google reviews automatically, and emails you a weekly reminder and shareable review link →](/scan)`,
   },
 ];
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "GravyBlock on Product Hunt — Local SEO That Runs Itself",
   description:
-    "GravyBlock automates local SEO for small businesses. Weekly AI content, Google Business Profile posts, backlink outreach, review monitoring, and Google ranking tracking. Free scan. Product Hunt exclusive: 50% off your first 2 months.",
+    "GravyBlock automates local SEO for small businesses. Website content, Google Business Profile posts, personalized local outreach, review monitoring and Google review replies, and Google ranking tracking. Free scan. Product Hunt exclusive: 50% off your first 2 months.",
   robots: { index: false }, // PH page shouldn't compete with homepage in search
 };
 
@@ -12,39 +12,39 @@ const features = [
   {
     icon: "✍️",
     title: "Weekly content published to your site",
-    desc: "AI-written local SEO articles go live automatically. No login, no approval needed (unless you want it).",
+    desc: "Articles written from your own website's facts are published to your connected WordPress, Webflow or Shopify site and checked live. No login needed.",
   },
   {
     icon: "📣",
     title: "Google Business Profile on autopilot",
-    desc: "Weekly GBP posts, photo uploads, and Q&A seeding keep your listing active — the strongest freshness signal for Maps rankings.",
+    desc: "A weekly Google Business Profile post and your own website images keep your listing active, once Google is connected.",
   },
   {
     icon: "🔗",
-    title: "Backlink outreach, automated",
-    desc: "We find local chambers, news sites, and niche blogs in your area and send personalized outreach emails monthly.",
+    title: "Local outreach",
+    desc: "We find relevant local organizations and pitch one useful page from your website to a real published contact, with one follow-up. A link only counts once verified live. Links are never guaranteed.",
   },
   {
     icon: "⭐",
-    title: "Review monitoring + AI reply drafts",
-    desc: "New reviews flagged instantly. AI drafts a reply you can copy in one click. Negative reviews caught privately.",
+    title: "Review monitoring + automatic Google replies",
+    desc: "New Google, Yelp and TripAdvisor reviews are monitored and you are alerted. Replies to Google reviews are posted automatically once Google is connected; Yelp and TripAdvisor replies are drafted for you to paste.",
   },
   {
     icon: "🤖",
     title: "AI search visibility check",
-    desc: "We probe ChatGPT, Perplexity, and Gemini to see if your business gets mentioned. Track it over time.",
+    desc: "Each month we check whether AI assistants mention your business. Results are reported over time.",
   },
   {
     icon: "📊",
     title: "Competitor gap analysis",
-    desc: "See who outranks you, exactly how many more reviews they have, and what you need to close the gap.",
+    desc: "See who outranks you and how many more reviews they have in your free scan.",
   },
 ];
 
 const faqs = [
   {
     q: "Does this actually publish to my site automatically?",
-    a: "Yes. Connect your WordPress, Webflow, or custom site via API key. Articles publish on schedule, no action required. You can review drafts first if you prefer.",
+    a: "Yes, for WordPress, Webflow and Shopify sites. Connect your site once and articles are published on schedule. Other platforms get drafted content to paste in yourself.",
   },
   {
     q: "What if I don't have a Google Business Profile?",
@@ -56,7 +56,7 @@ const faqs = [
   },
   {
     q: "How is this different from BrightLocal or Semrush?",
-    a: "Those are reporting tools. You get data, then you still have to do the work. GravyBlock does the work: it publishes, posts, outreaches, and monitors on a weekly schedule. You don't have to log in.",
+    a: "BrightLocal and Semrush are established platforms with broad toolsets. GravyBlock is a lower-cost option focused on a defined set of scheduled work: it publishes website content, posts to Google, replies to Google reviews, runs local outreach, and monitors reviews and rankings.",
   },
   {
     q: "Who is this for?",
@@ -83,7 +83,7 @@ export default function LaunchPage() {
             Local SEO that runs<br className="hidden sm:block" /> itself, every week.
           </h1>
           <p className="mx-auto max-w-xl text-lg text-zinc-600">
-            GravyBlock publishes content, keeps your Google Business Profile active, sends backlink outreach, monitors reviews, and tracks your Google rankings. <strong className="text-zinc-800">Hands-free, forever.</strong>
+            GravyBlock publishes website content, posts to your Google Business Profile, sends personalized local outreach, monitors reviews, and tracks your Google rankings. <strong className="text-zinc-800">Set up once, then it runs on a schedule.</strong>
           </p>
           <p className="text-sm text-zinc-500">
             Built for restaurants, dentists, contractors, salons, lawyers, and any local business that gets customers through Google.
@@ -119,7 +119,7 @@ export default function LaunchPage() {
             Local SEO agencies charge $1,000–$3,000/month.<br className="hidden sm:block" /> Most of it is work a machine can do better.
           </p>
           <p className="text-zinc-400 text-sm max-w-xl mx-auto">
-            Publishing content, sending outreach emails, monitoring reviews, tracking rankings — these are repeatable tasks. GravyBlock automates all of them on a weekly schedule so you don't have to hire an agency or remember to log in.
+            Publishing content, sending outreach emails, monitoring reviews, tracking rankings — these are repeatable tasks. GravyBlock runs them on a schedule so you don't have to hire an agency or remember to log in.
           </p>
         </div>
       </section>
@@ -127,7 +127,7 @@ export default function LaunchPage() {
       {/* Features */}
       <section className="px-4 py-14 sm:px-6">
         <div className="mx-auto max-w-5xl">
-          <p className="mb-8 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">What runs every week, automatically</p>
+          <p className="mb-8 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">What runs on a schedule</p>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((f) => (
               <div key={f.title} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -151,7 +151,7 @@ export default function LaunchPage() {
                 label: "Starter",
                 regular: "$59.99",
                 ph: "$29.99",
-                desc: "Monthly visibility score, fix queue, AI search check, citation audit.",
+                desc: "Monthly visibility score, fix list, AI search check, citation consistency checks.",
                 href: "/scan?plan=starter&promo=PRODUCTHUNT",
                 highlight: false,
               },
@@ -159,7 +159,7 @@ export default function LaunchPage() {
                 label: "Scale",
                 regular: "$149.99",
                 ph: "$74.99",
-                desc: "Full automation: weekly content, GBP posts, backlink outreach, review inbox, social posting.",
+                desc: "Scheduled content, Google Business Profile posts, local outreach, automatic Google review replies, Facebook and Instagram posting.",
                 href: "/scan?plan=growth&promo=PRODUCTHUNT",
                 highlight: true,
               },
@@ -167,7 +167,7 @@ export default function LaunchPage() {
                 label: "Pro",
                 regular: "$299.99",
                 ph: "$149.99",
-                desc: "Everything in Scale twice as often. Programmatic city pages. Up to 3 locations.",
+                desc: "Everything in Scale twice as often. Up to 3 locations.",
                 href: "/scan?plan=pro&promo=PRODUCTHUNT",
                 highlight: false,
               },

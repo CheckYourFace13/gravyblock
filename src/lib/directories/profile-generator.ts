@@ -133,127 +133,13 @@ Write the description now.`,
   });
 }
 
-export async function runDirectoryProfileBatch(batchSize = 3): Promise<{ processed: number }> {
-  const db = getDb();
-  if (!db) return { processed: 0 };
-
-  const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
-  const recentJobCheck = await db
-    .select({ businessId: jobs.businessId })
-    .from(jobs)
-    .where(
-      and(
-        eq(jobs.type, "directory_profile_generator"),
-        eq(jobs.status, "completed"),
-        gte(jobs.createdAt, oneMonthAgo),
-      ),
-    )
-    .limit(200);
-
-  const alreadyDone = new Set(recentJobCheck.map((r) => r.businessId).filter(Boolean));
-
-  const bizList = await db
-    .select({
-      id: businesses.id,
-      name: businesses.name,
-      address: businesses.address,
-      website: businesses.website,
-      phone: businesses.phone,
-      vertical: businesses.vertical,
-      primaryCategory: businesses.primaryCategory,
-      planTier: businesses.planTier,
-    })
-    .from(businesses)
-    .limit(batchSize * 5);
-
-  const eligible = bizList.filter((b) => {
-    if (alreadyDone.has(b.id)) return false;
-    const tier = b.planTier ?? "free";
-    return tier !== "free";
-  }).slice(0, batchSize);
-
-  let processed = 0;
-
-  for (const biz of eligible) {
-    const jobId = randomUUID();
-    await db.insert(jobs).values({
-      id: jobId,
-      businessId: biz.id,
-      type: "directory_profile_generator",
-      payload: { source: "worker" },
-      status: "running",
-    });
-
-    try {
-      const [config] = await db
-        .select({ serviceDescription: businessConfigs.serviceDescription })
-        .from(businessConfigs)
-        .where(eq(businessConfigs.businessId, biz.id))
-        .limit(1);
-
-      const industry = biz.vertical ?? biz.primaryCategory ?? "local business";
-      const city = cityFromAddress(biz.address);
-      const state = stateFromAddress(biz.address);
-      const services = config?.serviceDescription ?? `${biz.name} offers ${industry} services in ${city}.`;
-
-      // Generate one shared description, then tailor per high-value directories
-      const baseDescription = await generateProfileDescription({
-        businessName: biz.name,
-        industry,
-        city,
-        state,
-        services,
-        directoryName: "local business directories",
-      });
-
-      if (!baseDescription) {
-        await db.update(jobs).set({ status: "failed" }).where(eq(jobs.id, jobId));
-        continue;
-      }
-
-      // Build a single comprehensive task with all directories
-      const highValueDirs = FREE_DIRECTORIES.filter((d) => d.doFollowValue === "high");
-      const mediumDirs = FREE_DIRECTORIES.filter((d) => d.doFollowValue === "medium");
-
-      const taskDetail = [
-        `Use the profile description below on each directory. Copy your exact business name, address, phone number, and website from Google Business Profile to keep your NAP (Name, Address, Phone) consistent across the web.`,
-        "",
-        `PROFILE DESCRIPTION TO USE:`,
-        baseDescription,
-        "",
-        `BUSINESS INFO FOR ALL LISTINGS:`,
-        `Name: ${biz.name}`,
-        `Address: ${biz.address ?? city + ", " + state}`,
-        `Phone: ${biz.phone ?? "(add your phone number)"}`,
-        `Website: ${biz.website ?? "(add your website URL)"}`,
-        "",
-        `HIGH-PRIORITY DIRECTORIES (biggest SEO impact):`,
-        ...highValueDirs.map((d) => `- ${d.name}: ${d.claimUrl}\n  Why: ${d.description}`),
-        "",
-        `ALSO WORTH ADDING (good citation sources):`,
-        ...mediumDirs.map((d) => `- ${d.name}: ${d.claimUrl}`),
-      ].join("\n");
-
-      await db.insert(operatorTasks).values({
-        id: randomUUID(),
-        businessId: biz.id,
-        title: `Claim your free listings on ${highValueDirs.length + mediumDirs.length} directories for more backlinks`,
-        detail: taskDetail,
-        queue: "citation_ops",
-        status: "queued",
-      });
-
-      await db.update(jobs).set({ status: "completed" }).where(eq(jobs.id, jobId));
-      processed += 1;
-    } catch (error) {
-      await db.update(jobs).set({ status: "failed" }).where(eq(jobs.id, jobId));
-      console.error("[directory-profiles] failed for business", {
-        businessId: biz.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  return { processed };
+/**
+ * Retired. This used to create one owner to-do per month ('Claim your free
+ * listings on N directories') listing directories that all require the
+ * owner's own login/verification. Those targets are now tracked honestly by
+ * the citation engine (src/lib/citations) as unsupported for no-touch
+ * automation, without assigning recurring work to the customer.
+ */
+export async function runDirectoryProfileBatch(_batchSize = 3): Promise<{ processed: number }> {
+  return { processed: 0 };
 }

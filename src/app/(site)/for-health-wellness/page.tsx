@@ -11,13 +11,13 @@ export default function ForHealthWellnessPage() {
     <VerticalLanding
       eyebrow="Health & Wellness"
       title="People searching for gyms, therapists, and wellness studios choose based on Google reviews and rankings. Show up first."
-      body="Health and wellness decisions are personal. When someone types 'yoga studio near me' or 'massage therapist in [city]', they're ready to book. GravyBlock keeps your Google profile complete, your reviews growing, and your content publishing weekly — so you're the first result they trust enough to call."
+      body="Health and wellness decisions are personal. When someone types 'yoga studio near me' or 'massage therapist in [city]', they're ready to book. GravyBlock keeps your Google profile active with weekly posts, monitors your reviews, and publishes content — so you're the first result they trust enough to call."
       bullets={[
-        "Optimize your Google Business Profile for your specific services: personal training, yoga, massage, therapy, and more.",
+        "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Publish weekly content: workout tips, wellness guides, and local health resources that rank long-term.",
         "Track Google Map rankings for 'gym near me,' 'personal trainer,' 'yoga studio,' and city-specific searches.",
-        "Build your review count on Google. Social proof is the #1 conversion factor for wellness bookings.",
-        "Send backlink outreach to local health blogs, fitness communities, and neighborhood directories.",
+        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor replies are drafted for you to paste.",
+        "Send personalized outreach to relevant local organizations. A link only counts once verified live; links are never guaranteed.",
         "Monitor AI visibility — health and wellness searches are increasingly answered by ChatGPT and Perplexity.",
       ]}
       ctaHref="/scan"

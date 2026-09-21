@@ -101,15 +101,15 @@ function buildDigestHtml(params: {
     : "";
 
   const automationWins = [
-    contentPublished > 0 ? `${contentPublished} article${contentPublished !== 1 ? "s" : ""} published &rarr; improved AEO signals` : null,
-    aiProbesRun > 0 ? `${aiProbesRun} AI citation probe${aiProbesRun !== 1 ? "s" : ""} run &rarr; tracking your GEO score` : null,
-    citationChecks > 0 ? `${citationChecks} citation check${citationChecks !== 1 ? "s" : ""} completed &rarr; protecting your Entity score` : null,
+    contentPublished > 0 ? `${contentPublished} article${contentPublished !== 1 ? "s" : ""} published` : null,
+    aiProbesRun > 0 ? `${aiProbesRun} AI visibility check${aiProbesRun !== 1 ? "s" : ""} run` : null,
+    citationChecks > 0 ? `${citationChecks} listing${citationChecks !== 1 ? "s" : ""} checked for consistency` : null,
     issuesResolved > 0 ? `${issuesResolved} website issue${issuesResolved !== 1 ? "s" : ""} confirmed fixed on your latest re-check &check; see your fix list` : null,
   ].filter(Boolean);
 
   const automationWinsSection = automationWins.length > 0
     ? `<div style="margin:20px 0;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
-        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.08em;">What we did for your scores this month</p>
+        <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.08em;">What ran this month</p>
         <ul style="margin:0;padding-left:18px;font-size:13px;color:#14532d;line-height:2;">
           ${automationWins.map((w) => `<li>${w}</li>`).join("")}
         </ul>
@@ -121,7 +121,7 @@ function buildDigestHtml(params: {
     { label: "Content items published", value: contentPublished },
     { label: "Visibility snapshots taken", value: snapshotsTaken },
     { label: "Automation tasks completed", value: tasksCompleted },
-    { label: "Outreach drafts created", value: outreachSent },
+    { label: "Outreach items logged", value: outreachSent },
   ].filter((s) => s.value > 0);
 
   const statsHtml = stats.length > 0
@@ -133,7 +133,7 @@ function buildDigestHtml(params: {
         </tr>`).join("")}
        </table>`
     : `<p style="font-size:14px;color:#666;margin:16px 0;">
-        Your workspace is set up and ready. Automation will begin running on the next scheduled cycle.
+        Your workspace is set up and ready. Scheduled work begins on the next cycle once your website and accounts are connected.
        </p>`;
 
   return `<!DOCTYPE html>
@@ -145,7 +145,7 @@ function buildDigestHtml(params: {
 <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;max-width:600px;width:100%;">
 <tr><td style="padding:32px 40px 24px;border-bottom:1px solid #e5e5e5;background:#111;">
   <p style="margin:0;font-size:20px;font-weight:700;color:#fff;">GravyBlock</p>
-  <p style="margin:4px 0 0;font-size:13px;color:#999;">${monthLabel} autopilot summary</p>
+  <p style="margin:4px 0 0;font-size:13px;color:#999;">${monthLabel} activity summary</p>
 </td></tr>
 <tr><td style="padding:32px 40px;">
   <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#111;line-height:1.3;">

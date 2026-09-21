@@ -129,7 +129,7 @@ function ReviewCard({ review, onStatusChange }: { review: Review; onStatusChange
           >
             {copied ? "Copied!" : "Copy reply"}
           </button>
-          <p className="mt-1 text-[10px] text-zinc-400">Copy and paste into Google Maps to reply, then mark replied above.</p>
+          <p className="mt-1 text-[10px] text-zinc-400">Paste into the review site to reply, then mark replied above. Google replies post automatically once Google is connected; Yelp and TripAdvisor do not allow automatic replies.</p>
         </div>
       ) : null}
     </li>
@@ -160,7 +160,7 @@ export function ReviewsSection({ reviews: initialReviews }: { reviews: Review[] 
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">Review inbox</h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Latest reviews from Google. AI-drafted replies ready to copy and paste.
+            Latest reviews. Google replies are posted automatically once Google is connected; Yelp and TripAdvisor replies are drafted for you to paste.
           </p>
         </div>
         {avgRating !== null ? (

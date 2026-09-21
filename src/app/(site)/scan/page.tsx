@@ -85,11 +85,7 @@ export default async function ScanPage({ searchParams }: Props) {
             Special rate on Scale: $74.99/month — keep this rate for as long as your subscription stays active.
           </p>
         </div>
-        {promoCode === "EMAILFREE" || promoCode === "CONNECT" || promoCode === "ILoveYouFree" ? (
-          <p className="mt-2 text-sm font-medium text-emerald-700">
-            🎁 Your <strong>first month is FREE</strong> — code <strong>{promoCode}</strong> applies automatically at checkout.
-          </p>
-        ) : promoCode ? (
+        {promoCode ? (
           <p className="mt-2 text-sm font-medium text-emerald-700">
             🎁 Your discount code <strong>{promoCode}</strong> applies automatically at checkout.
           </p>
@@ -105,13 +101,13 @@ export default async function ScanPage({ searchParams }: Props) {
       </div>
 
       <div className="mx-auto mt-6 flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4">
-        <p className="text-sm font-semibold text-zinc-900">Want ongoing automation? Pick a plan after your scan:</p>
+        <p className="text-sm font-semibold text-zinc-900">Want ongoing scheduled work? Pick a plan after your scan:</p>
         <div className="flex flex-wrap gap-2">
           <Link
             href={promoCode ? `/start?plan=starter&promo=${encodeURIComponent(promoCode)}` : "/start?plan=starter"}
             className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-200"
           >
-            Starter — $29.99/mo
+            Starter — $29.99 first month
           </Link>
           <Link
             href={promoCode ? `/start?plan=growth&promo=${encodeURIComponent(promoCode)}` : "/start?plan=growth"}
@@ -123,7 +119,7 @@ export default async function ScanPage({ searchParams }: Props) {
             href={promoCode ? `/start?plan=pro&promo=${encodeURIComponent(promoCode)}` : "/start?plan=pro"}
             className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-200"
           >
-            Pro — $149.99/mo
+            Pro — $149.99 first month
           </Link>
         </div>
       </div>

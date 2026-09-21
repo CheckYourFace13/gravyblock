@@ -111,10 +111,10 @@ export default function AiVisibilityTestPage() {
         <h2 className="text-2xl font-semibold text-zinc-900">What GravyBlock does to improve AI visibility</h2>
         <ul className="mt-4 space-y-3">
           {[
-            "Generates local SEO articles that cite your business in context. These become sources AI systems reference.",
-            "Tracks your GBP completeness and flags gaps that hurt AI discoverability.",
-            "Monitors AI search results monthly and reports whether mention frequency is improving.",
-            "Builds outreach to local directories and blogs that increase your citation footprint.",
+            "Writes articles and service pages from your own website's information and publishes them to your connected site.",
+            "Checks that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook.",
+            "Checks monthly whether AI assistants mention your business and reports the result. GravyBlock does not yet act on those results automatically.",
+            "Sends personalized outreach to relevant local organizations. A link only counts once verified live; links are never guaranteed.",
           ].map((item) => (
             <li key={item} className="flex items-start gap-3 rounded-xl bg-zinc-50 border border-zinc-200 px-4 py-3 text-sm">
               <span className="mt-0.5 shrink-0 text-red-600">+</span>

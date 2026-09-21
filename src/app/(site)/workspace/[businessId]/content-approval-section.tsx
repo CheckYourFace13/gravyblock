@@ -6,7 +6,6 @@ import { approveQueuedDraft, dismissQueuedDraft, type QueuedDraft } from "./cont
 const KIND_LABELS: Record<string, string> = {
   article: "SEO Article",
   gbp_post: "GBP Post",
-  reddit_post: "Reddit Post",
   location_page: "Location Page",
   facebook_post: "Facebook Post",
   instagram_caption: "Instagram Caption",
@@ -59,7 +58,7 @@ export function ContentApprovalSection({ businessId, initialDrafts }: Props) {
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">Content approval queue</h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Review AI-generated drafts before they publish. Approve to publish, or dismiss to skip.
+            Queued drafts. Facebook and Instagram posts publish automatically once your Facebook Page is connected; dismiss a draft to skip it.
           </p>
         </div>
         {pending.length > 0 ? (
@@ -72,8 +71,8 @@ export function ContentApprovalSection({ businessId, initialDrafts }: Props) {
       {/* Social posts need approval banner */}
       {pendingSocial.length > 0 ? (
         <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-          <span className="font-semibold">{pendingSocial.length} social post{pendingSocial.length > 1 ? "s" : ""} ready for review.</span>
-          {" "}Approve to publish to Facebook/Instagram, or dismiss to skip.
+          <span className="font-semibold">{pendingSocial.length} social post{pendingSocial.length > 1 ? "s" : ""} queued.</span>
+          {" "}They publish automatically once your Facebook Page is connected, or dismiss to skip.
         </div>
       ) : null}
 
@@ -116,11 +115,11 @@ export function ContentApprovalSection({ businessId, initialDrafts }: Props) {
                     </span>
                     {isApproved ? (
                       <span className="rounded-full bg-green-200 px-2 py-0.5 text-xs font-semibold text-green-800">
-                        Approved — queued to post
+                        Queued to post
                       </span>
                     ) : isPendingApproval ? (
                       <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                        Needs your approval
+                        Queued
                       </span>
                     ) : null}
                   </div>

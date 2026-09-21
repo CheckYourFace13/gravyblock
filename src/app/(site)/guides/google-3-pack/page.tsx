@@ -127,7 +127,7 @@ export default function Google3PackGuidePage() {
         <p>
           Your business name, address, and phone (NAP) should match exactly across Google, Yelp, Apple Maps,
           Bing, Facebook, and 50+ local directories. Mismatches confuse Google's algorithm and hurt prominence.
-          GravyBlock audits citations automatically and queues fixes.
+          GravyBlock checks that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook, and alerts you when they drift.
         </p>
         <h3>Step 3: Grow your Google reviews</h3>
         <p>

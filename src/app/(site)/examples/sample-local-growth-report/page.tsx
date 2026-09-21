@@ -271,18 +271,18 @@ export default async function SampleLocalGrowthReportPage() {
                 <li>✓ Articles written and published to the site ({publishedContentCount} published so far)</li>
                 <li>✓ Schema markup injected into every published article</li>
                 <li>✓ Monthly AI-visibility probes across ChatGPT, Perplexity, and Gemini</li>
-                <li>✓ Citation monitoring and mismatch flagging</li>
-                <li>✓ Backlink outreach attempts to real, discovered contacts (never guessed addresses)</li>
+                <li>✓ Citation consistency checks and drift alerts</li>
+                <li>✓ Personalized outreach to real published contacts of relevant local organizations (never guessed addresses); a link counts only once verified live</li>
               </ul>
             </div>
             <div>
               <p className="text-sm font-semibold text-amber-800 mb-2">Still needs the owner</p>
               <ul className="space-y-1.5 text-sm text-zinc-700">
                 <li>○ Connecting Google Search Console for verified ranking data</li>
-                <li>○ Connecting Google Business Profile for posts/photos/Q&amp;A automation</li>
+                <li>○ Connecting Google Business Profile for posts, photos and Google review replies</li>
                 <li>○ Creating missing social profiles (GravyBlock posts to existing ones, doesn&apos;t create new ones)</li>
                 <li>○ Structural website fixes flagged above (e.g. adding a click-to-call link)</li>
-                <li>○ Responding personally to reviews GravyBlock drafts replies for</li>
+                <li>○ Pasting the drafted replies for Yelp and TripAdvisor reviews (Google replies are posted automatically)</li>
               </ul>
             </div>
           </div>

@@ -3,9 +3,9 @@
  *
  * Finds a recent, substantial positive review (synced by platform-sync from
  * Google/Yelp/TripAdvisor), writes a Facebook post and an Instagram caption
- * around a short quoted excerpt, and queues both as "pending_approval" so the
- * owner approves them in the workspace content queue before the existing
- * facebook-poster publishes them.
+ * around a short quoted excerpt, and queues both for the existing
+ * facebook-poster to publish (no per-post approval — connecting the Facebook
+ * Page once is the authorization).
  *
  * Guardrails:
  *  - only reviews with enough text to quote (no bare star ratings)
@@ -197,7 +197,7 @@ export async function runReviewSpotlightBatch(batchSize = 3): Promise<ReviewSpot
         title: `Customer spotlight: ${review.rating}★ review from ${reviewerDisplay}`,
         outline: body,
         targetKeyword: review.id,
-        status: "pending_approval",
+        status: "queued", // one-time Page authorization is the approval; real reviews only
         variant: "review_spotlight",
       });
     }

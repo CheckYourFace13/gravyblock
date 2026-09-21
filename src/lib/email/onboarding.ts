@@ -42,7 +42,7 @@ const ONBOARD_SEQUENCE: OnboardEmail[] = [
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Welcome to GravyBlock</p>
       <h1 style="margin:8px 0 0;font-size:22px;font-weight:700;color:#18181b">You are all set, ${firstName}</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">
-        ${businessName} is now on <strong>${planLabel}</strong>. Your automation is live.
+        ${businessName} is now on <strong>${planLabel}</strong>. Your plan is active.
         ${score !== null ? ` Current visibility score: <strong>${score}/100</strong>.` : ""}
       </p>
       <div style="margin:16px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
@@ -53,13 +53,13 @@ const ONBOARD_SEQUENCE: OnboardEmail[] = [
         </p>
       </div>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        After that, here is what runs automatically:
+        After that, here is what happens next:
       </p>
       <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
         <ul style="margin:0;padding-left:20px;color:#3f3f46;font-size:13px;line-height:2">
-          <li>Content ideas, citation tasks, and review tasks queue within 24 hours</li>
-          <li>Your first article will be published to your site on the next scheduled run</li>
-          <li>Monthly summary email arrives with everything that was done</li>
+          <li>Content ideas and consistency checks appear in your workspace</li>
+          <li>On Scale and Pro, once your website is connected, articles are published to your site on the next scheduled run</li>
+          <li>A monthly summary email arrives with what ran</li>
         </ul>
       </div>
       ${btn(workspaceUrl, "Complete my business profile →")}
@@ -76,7 +76,7 @@ const ONBOARD_SEQUENCE: OnboardEmail[] = [
       <h1 style="margin:8px 0 0;font-size:22px;font-weight:700;color:#18181b">3 things worth doing this week</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${firstName},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        GravyBlock handles the ongoing automation for ${businessName}. Here are three things you can do manually this week that will accelerate your results:
+        GravyBlock runs scheduled work for ${businessName}. Here are three things you can do yourself this week that may help:
       </p>
       <div style="margin:16px 0">
         <div style="padding:14px;background:#f4f4f5;border-radius:10px;margin-bottom:10px">
@@ -89,7 +89,7 @@ const ONBOARD_SEQUENCE: OnboardEmail[] = [
         </div>
         <div style="padding:14px;background:#f4f4f5;border-radius:10px">
           <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">3. Check your workspace for new action items</p>
-          <p style="margin:6px 0 0;font-size:13px;color:#52525b">Your automation queue has started. Citation tasks and content ideas are waiting in your workspace.</p>
+          <p style="margin:6px 0 0;font-size:13px;color:#52525b">Content ideas and any flagged items are waiting in your workspace.</p>
         </div>
       </div>
       ${btn(workspaceUrl, "Open my workspace")}
@@ -108,14 +108,14 @@ const ONBOARD_SEQUENCE: OnboardEmail[] = [
       <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
         ${score !== null ? `<p style="margin:0;font-size:15px;color:#18181b">Current visibility score: <strong style="font-size:20px;color:#dc2626">${score}/100</strong></p>` : ""}
         <ul style="margin:${score !== null ? "12px" : "0"} 0 0;padding-left:20px;color:#3f3f46;font-size:13px;line-height:2">
-          <li>Automation jobs have been queued and are running on schedule</li>
-          <li>Content ideas, citation tasks, and review tasks are in your workspace queue</li>
-          <li>AI visibility checks are monitoring whether your business is being recommended</li>
-          <li>Monthly summary email will arrive at the end of your first automation cycle</li>
+          <li>Scheduled jobs run once your website and accounts are connected</li>
+          <li>Content ideas and flagged items are in your workspace</li>
+          <li>AI visibility is checked monthly to see whether your business is being recommended</li>
+          <li>A monthly summary email will arrive at the end of your first cycle</li>
         </ul>
       </div>
       <p style="color:#52525b;font-size:14px;margin:16px 0">
-        Your workspace shows everything that has been done and what is queued next. Open it any time to review action items or approve content drafts.
+        Your workspace shows everything that has been done and what is queued next. Open it any time to review action items.
       </p>
       ${btn(workspaceUrl, "Open my workspace")}
       <p style="color:#71717a;font-size:13px;margin:20px 0 0">

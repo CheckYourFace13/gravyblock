@@ -12,13 +12,13 @@ export default function ForRestaurantsPage() {
     <VerticalLanding
       eyebrow="Restaurants"
       title="Diners pick the first restaurant they trust on Google Maps. Make sure it's yours."
-      body="Restaurant searches happen right before someone eats. High intent, short window. GravyBlock keeps your Google Business Profile complete and active, your review count climbing, and your content publishing automatically so you show up before the competitor two doors down."
+      body="Restaurant searches happen right before someone eats. High intent, short window. GravyBlock keeps your Google Business Profile active with weekly posts, monitors your reviews, and publishes content from your own website's facts to help you show up before the competitor two doors down."
       bullets={[
-        "Audit your Google Business Profile for hours, menu links, photos, and dietary attributes.",
+        "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Publish weekly local content: neighborhood food guides, seasonal specials, event recaps.",
         "Track your Google Map ranking for 'restaurants near me' and top cuisine searches.",
-        "Monitor review count and recency on Google and Yelp, the two biggest trust signals for dining.",
-        "Turn rave reviews into ready-to-approve social posts that bring in the next table.",
+        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor replies are drafted for you to paste.",
+        "Share your real reviews on your connected Facebook Page, with no per-post approval.",
         "Check whether AI assistants mention your restaurant when asked for dining recommendations.",
       ]}
       ctaHref="/scan"

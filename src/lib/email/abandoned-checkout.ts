@@ -48,13 +48,13 @@ function buildEmail(businessName: string, plan: string): { subject: string; html
       You were in the middle of setting up GravyBlock ${planLabel} for <strong>${businessName}</strong>. Something interrupted the checkout — happens all the time.
     </p>
     <p style="color:#52525b;font-size:14px;margin:12px 0">
-      Your workspace is ready and waiting. To activate ${planLabel} and start the autopilot, just complete checkout below.
+      Your workspace is ready and waiting. To activate ${planLabel}, just complete checkout below.
     </p>
     <div style="margin:20px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
       <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b">${planLabel} — ${introPrice}/mo${isGrowth ? "" : ` first month (reg. ${regularPrice}/mo)`}</p>
       <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">
         ${promoLine}
-        ${plan === "growth" ? "Includes weekly AI articles, Google Business Profile posts, backlink prospecting, and AI citation monitoring." : "Includes monthly visibility monitoring, citation audit, review queue, and content ideas."}
+        ${plan === "growth" ? "Includes website articles, weekly Google Business Profile posts, automatic Google review replies, personalized local outreach, and monthly AI visibility checks." : "Includes monthly visibility monitoring, citation consistency checks, review alerts, and content ideas."}
         No contract. Cancel any time.
       </p>
     </div>
@@ -99,7 +99,7 @@ function buildFollowUpEmail(businessName: string, plan: string): { subject: stri
   const isGrowth = plan === "growth";
   const subject = `still there? your GravyBlock workspace is waiting`;
   const priceLine = isGrowth
-    ? `If the price was the issue: ${planLabel} is locked at ${introPrice}/mo for as long as your subscription stays active. That's full autopilot — weekly articles published to your site, citation monitoring, review requests, and rank tracking — all running without you lifting a finger.`
+    ? `If the price was the issue: ${planLabel} is locked at ${introPrice}/mo for as long as your subscription stays active. That includes articles published to your connected site, weekly Google Business Profile posts, automatic Google review replies, citation consistency checks, and rank tracking, running on a schedule after a one-time setup.`
     : `If the price was the issue: use code <strong>INTRO50</strong> at checkout and ${planLabel} drops to ${introPrice} for the first month.`;
   const html = wrap(`
     <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">Hey,</p>

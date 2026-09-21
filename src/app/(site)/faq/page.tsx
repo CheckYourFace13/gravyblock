@@ -13,7 +13,7 @@ const faqs = [
     items: [
       {
         q: "What is GravyBlock?",
-        a: "GravyBlock is an automated local SEO platform for small and local businesses. It publishes AI-written content to your website, keeps your Google Business Profile active with posts and photos, sends backlink outreach emails, monitors your reviews, and tracks your Google rankings. All on autopilot, every week.",
+        a: "GravyBlock is an automated local SEO platform for small and local businesses. It writes articles and service pages from your own website's facts and publishes them to your connected website, posts weekly to your Google Business Profile, replies to your Google reviews, sends personalized outreach to relevant local organizations, and tracks your Google rankings. It runs on a schedule after a one-time setup.",
       },
       {
         q: "How does the free scan work?",
@@ -21,11 +21,11 @@ const faqs = [
       },
       {
         q: "Do I need to install anything?",
-        a: "No. GravyBlock is fully web-based. For content publishing we connect to your website via an API key or direct CMS integration. We walk you through it during onboarding in a few clicks.",
+        a: "No. GravyBlock is fully web-based. For content publishing you connect your WordPress, Webflow or Shopify website once, and to post to Google and Facebook you authorize those accounts once. We walk you through it during onboarding in a few clicks.",
       },
       {
         q: "How long before I see results?",
-        a: "We don't publish a customer results statistic we can't back with real data. What we can tell you: your visibility score refreshes weekly so you can watch it move as fixes go out, and content/citation/backlink work generally takes 60–90 days to show up in rankings as Google re-crawls your site — that's how local SEO works generally, not a GravyBlock-specific guarantee.",
+        a: "We don't publish a customer results statistic we can't back with real data. What we can tell you: your visibility score refreshes weekly so you can watch it move as fixes go out, and content and link work generally takes 60–90 days to show up in rankings as Google re-crawls your site — that's how local SEO works generally, not a GravyBlock-specific guarantee.",
       },
     ],
   },
@@ -34,7 +34,7 @@ const faqs = [
     items: [
       {
         q: "What's the difference between Starter, Scale, and Pro?",
-        a: "Starter monitors your visibility and gives you a prioritized fix list each month. Scale adds full automation: weekly AI articles published, Google Business Profile posts, backlink outreach, and social auto-posting. Pro doubles the volume and adds programmatic city pages and a competitor lead pipeline.",
+        a: "Starter monitors your visibility each month: a prioritized fix list, citation consistency checks, review alerts, and AI search checks. Scale adds the work that runs on a schedule: articles and service pages published to your connected website, weekly Google Business Profile posts, automatic Google review replies, Facebook and Instagram posting, and personalized local outreach. Pro increases the volume.",
       },
       {
         q: "What is the INTRO50 discount?",
@@ -42,7 +42,7 @@ const faqs = [
       },
       {
         q: "Is there a free plan?",
-        a: "Yes. The free tier gives you a full visibility score, a prioritized fix list, and one-time competitor snapshot. No credit card needed. To get the automations running (publishing, GBP posts, outreach), you'll need a paid plan.",
+        a: "Yes. The free tier gives you a full visibility score, a prioritized fix list, and one-time competitor snapshot. No credit card needed. To get the scheduled work running (publishing, Google Business Profile posts, outreach), you'll need a paid plan.",
       },
       {
         q: "Can I change plans later?",
@@ -80,15 +80,15 @@ const faqs = [
     items: [
       {
         q: "Who writes the content GravyBlock publishes?",
-        a: "Our AI writes every article using your business info, target keywords, and brand voice settings. You can review drafts before they go live or let them publish automatically. Your call.",
+        a: "Our AI writes articles and service pages using facts taken from your own website, so nothing is written about details your site does not state. They are published to your connected WordPress, Webflow or Shopify site and checked to confirm the page is live.",
       },
       {
         q: "Will the content hurt my site if Google detects it's AI?",
         a: "Google's quality guidelines focus on helpfulness, not authorship. Our content is locally relevant, genuinely useful, and follows Google's E-E-A-T guidelines. We add location-specific details, real stats, and your business context to make each piece substantive.",
       },
       {
-        q: "What does 'backlink outreach' mean?",
-        a: "Each month GravyBlock finds relevant local websites, blogs, and directories and sends personalized emails on your behalf asking for a link mention. You see every email sent in your dashboard. Scale includes 8 outreach emails/month; Pro includes 16.",
+        q: "What does 'local outreach' mean?",
+        a: "GravyBlock finds relevant local organizations, pitches one useful page from your website to a real published contact, follows up once, and only counts a link once it is verified live on their site. Links are never guaranteed, and replies go to you. Scale includes up to 8 outreach attempts per month; Pro includes up to 16.",
       },
       {
         q: "What is the AI search check?",
@@ -101,11 +101,11 @@ const faqs = [
     items: [
       {
         q: "How does the review inbox work?",
-        a: "GravyBlock monitors your Google reviews in real time. When a new review arrives, you get an alert and an AI-drafted reply ready to copy and paste. Negative reviews are flagged so you can reach out privately before they go public.",
+        a: "GravyBlock monitors your Google, Yelp and TripAdvisor reviews and alerts you when a new one arrives. On Scale and Pro, replies to Google reviews are posted automatically once your Google account is connected. Yelp and TripAdvisor do not allow replies through their API, so those replies are drafted for you to paste. Negative reviews are flagged.",
       },
       {
         q: "Does GravyBlock fake reviews?",
-        a: "No. Never. Fake reviews violate Google's terms of service and can get your Business Profile suspended. GravyBlock helps you send review requests to real customers and manage replies to reviews. All reviews should be genuine, public, and unselected by you.",
+        a: "No. Never. Fake reviews violate Google's terms of service and can get your Business Profile suspended. GravyBlock does not contact your customers for you. It emails you a weekly reminder and gives you a shareable review link to send to real customers yourself. All reviews should be genuine, public, and unselected by you.",
       },
     ],
   },

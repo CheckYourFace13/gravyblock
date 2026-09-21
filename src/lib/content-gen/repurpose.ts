@@ -1,4 +1,4 @@
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, desc, isNotNull } from "drizzle-orm";
 import { getDb, publishedContent, businesses, businessConfigs, contentQueue } from "@/lib/db";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
 import { normalizePlanTierFromDb } from "@/lib/plans";
@@ -131,8 +131,9 @@ export async function repurposePublishedArticle(publishedContentId: string): Pro
       outline: body,
       // Store source article ID so runRepurposeBatch can deduplicate
       targetKeyword: publishedContentId,
-      // Hold for customer approval before the worker posts it
-      status: "pending_approval",
+      // One-time Facebook Page authorization is the approval; posts publish
+      // automatically (only website pages GravyBlock verified live — see runRepurposeBatch).
+      status: "queued",
       variant: "social_repurpose",
     });
   }
@@ -176,7 +177,13 @@ export async function runRepurposeBatch(batchSize = 5): Promise<{ processed: num
     alreadyRepurposed.map((r) => r.targetKeyword).filter(Boolean) as string[],
   );
 
-  const unprocessed = recentArticles.filter((a) => !repurposedArticleIds.has(a.id));
+  // Only businesses that already authorized a Facebook Page (nothing to post to otherwise).
+  const connected = await db
+    .select({ businessId: businessConfigs.businessId })
+    .from(businessConfigs)
+    .where(and(inArray(businessConfigs.businessId, recentArticles.map((a) => a.businessId).filter((x): x is string => Boolean(x))), isNotNull(businessConfigs.facebookPageId)));
+  const connectedIds = new Set(connected.map((c) => c.businessId));
+  const unprocessed = recentArticles.filter((a) => !repurposedArticleIds.has(a.id) && a.businessId && connectedIds.has(a.businessId));
 
   let processed = 0;
   let totalQueued = 0;

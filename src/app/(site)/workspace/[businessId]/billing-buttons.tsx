@@ -19,12 +19,11 @@ async function runCheckout(businessId: string, plan: CheckoutPlan, promoCode?: P
 }
 
 const growthExtras = [
-  "AI-written content drafts + auto-published articles",
-  "Weekly Google Business Profile posts, photos & Q&A",
-  "Multi-step outreach sequences (3-step follow-up)",
-  "8 backlink opportunities queued every month",
-  "12 citation tasks + 8 review tasks/month",
-  "Multi-location support",
+  "Articles and service pages written from your website's facts and published to your connected site",
+  "Weekly Google Business Profile posts and your own images",
+  "Automatic Google review replies",
+  "Personalized local outreach with one follow-up (links are never guaranteed)",
+  "Facebook and Instagram posting with no per-post approval",
 ];
 
 export function CheckoutButton({

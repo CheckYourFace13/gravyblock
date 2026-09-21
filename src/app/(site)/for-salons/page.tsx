@@ -11,13 +11,13 @@ export default function ForSalonsPage() {
     <VerticalLanding
       eyebrow="Salons and spas"
       title="New clients search for a salon near them every day. Make sure yours shows up first."
-      body="Salon bookings are almost always triggered by a Google search or Google Maps result. The salons at the top have more photos, more reviews, and more active profiles. GravyBlock keeps your profile fresh, publishes local beauty content automatically, and tracks your ranking week over week."
+      body="Salon bookings are almost always triggered by a Google search or Google Maps result. The salons at the top have more photos, more reviews, and more active profiles. GravyBlock keeps your Google profile active with weekly posts, publishes local beauty content from your own website's facts, and tracks your ranking week over week."
       bullets={[
-        "Optimize your Google Business Profile: categories, photos, booking links, and service descriptions.",
+        "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Publish weekly local content: seasonal hair trends, nail looks, before-and-afters, and style guides.",
         "Track your Google Map ranking for 'hair salon near me' and specific service searches.",
-        "Monitor review count and recency on Google and Yelp, the top trust signals for new salon clients.",
-        "Turn glowing client reviews into social posts and keep your profile fresh with weekly GBP posts.",
+        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor replies are drafted for you to paste.",
+        "Share your real reviews on your connected Facebook Page and keep your profile active with weekly Google Business Profile posts.",
         "Check AI search mentions for beauty recommendations in your city.",
       ]}
       ctaHref="/scan"

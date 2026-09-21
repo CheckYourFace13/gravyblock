@@ -769,3 +769,37 @@ export const setupTokens = pgTable("setup_tokens", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   usedAt: timestamp("used_at", { withTimezone: true }),
 });
+
+/**
+ * Business Truth layer — canonical, provenance-tracked facts about a customer's
+ * business, refreshed from first-party/authorized sources (their own website
+ * and sitemap, Google Business Profile data, connected Search Console, and
+ * anything the owner explicitly supplied). Every generator (articles, GBP,
+ * social, outreach, review replies) must read facts from here instead of
+ * inventing them. See src/lib/truth/.
+ */
+export const businessFacts = pgTable("business_facts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  /** name | phone | email | address | city | region | service | service_area | hours | description | page_topic | recent_content | social_url | search_demand | owner_note */
+  factKey: text("fact_key").notNull(),
+  factValue: text("fact_value").notNull(),
+  /** website | sitemap | gbp | gsc | owner */
+  sourceSystem: text("source_system").notNull(),
+  sourceUrl: text("source_url"),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+  /** When the source content itself says it was published/updated (lastmod, datePublished), if known. */
+  sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+  /** 0-100. JSON-LD / owner-supplied are high, heading-derived are lower. */
+  confidence: integer("confidence").notNull().default(60),
+  /** sha256 of factKey + normalized value — detects real change vs. re-observation. */
+  contentHash: text("content_hash").notNull(),
+  /** stable (name, phone, address) | time_sensitive (recent posts, offers, hours notes). */
+  stability: text("stability").notNull().default("stable"),
+  /** current | superseded */
+  status: text("status").notNull().default("current"),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).defaultNow().notNull(),
+  supersededAt: timestamp("superseded_at", { withTimezone: true }),
+});

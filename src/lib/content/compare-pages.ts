@@ -13,7 +13,7 @@ const links = [
   { href: "/industries", label: "Industry pages" },
 ];
 
-export const COMPARE_PAGES: Record<string, ComparePage> = {
+const BASE_PAGES: Record<string, ComparePage> = {
   "local-seo-audit-tools": {
     slug: "local-seo-audit-tools",
     metaTitle: "Local SEO audit tools comparison | GravyBlock",
@@ -28,7 +28,7 @@ export const COMPARE_PAGES: Record<string, ComparePage> = {
         { title: "Where many tools stop short", body: "They often end at PDFs or generic scores without business-specific ongoing workflows." },
         {
           title: "Where GravyBlock fits",
-          body: "GravyBlock combines scan insights with a workspace path into Base or Pro recurring monitoring and execution queues.",
+          body: "GravyBlock combines scan insights with a workspace path into Starter, Scale or Pro recurring monitoring and execution queues.",
           bullets: ["Built for local operators, not enterprise-only teams.", "Focuses on visibility + trust + conversion readiness together.", "Does not promise guaranteed rankings."],
         },
       ],
@@ -86,696 +86,238 @@ export const COMPARE_PAGES: Record<string, ComparePage> = {
       relatedLinks: links,
     },
   },
-  "gravyblock-vs-brightlocal": {
-    slug: "gravyblock-vs-brightlocal",
-    metaTitle: "GravyBlock vs BrightLocal: local SEO for small businesses | GravyBlock",
-    metaDescription: "How GravyBlock compares to BrightLocal for small business local SEO. GravyBlock runs automation automatically — no monthly manual reports needed.",
-    model: {
-      eyebrow: "GravyBlock vs BrightLocal",
-      title: "GravyBlock vs BrightLocal: which fits your business?",
-      intro: "BrightLocal is built for agencies managing many clients. GravyBlock is built for small business owners who want local SEO to run on autopilot without a dedicated marketing team.",
-      meaningForBusiness: "If you are a business owner, not an agency, you want a tool that does the work, not one that produces reports you still have to act on yourself.",
-      sections: [
-        {
-          title: "What BrightLocal does well",
-          body: "BrightLocal offers deep reporting, citation building services, and white-label options suited to agencies running local SEO for multiple clients.",
-        },
-        {
-          title: "Where BrightLocal is a mismatch for owner-operators",
-          body: "BrightLocal is priced and scoped for agencies. Most business owners pay for features they will never use and get reports that require a marketing background to interpret.",
-          bullets: [
-            "Starts at $39/month for single users, scales up quickly for meaningful features.",
-            "Reports are detailed, but the business owner still has to do the actual work.",
-            "White-label and citation tools are built for agencies, not the business itself.",
-          ],
-        },
-        {
-          title: "What GravyBlock does differently",
-          body: "GravyBlock starts with a free scan, gives you an immediate visibility score, and on paid plans runs content, outreach, and refresh cycles automatically without you having to log in and execute tasks.",
-          bullets: [
-            "Free scan shows your score and top gaps in 30 seconds.",
-            "Content is generated and queued automatically on Growth and higher plans.",
-            "Visibility refreshes run on schedule: weekly on Growth, daily on Agency.",
-            "No marketing background required to get value.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Run a free GravyBlock scan" },
-        { href: "/#plans", label: "Compare GravyBlock plans" },
-        ...links,
-      ],
-    },
-  },
-  "gravyblock-vs-yext": {
-    slug: "gravyblock-vs-yext",
-    metaTitle: "GravyBlock vs Yext: local search for small businesses | GravyBlock",
-    metaDescription: "GravyBlock vs Yext for local search visibility. Yext is enterprise listing management. GravyBlock is automation-first for owner-operated businesses.",
-    model: {
-      eyebrow: "GravyBlock vs Yext",
-      title: "GravyBlock vs Yext: local visibility for owner-operated businesses",
-      intro: "Yext is an enterprise listing management platform built for large brands. GravyBlock is an autopilot tool built for owner-operated local businesses who need ongoing visibility without an enterprise budget.",
-      meaningForBusiness: "Most small businesses do not need Yext's publisher network at enterprise pricing. They need consistent citations, good content, and recurring scans that tell them what changed.",
-      sections: [
-        {
-          title: "What Yext does well",
-          body: "Yext syncs business listings across hundreds of directories and publishers simultaneously, which benefits large multi-location brands that need consistent data at scale.",
-        },
-        {
-          title: "Where Yext is a mismatch for small businesses",
-          body: "Yext's pricing starts well above what most small businesses can justify for listing management alone. The platform is designed for brand operations teams, not owner-operators.",
-          bullets: [
-            "Enterprise pricing that starts at hundreds of dollars per month.",
-            "Primarily a listings sync platform. It doesn't generate content or run outreach.",
-            "Requires onboarding and ongoing management by a marketing team.",
-          ],
-        },
-        {
-          title: "How GravyBlock fits small business local SEO",
-          body: "GravyBlock focuses on what actually moves local search rankings for small businesses: visibility score tracking, content generation, review signals, and outreach. All running automatically.",
-          bullets: [
-            "Free scan in 30 seconds with no account required.",
-            "Scale plan at $74.99/month, locked while subscribed, generates content and queues outreach automatically.",
-            "No listings-sync lock-in. The work directly improves your Google presence.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Run a free scan now" },
-        { href: "/#plans", label: "GravyBlock plans and pricing" },
-        ...links,
-      ],
-    },
-  },
-  "gravyblock-vs-bulletproof": {
-    slug: "gravyblock-vs-bulletproof",
-    metaTitle: "GravyBlock vs BulletProof: local SEO for real estate agents | GravyBlock",
-    metaDescription: "GravyBlock vs BulletProof for real estate agent local SEO. BulletProof is real-estate-only with coaching. GravyBlock automates the same visibility work for any local business.",
-    model: {
-      eyebrow: "GravyBlock vs BulletProof",
-      title: "GravyBlock vs BulletProof: automated local SEO for real estate agents",
-      intro: "BulletProof is a done-for-you local SEO service built exclusively for real estate agents, with live coaching and manual profile management. GravyBlock automates the same core visibility work: Google Posts, citation audits, review monitoring, and ranking snapshots. All at a fraction of the cost, with no real-estate-only lock-in.",
-      meaningForBusiness: "If you are a real estate agent who wants your Google profile active and your citations clean without paying for a concierge service, GravyBlock does the same work automatically on a schedule.",
-      sections: [
-        {
-          title: "What BulletProof does well",
-          body: "BulletProof creates 50+ directory profiles, optimizes GBP, publishes 15–100 Google Posts monthly, and provides live coaching calls three times per week. For agents who want full-service hand-holding, it delivers.",
-          bullets: [
-            "50+ directory profile creation (citations built for you).",
-            "Dedicated real estate agent coaching community.",
-            "Voice search optimization (Alexa, Siri, Cortana compatibility).",
-            "Google Local Service Ads training included.",
-          ],
-        },
-        {
-          title: "Where BulletProof is a mismatch",
-          body: "BulletProof is exclusively for real estate agents and priced as a premium service. 'One deal pays for itself' implies a cost well above what most automated platforms charge. The coaching component also takes real time.",
-          bullets: [
-            "Real-estate-only. Can't serve other business types.",
-            "High-touch model requires time for coaching calls.",
-            "Pricing not publicly listed. Typically positioned as a premium investment.",
-          ],
-        },
-        {
-          title: "What GravyBlock does differently",
-          body: "GravyBlock handles GBP content publishing, citation audits, review monitoring with AI reply drafts, visibility score tracking, and monthly digests automatically. Works for real estate agents and any other local business, starting at $74.99/month on the Scale plan, locked while subscribed.",
-          bullets: [
-            "Works for real estate agents and all other local businesses.",
-            "GBP posts and content generated and queued automatically.",
-            "Citation audit creates a directory checklist monthly.",
-            "Review monitoring with AI-drafted replies you copy and post.",
-            "No coaching calls. The platform does the work.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/for-real-estate-agents", label: "GravyBlock for real estate agents" },
-        { href: "/scan", label: "Run a free scan" },
-        ...links,
-      ],
-    },
-  },
-  "gravyblock-vs-babylovegrowth": {
-    slug: "gravyblock-vs-babylovegrowth",
-    metaTitle: "GravyBlock vs BabyLoveGrowth: local SEO automation comparison | GravyBlock",
-    metaDescription: "GravyBlock vs BabyLoveGrowth.ai for automated local SEO. Both publish AI content automatically. GravyBlock adds review monitoring, citation audits, and local visibility tracking built for local businesses.",
-    model: {
-      eyebrow: "GravyBlock vs BabyLoveGrowth",
-      title: "GravyBlock vs BabyLoveGrowth: which autopilot fits your local business?",
-      intro: "BabyLoveGrowth.ai is an AI content and backlink automation platform built for any website that wants organic traffic. GravyBlock is built specifically for local businesses. It adds Google Business Profile management, review monitoring, citation audits, and local ranking snapshots that BabyLoveGrowth does not offer.",
-      meaningForBusiness: "If you run a local business that needs customers from your city, not just website traffic, you need local-specific tools on top of content: GBP posts, citations, and review signals.",
-      sections: [
-        {
-          title: "What BabyLoveGrowth does well",
-          body: "BabyLoveGrowth auto-publishes 30 SEO articles per month, builds backlinks through a 4,000+ site network, tracks AI search brand mentions (ChatGPT, Perplexity), and integrates with WordPress, Webflow, and Shopify automatically.",
-          bullets: [
-            "30 articles/month auto-published via CMS integrations.",
-            "4,000+ site backlink network via automated link exchange.",
-            "LLM visibility tracking across ChatGPT and Perplexity.",
-            "$99/month with 90-day money-back guarantee.",
-          ],
-        },
-        {
-          title: "Where BabyLoveGrowth misses for local businesses",
-          body: "BabyLoveGrowth is a content and backlink tool, not a local SEO platform. It does not manage Google Business Profile, does not run citation audits, does not monitor or respond to reviews, and does not track local map pack rankings.",
-          bullets: [
-            "No Google Business Profile management or GBP post publishing.",
-            "No citation/directory consistency checking.",
-            "No review monitoring or reply suggestions.",
-            "No local visibility score or map pack tracking.",
-            "Backlink network is generic. Not geo-targeted for local search.",
-          ],
-        },
-        {
-          title: "What GravyBlock adds for local businesses",
-          body: "GravyBlock combines AI content generation with all the local-specific tools: GBP posts, citation audits, review monitoring with AI replies, competitor comparison, and LLM visibility probes across AI search engines. All running automatically on a schedule.",
-          bullets: [
-            "GBP post generation and content queue on Growth+ plans.",
-            "Monthly citation audit creates a directory fix checklist.",
-            "Review monitoring with AI-drafted reply suggestions.",
-            "LLM visibility probes: checks if AI search engines mention your business.",
-            "WordPress auto-publish when you connect your site.",
-            "Starts free with a scan. Scale plan: $74.99/month, locked while subscribed.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Run a free scan now" },
-        { href: "/#plans", label: "See GravyBlock plans" },
-        ...links,
-      ],
-    },
-  },
-  "gravyblock-vs-outreachfrog": {
-    slug: "gravyblock-vs-outreachfrog",
-    metaTitle: "GravyBlock vs OutreachFrog: link building for local businesses | GravyBlock",
-    metaDescription: "GravyBlock vs OutreachFrog for local business link building. OutreachFrog sells one-off backlinks. GravyBlock finds and queues local link opportunities automatically.",
-    model: {
-      eyebrow: "GravyBlock vs OutreachFrog",
-      title: "GravyBlock vs OutreachFrog: link building that fits local businesses",
-      intro: "OutreachFrog is a done-for-you link building service. You pay per backlink placement, they write the content and find the publisher. GravyBlock automates local backlink prospecting, generates outreach email drafts, and combines it with the full local SEO stack: GBP, citations, reviews, and content.",
-      meaningForBusiness: "For a local business, the most valuable links come from local chambers, news sites, and industry directories in your city, not generic DA-boosting guest posts. GravyBlock finds those local link opportunities and drafts the outreach automatically.",
-      sections: [
-        {
-          title: "What OutreachFrog does well",
-          body: "OutreachFrog places high-quality backlinks on real publisher sites through blogger outreach. They handle content writing, publisher sourcing, and placement. Packages range from $159 for DA links to $1,199 for enterprise.",
-          bullets: [
-            "Done-for-you: they write the content and find publishers.",
-            "10,000+ accounts served; claims to be America's largest dedicated backlink provider.",
-            "One-time orders with no subscription.",
-          ],
-        },
-        {
-          title: "Where OutreachFrog is a poor fit for local businesses",
-          body: "OutreachFrog's network is optimized for domain authority building, not local search relevance. Local map pack rankings depend more on local citations, proximity, GBP signals, and geo-relevant mentions than on generic DA backlinks.",
-          bullets: [
-            "Per-order pricing: $159–$1,199 per link adds up fast without a subscription.",
-            "Generic publisher network. Not targeting your city or local niche.",
-            "No GBP management, citation audits, review tools, or local rank tracking.",
-            "No ongoing automation. Each order is a one-time purchase.",
-          ],
-        },
-        {
-          title: "How GravyBlock handles local link building",
-          body: "GravyBlock automatically finds local backlink opportunities (chambers of commerce, business associations, local news sites, and niche directories in your city) and drafts a personalized outreach email for each one. These are the links that actually move local rankings.",
-          bullets: [
-            "Automated prospect finder runs monthly, targeting your specific city and vertical.",
-            "AI-generated outreach emails, ready to send.",
-            "Local-first: chambers, associations, news outlets, niche blogs in your area.",
-            "Combined with GBP posts, citations, reviews, and content generation.",
-            "Included in Growth+ plans — no per-link fees.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Run a free scan and see your link opportunities" },
-        { href: "/#plans", label: "GravyBlock plans" },
-        ...links,
-      ],
-    },
-  },
-  "gravyblock-vs-semrush-local": {
-    slug: "gravyblock-vs-semrush-local",
-    metaTitle: "GravyBlock vs Semrush Local: local SEO comparison | GravyBlock",
-    metaDescription: "GravyBlock vs Semrush for local SEO. Semrush is a broad SEO suite. GravyBlock automates local visibility work so business owners do not need to.",
-    model: {
-      eyebrow: "GravyBlock vs Semrush",
-      title: "GravyBlock vs Semrush Local: do you need an SEO suite or an autopilot?",
-      intro: "Semrush is a broad SEO platform built for marketing teams and SEO professionals. GravyBlock is a local autopilot built for business owners who do not have time to learn SEO tooling.",
-      meaningForBusiness: "If you already have an SEO team, Semrush gives them data. If you are the owner and the marketing team, GravyBlock does the work instead.",
-      sections: [
-        {
-          title: "What Semrush does well",
-          body: "Semrush offers keyword research, backlink analysis, site audits, and local listing management for SEO professionals managing multiple properties.",
-        },
-        {
-          title: "Where Semrush is overkill for local owner-operators",
-          body: "Semrush is priced for teams and requires significant SEO expertise to use effectively. Most small business owners pay for a toolset they use 5% of.",
-          bullets: [
-            "Pro plan starts at $139.95/month. Most local businesses use a fraction of the features.",
-            "Requires SEO knowledge to interpret keyword and backlink data meaningfully.",
-            "Local-specific features (Listing Management) are an add-on, not core.",
-          ],
-        },
-        {
-          title: "Why GravyBlock is different for local businesses",
-          body: "GravyBlock replaces the need to learn SEO tools entirely. It scans your local visibility, generates content, sends outreach, and refreshes on a schedule. No ongoing manual work required.",
-          bullets: [
-            "No SEO knowledge required: the scan explains your gaps in plain language.",
-            "Content is generated for your specific business, city, and keywords.",
-            "Starts free. Autopilot (Scale plan): $74.99/month, locked while subscribed.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Run a free GravyBlock scan" },
-        { href: "/local-seo", label: "Local SEO resources" },
-        ...links,
-      ],
-    },
-  },
-
-  "gravyblock-vs-rankscore": {
-    slug: "gravyblock-vs-rankscore",
-    metaTitle: "GravyBlock vs RankScore: local SEO content automation compared | GravyBlock",
-    metaDescription: "RankScore automates blog content for online businesses. GravyBlock adds local-specific SEO — Google Business Profile, review management, citation audits, and community outreach — that RankScore doesn't touch.",
-    model: {
-      eyebrow: "GravyBlock vs RankScore",
-      title: "GravyBlock vs RankScore: content automation vs. local SEO autopilot",
-      intro: "RankScore uses an AI called Artemis to find keyword opportunities, write SEO articles, and publish them to your site. It positions itself as a full agency replacement for content-driven websites. GravyBlock does content publishing too, but adds everything RankScore skips: Google Business Profile management, review monitoring, citation audits, backlink outreach, and local rank tracking.",
-      meaningForBusiness: "If you run an online content business, RankScore is a focused tool. If you run a local business where customers find you through Google Maps, you need local signals beyond blog articles, and GravyBlock handles both.",
-      sections: [
-        {
-          title: "What RankScore does well",
-          body: "RankScore's Artemis AI finds keyword opportunities matched to your domain's actual authority, plans topic clusters, writes the articles, and publishes them in one workflow. Its focus on realistic keyword targeting is a genuine strength.",
-          bullets: [
-            "Keyword research scoped to your domain authority, not generic high-competition terms.",
-            "One-conversation workflow: ask Artemis, get a content plan, publish.",
-            "Topic cluster and pillar page planning built in.",
-            "Rank tracking and traffic reporting included.",
-          ],
-        },
-        {
-          title: "Where RankScore falls short for local businesses",
-          body: "RankScore is built for content-focused online businesses, not local operators. It doesn't touch any of the local signals that determine map pack rankings.",
-          bullets: [
-            "No Google Business Profile management or GBP post publishing.",
-            "No review monitoring, inbox, or AI reply drafts.",
-            "No citation audit or directory consistency checking.",
-            "No backlink outreach. Content only.",
-            "No Google Business Profile posting automation.",
-            "No local rank tracking (map pack positions, geogrid).",
-          ],
-        },
-        {
-          title: "What GravyBlock adds on top",
-          body: "GravyBlock combines AI content publishing with the full local SEO stack. Weekly articles go live on your site automatically, with GBP posts, citation checks, review monitoring, competitor tracking, and backlink outreach running alongside them.",
-          bullets: [
-            "Weekly AI articles published to your site (Scale and above).",
-            "GBP post generation and content queue.",
-            "Review inbox with AI reply drafts. Mark replied, filter by status.",
-            "Citation audit creates a directory fix checklist monthly.",
-            "Backlink outreach emails sent to local and niche sites monthly.",
-            "Free scan in 60 seconds. Scale plan: $74.99/mo, locked while subscribed.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Run a free scan" },
-        { href: "/#plans", label: "GravyBlock plans" },
-        ...links,
-      ],
-    },
-  },
-
-  "gravyblock-vs-adaptify": {
-    slug: "gravyblock-vs-adaptify",
-    metaTitle: "GravyBlock vs Adaptify: local SEO automation for business owners | GravyBlock",
-    metaDescription: "Adaptify is a white-label SEO automation platform built for agencies. GravyBlock is built for the business owner — same automated content, backlinks, and reporting without the agency complexity or pricing.",
-    model: {
-      eyebrow: "GravyBlock vs Adaptify",
-      title: "GravyBlock vs Adaptify: agency SEO platform vs. owner-operated autopilot",
-      intro: "Adaptify automates content creation, backlink outreach, keyword research, and client reporting. But it is designed for SEO agencies managing multiple clients, not business owners running their own location. GravyBlock delivers the same automated execution at a price and complexity level built for the owner-operator.",
-      meaningForBusiness: "If you are an agency managing 10+ clients, Adaptify is worth evaluating. If you are the owner of a local business who wants local SEO to happen automatically without hiring an agency, GravyBlock is built for you.",
-      sections: [
-        {
-          title: "What Adaptify does well",
-          body: "Adaptify is genuinely capable: automated backlink placement on DR 45+ sites, AI content with direct CMS publishing, visual content calendar, white-label reporting with AI-written email summaries, and a Pitch Mode that generates SEO proposals automatically.",
-          bullets: [
-            "Guaranteed backlink placements on sites with 1,000+ monthly visitors and DR 45+ average.",
-            "Automated content creation with direct publishing to WordPress, Shopify, Wix, and Webflow.",
-            "White-label reporting with AI email summaries sent to clients.",
-            "Pitch Mode: auto-generates SEO proposals and audits for prospecting.",
-          ],
-        },
-        {
-          title: "Where Adaptify is the wrong fit for local businesses",
-          body: "Adaptify is priced and designed for agencies. The onboarding, feature set, and pricing model assume you are managing multiple client accounts, not running a single local business.",
-          bullets: [
-            "No self-serve pricing shown. Requires demo booking.",
-            "No Google Business Profile management or GBP post publishing.",
-            "No review monitoring, review gating, or AI reply drafts.",
-            "No Google Business Profile posting automation.",
-            "No local rank tracking or citation management.",
-            "White-label and multi-client tooling you don't need as a business owner.",
-          ],
-        },
-        {
-          title: "Why GravyBlock fits local business owners better",
-          body: "GravyBlock gives you the automated content and backlink outreach Adaptify offers, plus review monitoring, citation audits, GBP management, competitor tracking, and AI search visibility. All in a self-serve dashboard, starting with a free scan.",
-          bullets: [
-            "No agency relationship required. Sign up directly, it starts working immediately.",
-            "Backlink outreach emails sent to local and niche sites monthly.",
-            "Review gating link, review inbox with AI reply drafts.",
-            "Free scan shows your gaps in 60 seconds. Scale plan: $74.99/mo, locked while subscribed.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Run a free GravyBlock scan" },
-        { href: "/#plans", label: "See pricing" },
-        ...links,
-      ],
-    },
-  },
-
-  "gravyblock-vs-similarweb": {
-    slug: "gravyblock-vs-similarweb",
-    metaTitle: "GravyBlock vs SimilarWeb: local SEO tools for small businesses | GravyBlock",
-    metaDescription: "SimilarWeb is a traffic intelligence and market research tool for analysts and enterprise teams. GravyBlock is built to actually improve your local rankings — not just show you data about them.",
-    model: {
-      eyebrow: "GravyBlock vs SimilarWeb",
-      title: "GravyBlock vs SimilarWeb: traffic analytics vs. local SEO execution",
-      intro: "SimilarWeb shows you website traffic estimates, audience demographics, and competitive benchmarks. It tells you what is happening but does nothing to change it. GravyBlock is an execution platform: it identifies your local visibility gaps and fixes them automatically, every week.",
-      meaningForBusiness: "SimilarWeb is used by analysts and enterprise marketing teams to understand traffic patterns. If you run a local business and want more customers from Google, you need a tool that acts, not one that just reports.",
-      sections: [
-        {
-          title: "What SimilarWeb does well",
-          body: "SimilarWeb is genuinely powerful for competitive intelligence at scale: traffic estimates, keyword breakdowns, referral sources, audience data, and market share tracking across any website or industry.",
-          bullets: [
-            "Traffic and engagement estimates for any website globally.",
-            "Keyword and referral traffic source breakdown by channel.",
-            "Competitor benchmarking across marketing channels.",
-            "Industry analysis and market share tracking.",
-            "Audience demographics and interest overlaps.",
-          ],
-        },
-        {
-          title: "Where SimilarWeb is the wrong tool for local businesses",
-          body: "SimilarWeb is built for analysts, not operators. It requires significant marketing expertise to use effectively and does nothing to improve your rankings or generate more leads.",
-          bullets: [
-            "Enterprise pricing, starting around $300–$1,000+/mo based on public sources.",
-            "Purely analytical. No content creation, no outreach, no fixes.",
-            "No Google Business Profile tools.",
-            "No review monitoring or management.",
-            "No local rank tracking or map pack data.",
-            "No backlink outreach, GBP posting, or citation checklists.",
-          ],
-        },
-        {
-          title: "What GravyBlock does instead",
-          body: "GravyBlock starts with the same competitive visibility insight (who ranks above you, what your score is, where your gaps are) and then automatically runs the work to close those gaps: content, outreach, reviews, and citations on a weekly schedule.",
-          bullets: [
-            "Free competitor comparison built into your workspace dashboard.",
-            "Visibility score with gap analysis across 6 ranking factors, free in 60 seconds.",
-            "Automated execution: content, citations, reviews, outreach, AI search monitoring.",
-            "No data science degree required. Scale plan: $74.99/mo, locked while subscribed.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Get your free visibility score" },
-        { href: "/#plans", label: "GravyBlock plans" },
-        ...links,
-      ],
-    },
-  },
-
-  "gravyblock-vs-searchatlas": {
-    slug: "gravyblock-vs-searchatlas",
-    metaTitle: "GravyBlock vs Search Atlas: local SEO tools compared | GravyBlock",
-    metaDescription: "Search Atlas has 60+ SEO tools and an AI agent called OTTO. GravyBlock is simpler, more automated, and built specifically for local business owners who don't want to learn a complex SEO platform.",
-    model: {
-      eyebrow: "GravyBlock vs Search Atlas",
-      title: "GravyBlock vs Search Atlas: 60-tool SEO suite vs. local autopilot",
-      intro: "Search Atlas is a full-featured SEO platform with 60+ tools — including an AI agent (OTTO SEO), GBP management, geogrid rank tracking, content generation, and white-label reporting. It's powerful but complex, built primarily for agencies. GravyBlock covers the same ground for local businesses in a focused, automated package that doesn't require SEO knowledge to use.",
-      meaningForBusiness: "Search Atlas gives agencies a toolbox. GravyBlock gives local business owners an autopilot. If you want to run campaigns and configure tools, Search Atlas works. If you want local SEO to happen without learning a platform, GravyBlock is built for you.",
-      sections: [
-        {
-          title: "What Search Atlas does well",
-          body: "Search Atlas has genuine breadth. OTTO SEO deploys technical fixes to your site automatically, GBP Galactic manages posts and reviews from a central dashboard, and their geogrid heatmaps show exactly where you rank across your city.",
-          bullets: [
-            "OTTO SEO agent deploys schema, meta tags, and content optimizations directly to your site.",
-            "GBP Galactic: GBP post scheduling, review response, and Q&A management.",
-            "Local rank tracking with geogrid heatmaps showing pin-level positions.",
-            "AI content generation with 1-click WordPress publishing.",
-            "LLM visibility tracking across ChatGPT and other AI search engines.",
-            "Citation submission across aggregator networks.",
-          ],
-        },
-        {
-          title: "Where Search Atlas is a mismatch for local owner-operators",
-          body: "Search Atlas is genuinely powerful, which also means it's genuinely complex. The platform is designed for SEO agencies who can dedicate time to learning and configuring 60+ tools. Most local business owners use 10% of it.",
-          bullets: [
-            "Starter at $99/mo, Pro at $399/mo — white-label requires the top tier.",
-            "Steep learning curve: requires SEO knowledge to use OTTO and campaign tools effectively.",
-            "No Google Business Profile posting automation.",
-            "No automated backlink outreach emails. Link building requires manual campaign setup.",
-            "Some optimizations revert if the tracking pixel is removed from your site.",
-          ],
-        },
-        {
-          title: "What GravyBlock does differently",
-          body: "GravyBlock is narrower by design. It covers the local SEO actions that move the needle for small businesses and runs them automatically, without requiring you to configure tools or understand SEO.",
-          bullets: [
-            "Fully automated weekly run: articles, GBP posts, backlink outreach, citation check, review monitoring.",
-            "Review gating link captures unhappy customers privately before they hit Google.",
-            "Competitor comparison with review gap callout built into your workspace.",
-            "No pixel required. No campaign setup. Just connect your business and it runs.",
-            "Free scan in 60 seconds. Scale plan: $74.99/mo, locked while subscribed.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Run a free scan" },
-        { href: "/#plans", label: "See GravyBlock plans" },
-        ...links,
-      ],
-    },
-  },
-
-  "gravyblock-vs-soro": {
-    slug: "gravyblock-vs-soro",
-    metaTitle: "GravyBlock vs Soro: local SEO content autopilot compared | GravyBlock",
-    metaDescription: "Soro automates daily blog content for online businesses. GravyBlock adds the local SEO layer Soro skips — Google Business Profile, review monitoring, citations, and backlink outreach — for local businesses that need map pack rankings, not just blog traffic.",
-    model: {
-      eyebrow: "GravyBlock vs Soro",
-      title: "GravyBlock vs Soro: content autopilot vs. full local SEO autopilot",
-      intro: "Soro learns your site, finds winning keywords daily, writes articles in your brand voice, and publishes them automatically. It has strong customer proof and is genuinely easy to use. But Soro is built for content-focused online businesses. It has no tools for the local signals that determine Google Maps rankings: GBP management, reviews, citations, or geotargeted content.",
-      meaningForBusiness: "If customers find you through blog traffic or e-commerce search, Soro is worth a look. If customers find you by searching 'plumber near me' or '[your city] dentist,' you need local SEO signals that Soro doesn't provide. GravyBlock handles both the content and the local layer.",
-      sections: [
-        {
-          title: "What Soro does well",
-          body: "Soro's strength is simplicity and automation: it handles daily keyword research, article writing, and publishing while you sleep. Customers report real traffic results, and the brand voice learning means content doesn't sound generic.",
-          bullets: [
-            "Fully automated daily content pipeline: keyword research, writing, publishing.",
-            "Brand voice learning so content sounds like you, not a template.",
-            "Optimizes for both Google rankings and ChatGPT citations.",
-            "Simple 3-step setup. No SEO skills needed.",
-            "Multi-language content support.",
-          ],
-        },
-        {
-          title: "What Soro doesn't do for local businesses",
-          body: "Soro is a content tool. The signals that determine local map pack rankings go well beyond articles, and Soro doesn't touch any of them.",
-          bullets: [
-            "No Google Business Profile management or GBP post publishing.",
-            "No review monitoring, review gating, or AI reply drafts.",
-            "No citation audit or NAP consistency checking.",
-            "No backlink outreach or local link building.",
-            "No Google Business Profile posting.",
-            "No local rank tracking or competitor comparison.",
-          ],
-        },
-        {
-          title: "What GravyBlock adds for local businesses",
-          body: "GravyBlock covers the same automated content Soro offers and wraps it with the full local SEO stack. Weekly articles, GBP posts, review management, backlink outreach, and citation checklists all run automatically on a schedule, plus a competitor comparison in every scan report.",
-          bullets: [
-            "Weekly AI articles published to your site, same as Soro.",
-            "Review inbox with AI reply drafts across Google, Yelp, and TripAdvisor.",
-            "Backlink outreach emails sent to local sites monthly.",
-            "Monthly citation checklist keeps your business data consistent across the directories that matter in your industry.",
-            "Competitor comparison with review gap callout in your workspace.",
-            "Free scan in 60 seconds. Scale plan: $74.99/mo, locked while subscribed.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Get your free visibility score" },
-        { href: "/#plans", label: "Compare GravyBlock plans" },
-        ...links,
-      ],
-    },
-  },
-
-  "gravyblock-vs-reputation": {
-    slug: "gravyblock-vs-reputation",
-    metaTitle: "GravyBlock vs Reputation.com: local SEO and reputation for small businesses | GravyBlock",
-    metaDescription: "Reputation.com is an enterprise platform starting at $500+/month with annual contracts. GravyBlock delivers automated content, reviews, citations, and AI visibility monitoring from $74.99/month with no contract, locked while subscribed.",
-    model: {
-      eyebrow: "GravyBlock vs Reputation.com",
-      title: "GravyBlock vs Reputation.com: enterprise reputation management vs. local SEO autopilot",
-      intro: "Reputation.com (now branded as 'Reputation') is an enterprise reputation management platform built for automotive dealerships, hospital systems, and multi-location retail chains with dedicated marketing teams. GravyBlock is built for owner-operated local businesses that want reputation management, local SEO, and AI search visibility — all automated — without an enterprise contract or a marketing department.",
-      meaningForBusiness: "If you own a restaurant, dental practice, law firm, or any local business without a full marketing team, Reputation.com's pricing and complexity will work against you. GravyBlock gives you the same core reputation and visibility outcomes for a fraction of the cost, running automatically.",
-      sections: [
-        {
-          title: "What Reputation.com does well",
-          body: "Reputation.com excels at enterprise-scale reputation intelligence. Their platform aggregates reviews from 150+ sources, delivers NPS and customer satisfaction surveys, syncs listings across hundreds of directories, and provides business intelligence dashboards used by brands managing thousands of locations.",
-          bullets: [
-            "Review aggregation from 150+ platforms including niche industry sources.",
-            "NPS and customer satisfaction surveys with deep analytics.",
-            "Competitive reputation benchmarking across enterprise categories.",
-            "Listings sync across hundreds of directories from one dashboard.",
-            "Integrations with Salesforce, Hubspot, and enterprise CRMs.",
-            "Dedicated customer success managers and onboarding teams.",
-          ],
-        },
-        {
-          title: "Where Reputation.com is the wrong fit for small businesses",
-          body: "Reputation.com is priced and structured for enterprise brands. Its pricing is not publicly listed because it is sold through a sales team — typically starting around $500 per month and scaling into thousands for multi-location brands. Annual contracts are standard. The platform assumes you have a marketing team to interpret dashboards and act on insights.",
-          bullets: [
-            "No public pricing. Enterprise sales process required to get a quote.",
-            "Annual contract commitments standard at most tiers.",
-            "Built for automotive, healthcare, and chain retail — not independent small businesses.",
-            "Reputation monitoring without content creation or outreach automation.",
-            "Does not write or publish articles to your website.",
-            "Does not do backlink outreach or Google Business Profile posting.",
-            "No AI search visibility monitoring (ChatGPT, Perplexity, Google AI Overviews).",
-            "No AEO or GEO scoring. No structured data generation.",
-            "No free scan. No self-serve onboarding.",
-          ],
-        },
-        {
-          title: "What GravyBlock does differently",
-          body: "GravyBlock combines reputation management with proactive local SEO and AI-era visibility features that Reputation.com does not offer at any price tier. It starts with a free 60-second scan, requires no sales call, and runs on a month-to-month basis from $74.99/month, locked while subscribed.",
-          bullets: [
-            "Free scan in 60 seconds — no account, no sales call, no commitment.",
-            "Review monitoring with AI-drafted replies across Google, Yelp, and TripAdvisor.",
-            "Weekly AI articles written and published to your website automatically.",
-            "Google Business Profile posts, photos, and Q&A to keep your listing active.",
-            "Monthly citation checklist covering the directories that matter in your industry, with consistency gaps flagged.",
-            "Backlink outreach emails sent to local sites and directories monthly.",
-            "AI Citation Monitor: tracks whether ChatGPT, Perplexity, and Google AI mention your business.",
-            "AEO Score, GEO Score, and Entity Score alongside your SEO visibility score.",
-            "Schema markup generator creates LocalBusiness, FAQ, and Service JSON-LD for your site.",
-            "No annual contract. No sales call. Cancel any time.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Run your free scan now" },
-        { href: "/#plans", label: "GravyBlock plans and pricing" },
-        { href: "/guides/how-to-show-up-in-ai-search-for-local-businesses", label: "How to show up in AI search" },
-        ...links,
-      ],
-    },
-  },
-
-  "gravyblock-vs-whitespark": {
-    slug: "gravyblock-vs-whitespark",
-    metaTitle: "GravyBlock vs Whitespark: local SEO for small businesses | GravyBlock",
-    metaDescription: "GravyBlock vs Whitespark for local SEO. Whitespark provides rank trackers and citation tools. GravyBlock automates the whole workflow — content, citations, reviews, and outreach — hands-free.",
-    model: {
-      eyebrow: "GravyBlock vs Whitespark",
-      title: "GravyBlock vs Whitespark: rank tracking vs. full autopilot",
-      intro: "Whitespark makes excellent rank tracking and citation tools. GravyBlock is a different kind of product — it does the work automatically instead of showing you what to do next.",
-      meaningForBusiness: "If you want to track your rankings yourself and manually manage citations, Whitespark is a good fit. If you want a platform that publishes content, builds citations, and runs outreach without logging in, GravyBlock is built for you.",
-      sections: [
-        {
-          title: "What Whitespark does well",
-          body: "Whitespark's Local Rank Tracker and Citation Finder are among the best data tools in the local SEO industry. Agencies and advanced operators use them to benchmark and report accurately.",
-          bullets: [
-            "Local Rank Tracker shows Google Map Pack and organic positions across any city.",
-            "Citation Finder identifies where you're listed and where competitors have citations you don't.",
-            "Reputation Builder helps collect and manage reviews.",
-          ],
-        },
-        {
-          title: "Where Whitespark is a mismatch for owner-operators",
-          body: "Whitespark gives you data. You still have to do everything yourself — submit citations manually, create content, send outreach, respond to reviews. It's a toolkit, not an autopilot.",
-          bullets: [
-            "Local Rank Tracker starts at $17–$83/month and gives you data only, no fixes.",
-            "Citation building is a paid-per-location service, not automatic.",
-            "No content publishing, no GBP posting, no backlink outreach automation.",
-          ],
-        },
-        {
-          title: "What GravyBlock does differently",
-          body: "GravyBlock combines local visibility tracking with actual automated execution. You run a free scan, see your score, and on a paid plan the platform starts publishing articles, running outreach, and monitoring your citations — automatically, every week.",
-          bullets: [
-            "Free scan in 60 seconds — no setup, no credit card.",
-            "Weekly AI articles published to your website automatically.",
-            "Citation accuracy monitoring built in — no manual checking.",
-            "Facebook and Instagram auto-posting on Scale and above.",
-            "AI citation monitor tracks whether ChatGPT and Perplexity mention your business.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Run a free GravyBlock scan" },
-        { href: "/pricing", label: "GravyBlock plans and pricing" },
-        ...links,
-      ],
-    },
-  },
-
-  "gravyblock-vs-gmb-everywhere": {
-    slug: "gravyblock-vs-gmb-everywhere",
-    metaTitle: "GravyBlock vs GMB Everywhere: local SEO automation | GravyBlock",
-    metaDescription: "GravyBlock vs GMB Everywhere. GMB Everywhere is a Chrome extension for GBP research. GravyBlock is a full autopilot platform that publishes content, manages reviews, and runs outreach weekly.",
-    model: {
-      eyebrow: "GravyBlock vs GMB Everywhere",
-      title: "GravyBlock vs GMB Everywhere: research tool vs. full autopilot",
-      intro: "GMB Everywhere is a popular Chrome extension for auditing Google Business Profiles. GravyBlock is a complete local SEO automation platform — it researches, executes, and publishes on your behalf every week.",
-      meaningForBusiness: "GMB Everywhere helps you see what competitors are doing. GravyBlock automatically does what competitors are doing better than you — and more.",
-      sections: [
-        {
-          title: "What GMB Everywhere does well",
-          body: "GMB Everywhere is a fast, lightweight tool for auditing Google Business Profiles from the browser. It's popular for seeing competitor categories, attributes, Q&A, and post history without logging into GBP.",
-          bullets: [
-            "Shows Google Business Profile categories, attributes, and review patterns at a glance.",
-            "Useful for competitor research before optimizing your own profile.",
-            "Low cost — a one-time or low monthly fee for the Chrome extension.",
-          ],
-        },
-        {
-          title: "Where GMB Everywhere ends",
-          body: "GMB Everywhere is a research tool. It tells you what to look at. It does not publish content, build citations, send outreach emails, respond to reviews, or monitor your AI search presence. After using it, you still have a full to-do list.",
-          bullets: [
-            "No content publishing — you still need a writer and a posting workflow.",
-            "No automation — every action requires you to log in and execute manually.",
-            "No recurring monitoring — you have to remember to check manually.",
-          ],
-        },
-        {
-          title: "What GravyBlock does differently",
-          body: "GravyBlock starts with the same kind of profile audit, then actually does the work. Every week it publishes content, tracks your rankings, monitors AI search visibility, and sends outreach — without you having to do anything.",
-          bullets: [
-            "Free visibility scan covers GBP quality, reviews, citations, website, and AI search.",
-            "Autopilot publishes weekly articles, GBP posts, and backlink outreach on paid plans.",
-            "Review inbox with AI-drafted reply suggestions — copy, paste, done.",
-            "AI citation monitor — tracks whether ChatGPT, Perplexity, and others mention you.",
-            "Monthly score reports show you what changed and what runs next.",
-          ],
-        },
-      ],
-      relatedLinks: [
-        { href: "/scan", label: "Run a free GravyBlock scan" },
-        { href: "/pricing", label: "GravyBlock plans and pricing" },
-        ...links,
-      ],
-    },
-  },
 };
+
+type VsConfig = {
+  slug: string;
+  name: string;
+  metaDescription: string;
+  intro: string;
+  meaningForBusiness: string;
+  doesWell: { body: string; bullets: string[] };
+  differenceBody: string;
+  extraLinks?: { href: string; label: string }[];
+};
+
+/**
+ * Comparison pages deliberately avoid stating that a competitor lacks a
+ * capability: vendors in this category (listings sync, review requests,
+ * reporting, social, automation) add features often. Each page describes what
+ * the competitor is known for and how GravyBlock differs in approach and price.
+ * GravyBlock's own bullets come from the canonical capability map.
+ */
+const GRAVYBLOCK_BULLETS = [
+  "Free scan shows your score and top gaps in about 60 seconds.",
+  "Writes articles and service-area pages from your own website's information and publishes them to your connected WordPress, Webflow or Shopify site, then checks the page is live.",
+  "Publishes a weekly Google Business Profile post and adds your own website images to your profile once Google is connected.",
+  "Posts Google review replies automatically once Google is connected; Yelp and TripAdvisor replies are drafted for you to paste.",
+  "Pitches relevant local organizations for links and only counts a link once it is verified live on their site. Links are never guaranteed.",
+  "Checks that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook, and alerts you when they drift. It does not build or fix listings on hundreds of directories.",
+  "Monthly AI-visibility checks, weekly Maps rank checks and Search Console data once Google is connected.",
+  "Scale plan is $149.99/month; with code GROWTH50 it is $74.99/month, locked for as long as you stay subscribed.",
+];
+
+function buildVsPages(): Record<string, ComparePage> {
+  const configs: VsConfig[] = [
+    {
+      slug: "gravyblock-vs-brightlocal",
+      name: "BrightLocal",
+      metaDescription: "How GravyBlock compares to BrightLocal for small business local SEO: different approach, lower-cost option for owner-operators.",
+      intro: "BrightLocal is an established local SEO platform with reporting, listing and review tools that is popular with agencies. GravyBlock is a lower-cost option for small business owners who want scheduled local SEO work handled without a marketing team.",
+      meaningForBusiness: "Both can be a good fit depending on whether you want a toolkit to operate or scheduled work handled for you. Check each vendor's current feature list and pricing before deciding.",
+      doesWell: {
+        body: "BrightLocal is known for local rank tracking, citation and listing tools, review tools and white-label reporting, and today offers a broad set of local SEO features.",
+        bullets: ["Reporting and rank tracking widely used by agencies.", "Listing and citation management tools.", "Pricing has generally started from around $39/month; confirm current plans on their site."],
+      },
+      differenceBody: "GravyBlock focuses on a narrower set of scheduled tasks and is priced for single-location owner-operators.",
+    },
+    {
+      slug: "gravyblock-vs-yext",
+      name: "Yext",
+      metaDescription: "GravyBlock vs Yext for local search visibility: Yext is a listing and reputation platform; GravyBlock is a lower-cost option focused on content, Google posts and outreach.",
+      intro: "Yext is a well-known listings and reputation platform, historically aimed at larger brands and multi-location businesses. GravyBlock is a lower-cost option for owner-operated local businesses.",
+      meaningForBusiness: "If you need listings pushed to a large publisher network across many locations, look closely at Yext and similar platforms. If you want scheduled content, Google Business Profile posts and local outreach at a small-business price, GravyBlock may fit.",
+      doesWell: {
+        body: "Yext syncs business listings across a large publisher network and offers reviews, pages and search tools for larger organizations.",
+        bullets: ["Listing sync across many publishers.", "Multi-location management.", "Published pricing has generally started from about $199 per year for entry plans; confirm current plans on their site."],
+      },
+      differenceBody: "GravyBlock does not sync listings across hundreds of directories. It checks that your details agree across your website, Google, and where connected Yelp and Facebook, and focuses on content, Google posts, review replies and outreach.",
+    },
+    {
+      slug: "gravyblock-vs-bulletproof",
+      name: "BulletProof",
+      metaDescription: "GravyBlock vs BulletProof for real estate agent local SEO: a coaching-style program versus a lower-cost software option for any local business.",
+      intro: "BulletProof is a local SEO program for real estate agents that combines services with coaching. GravyBlock is software that works for any local business, including real estate agents.",
+      meaningForBusiness: "If you want a hands-on, coaching-style program built for agents, BulletProof is designed for that. If you prefer a lower-cost software option that runs scheduled work, GravyBlock may fit.",
+      doesWell: {
+        body: "BulletProof is positioned around real estate agents and combines profile work with coaching for agents who want guided support.",
+        bullets: ["Real-estate-specific focus.", "Coaching community.", "Pricing is not publicly listed as far as we know; ask them directly."],
+      },
+      differenceBody: "GravyBlock has no coaching component and is not real-estate-only. It runs on a schedule after a one-time setup.",
+      extraLinks: [{ href: "/for-real-estate-agents", label: "GravyBlock for real estate agents" }],
+    },
+    {
+      slug: "gravyblock-vs-babylovegrowth",
+      name: "BabyLoveGrowth",
+      metaDescription: "GravyBlock vs BabyLoveGrowth.ai: both publish AI content; GravyBlock is focused on local businesses and Google Business Profile work.",
+      intro: "BabyLoveGrowth.ai is an AI content and link-building platform for websites that want organic traffic. GravyBlock is built for local businesses and adds Google Business Profile posts and Google review replies.",
+      meaningForBusiness: "If you run a local business that needs customers from your city, compare how each tool handles local signals as well as content.",
+      doesWell: {
+        body: "BabyLoveGrowth publicly describes automated article publishing to common CMS platforms and link-building features for general websites.",
+        bullets: ["Article automation with CMS integrations.", "Link-building network.", "Pricing has been listed from about $99/month; confirm on their site."],
+      },
+      differenceBody: "GravyBlock is scoped to local businesses: content built from your own website's facts, Google Business Profile work, and outreach to relevant local organizations.",
+    },
+    {
+      slug: "gravyblock-vs-outreachfrog",
+      name: "OutreachFrog",
+      metaDescription: "GravyBlock vs OutreachFrog: per-link placement service versus a subscription with personalized local outreach that only counts verified links.",
+      intro: "OutreachFrog is a link placement service priced per link. GravyBlock includes personalized outreach to relevant local organizations as part of a subscription, with no guarantee of links.",
+      meaningForBusiness: "Paying per placement and running your own outreach are different models. GravyBlock never guarantees links and counts a link only once it is verified live on the other site.",
+      doesWell: {
+        body: "OutreachFrog sells link placements on publisher sites and handles content and sourcing for each order.",
+        bullets: ["Done-for-you placements.", "One-time orders rather than a subscription.", "Per-link pricing; confirm current packages on their site."],
+      },
+      differenceBody: "GravyBlock finds relevant local organizations, pitches one useful page from your website to a real published contact, follows up once, and only counts a link once it is verified live. Replies go to you.",
+    },
+    {
+      slug: "gravyblock-vs-semrush-local",
+      name: "Semrush",
+      metaDescription: "GravyBlock vs Semrush Local: a broad SEO suite versus a narrower, lower-cost option for local business owners.",
+      intro: "Semrush is a broad SEO platform with a local toolkit, used by marketing teams and SEO professionals. GravyBlock is a narrower, lower-cost option for owners who want scheduled local work handled for them.",
+      meaningForBusiness: "If you have SEO expertise and want research and analysis tools, Semrush is a strong option. If you want less to configure, GravyBlock may fit.",
+      doesWell: {
+        body: "Semrush offers keyword research, site audits, backlink analysis and a local toolkit with listing management.",
+        bullets: ["Deep keyword and competitor research.", "Site auditing and reporting.", "Pricing has generally started from around $140/month for main plans; confirm on their site."],
+      },
+      differenceBody: "GravyBlock does not aim to be a research suite. It runs a defined set of local tasks on a schedule.",
+    },
+    {
+      slug: "gravyblock-vs-rankscore",
+      name: "RankScore",
+      metaDescription: "GravyBlock vs RankScore: content-focused automation versus content plus Google Business Profile posts and Google review replies.",
+      intro: "RankScore uses AI to plan, write and publish SEO articles. GravyBlock also publishes website content and adds local work such as Google Business Profile posts and Google review replies.",
+      meaningForBusiness: "If your customers find you through Google Maps as well as web search, compare how each tool handles local signals in addition to articles.",
+      doesWell: {
+        body: "RankScore focuses on keyword targeting matched to your site's authority, topic planning and automated article publishing.",
+        bullets: ["Keyword planning tied to site authority.", "Topic cluster planning.", "Pricing has been offered as a lifetime deal at times; confirm current terms."],
+      },
+      differenceBody: "GravyBlock writes only from facts on your own website, and pairs content with Google Business Profile posts, review replies and local outreach.",
+    },
+    {
+      slug: "gravyblock-vs-adaptify",
+      name: "Adaptify",
+      metaDescription: "GravyBlock vs Adaptify: an agency-oriented white-label platform versus a self-serve option built for business owners.",
+      intro: "Adaptify is an SEO automation platform aimed at agencies serving multiple clients. GravyBlock is a self-serve product for the owner of a local business.",
+      meaningForBusiness: "If you are an agency, Adaptify is aimed at you. If you are the business owner, GravyBlock starts with a free scan and self-serve signup.",
+      doesWell: {
+        body: "Adaptify publicly describes automated content, link and reporting features for agencies, including white-label options.",
+        bullets: ["Agency and white-label workflow.", "Content publishing to common CMS platforms.", "Pricing is via demo or agency plans; confirm with them."],
+      },
+      differenceBody: "GravyBlock is built for a single business and does not guarantee links; outreach is personalized and a link only counts once verified live.",
+    },
+    {
+      slug: "gravyblock-vs-similarweb",
+      name: "SimilarWeb",
+      metaDescription: "GravyBlock vs SimilarWeb: a traffic analytics platform versus a local SEO product that publishes and posts on a schedule.",
+      intro: "SimilarWeb is a traffic and market analytics platform used by analysts and larger teams. GravyBlock is a different kind of product: it publishes local content and posts on a schedule.",
+      meaningForBusiness: "If you need competitive traffic analytics, SimilarWeb is built for that. If you want local SEO work done for you, GravyBlock is designed for that.",
+      doesWell: {
+        body: "SimilarWeb provides traffic estimates, audience data, referral sources and benchmarking across websites and industries.",
+        bullets: ["Traffic and engagement estimates.", "Competitor benchmarking.", "Pricing has generally started in the hundreds of dollars per month; confirm on their site."],
+      },
+      differenceBody: "GravyBlock does not offer market analytics. Competitors are analyzed at scan time, not monitored continuously.",
+    },
+    {
+      slug: "gravyblock-vs-searchatlas",
+      name: "Search Atlas",
+      metaDescription: "GravyBlock vs Search Atlas: a large SEO toolset versus a narrower, lower-cost option for local business owners.",
+      intro: "Search Atlas is a large SEO platform with many tools, including AI-assisted optimization, local rank tracking and content generation. GravyBlock is narrower by design and priced for a single local business.",
+      meaningForBusiness: "If you want a broad toolset and are comfortable configuring campaigns, Search Atlas offers a lot. If you want a small set of local tasks handled on a schedule, GravyBlock may fit.",
+      doesWell: {
+        body: "Search Atlas offers a wide toolset covering rank tracking, content, Google Business Profile management, reporting and AI visibility.",
+        bullets: ["Broad toolset.", "Local rank tracking with geogrid views.", "Pricing has generally started from around $99/month; confirm current plans on their site."],
+      },
+      differenceBody: "GravyBlock does a smaller set of things and asks for a one-time connection of your website, Google account and Facebook Page.",
+    },
+    {
+      slug: "gravyblock-vs-soro",
+      name: "Soro",
+      metaDescription: "GravyBlock vs Soro: content automation versus content plus Google Business Profile posts and Google review replies for local businesses.",
+      intro: "Soro is an automated content platform that finds keywords, writes articles and publishes them. GravyBlock also publishes website content, and adds local work such as Google Business Profile posts and Google review replies.",
+      meaningForBusiness: "If most of your customers arrive from blog and web search, a content-focused tool may be enough. If customers find you through Google Maps, compare how each tool handles local signals.",
+      doesWell: {
+        body: "Soro focuses on simple automated keyword research, article writing in your brand voice, and publishing.",
+        bullets: ["Automated content pipeline.", "Brand voice learning.", "Pricing has been listed from around $49/month; confirm on their site."],
+      },
+      differenceBody: "GravyBlock writes from facts on your own website and pairs articles with Google Business Profile posts, review replies and local outreach.",
+    },
+    {
+      slug: "gravyblock-vs-reputation",
+      name: "Reputation.com",
+      metaDescription: "GravyBlock vs Reputation.com: an enterprise reputation platform versus a lower-cost option for owner-operated local businesses.",
+      intro: "Reputation (Reputation.com) is an enterprise reputation management platform used by larger and multi-location brands. GravyBlock is a lower-cost option for owner-operated local businesses.",
+      meaningForBusiness: "Reputation platforms typically offer review requests, listings, surveys and analytics at enterprise scale. GravyBlock covers a smaller set of local tasks at a small-business price.",
+      doesWell: {
+        body: "Reputation offers review aggregation, review requests, surveys, listings sync and analytics for larger organizations.",
+        bullets: ["Enterprise-scale reputation tools.", "Multi-location analytics.", "Pricing is generally quote-based; confirm terms with them."],
+      },
+      differenceBody: "GravyBlock does not send review requests to your customers. It emails you a weekly reminder and a shareable review link, and it replies to your Google reviews automatically once Google is connected.",
+      extraLinks: [{ href: "/guides/how-to-show-up-in-ai-search-for-local-businesses", label: "How to show up in AI search" }],
+    },
+    {
+      slug: "gravyblock-vs-whitespark",
+      name: "Whitespark",
+      metaDescription: "GravyBlock vs Whitespark: well-regarded citation and rank tools versus scheduled content, Google posts and outreach for owner-operators.",
+      intro: "Whitespark makes well-regarded local rank tracking and citation tools, and offers citation building services. GravyBlock is a different approach: scheduled content, Google Business Profile posts, review replies and outreach.",
+      meaningForBusiness: "If you want to manage citations and track rankings with dedicated tools, Whitespark is a good fit. If you want a scheduled workflow, GravyBlock may fit.",
+      doesWell: {
+        body: "Whitespark's Local Rank Tracker and Citation Finder are widely used by local SEO practitioners.",
+        bullets: ["Local rank tracking across cities.", "Citation discovery and citation building services.", "Rank tracker pricing has generally started from around $17/month; confirm on their site."],
+      },
+      differenceBody: "GravyBlock does not build citations across directories. It checks that your details agree across your website, Google, and where connected Yelp and Facebook.",
+    },
+    {
+      slug: "gravyblock-vs-gmb-everywhere",
+      name: "GMB Everywhere",
+      metaDescription: "GravyBlock vs GMB Everywhere: a Chrome extension for profile research versus a scheduled local SEO product.",
+      intro: "GMB Everywhere is a popular Chrome extension for researching Google Business Profiles. GravyBlock is a different kind of product that publishes and posts on a schedule.",
+      meaningForBusiness: "They serve different needs: research in the browser versus scheduled work handled for you.",
+      doesWell: {
+        body: "GMB Everywhere makes it quick to see categories, attributes and review patterns for any Google Business Profile.",
+        bullets: ["Fast profile and competitor research.", "Low cost; confirm current pricing on their site."],
+      },
+      differenceBody: "GravyBlock's free scan covers your Google profile, reviews, citations, website and AI search, and paid plans run content, posting and outreach on a schedule.",
+    },
+  ];
+
+  const pages: Record<string, ComparePage> = {};
+  for (const c of configs) {
+    pages[c.slug] = {
+      slug: c.slug,
+      metaTitle: "GravyBlock vs " + c.name + ": local SEO compared | GravyBlock",
+      metaDescription: c.metaDescription,
+      model: {
+        eyebrow: "GravyBlock vs " + c.name,
+        title: "GravyBlock vs " + c.name + ": which fits your business?",
+        intro: c.intro,
+        meaningForBusiness: c.meaningForBusiness,
+        sections: [
+          { title: "What " + c.name + " is known for", body: c.doesWell.body, bullets: c.doesWell.bullets },
+          { title: "How GravyBlock differs", body: c.differenceBody, bullets: GRAVYBLOCK_BULLETS },
+        ],
+        relatedLinks: [
+          { href: "/scan", label: "Run a free GravyBlock scan" },
+          { href: "/pricing", label: "GravyBlock plans and pricing" },
+          ...(c.extraLinks ?? []),
+          ...links,
+        ],
+      },
+    };
+  }
+  return pages;
+}
+
+export const COMPARE_PAGES: Record<string, ComparePage> = { ...BASE_PAGES, ...buildVsPages() };
 
 export const COMPARE_SLUGS = Object.keys(COMPARE_PAGES);
