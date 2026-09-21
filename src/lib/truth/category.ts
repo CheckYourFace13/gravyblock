@@ -12,7 +12,8 @@ import type { BusinessTruth } from "./index";
 export async function deriveCategory(businessId: string, truth: BusinessTruth): Promise<string | null> {
   const db = getDb();
   if (!db) return null;
-  const text = truth.description ?? "";
+  // Everything the company itself says about what it is (owner text, site descriptions, service and page titles).
+  const text = [...new Set([truth.description ?? "", ...truth.facts.filter((f) => f.key === "description").map((f) => f.value), ...truth.services, ...truth.facts.filter((f) => f.key === "page_topic").slice(0, 6).map((f) => f.value)])].filter(Boolean).join(". ");
   if (text.length < 40) return null;
   const basis = createHash("sha256").update(text).digest("hex").slice(0, 16);
   const [prior] = await db
@@ -27,7 +28,7 @@ export async function deriveCategory(businessId: string, truth: BusinessTruth): 
     model: MODELS.content,
     maxTokens: 20,
     temperature: 0,
-    messages: [{ role: "user", content: `Text from a company's own website:\n"${text.slice(0, 600)}"\n\nName the ONE primary kind of business this describes as a 1-3 word search phrase (e.g. "boat rental"). Use only words that appear in the text. If unclear answer NONE. Output only the phrase.` }],
+    messages: [{ role: "user", content: `Text from a company's own website:\n"${text.slice(0, 900)}"\n\nName the ONE primary kind of business this describes as a 1-3 word search phrase (e.g. "boat rental"). Use only words that appear in the text. If unclear answer NONE. Output only the phrase.` }],
   });
   const cand = out?.trim().toLowerCase().replace(/[^a-z ]/g, "").trim() ?? "";
   const lower = text.toLowerCase();

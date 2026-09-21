@@ -145,6 +145,36 @@ async function run(engine: string, id: string) {
       const strip = (o: unknown) => JSON.parse(JSON.stringify(o ?? null, (k, v) => (k === "signing_secret" || k === "secret" ? undefined : v)));
       return { domains: strip(d), webhooks: strip(w) };
     }
+    case "resend_add_receiving": {
+      const key = process.env.RESEND_API_KEY;
+      if (!key) return { error: "no_key" };
+      const r = await fetch("https://api.resend.com/domains", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ name: "reply.gravyblock.com", capabilities: { sending: "disabled", receiving: "enabled" } }) });
+      const j = (await r.json().catch(() => null)) as Record<string, unknown> | null;
+      return { status: r.status, body: JSON.parse(JSON.stringify(j ?? null, (k, v) => (k === "signing_secret" ? undefined : v))) };
+    }
+    case "resend_verify": {
+      const key = process.env.RESEND_API_KEY;
+      if (!key) return { error: "no_key" };
+      const h = { authorization: `Bearer ${key}`, "content-type": "application/json" };
+      const list = (await fetch("https://api.resend.com/domains", { headers: h }).then((r) => r.json()).catch(() => null)) as { data?: { id: string; name: string }[] } | null;
+      const d = list?.data?.find((x) => x.name === "reply.gravyblock.com");
+      if (!d) return { error: "domain_not_found" };
+      await fetch(`https://api.resend.com/domains/${d.id}/verify`, { method: "POST", headers: h }).catch(() => null);
+      const g = await fetch(`https://api.resend.com/domains/${d.id}`, { headers: h }).then((r) => r.json()).catch(() => null);
+      return g;
+    }
+    case "resend_webhook_event": {
+      const key = process.env.RESEND_API_KEY;
+      if (!key) return { error: "no_key" };
+      const h = { authorization: `Bearer ${key}`, "content-type": "application/json" };
+      const r = await fetch("https://api.resend.com/webhooks/a44910f0-4b13-49b5-aeec-44e9bef41955", { method: "PATCH", headers: h, body: JSON.stringify({ events: ["email.bounced", "email.clicked", "email.complained", "email.delivered", "email.opened", "email.received"] }) });
+      return { status: r.status, body: await r.text().then((t) => t.slice(0, 300)) };
+    }
+    case "mark_inbound_ready": {
+      const sql = getSqlClient()!;
+      await sql.unsafe(`insert into jobs (type, status, payload) values ('inbound_domain_ready','completed','{"domain":"reply.gravyblock.com"}'::jsonb)`);
+      return { ok: true };
+    }
     case "social":
       return planTruthGroundedSocial(id);
     default:
