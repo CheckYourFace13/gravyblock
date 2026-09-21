@@ -124,7 +124,7 @@ export function chooseAuthorityAsset(truth: BusinessTruth, website: string | nul
 }
 function chooseAsset(truth: BusinessTruth, website: string | null): { url: string; title: string } | null {
   // A single venue's event listing is a poor thing to ask an association to share; prefer editorial pages.
-  const recent = promotableContent(truth.facts).find((f) => f.sourceUrl && !//events?//i.test(f.sourceUrl));
+  const recent = promotableContent(truth.facts).find((f) => f.sourceUrl && !/\/events?\//i.test(f.sourceUrl));
   if (recent?.sourceUrl) return { url: recent.sourceUrl, title: recent.value };
   const service = truth.facts.filter((f) => f.key === "service" && f.sourceUrl)[0];
   if (service?.sourceUrl) return { url: service.sourceUrl, title: service.value };
