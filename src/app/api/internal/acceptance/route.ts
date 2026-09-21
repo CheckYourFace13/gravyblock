@@ -104,6 +104,12 @@ async function run(engine: string, id: string) {
       return generateCaseStudies(20);
     case "proof_attribution":
       return getProofAttribution();
+    case "retract_bad_aeo": {
+      const sql = getSqlClient()!;
+      const a = await sql.unsafe(`update content_queue set status='skipped' where business_id=$1 and variant='aeo_action' and status='queued' and title like 'I''m looking%' returning id`, [id] as never[]);
+      const b = await sql.unsafe(`update jobs set type='aeo_action_retracted', status='retracted_bad_title' where business_id=$1 and type='aeo_action' and status='queued' and payload->>'queuedTitle' like 'I''m looking%' returning id`, [id] as never[]);
+      return { queueRetracted: a.length, jobsSuperseded: b.length };
+    }
     case "social":
       return planTruthGroundedSocial(id);
     default:

@@ -42,11 +42,21 @@ function topicTokens(s: string): string[] {
     .filter((t) => t.length > 2);
 }
 
-/** The first question/sentence of a probe prompt, trimmed and terminated with "?" — phrased as the AI user asked it. */
-function questionFromPrompt(prompt: string): string {
-  const first = prompt.split(/(?<=[?.!])\s+/)[0]?.trim() ?? prompt.trim();
-  const base = first.replace(/[?.!]+$/, "").trim().slice(0, 140);
-  return `${base.charAt(0).toUpperCase()}${base.slice(1)}?`;
+/** Prompts written before category/city were verified ("best other near ") measure nothing. */
+function isMeaningfulPrompt(prompt: string): boolean {
+  if (/other/i.test(prompt)) return false;
+  if (/(in|near|serving)s*[?.]?s*(give|who|i want|$)/i.test(prompt)) return false;
+  return true;
+}
+
+/** A non-claiming, natural page title from the probe's topic ("How to choose boat rentals in Chicago"), or null. */
+function titleFromPrompt(prompt: string): string | null {
+  const m = prompt.match(/(?:best|highly-rated|most trusted|top-rated|leading)s+(.+?)s+((?:in|near|serving)s+[^?.]+?)s*(?:[?.]|$)/i);
+  if (!m) return null;
+  const what = m[1]!.replace(/s+(providers?|options|companies|services)$/i, "").trim();
+  const where = m[2]!.trim();
+  if (!what || what.length > 60 || where.length > 60) return null;
+  return `How to choose ${what} ${where}`;
 }
 
 /** Does the verified truth support answering this topic? Returns the matching truth items, or []. */
@@ -109,7 +119,7 @@ export async function runAeoActionForBusiness(businessId: string): Promise<{ que
       const cur = byPrompt.get(c.prompt);
       if (!cur || (!cur.citationUrl && c.citationUrl)) byPrompt.set(c.prompt, c);
     }
-    const candidates = [...byPrompt.values()].sort((a, b) => Number(!!b.citationUrl) - Number(!!a.citationUrl));
+    const candidates = [...byPrompt.values()].filter((c) => isMeaningfulPrompt(c.prompt)).sort((a, b) => Number(!!b.citationUrl) - Number(!!a.citationUrl));
 
     const truth = await ensureFreshTruth(businessId);
     const existing = await db.select({ title: contentQueue.title }).from(contentQueue).where(eq(contentQueue.businessId, businessId)).orderBy(desc(contentQueue.createdAt)).limit(300);
@@ -129,14 +139,14 @@ export async function runAeoActionForBusiness(businessId: string): Promise<{ que
       const topic = topicTokens([c.prompt, cited?.h1 ?? "", cited?.title ?? ""].join(" "));
       // Base support on the prompt's own topic first (the cited page can only add words, so require the prompt topic itself to match).
       const support = supportingTruth(truth, topicTokens(c.prompt));
-      const title = questionFromPrompt(c.prompt);
+      const title = titleFromPrompt(c.prompt);
 
-      if (support.length === 0 || used.has(norm(title))) {
+      if (!title || support.length === 0 || used.has(norm(title))) {
         await db.insert(jobs).values({
           businessId,
           type: "aeo_action",
           status: "no_supported_answer",
-          payload: { prompt: c.prompt, engine: c.engine, citedUrl: c.citationUrl, gapReason, reason: used.has(norm(title)) && support.length ? "already_queued" : truth.sufficient ? "truth_does_not_cover_topic" : truth.insufficientReason, topic },
+          payload: { prompt: c.prompt, engine: c.engine, citedUrl: c.citationUrl, gapReason, reason: !title ? "prompt_not_actionable" : used.has(norm(title)) && support.length ? "already_queued" : truth.sufficient ? "truth_does_not_cover_topic" : truth.insufficientReason, topic },
         });
         continue;
       }
