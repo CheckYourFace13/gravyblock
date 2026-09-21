@@ -156,23 +156,37 @@ export async function verifyBasicSeoActions(businessId?: string): Promise<{ chec
     const ageMs = Date.now() - new Date(p.appliedAt).getTime();
     const metric = METRIC[p.defectType]!;
     let ok = 0;
+    const failedPaths: string[] = [];
     const evidence: { url: string; ogImage?: string | null; description?: string | null }[] = [];
     for (const c of p.changes) {
       const r = await safeFetchText(c.url, { timeoutMs: 9000 });
-      if (!r.ok || r.status !== 200) continue;
+      if (!r.ok || r.status !== 200) {
+        failedPaths.push(c.path);
+        continue;
+      }
       const snap = snapshotPage(r.finalUrl, r.body, r.status);
       let pass = false;
       if (p.defectType === "no_social_image") pass = snap.ogImage === c.ogImage && (await validImage(c.ogImage!));
       else if (p.defectType === "description_missing") pass = snap.description === c.description;
       else if (p.defectType === "title_missing") pass = Boolean(snap.title);
       else pass = snap.jsonLdTypes.length > 0;
+      if (!pass) failedPaths.push(c.path);
       if (pass) {
         ok++;
         if (evidence.length < 5) evidence.push({ url: c.url, ogImage: snap.ogImage, description: snap.description });
       }
     }
     const rate = p.changes.length ? ok / p.changes.length : 0;
-    if (rate >= 0.9) {
+    // After a grace period, pages the site's connector does not apply to (e.g. a route not wired to it) are
+    // rolled back individually; the action then stands on the pages where the change is really live.
+    if (rate < 0.9 && ok >= 1 && ageMs > 6 * 3_600_000) {
+      for (const path of failedPaths) {
+        await db.insert(jobs).values({ businessId: row.businessId, type: "site_override", status: "reverted", payload: { path, actionId: p.actionId, reason: "not_applied_by_site" } });
+      }
+      p.changes = p.changes.filter((c) => !failedPaths.includes(c.path));
+      p.paths = p.paths.filter((x) => !failedPaths.includes(x));
+    }
+    if (rate >= 0.9 || (ok >= 1 && ageMs > 6 * 3_600_000)) {
       // Re-measure the same audited set so before/after are comparable.
       let after = 0;
       for (const path of p.auditedPagePaths) {

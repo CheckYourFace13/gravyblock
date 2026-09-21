@@ -48,11 +48,14 @@ export async function prepareProofCandidates(limit = 200): Promise<{ prepared: n
     .orderBy(desc(jobs.createdAt))
     .limit(limit);
   if (sends.length === 0) return { prepared: 0, withProof: 0 };
+  // A candidate that found no proof is re-evaluated once newer proof exists.
+  const [lastProof] = await db.select({ at: sql<Date | null>`max(${proofLedger.verifiedAt})` }).from(proofLedger);
+  const lastProofAt = lastProof?.at ? new Date(lastProof.at) : null;
   const done = await db
-    .select({ payload: jobs.payload })
+    .select({ payload: jobs.payload, status: jobs.status, createdAt: jobs.createdAt })
     .from(jobs)
     .where(and(eq(jobs.type, "proof_candidate"), gte(jobs.createdAt, since)));
-  const doneIds = new Set(done.map((d) => (d.payload as { sendJobId?: string } | null)?.sendJobId));
+  const doneIds = new Set(done.filter((d) => d.status === "candidate" || !lastProofAt || d.createdAt > lastProofAt).map((d) => (d.payload as { sendJobId?: string } | null)?.sendJobId));
   let prepared = 0;
   let withProof = 0;
   for (const s of sends) {

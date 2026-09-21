@@ -16,7 +16,7 @@ import { getConnectionReadiness, getNeedsYou } from "@/lib/onboarding/connection
 import { autoConnectManagedSites } from "@/lib/site-publish/adapters";
 import { runBasicSeoForBusiness, verifyBasicSeoActions } from "@/lib/seo/basic-autopilot";
 import { planTruthGroundedSocial } from "@/lib/social/truth-social";
-import { prepareProofCandidates, generateCaseStudies, getProofAttribution } from "@/lib/proof/sales";
+import { proofPointForFinding, prepareProofCandidates, generateCaseStudies, getProofAttribution } from "@/lib/proof/sales";
 
 /** TEMPORARY, secret-gated production acceptance runner. Remove after use. Never sends outreach email. */
 export const maxDuration = 300;
@@ -174,6 +174,15 @@ async function run(engine: string, id: string) {
       const sql = getSqlClient()!;
       await sql.unsafe(`insert into jobs (type, status, payload) values ('inbound_domain_ready','completed','{"domain":"reply.gravyblock.com"}'::jsonb)`);
       return { ok: true };
+    }
+    case "proof_match": {
+      const sql = getSqlClient()!;
+      const rows = (await sql.unsafe(`select public_id, payload->'prioritizedFixes'->0->>'id' as fix_id from reports order by created_at desc limit 300`)) as unknown as { public_id: string; fix_id: string | null }[];
+      const byFix = new Map<string, string>();
+      for (const r of rows) if (r.fix_id && !byFix.has(r.fix_id)) byFix.set(r.fix_id, r.public_id);
+      const out: { fixId: string; reportId: string; proof: unknown }[] = [];
+      for (const [fixId, reportId] of byFix) out.push({ fixId, reportId, proof: await proofPointForFinding(fixId) });
+      return out;
     }
     case "social":
       return planTruthGroundedSocial(id);
