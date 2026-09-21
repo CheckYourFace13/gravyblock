@@ -202,7 +202,7 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
 }
 
 /** Reads a real published contact address for prospecting rows; nothing is ever guessed. */
-const STOP = new Set("software platform online competition competitions venue venues management signup signups payment payments tool tools event events player players team teams the and for you your our with that this from are was have has will can not but all any get find best top guide local business businesses services service company website site page pages online more about into over than help helps helping provide provides across around near nearby made makes make one new use used using their they them who what when where which while also just like only some such other each every many most much very".split(" "));
+const STOP = new Set("game games gaming night nights league leagues play played bar bars software platform online competition competitions venue venues management signup signups payment payments tool tools event events player players team teams the and for you your our with that this from are was have has will can not but all any get find best top guide local business businesses services service company website site page pages online more about into over than help helps helping provide provides across around near nearby made makes make one new use used using their they them who what when where which while also just like only some such other each every many most much very".split(" "));
 
 /** The business's own topical vocabulary, taken from its verified description/services (never invented). */
 function topicVocabulary(truth: BusinessTruth, category: string | null): string[] {
