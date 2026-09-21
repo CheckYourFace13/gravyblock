@@ -221,12 +221,12 @@ function topicVocabulary(truth: BusinessTruth, category: string | null): string[
  * business's topic (>=2 distinct topic words), or be a community/resource listing that
  * mentions the business's verified city AND at least one topic word.
  */
-function assessRelevance(html: string, vocab: string[], city: string | null): { relevant: boolean; note: string } {
+function assessRelevance(html: string, vocab: string[], city: string | null, minHits = 2): { relevant: boolean; note: string } {
   const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").toLowerCase();
   const hits = vocab.filter((w) => new RegExp(`\\b${w}`).test(text));
   const resourceSection = /(resources?|partners?|member (benefits|resources)|community links|useful links|directory)/i.test(text);
   const cityHit = city ? text.includes(city.toLowerCase()) : false;
-  if (hits.length >= 2) return { relevant: true, note: `Prospect's own site covers: ${hits.slice(0, 5).join(", ")}` };
+  if (hits.length >= minHits) return { relevant: true, note: `Prospect's own site covers: ${hits.slice(0, 5).join(", ")}` };
   if (resourceSection && cityHit && hits.length >= 1) return { relevant: true, note: `Has a resource listing in ${city} and mentions: ${hits[0]}` };
   return { relevant: false, note: `Prospect's site does not cover the business's topics (${hits.length} topic words matched)` };
 }
@@ -241,6 +241,7 @@ async function qualifyProspects(db: Db, businessId: string, limit = 8, statuses:
   if (rows.length === 0) return 0;
   const truth = await ensureFreshTruth(businessId);
   const [catJob] = await db.select({ payload: jobs.payload }).from(jobs).where(and(eq(jobs.businessId, businessId), eq(jobs.type, "category_derived"))).orderBy(desc(jobs.createdAt)).limit(1);
+  const mode = await getOperatingMode(businessId);
   const vocab = topicVocabulary(truth, (catJob?.payload as { category?: string | null } | null)?.category ?? null);
   let qualified = 0;
   for (const r of rows) {
@@ -250,7 +251,7 @@ async function qualifyProspects(db: Db, businessId: string, limit = 8, statuses:
     }
     if (vocab.length >= 3) {
       const page = await safeFetchText(r.targetUrl, { timeoutMs: 9000 });
-      const rel = page.ok && page.status < 400 ? assessRelevance(page.body, vocab, truth.verifiedCity) : { relevant: false, note: "Prospect site could not be read" };
+      const rel = page.ok && page.status < 400 ? assessRelevance(page.body, vocab, truth.verifiedCity, mode.mode === "local" || mode.mode === "regional" ? 2 : 4) : { relevant: false, note: "Prospect site could not be read" };
       if (!rel.relevant) {
         await db.update(backlinkOpportunities).set({ status: "not_relevant", relevanceNote: rel.note }).where(eq(backlinkOpportunities.id, r.id));
         await logEvent(db, businessId, r.id, "not_relevant", { note: rel.note });
