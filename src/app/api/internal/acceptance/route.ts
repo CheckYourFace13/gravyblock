@@ -12,6 +12,7 @@ import { discoverAndQualify, previewAuthorityOutreach } from "@/lib/authority/en
 import { runSiteWatchdogForBusiness } from "@/lib/watchdog/site-watchdog";
 import { getConnectionReadiness, getNeedsYou } from "@/lib/onboarding/connection-readiness";
 import { planTruthGroundedSocial } from "@/lib/social/truth-social";
+import { prepareProofCandidates, generateCaseStudies, getProofAttribution } from "@/lib/proof/sales";
 
 /** TEMPORARY, secret-gated production acceptance runner. Remove after use. Never sends outreach email. */
 export const maxDuration = 300;
@@ -97,6 +98,12 @@ async function run(engine: string, id: string) {
       return runSiteWatchdogForBusiness(id);
     case "readiness":
       return { readiness: await getConnectionReadiness(id, { freshTruth: true }), needsYou: await getNeedsYou(id) };
+    case "proof_candidates":
+      return prepareProofCandidates(200);
+    case "case_studies":
+      return generateCaseStudies(20);
+    case "proof_attribution":
+      return getProofAttribution();
     case "social":
       return planTruthGroundedSocial(id);
     default:

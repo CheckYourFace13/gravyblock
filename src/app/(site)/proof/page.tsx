@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getPublicProof } from "@/lib/proof/ledger";
+import { getPublishedCaseStudies } from "@/lib/proof/sales";
 import { getShowcaseBusinesses, type ProofActivity } from "@/lib/proof/get-showcase-businesses";
 
 export const dynamic = "force-dynamic";
@@ -78,6 +79,7 @@ function ProofActivityList({ activity }: { activity: ProofActivity }) {
 export default async function ProofPage() {
   const showcased = await getShowcaseBusinesses();
   const ledger = await getPublicProof({ limit: 12 });
+  const caseStudies = await getPublishedCaseStudies(6);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6">
@@ -134,6 +136,23 @@ export default async function ProofPage() {
           ))}
         </div>
       )}
+
+      {caseStudies.length > 0 ? (
+        <section className="mt-12">
+          <h2 className="text-xl font-semibold text-zinc-900">Case studies</h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {caseStudies.map((c) => (
+              <article key={c.title} className="rounded-xl border border-zinc-200 bg-white p-5 text-sm text-zinc-700">
+                <h3 className="font-semibold text-zinc-900">{c.title}</h3>
+                <p className="mt-2"><span className="font-medium">Before:</span> {c.before.metric} {c.before.value}</p>
+                <p><span className="font-medium">Action:</span> {c.action}</p>
+                <p><span className="font-medium">After:</span> {c.after.metric} {c.after.value}</p>
+                <p className="mt-2 text-xs text-zinc-500">Verified {c.verifiedAt.slice(0, 10)}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {ledger.length > 0 ? (
         <section className="mt-12">

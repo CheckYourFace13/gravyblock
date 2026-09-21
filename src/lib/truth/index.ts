@@ -17,7 +17,7 @@
 
 import { createHash } from "node:crypto";
 import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
-import { businessConfigs, businessFacts, businesses, getDb, jobs, keywordRankings, truthPages } from "@/lib/db";
+import { businessConfigs, businessFacts, businesses, getDb, jobs, keywordRankings, scans, truthPages } from "@/lib/db";
 import { isSafePublicUrl, safeFetchText } from "@/lib/net/safe-fetch";
 import {
   SINGLE_VALUED_KEYS,
@@ -372,6 +372,21 @@ export async function refreshBusinessTruth(businessId: string, mode: RefreshMode
   if (ownerSupplied) {
     const city = firstToken(cfg?.targetScope);
     if (city && !/^(united states|global|worldwide)$/i.test(city)) facts.push({ key: "city", value: city, confidence: 92, stability: "stable", sourceSystem: "owner", sourceUrl: null });
+  }
+
+  // The location the owner typed when they ran their scan is authoritative user input
+  // (never inferred). Country-level or empty values are ignored.
+  {
+    const [lastScan] = await db
+      .select({ loc: scans.lookupLocation })
+      .from(scans)
+      .where(and(eq(scans.businessId, businessId), sql`coalesce(trim(${scans.lookupLocation}),'') <> ''`))
+      .orderBy(desc(scans.createdAt))
+      .limit(1);
+    const city = firstToken(lastScan?.loc);
+    if (city && !/^(united states|usa|us|global|worldwide|online|national)$/i.test(city)) {
+      facts.push({ key: "city", value: city, confidence: 85, stability: "stable", sourceSystem: "scan_input", sourceUrl: null });
+    }
   }
 
   // Connected Search Console demand (real queries, last 30 days).

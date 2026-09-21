@@ -41,6 +41,7 @@ import { runCompetitorGapBatch } from "@/lib/competitors/gap-engine";
 import { runAeoActionBatch, runAeoRecheckBatch } from "@/lib/ai-visibility/aeo-actions";
 import { runConnectionReadinessBatch } from "@/lib/onboarding/connection-readiness";
 import { runReviewRequestSendBatch } from "@/lib/reviews/review-request-engine";
+import { prepareProofCandidates, generateCaseStudies } from "@/lib/proof/sales";
 import { runSiteWatchdogBatch } from "@/lib/watchdog/site-watchdog";
 import { runCitationEngineBatch } from "@/lib/citations/engine";
 import { runRepurposeBatch } from "@/lib/content-gen/repurpose";
@@ -692,6 +693,8 @@ async function tick() {
       { name: 'aeo_action_batch', hour: 12, run: async () => ({ act: await runAeoActionBatch(4), recheck: await runAeoRecheckBatch(4) }) },
       { name: 'connection_readiness_batch', hour: 4, run: () => runConnectionReadinessBatch(10) },
       { name: 'review_request_send_batch', hour: 16, run: () => runReviewRequestSendBatch(40) },
+      { name: 'proof_candidate_batch', hour: 3, run: () => prepareProofCandidates(200) },
+      { name: 'case_study_batch', hour: 13, run: () => generateCaseStudies(20) },
     ];
     for (const g of growthJobs) {
       if (g.hour !== null && h !== g.hour) continue;

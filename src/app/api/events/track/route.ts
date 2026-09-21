@@ -71,7 +71,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     utmCampaign: typeof p.utmCampaign === "string" ? p.utmCampaign.slice(0, 120) : null,
     referrer: typeof p.referrer === "string" ? p.referrer.slice(0, 500) : null,
     path: typeof p.path === "string" ? p.path.slice(0, 300) : null,
-    metadata: attributionToken ? { attributionToken } : {},
+    metadata: {
+      ...(attributionToken ? { attributionToken } : {}),
+      ...(typeof p.proofType === "string" ? { proofType: p.proofType.slice(0, 40) } : {}),
+    },
   });
 
   return NextResponse.json({ ok: true });

@@ -6,10 +6,12 @@ type Props = {
   eventType: "scan_started" | "pricing_viewed" | "report_landed";
   businessId?: string | null;
   reportPublicId?: string | null;
+  /** Proof category shown on this page ("none" when no proof was shown). */
+  proofType?: string | null;
 };
 
 /** Fires a first-party funnel event once on mount. Fire-and-forget — never blocks render. */
-export function FunnelBeacon({ eventType, businessId, reportPublicId }: Props) {
+export function FunnelBeacon({ eventType, businessId, reportPublicId, proofType }: Props) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     // Outreach email links pre-fill /scan with ?q=&city=&e=<base64 email> and
@@ -25,6 +27,7 @@ export function FunnelBeacon({ eventType, businessId, reportPublicId }: Props) {
       eventType,
       businessId: businessId ?? null,
       reportPublicId: reportPublicId ?? null,
+      proofType: proofType ?? null,
       attributionToken,
       utmSource: params.get("utm_source") ?? (looksLikeOutreachLink || attributionToken ? "cold_outreach" : null),
       utmMedium: params.get("utm_medium"),

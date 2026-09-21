@@ -31,7 +31,7 @@ export type ExtractedFact = {
   value: string;
   confidence: number;
   stability: "stable" | "time_sensitive";
-  sourceSystem: "website" | "sitemap" | "gbp" | "gsc" | "owner";
+  sourceSystem: "website" | "sitemap" | "gbp" | "gsc" | "owner" | "scan_input";
   sourceUrl: string | null;
   sourceUpdatedAt?: Date | null;
   /** Time-sensitive facts stop being usable at this instant (events, offers, news). */
