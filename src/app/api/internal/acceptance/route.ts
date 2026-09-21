@@ -219,6 +219,15 @@ async function run(engine: string, id: string) {
       const a = await sql.unsafe(`delete from backlink_opportunities where business_id=$1 and source_name='GravyBlock reply-loop TEST' returning id`, [id] as never[]);
       return { opps: a.length, jobs: b.length };
     }
+    case "fix_ids": {
+      const sql = getSqlClient()!;
+      return sql.unsafe(`select f.id, count(*)::int n from reports r, jsonb_to_recordset(r.payload->'prioritizedFixes') as f(id text) group by 1 order by 2 desc limit 30`);
+    }
+    case "purge_stale_candidates": {
+      const sql = getSqlClient()!;
+      const r = await sql.unsafe(`delete from jobs where type='proof_candidate' and (payload->>'ledgerId' is null or payload->>'ledgerId' not in (select id::text from proof_ledger)) returning id`);
+      return { purged: r.length };
+    }
     case "social":
       return planTruthGroundedSocial(id);
     default:
