@@ -21,7 +21,7 @@ const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "en
 // openai/gpt-4o-mini mirrors ChatGPT answers; perplexity has live web search.
 const PROBE_ENGINES = [
   { model: "openai/gpt-4o-mini",                          engine: "chatgpt" },
-  { model: "perplexity/llama-3.1-sonar-small-128k-online", engine: "perplexity" },
+  { model: "perplexity/sonar", engine: "perplexity" },
   { model: "openai/gpt-4o-mini",                          engine: "copilot" }, // second ChatGPT probe with different prompt angle
 ];
 
