@@ -47,6 +47,9 @@ import { runReviewRequestSendBatch } from "@/lib/reviews/review-request-engine";
 import { prepareProofCandidates, generateCaseStudies } from "@/lib/proof/sales";
 import { expireStaleOpportunities } from "@/lib/opportunities/queue";
 import { runCanaryAssertionsBatch } from "@/lib/canary/assertions";
+import { runTruthOpportunitiesBatch } from "@/lib/opportunities/truth-opportunities";
+import { scanCrossEngineOpportunitiesBatch } from "@/lib/opportunities/scan";
+import { evaluateMeasurementPlans } from "@/lib/opportunities/evaluate";
 import { runSiteWatchdogBatch } from "@/lib/watchdog/site-watchdog";
 import { runCitationEngineBatch } from "@/lib/citations/engine";
 import { runRepurposeBatch } from "@/lib/content-gen/repurpose";
@@ -702,8 +705,11 @@ async function tick() {
       { name: 'basic_seo_batch', hour: 9, run: () => runBasicSeoBatch(6) },
       { name: 'proof_candidate_batch', hour: 3, run: () => prepareProofCandidates(200) },
       { name: 'case_study_batch', hour: 13, run: () => generateCaseStudies(20) },
-      { name: 'opportunity_queue_maintenance', hour: 1, run: () => expireStaleOpportunities(45) },
+      { name: 'opportunity_queue_maintenance', hour: 1, run: () => expireStaleOpportunities() },
       { name: 'canary_assertions_batch', hour: 14, run: () => runCanaryAssertionsBatch() },
+      { name: 'truth_opportunities_batch', hour: 5, run: () => runTruthOpportunitiesBatch(15) },
+      { name: 'cross_engine_opportunity_scan', hour: 6, run: () => scanCrossEngineOpportunitiesBatch(15) },
+      { name: 'opportunity_measurement_eval', hour: 17, run: () => evaluateMeasurementPlans(20) },
     ];
     try {
       const inb = await ensureInboundReceiving();

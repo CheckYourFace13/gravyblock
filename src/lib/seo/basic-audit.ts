@@ -29,9 +29,11 @@ export type PageSnapshot = {
   ogImage: string | null;
   /** Same-site content images found on the page, in document order (candidates for a social preview). */
   images: string[];
+  /** Does the page offer any obvious way to convert (tel:/mailto: link or a recognizable CTA phrase)? */
+  hasConversionPath: boolean;
 };
 
-export type DefectType = "title_missing" | "title_too_long" | "title_too_short" | "description_missing" | "description_too_short" | "description_too_long" | "no_structured_data" | "no_social_image" | "no_h1" | "multiple_h1" | "no_canonical" | "noindex" | "duplicate_title" | "thin_internal_links";
+export type DefectType = "title_missing" | "title_too_long" | "title_too_short" | "description_missing" | "description_too_short" | "description_too_long" | "no_structured_data" | "no_social_image" | "no_h1" | "multiple_h1" | "no_canonical" | "noindex" | "duplicate_title" | "thin_internal_links" | "no_conversion_path";
 
 export type Defect = {
   type: DefectType;
@@ -68,6 +70,8 @@ export function snapshotPage(url: string, html: string, status: number): PageSna
       /* skip */
     }
   }
+  const ctaText = [...html.matchAll(/<(?:a|button)\b[^>]*>([\s\S]*?)<\/(?:a|button)>/gi)].map((m) => strip(m[1]!)).join(" | ");
+  const hasConversionPath = /href=["']tel:|href=["']mailto:/i.test(html) || /\b(book now|get a quote|contact us|request a quote|schedule|call now|sign up|get started|free consultation|book online|buy now|start free trial)\b/i.test(ctaText);
   const ogImage = html.match(/<meta[^>]+property=["']og:image["'][^>]*>/i)?.[0]?.match(/content=["']([^"']+)["']/i)?.[1] ?? null;
   const images: string[] = [];
   for (const m of html.matchAll(/<img\b[^>]*>/gi)) {
@@ -105,6 +109,7 @@ export function snapshotPage(url: string, html: string, status: number): PageSna
     firstParagraph: paras[0] ?? null,
     ogImage,
     images,
+    hasConversionPath,
   };
 }
 
@@ -208,6 +213,7 @@ export function findDefects(pages: PageSnapshot[], brand: string): Defect[] {
     if (!p.canonical) add("no_canonical", "No canonical link.", 25, null);
     if (p.title && (titleCounts.get(p.title.toLowerCase()) ?? 0) > 1) add("duplicate_title", "Title duplicated on other pages.", 35, { title: proposeTitle(p, brand) ?? undefined });
     if (p.internalLinks < 3 && p.wordCount > 150) add("thin_internal_links", `Only ${p.internalLinks} internal links.`, 25, null);
+    if (!p.hasConversionPath && (p.path === "/" || p.wordCount > 300)) add("no_conversion_path", "No phone/email link or recognizable call-to-action found on this page.", 70, null);
   }
   return out.sort((a, b) => b.score - a.score);
 }

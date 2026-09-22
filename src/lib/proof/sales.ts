@@ -19,9 +19,13 @@ export async function proofPointForFinding(findingId: string | null | undefined,
   const rows = await getPublicProof({ limit: 30, categories: cats });
   if (rows.length === 0) return null;
   const ind = industry?.toLowerCase() ?? "";
+  // Relevance is the dominant tier (an exact finding-type match always outranks a merely
+  // category-relevant one, regardless of proof level); proof level only breaks ties within the
+  // same relevance tier — a higher-level result never wins just because its number is bigger
+  // for an otherwise-unrelated row.
   const score = (r: (typeof rows)[number]) =>
-    (r.findingType && findingId && findingId.includes(r.findingType) ? 4 : 0) +
-    r.proofLevel * 3 + // prefer the highest proof level available (outcome over execution)
+    (r.findingType && findingId && findingId.includes(r.findingType) ? 100 : 0) +
+    r.proofLevel * 3 + // prefer the highest proof level available among equally-relevant rows
     (ind && r.industry?.toLowerCase() === ind ? 1 : 0);
   const row = [...rows].sort((a, b) => score(b) - score(a))[0]!;
   const measured = row.metricBefore != null && row.metricAfter != null && row.metricName ? ` ${row.metricName} went from ${row.metricBefore} to ${row.metricAfter}.` : "";
@@ -92,7 +96,9 @@ export async function generateCaseStudies(limit = 20): Promise<{ created: number
     .select({ row: proofLedger, name: businesses.name, accountType: businesses.accountType, showcase: businesses.showcaseOptIn })
     .from(proofLedger)
     .innerJoin(businesses, eq(businesses.id, proofLedger.businessId))
-    .where(sql`${proofLedger.metricBefore} is not null and ${proofLedger.metricAfter} is not null and ${proofLedger.beforeEvidence} is not null and ${proofLedger.afterEvidence} is not null`)
+    // Level 1 (execution only) never becomes a promotional case study — only measured
+    // search/visibility (level 2) or business (level 3) results do.
+    .where(sql`${proofLedger.proofLevel} >= 2 and ${proofLedger.metricBefore} is not null and ${proofLedger.metricAfter} is not null and ${proofLedger.beforeEvidence} is not null and ${proofLedger.afterEvidence} is not null`)
     .orderBy(desc(proofLedger.verifiedAt))
     .limit(limit);
   if (rows.length === 0) return { created: 0, published: 0 };

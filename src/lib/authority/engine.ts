@@ -20,7 +20,8 @@
  */
 
 import { recordProof } from "@/lib/proof/ledger";
-import { recordOpportunity } from "@/lib/opportunities/queue";
+import { recordOpportunity, markActed, recordMeasuredResultByDedupeKey } from "@/lib/opportunities/queue";
+import { buildMeasurementPlan } from "@/lib/opportunities/measurement";
 import { getOperatingMode, webSearchSites } from "@/lib/business-mode";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
@@ -494,6 +495,7 @@ async function sendInitialOutreach(db: Db, businessId: string, truth: BusinessTr
       payload: { opportunityId: c.id, resendEmailId: res.id, to: c.contactEmail, sourceType: c.sourceType, assetUrl: asset.url, subject },
     });
     await logEvent(db, businessId, c.id, "outreach_sent", { resendEmailId: res.id, assetUrl: asset.url, targetUrl: c.targetUrl });
+    await markActed(`authority_prospect:${c.id}`, { actionId: c.id, verificationStatus: "unverified", measurementPlan: buildMeasurementPlan("backlink", 0, "n/a") });
     sent++;
     budget.left--;
   }
@@ -618,6 +620,7 @@ export async function verifyAcquisitions(businessId: string, limit = 6): Promise
         dedupeKey: `link_acquired:${r.id}`,
         findingType: "backlink",
       });
+      await recordMeasuredResultByDedupeKey(`authority_prospect:${r.id}`, "positive", { referringDomain: domainOf(check.pageUrl ?? r.targetUrl), pageUrl: check.pageUrl });
     } else if (check.mentionedWithoutLink) {
       await logEvent(db, businessId, r.id, "unlinked_mention_detected", { targetUrl: r.targetUrl });
     }
@@ -629,10 +632,10 @@ export async function verifyAcquisitions(businessId: string, limit = 6): Promise
     if (j.createdAt > expireBefore) continue;
     const id = (j.payload as { opportunityId?: string }).opportunityId;
     if (!id) continue;
-    await db
-      .update(backlinkOpportunities)
-      .set({ status: "expired" })
-      .where(and(eq(backlinkOpportunities.id, id), inArray(backlinkOpportunities.status, ["contacted", "followed_up"])));
+    const [stillPending] = await db.select({ id: backlinkOpportunities.id }).from(backlinkOpportunities).where(and(eq(backlinkOpportunities.id, id), inArray(backlinkOpportunities.status, ["contacted", "followed_up"])));
+    if (!stillPending) continue;
+    await db.update(backlinkOpportunities).set({ status: "expired" }).where(eq(backlinkOpportunities.id, id));
+    await recordMeasuredResultByDedupeKey(`authority_prospect:${id}`, "no_material_change", { reason: "no link detected within the outreach window" });
   }
   return { checked: rows.length, acquired };
 }

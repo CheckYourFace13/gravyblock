@@ -16,8 +16,15 @@ import { safeFetchText } from "@/lib/net/safe-fetch";
 import { recordProof } from "@/lib/proof/ledger";
 import { getSiteTarget } from "@/lib/site-publish/adapters";
 import { collectPages, findDefects, snapshotPage, type Defect, type DefectType, type PageSnapshot } from "./basic-audit";
-import { recordOpportunity, nextOpportunities, resolveOpportunityByDedupeKey } from "@/lib/opportunities/queue";
+import { recordOpportunity, nextOpportunities, resolveOpportunityByDedupeKey, markActed } from "@/lib/opportunities/queue";
+import { classifyValue } from "@/lib/opportunities/classify";
+import { buildMeasurementPlan } from "@/lib/opportunities/measurement";
+import { getCapabilityProfile } from "@/lib/capability-profile";
+import { pagePerformance } from "@/lib/db";
 import type { OpportunityType } from "@/lib/opportunities/types";
+
+/** Structural/conversion-risk defects carry real downside regardless of search data. */
+const STRUCTURAL: DefectType[] = ["noindex", "no_canonical", "no_h1", "no_conversion_path"];
 
 const APPLICABLE: DefectType[] = ["no_social_image", "description_missing", "title_missing", "no_structured_data"];
 
@@ -37,22 +44,51 @@ const OPPORTUNITY_TYPE: Record<DefectType, OpportunityType> = {
   noindex: "technical",
   duplicate_title: "existing_page_seo",
   thin_internal_links: "internal_link",
+  no_conversion_path: "conversion",
 };
 
-/** Record every defect found (not just the one class GravyBlock is about to act on) into the universal queue, so this business's full opportunity picture is visible and rankable across engines. */
+/**
+ * Record every defect found (not just the one class GravyBlock is about to act on) into the
+ * universal queue, classified as HYGIENE or GROWTH so mechanical lint (a title a few characters
+ * long) never outranks a page with real search demand. Growth evidence, when available, comes
+ * from the business's own Search Console data (pagePerformance) — never invented.
+ */
 async function recordDefectsAsOpportunities(businessId: string, defects: Defect[]): Promise<void> {
+  const db = getDb();
+  const demandByPath = new Map<string, { impressions: number; position: number }>();
+  if (db) {
+    const rows = await db.select({ pageUrl: pagePerformance.pageUrl, impressions: pagePerformance.impressions, position: pagePerformance.position }).from(pagePerformance).where(eq(pagePerformance.businessId, businessId));
+    for (const r of rows) {
+      try {
+        const path = new URL(r.pageUrl).pathname || "/";
+        const cur = demandByPath.get(path) ?? { impressions: 0, position: 0 };
+        demandByPath.set(path, { impressions: cur.impressions + r.impressions, position: cur.position || r.position });
+      } catch {
+        /* skip */
+      }
+    }
+  }
   for (const d of defects) {
+    const demand = demandByPath.get(d.path);
+    const valueClass = classifyValue({
+      isStructuralOrConversion: STRUCTURAL.includes(d.type),
+      hasSearchDemandEvidence: Boolean(demand && demand.impressions >= 20),
+      isWeakPositionWithDemand: Boolean(demand && demand.impressions >= 20 && demand.position >= 4 && demand.position <= 20),
+    });
     await recordOpportunity({
       businessId,
       opportunityType: OPPORTUNITY_TYPE[d.type],
+      subtype: d.type,
       engine: "existing_page_seo_basic",
-      evidence: { defectType: d.type, path: d.path, url: d.url, detail: d.detail },
+      valueClass,
+      evidence: { defectType: d.type, path: d.path, url: d.url, detail: d.detail, demand: demand ?? null },
       expectedImpact: Math.min(100, d.score),
       confidence: d.fix ? 75 : 55,
       cost: 1,
       risk: d.fix ? 1 : 3,
       requiredCapability: "website_write",
       autoEligible: Boolean(d.fix && APPLICABLE.includes(d.type)),
+      ttlDays: 45,
       dedupeKey: `seo_basic_defect:${businessId}:${d.type}:${d.path}`,
     }).catch(() => undefined);
   }
@@ -100,14 +136,18 @@ export async function runBasicSeoForBusiness(businessId: string): Promise<BasicS
 
   if (!target || !target.capabilities.pageMetadata) return { state: "audit_only_no_site_connector", note: "Findings recorded; a site connector is needed to apply them." };
 
+  // Cooldown is scoped to (page, defect class) — the same defect on the same page can't
+  // thrash, but a DIFFERENT page, or a different defect class on the SAME page, is still free
+  // to act. A business-wide cooldown would mean "GravyBlock stops useful marketing on this
+  // business for 28 days," which is not the intent.
   const since = new Date(Date.now() - COOLDOWN_DAYS * 86_400_000);
   const recent = await db.select({ payload: jobs.payload }).from(jobs).where(and(eq(jobs.businessId, businessId), eq(jobs.type, "site_override"), gte(jobs.createdAt, since)));
-  const touched = new Set(recent.map((r) => (r.payload as { path?: string } | null)?.path));
+  const touched = new Set(recent.map((r) => { const p = r.payload as { path?: string; defectType?: string } | null; return p?.path && p?.defectType ? `${p.path}|${p.defectType}` : null; }).filter(Boolean));
 
   // Rank applicable defect classes by total benefit; act on the best one.
   const byType = new Map<DefectType, Defect[]>();
   for (const d of defects) {
-    if (!APPLICABLE.includes(d.type) || !d.fix || touched.has(d.path)) continue;
+    if (!APPLICABLE.includes(d.type) || !d.fix || touched.has(`${d.path}|${d.type}`)) continue;
     if (d.type === "no_social_image" && !target.capabilities.socialImage) continue;
     if (d.type === "no_structured_data" && !target.capabilities.structuredData) continue;
     byType.set(d.type, [...(byType.get(d.type) ?? []), d]);
@@ -176,8 +216,21 @@ export async function runBasicSeoForBusiness(businessId: string): Promise<BasicS
       changes: applied.slice(0, 40),
     },
   });
-  // Mark every acted defect's opportunity row acted (dedupe key ties it back to the queue entry).
-  await Promise.all(list.map((d) => resolveOpportunityByDedupeKey(`seo_basic_defect:${businessId}:${type}:${d.path}`, "acted")));
+  // Mark every acted defect's opportunity row acted (dedupe key ties it back to the queue entry),
+  // and attach a measurement plan when GSC is connected — the worker evaluates it automatically
+  // once the window arrives, no client monitoring required. Without GSC there is no realistically
+  // measurable causal metric for this defect class, so it stays honest Level-1 execution proof.
+  const gscOn = (await getCapabilityProfile(businessId)).active.has("gsc");
+  await Promise.all(
+    applied.map(async (a) => {
+      let plan = null;
+      if (gscOn) {
+        const [perf] = await db.select({ clicks: pagePerformance.clicks, impressions: pagePerformance.impressions, periodStart: pagePerformance.periodStart }).from(pagePerformance).where(and(eq(pagePerformance.businessId, businessId), eq(pagePerformance.pageUrl, a.url))).orderBy(desc(pagePerformance.periodStart)).limit(1);
+        plan = buildMeasurementPlan(OPPORTUNITY_TYPE[type], perf?.clicks ?? 0, perf?.periodStart ?? "unknown");
+      }
+      await markActed(`seo_basic_defect:${businessId}:${type}:${a.path}`, { actionId, verificationStatus: "unverified", measurementPlan: plan });
+    }),
+  );
   return { state: "applied", action: type, pages: applied.length };
 }
 
@@ -233,7 +286,7 @@ export async function verifyBasicSeoActions(businessId?: string): Promise<{ chec
     // rolled back individually; the action then stands on the pages where the change is really live.
     if (rate < 0.9 && ok >= 1 && ageMs > 6 * 3_600_000) {
       for (const path of failedPaths) {
-        await db.insert(jobs).values({ businessId: row.businessId, type: "site_override", status: "reverted", payload: { path, actionId: p.actionId, reason: "not_applied_by_site" } });
+        await db.insert(jobs).values({ businessId: row.businessId, type: "site_override", status: "reverted", payload: { path, actionId: p.actionId, defectType: p.defectType, reason: "not_applied_by_site" } });
       }
       p.changes = p.changes.filter((c) => !failedPaths.includes(c.path));
       p.paths = p.paths.filter((x) => !failedPaths.includes(x));
@@ -267,7 +320,7 @@ export async function verifyBasicSeoActions(businessId?: string): Promise<{ chec
       verified++;
     } else if (ageMs > 48 * 3_600_000) {
       for (const path of p.paths) {
-        await db.insert(jobs).values({ businessId: row.businessId, type: "site_override", status: "reverted", payload: { path, actionId: p.actionId, reason: "not_confirmed_on_live_page" } });
+        await db.insert(jobs).values({ businessId: row.businessId, type: "site_override", status: "reverted", payload: { path, actionId: p.actionId, defectType: p.defectType, reason: "not_confirmed_on_live_page" } });
       }
       await db.update(jobs).set({ status: "reverted" }).where(eq(jobs.id, row.id));
       await Promise.all(p.paths.map((path) => resolveOpportunityByDedupeKey(`seo_basic_defect:${row.businessId}:${p.defectType}:${path}`, "no_gain")));

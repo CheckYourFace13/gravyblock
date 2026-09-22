@@ -871,7 +871,13 @@ export const growthOpportunities = pgTable("growth_opportunities", {
   businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
   /** existing_page_seo | content_gap | internal_link | schema | ctr | technical | gbp | review | citation | backlink | social | competitor_gap | aeo | conversion */
   opportunityType: text("opportunity_type").notNull(),
+  /** Finer-grained than opportunityType, e.g. "title_missing", "no_gbp_post_in_14d" — free text, engine-defined. */
+  subtype: text("subtype"),
   engine: text("engine").notNull(),
+  /** local | regional | national | online — the business's operating mode when this was recorded (mode can change; this is a snapshot). */
+  businessMode: text("business_mode"),
+  /** hygiene (mechanical/checklist-level) | growth (evidence of real search/visibility/business impact) — see opportunities/classify.ts. */
+  valueClass: text("value_class").notNull().default("hygiene"),
   evidence: jsonb("evidence"),
   /** 0-100 estimated benefit if acted on. */
   expectedImpact: integer("expected_impact").notNull(),
@@ -885,8 +891,17 @@ export const growthOpportunities = pgTable("growth_opportunities", {
   requiredCapability: text("required_capability"),
   /** Whether this class of opportunity may be acted on without a human step, given current safeguards. */
   autoEligible: text("auto_eligible").notNull().default("true"),
+  /** Days after which an unacted open opportunity is stale and re-evaluated/expired rather than acted on blindly. */
+  ttlDays: integer("ttl_days").notNull().default(45),
   /** open | acting | acted | verified | no_gain | blocked_missing_capability | rejected | expired */
   status: text("status").notNull().default("open"),
+  /** Stable id correlating this opportunity to the actual action/job/proof-ledger row it produced. */
+  actionId: text("action_id"),
+  /** unverified | verified_live | verification_failed — whether the acted-on change was confirmed externally. */
+  verificationStatus: text("verification_status"),
+  /** { metric, baselineWindow, baselineValue, actionAt, earliestEvaluationAt, evaluationWindowDays } — see opportunities/measurement.ts. Null when no causal metric is realistically measurable. */
+  measurementPlan: jsonb("measurement_plan"),
+  /** { status: TOO_EARLY|NO_MATERIAL_CHANGE|POSITIVE|NEGATIVE|INCONCLUSIVE, afterValue, evaluatedAt, ... } */
   measuredResult: jsonb("measured_result"),
   dedupeKey: text("dedupe_key").notNull().unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

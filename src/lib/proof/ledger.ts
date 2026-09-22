@@ -71,6 +71,35 @@ export async function recordProof(input: ProofInput): Promise<{ recorded: boolea
   }
 }
 
+/**
+ * Matures an existing Level-1 execution row into Level-2/3 evidence in place (never a duplicate
+ * row for the same real-world action). The prior evidence is preserved inside `beforeEvidence`
+ * under `priorLevels` so the full history survives. No-ops if the dedupeKey has no row yet.
+ */
+export async function matureProof(dedupeKey: string, patch: { summary?: string; metricName: string; metricBefore: number; metricAfter: number; afterEvidence: unknown; methodVersion?: string }): Promise<{ matured: boolean }> {
+  const db = getDb();
+  if (!db) return { matured: false };
+  const [existing] = await db.select().from(proofLedger).where(eq(proofLedger.dedupeKey, dedupeKey)).limit(1);
+  if (!existing) return { matured: false };
+  const newLevel = classifyProofLevel(patch.metricName, patch.metricBefore, patch.metricAfter);
+  if (newLevel <= existing.proofLevel) return { matured: false }; // never downgrade
+  const history = [...(((existing.beforeEvidence as { priorLevels?: unknown[] } | null)?.priorLevels ?? []) as unknown[]), { level: existing.proofLevel, summary: existing.summary, afterEvidence: existing.afterEvidence, recordedAt: existing.verifiedAt }];
+  await db
+    .update(proofLedger)
+    .set({
+      summary: patch.summary ?? existing.summary,
+      metricName: patch.metricName,
+      metricBefore: patch.metricBefore,
+      metricAfter: patch.metricAfter,
+      afterEvidence: patch.afterEvidence,
+      methodVersion: patch.methodVersion ?? existing.methodVersion,
+      proofLevel: newLevel,
+      beforeEvidence: { ...(typeof existing.beforeEvidence === "object" && existing.beforeEvidence ? existing.beforeEvidence : {}), priorLevels: history },
+    })
+    .where(eq(proofLedger.id, existing.id));
+  return { matured: true };
+}
+
 export type PublicProofRow = typeof proofLedger.$inferSelect & { businessName: string };
 
 /** Ledger rows whose business permits public display (house account or showcase opt-in). */

@@ -98,7 +98,8 @@ async function alreadyActedOnPrompt(db: Db, businessId: string, prompt: string):
   return !!row;
 }
 
-import { recordOpportunity } from "@/lib/opportunities/queue";
+import { recordOpportunity, markActed, recordMeasuredResultByDedupeKey } from "@/lib/opportunities/queue";
+import { buildMeasurementPlan } from "@/lib/opportunities/measurement";
 
 export async function runAeoActionForBusiness(businessId: string): Promise<{ queued: number; considered: number }> {
   const db = getDb();
@@ -191,6 +192,7 @@ export async function runAeoActionForBusiness(businessId: string): Promise<{ que
           recheckAfter: new Date(Date.now() + RECHECK_DAYS * DAY).toISOString(),
         },
       });
+      await markActed(`aeo_gap:${businessId}:${c.prompt}`, { actionId: c.prompt, verificationStatus: "unverified", measurementPlan: buildMeasurementPlan("aeo", 0, "n/a") });
       queued++;
     }
   } catch (err) {
@@ -333,6 +335,10 @@ export async function runAeoRecheckBatch(limit = 4): Promise<{ rechecked: number
             dedupeKey: `aeo_action:${job.id}`,
           });
           if (res.recorded) proofs++;
+          await recordMeasuredResultByDedupeKey(`aeo_gap:${job.businessId}:${p.prompt}`, "positive", { engine: probe.engine, publicUrl: pub.publicUrl });
+        } else if (ageDays > RECHECK_DAYS + 14) {
+          // Given a fair window past the recheck date with no mention yet, call it honestly rather than leaving it open forever.
+          await recordMeasuredResultByDedupeKey(`aeo_gap:${job.businessId}:${p.prompt}`, "no_material_change", { publicUrl: pub.publicUrl, note: "no AI mention detected within a fair window after publishing" });
         }
       } catch (err) {
         console.error("[aeo-recheck] job failed", { jobId: job.id, error: err instanceof Error ? err.message : String(err) });
