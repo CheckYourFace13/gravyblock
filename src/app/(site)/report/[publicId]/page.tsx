@@ -52,7 +52,9 @@ export default async function ReportPage({ params, searchParams }: Props) {
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
             <p className="font-semibold">A related result GravyBlock verified</p>
             <p className="mt-1">{proof.text}</p>
-            <p className="mt-1 text-xs text-emerald-800">Verified result from GravyBlock&apos;s own activity log.</p>
+            <p className="mt-1 text-xs text-emerald-800">
+              {proof.level >= 2 ? "Measured search/visibility result" : "Verified action"} from GravyBlock&apos;s own activity log.
+            </p>
           </div>
         </div>
       ) : null}

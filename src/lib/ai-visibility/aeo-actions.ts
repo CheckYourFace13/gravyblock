@@ -98,6 +98,8 @@ async function alreadyActedOnPrompt(db: Db, businessId: string, prompt: string):
   return !!row;
 }
 
+import { recordOpportunity } from "@/lib/opportunities/queue";
+
 export async function runAeoActionForBusiness(businessId: string): Promise<{ queued: number; considered: number }> {
   const db = getDb();
   if (!db) return { queued: 0, considered: 0 };
@@ -140,6 +142,20 @@ export async function runAeoActionForBusiness(businessId: string): Promise<{ que
       // Base support on the prompt's own topic first (the cited page can only add words, so require the prompt topic itself to match).
       const support = supportingTruth(truth, topicTokens(c.prompt));
       const title = titleFromPrompt(c.prompt);
+
+      await recordOpportunity({
+        businessId,
+        opportunityType: "aeo",
+        engine: "aeo_action",
+        evidence: { prompt: c.prompt, engine: c.engine, citedUrl: c.citationUrl, topic },
+        expectedImpact: c.citationUrl ? 55 : 40,
+        confidence: title && support.length > 0 ? 70 : 30,
+        cost: 3,
+        risk: 2,
+        requiredCapability: "website_write",
+        autoEligible: Boolean(title && support.length > 0),
+        dedupeKey: `aeo_gap:${businessId}:${c.prompt}`,
+      }).catch(() => undefined);
 
       if (!title || support.length === 0 || used.has(norm(title))) {
         await db.insert(jobs).values({

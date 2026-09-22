@@ -16,8 +16,47 @@ import { safeFetchText } from "@/lib/net/safe-fetch";
 import { recordProof } from "@/lib/proof/ledger";
 import { getSiteTarget } from "@/lib/site-publish/adapters";
 import { collectPages, findDefects, snapshotPage, type Defect, type DefectType, type PageSnapshot } from "./basic-audit";
+import { recordOpportunity, nextOpportunities, resolveOpportunityByDedupeKey } from "@/lib/opportunities/queue";
+import type { OpportunityType } from "@/lib/opportunities/types";
 
 const APPLICABLE: DefectType[] = ["no_social_image", "description_missing", "title_missing", "no_structured_data"];
+
+/** Every defect class maps to a generic opportunity type — nothing here is specific to any one business. */
+const OPPORTUNITY_TYPE: Record<DefectType, OpportunityType> = {
+  title_missing: "existing_page_seo",
+  title_too_long: "existing_page_seo",
+  title_too_short: "existing_page_seo",
+  description_missing: "existing_page_seo",
+  description_too_short: "existing_page_seo",
+  description_too_long: "existing_page_seo",
+  no_structured_data: "schema",
+  no_social_image: "ctr",
+  no_h1: "existing_page_seo",
+  multiple_h1: "existing_page_seo",
+  no_canonical: "technical",
+  noindex: "technical",
+  duplicate_title: "existing_page_seo",
+  thin_internal_links: "internal_link",
+};
+
+/** Record every defect found (not just the one class GravyBlock is about to act on) into the universal queue, so this business's full opportunity picture is visible and rankable across engines. */
+async function recordDefectsAsOpportunities(businessId: string, defects: Defect[]): Promise<void> {
+  for (const d of defects) {
+    await recordOpportunity({
+      businessId,
+      opportunityType: OPPORTUNITY_TYPE[d.type],
+      engine: "existing_page_seo_basic",
+      evidence: { defectType: d.type, path: d.path, url: d.url, detail: d.detail },
+      expectedImpact: Math.min(100, d.score),
+      confidence: d.fix ? 75 : 55,
+      cost: 1,
+      risk: d.fix ? 1 : 3,
+      requiredCapability: "website_write",
+      autoEligible: Boolean(d.fix && APPLICABLE.includes(d.type)),
+      dedupeKey: `seo_basic_defect:${businessId}:${d.type}:${d.path}`,
+    }).catch(() => undefined);
+  }
+}
 const COOLDOWN_DAYS = 28;
 const MAX_PAGES_PER_ACTION = 25;
 const ACTION_JOB = "seo_basic_action";
@@ -50,6 +89,7 @@ export async function runBasicSeoForBusiness(businessId: string): Promise<BasicS
   const pages = await collectPages(biz.website, MAX_PAGES_PER_ACTION);
   if (pages.length === 0) return { state: "site_unreachable" };
   const defects = findDefects(pages, biz.name);
+  await recordDefectsAsOpportunities(businessId, defects);
 
   await db.insert(jobs).values({
     businessId,
@@ -72,10 +112,20 @@ export async function runBasicSeoForBusiness(businessId: string): Promise<BasicS
     if (d.type === "no_structured_data" && !target.capabilities.structuredData) continue;
     byType.set(d.type, [...(byType.get(d.type) ?? []), d]);
   }
-  const ranked = [...byType.entries()].sort((a, b) => b[1].reduce((s, d) => s + d.score, 0) - a[1].reduce((s, d) => s + d.score, 0));
-  if (ranked.length === 0) return { state: "nothing_worth_changing" };
+  // Which defect class to act on is decided by the universal opportunity queue, not a local
+  // heuristic — the same ranking (impact x confidence x strategy weight / cost x risk) that
+  // orders every other engine's opportunities for this business.
+  const queueOrder = await nextOpportunities(businessId, 50);
+  const availableTypes = new Set(byType.keys());
+  const ranked = queueOrder
+    .filter((o) => o.engine === "existing_page_seo_basic" && availableTypes.has((o.evidence as { defectType?: DefectType } | null)?.defectType as DefectType))
+    .map((o) => (o.evidence as { defectType: DefectType }).defectType)
+    .filter((t, i, arr) => arr.indexOf(t) === i);
+  const chosenType = ranked[0] ?? [...byType.entries()].sort((a, b) => b[1].reduce((s, d) => s + d.score, 0) - a[1].reduce((s, d) => s + d.score, 0))[0]?.[0];
+  if (!chosenType) return { state: "nothing_worth_changing" };
 
-  const [type, list] = ranked[0]!;
+  const type = chosenType;
+  const list = byType.get(type)!;
   const applied: { path: string; url: string; ogImage?: string; description?: string; title?: string; jsonLd?: unknown }[] = [];
   const cache = new Map<string, boolean>();
   for (const d of list.slice(0, MAX_PAGES_PER_ACTION)) {
@@ -126,6 +176,8 @@ export async function runBasicSeoForBusiness(businessId: string): Promise<BasicS
       changes: applied.slice(0, 40),
     },
   });
+  // Mark every acted defect's opportunity row acted (dedupe key ties it back to the queue entry).
+  await Promise.all(list.map((d) => resolveOpportunityByDedupeKey(`seo_basic_defect:${businessId}:${type}:${d.path}`, "acted")));
   return { state: "applied", action: type, pages: applied.length };
 }
 
@@ -211,12 +263,14 @@ export async function verifyBasicSeoActions(businessId?: string): Promise<{ chec
         findingType: p.defectType === "no_social_image" ? "crawl-og" : `crawl-${p.defectType.replace(/_/g, "-")}`,
         dedupeKey: `seo_basic:${p.actionId}`,
       });
+      await Promise.all(p.paths.map((path) => resolveOpportunityByDedupeKey(`seo_basic_defect:${row.businessId}:${p.defectType}:${path}`, "verified", { livePagesConfirmed: ok })));
       verified++;
     } else if (ageMs > 48 * 3_600_000) {
       for (const path of p.paths) {
         await db.insert(jobs).values({ businessId: row.businessId, type: "site_override", status: "reverted", payload: { path, actionId: p.actionId, reason: "not_confirmed_on_live_page" } });
       }
       await db.update(jobs).set({ status: "reverted" }).where(eq(jobs.id, row.id));
+      await Promise.all(p.paths.map((path) => resolveOpportunityByDedupeKey(`seo_basic_defect:${row.businessId}:${p.defectType}:${path}`, "no_gain")));
       reverted++;
     }
   }

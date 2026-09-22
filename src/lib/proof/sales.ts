@@ -10,7 +10,8 @@ import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { businesses, getDb, jobs, proofLedger } from "@/lib/db";
 import { getPublicProof, proofCategoriesForFinding, type ProofCategory } from "./ledger";
 
-export type ProofPoint = { text: string; category: ProofCategory; ledgerId: string };
+import type { ProofLevel } from "./levels";
+export type ProofPoint = { text: string; category: ProofCategory; ledgerId: string; level: ProofLevel };
 
 /** One concise, verifiable proof point for a prospect finding (industry-matched rows first), or null. */
 export async function proofPointForFinding(findingId: string | null | undefined, industry?: string | null): Promise<ProofPoint | null> {
@@ -20,7 +21,7 @@ export async function proofPointForFinding(findingId: string | null | undefined,
   const ind = industry?.toLowerCase() ?? "";
   const score = (r: (typeof rows)[number]) =>
     (r.findingType && findingId && findingId.includes(r.findingType) ? 4 : 0) +
-    (r.metricBefore != null && r.metricAfter != null ? 2 : 0) +
+    r.proofLevel * 3 + // prefer the highest proof level available (outcome over execution)
     (ind && r.industry?.toLowerCase() === ind ? 1 : 0);
   const row = [...rows].sort((a, b) => score(b) - score(a))[0]!;
   const measured = row.metricBefore != null && row.metricAfter != null && row.metricName ? ` ${row.metricName} went from ${row.metricBefore} to ${row.metricAfter}.` : "";
@@ -29,6 +30,7 @@ export async function proofPointForFinding(findingId: string | null | undefined,
     text: `GravyBlock ${what} (${row.businessName}, verified ${row.verifiedAt.toISOString().slice(0, 10)}).${measured}`,
     category: row.proofCategory as ProofCategory,
     ledgerId: row.id,
+    level: row.proofLevel as ProofLevel,
   };
 }
 

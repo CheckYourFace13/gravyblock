@@ -58,14 +58,14 @@ export async function getOperatingMode(businessId: string): Promise<BusinessMode
   };
 }
 
-export type WebCompetitor = { name: string; website: string };
+export type WebResult = { name: string; website: string; snippet?: string };
 
 /**
  * Search competitors for non-local businesses: ask a search-grounded model which sites
  * compete for this category, then keep only ones whose URL actually resolves. Existing
  * OpenRouter access; one small call per run.
  */
-export async function findWebCompetitors(category: string, placeLabel: string | null, ownHost: string | null, max = 5): Promise<WebCompetitor[]> {
+export async function findWebCompetitors(category: string, placeLabel: string | null, ownHost: string | null, max = 5): Promise<WebResult[]> {
   const where = placeLabel ? ` in ${placeLabel}` : "";
   const out = await openRouterChat({
     model: "perplexity/sonar",
@@ -82,7 +82,7 @@ export async function findWebCompetitors(category: string, placeLabel: string | 
   } catch {
     return [];
   }
-  const res: WebCompetitor[] = [];
+  const res: WebResult[] = [];
   const seen = new Set<string>();
   for (const c of list) {
     if (!c.name || !c.website) continue;
@@ -90,6 +90,46 @@ export async function findWebCompetitors(category: string, placeLabel: string | 
     if (!u) continue;
     const host = u.hostname.replace(/^www\./, "");
     if (seen.has(host) || (ownHost && host === ownHost)) continue;
+    const r = await safeFetchText(u.origin, { timeoutMs: 7000, maxBytes: 5000 });
+    if (!r.ok || r.status >= 400) continue;
+    seen.add(host);
+    res.push({ name: c.name.slice(0, 80), website: u.origin });
+    if (res.length >= max) break;
+  }
+  return res;
+}
+
+/**
+ * Generic real-site search for a free-text query ("plumbing supplier partner directory",
+ * "boat rental industry association"), used by any engine that needs to discover real
+ * organizations beyond Google Maps listings (national/online authority prospecting, resource
+ * pages, niche publications). Every result is validated to actually resolve before it is
+ * returned — nothing here is invented.
+ */
+export async function webSearchSites(query: string, max = 6): Promise<WebResult[]> {
+  const out = await openRouterChat({
+    model: "perplexity/sonar",
+    maxTokens: 500,
+    temperature: 0,
+    messages: [{ role: "user", content: `Find up to ${max + 4} real websites relevant to: "${query}". Prefer associations, directories, publications, resource pages or supplier/vendor sites over generic retailers. Answer ONLY with JSON like [{"name":"...","website":"https://..."}].` }],
+  });
+  if (!out) return [];
+  const json = out.match(/\[[\s\S]*\]/)?.[0];
+  if (!json) return [];
+  let list: { name?: string; website?: string }[] = [];
+  try {
+    list = JSON.parse(json);
+  } catch {
+    return [];
+  }
+  const res: WebResult[] = [];
+  const seen = new Set<string>();
+  for (const c of list) {
+    if (!c.name || !c.website) continue;
+    const u = isSafePublicUrl(c.website);
+    if (!u) continue;
+    const host = u.hostname.replace(/^www\./, "");
+    if (seen.has(host)) continue;
     const r = await safeFetchText(u.origin, { timeoutMs: 7000, maxBytes: 5000 });
     if (!r.ok || r.status >= 400) continue;
     seen.add(host);

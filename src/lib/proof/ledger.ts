@@ -11,6 +11,7 @@
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { businesses, getDb, proofLedger } from "@/lib/db";
+import { classifyProofLevel, type ProofLevel } from "./levels";
 
 export type ProofCategory = "content" | "ranking" | "backlink" | "gbp" | "technical" | "citation" | "review" | "aeo" | "social";
 
@@ -39,6 +40,7 @@ export async function recordProof(input: ProofInput): Promise<{ recorded: boolea
   try {
     const [biz] = await db.select({ vertical: businesses.vertical, primaryCategory: businesses.primaryCategory }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1);
     const industry = biz?.vertical && biz.vertical.toLowerCase() !== "other" ? biz.vertical : biz?.primaryCategory ?? null;
+    const proofLevel = classifyProofLevel(input.metricName, input.metricBefore, input.metricAfter);
     const rows = await db
       .insert(proofLedger)
       .values({
@@ -58,6 +60,7 @@ export async function recordProof(input: ProofInput): Promise<{ recorded: boolea
         industry,
         findingType: input.findingType ?? null,
         dedupeKey: input.dedupeKey,
+        proofLevel,
       })
       .onConflictDoNothing({ target: proofLedger.dedupeKey })
       .returning({ id: proofLedger.id });
@@ -108,13 +111,19 @@ export function proofCategoriesForFinding(findingId: string | null | undefined):
  * Uses only publicly-permitted ledger rows and states only what the row proves
  * (a measured change is quoted only when metricBefore/metricAfter exist).
  */
-export async function relevantProofStatement(findingId: string | null | undefined): Promise<{ text: string; category: ProofCategory; ledgerId: string } | null> {
+export async function relevantProofStatement(findingId: string | null | undefined): Promise<{ text: string; category: ProofCategory; ledgerId: string; level: ProofLevel } | null> {
   const cats = proofCategoriesForFinding(findingId);
   const rows = await getPublicProof({ limit: 20, categories: cats });
-  const row = rows.find((r) => r.metricBefore != null && r.metricAfter != null) ?? rows[0];
+  // Prefer the highest proof level available — never let an execution-only row hide a measured result.
+  const row = [...rows].sort((a, b) => b.proofLevel - a.proofLevel)[0];
   if (!row) return null;
   const measured = row.metricBefore != null && row.metricAfter != null && row.metricName ? ` ${row.metricName} went from ${row.metricBefore} to ${row.metricAfter} (${row.methodVersion}).` : "";
-  return { text: `On another local business GravyBlock ${row.summary.replace(/^GravyBlock\s+/i, "").replace(/^./, (c) => c.toLowerCase())}, verified on ${row.verifiedAt.toISOString().slice(0, 10)}.${measured}`, category: row.proofCategory as ProofCategory, ledgerId: row.id };
+  return {
+    text: `On another local business GravyBlock ${row.summary.replace(/^GravyBlock\s+/i, "").replace(/^./, (c) => c.toLowerCase())}, verified on ${row.verifiedAt.toISOString().slice(0, 10)}.${measured}`,
+    category: row.proofCategory as ProofCategory,
+    ledgerId: row.id,
+    level: row.proofLevel as ProofLevel,
+  };
 }
 
 export async function proofCountsByCategory(businessId?: string): Promise<Record<string, number>> {

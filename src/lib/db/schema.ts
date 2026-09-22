@@ -851,7 +851,47 @@ export const proofLedger = pgTable("proof_ledger", {
   findingType: text("finding_type"),
   /** Idempotency: the same verified event is only ever recorded once. */
   dedupeKey: text("dedupe_key").notNull().unique(),
+  /**
+   * 1 execution (externally verified action completed) | 2 search/visibility result (measured
+   * impressions/clicks/position/mention movement) | 3 business result (measured lead/call/
+   * conversion/revenue). Computed from metricName at write time — see proof/levels.ts.
+   */
+  proofLevel: integer("proof_level").notNull().default(1),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/**
+ * Universal ranked growth-opportunity queue. Every engine (existing-page SEO, competitor gap,
+ * AEO, GBP, review, citation, authority, social, technical) writes candidates here instead of
+ * acting independently; a generic batch works the highest-ranked eligible opportunity per
+ * business. Rank = expectedImpact * confidence / max(1, cost * riskFactor).
+ */
+export const growthOpportunities = pgTable("growth_opportunities", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  /** existing_page_seo | content_gap | internal_link | schema | ctr | technical | gbp | review | citation | backlink | social | competitor_gap | aeo | conversion */
+  opportunityType: text("opportunity_type").notNull(),
+  engine: text("engine").notNull(),
+  evidence: jsonb("evidence"),
+  /** 0-100 estimated benefit if acted on. */
+  expectedImpact: integer("expected_impact").notNull(),
+  /** 0-100 confidence the estimate/action is sound. */
+  confidence: integer("confidence").notNull(),
+  /** Relative effort/API cost, 1 (cheap) - 10 (expensive). */
+  cost: integer("cost").notNull().default(1),
+  /** Relative downside if wrong, 1 (safe) - 10 (risky). Un-reviewable/high-risk items are never auto-acted. */
+  risk: integer("risk").notNull().default(1),
+  /** Capability required to act on this automatically (matches CapabilityProfile keys), or null if none needed (pure research/finding). */
+  requiredCapability: text("required_capability"),
+  /** Whether this class of opportunity may be acted on without a human step, given current safeguards. */
+  autoEligible: text("auto_eligible").notNull().default("true"),
+  /** open | acting | acted | verified | no_gain | blocked_missing_capability | rejected | expired */
+  status: text("status").notNull().default("open"),
+  measuredResult: jsonb("measured_result"),
+  dedupeKey: text("dedupe_key").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  actedAt: timestamp("acted_at", { withTimezone: true }),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
 });
 
 /** Per-directory listing state — submitted value vs canonical Business Truth value, with real timestamps. */

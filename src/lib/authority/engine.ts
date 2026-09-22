@@ -20,7 +20,8 @@
  */
 
 import { recordProof } from "@/lib/proof/ledger";
-import { getOperatingMode } from "@/lib/business-mode";
+import { recordOpportunity } from "@/lib/opportunities/queue";
+import { getOperatingMode, webSearchSites } from "@/lib/business-mode";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { backlinkOpportunities, businesses, getDb, jobs } from "@/lib/db";
@@ -46,9 +47,9 @@ const FOLLOWUP_AFTER_DAYS = 7;
 const EXPIRE_AFTER_DAYS = 21;
 
 type Db = NonNullable<ReturnType<typeof getDb>>;
-type SourceType = "chamber" | "association" | "local_news" | "blog" | "government";
+type SourceType = "chamber" | "association" | "local_news" | "blog" | "government" | "resource_page" | "niche_publication" | "supplier_vendor_partner";
 
-const RELEVANT_SOURCE_TYPES: SourceType[] = ["chamber", "association", "local_news", "blog", "government"];
+const RELEVANT_SOURCE_TYPES: SourceType[] = ["chamber", "association", "local_news", "blog", "government", "resource_page", "niche_publication", "supplier_vendor_partner"];
 const BLOCKED_DOMAINS = /(facebook|instagram|yelp|linkedin|twitter|x|tiktok|youtube|pinterest|reddit|quora|wikipedia|google|bing|amazon|angi|thumbtack|groupon|nextdoor|mapquest|yellowpages|bbb)\./i;
 
 const AUDIENCE: Record<SourceType, string> = {
@@ -57,6 +58,9 @@ const AUDIENCE: Record<SourceType, string> = {
   local_news: "readers",
   blog: "readers",
   government: "residents",
+  resource_page: "readers",
+  niche_publication: "readers",
+  supplier_vendor_partner: "customers",
 };
 
 function domainOf(url: string): string | null {
@@ -76,8 +80,10 @@ function classify(name: string, types: string[]): { sourceType: SourceType; scor
   const t = new Set(types);
   if (n.includes("chamber") || n.includes("commerce")) return { sourceType: "chamber", score: 85 };
   if (t.has("local_government_office") || t.has("city_hall") || t.has("library")) return { sourceType: "government", score: 88 };
-  if (n.includes("association") || n.includes("society") || n.includes("council") || n.includes("network") || n.includes("club")) return { sourceType: "association", score: 80 };
-  if (n.includes("news") || n.includes("times") || n.includes("gazette") || n.includes("tribune") || n.includes("magazine") || n.includes("herald")) return { sourceType: "local_news", score: 78 };
+  if (n.includes("association") || n.includes("society") || n.includes("council") || n.includes("network") || n.includes("club") || n.includes("institute") || n.includes("federation")) return { sourceType: "association", score: 80 };
+  if (n.includes("news") || n.includes("times") || n.includes("gazette") || n.includes("tribune") || n.includes("magazine") || n.includes("herald") || n.includes("journal")) return { sourceType: n.includes("news") || n.includes("times") || n.includes("gazette") || n.includes("tribune") || n.includes("herald") ? "local_news" : "niche_publication", score: 78 };
+  if (n.includes("directory") || n.includes("resource") || n.includes("resources")) return { sourceType: "resource_page", score: 60 };
+  if (n.includes("supplier") || n.includes("vendor") || n.includes("distributor") || n.includes("wholesale") || n.includes("manufacturer")) return { sourceType: "supplier_vendor_partner", score: 62 };
   if (n.includes("blog") || n.includes("guide")) return { sourceType: "blog", score: 65 };
   return null; // anything else is noise (random shops that a text search returned)
 }
@@ -171,16 +177,24 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
   const existing = await db.select({ targetUrl: backlinkOpportunities.targetUrl }).from(backlinkOpportunities).where(eq(backlinkOpportunities.businessId, businessId));
   const seenDomains = new Set(existing.map((e) => (e.targetUrl ? domainOf(e.targetUrl) : null)).filter((d): d is string => Boolean(d)));
 
+  // Local/regional prospects come from Google Places (real physical organizations near a
+  // verified place). National/online prospects come from a validated web search instead — Places
+  // is a business-listing API and does not usefully cover associations, resource directories or
+  // publications with no physical local presence. Both paths write the same generic shape.
+  const useWebSearch = bm.mode === "national" || bm.mode === "online";
   let found = 0;
   for (const q of queries) {
     if (found + recentCount >= MAX_PROSPECTS_PER_BUSINESS_PER_MONTH) break;
-    for (const p of await searchPlaces(q)) {
-      const name = p.displayName?.text;
-      const site = p.websiteUri;
+    const candidates = useWebSearch
+      ? (await webSearchSites(q, 6)).map((w) => ({ name: w.name, site: w.website, types: [] as string[] }))
+      : (await searchPlaces(q)).map((p) => ({ name: p.displayName?.text, site: p.websiteUri, types: p.types ?? [] }));
+    for (const c of candidates) {
+      const name = c.name;
+      const site = c.site;
       if (!name || !site || !isSafePublicUrl(site)) continue;
       const dom = domainOf(site);
       if (!dom || dom === ownDomain || seenDomains.has(dom) || BLOCKED_DOMAINS.test(`${dom}.`)) continue;
-      const cls = classify(name, p.types ?? []);
+      const cls = classify(name, c.types);
       if (!cls) continue;
       seenDomains.add(dom);
       await db.insert(backlinkOpportunities).values({
@@ -270,6 +284,19 @@ async function qualifyProspects(db: Db, businessId: string, limit = 8, statuses:
       .set({ status: "qualified", contactEmail: contact.email, contactSource: contact.source })
       .where(eq(backlinkOpportunities.id, r.id));
     await logEvent(db, businessId, r.id, "qualified", { contactSource: contact.source, discoverySourceUrl: contact.discoverySourceUrl });
+    await recordOpportunity({
+      businessId,
+      opportunityType: "backlink",
+      engine: "authority",
+      evidence: { prospect: r.sourceName, sourceType: r.sourceType, targetUrl: r.targetUrl, relevanceNote: r.relevanceNote },
+      expectedImpact: Math.min(100, r.qualityScore ?? 50),
+      confidence: 65,
+      cost: 2,
+      risk: 2,
+      requiredCapability: "authority_contact",
+      autoEligible: true,
+      dedupeKey: `authority_prospect:${r.id}`,
+    }).catch(() => undefined);
     qualified++;
   }
   return qualified;

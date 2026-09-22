@@ -45,6 +45,8 @@ import { ensureInboundReceiving } from "@/lib/authority/inbound-setup";
 import { autoConnectManagedSites } from "@/lib/site-publish/adapters";
 import { runReviewRequestSendBatch } from "@/lib/reviews/review-request-engine";
 import { prepareProofCandidates, generateCaseStudies } from "@/lib/proof/sales";
+import { expireStaleOpportunities } from "@/lib/opportunities/queue";
+import { runCanaryAssertionsBatch } from "@/lib/canary/assertions";
 import { runSiteWatchdogBatch } from "@/lib/watchdog/site-watchdog";
 import { runCitationEngineBatch } from "@/lib/citations/engine";
 import { runRepurposeBatch } from "@/lib/content-gen/repurpose";
@@ -700,6 +702,8 @@ async function tick() {
       { name: 'basic_seo_batch', hour: 9, run: () => runBasicSeoBatch(6) },
       { name: 'proof_candidate_batch', hour: 3, run: () => prepareProofCandidates(200) },
       { name: 'case_study_batch', hour: 13, run: () => generateCaseStudies(20) },
+      { name: 'opportunity_queue_maintenance', hour: 1, run: () => expireStaleOpportunities(45) },
+      { name: 'canary_assertions_batch', hour: 14, run: () => runCanaryAssertionsBatch() },
     ];
     try {
       const inb = await ensureInboundReceiving();

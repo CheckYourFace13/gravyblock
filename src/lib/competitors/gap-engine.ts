@@ -18,6 +18,7 @@ import { isSafePublicUrl, safeFetchText } from "@/lib/net/safe-fetch";
 import { parseSitemap } from "@/lib/truth/extract";
 import { ensureFreshTruth, type BusinessTruth } from "@/lib/truth";
 import { getOperatingMode, findWebCompetitors } from "@/lib/business-mode";
+import { recordOpportunity } from "@/lib/opportunities/queue";
 
 const DAY = 86_400_000;
 const MAX_COMPETITORS = 5;
@@ -368,6 +369,9 @@ async function logRun(db: Db, businessId: string, status: string, payload: Recor
   await db.insert(jobs).values({ businessId, type: "competitor_gap_run", status, payload }).catch(() => undefined);
 }
 
+
+const GAP_OPPORTUNITY_TYPE: Record<Gap["type"], "content_gap" | "schema" | "review"> = { service_page: "content_gap", schema: "schema", reviews: "review", cadence: "content_gap" };
+
 export async function runCompetitorGapForBusiness(businessId: string): Promise<{ status: string; gaps: number; queued: string | null }> {
   const db = getDb();
   if (!db) return { status: "no_db", gaps: 0, queued: null };
@@ -485,6 +489,22 @@ export async function runCompetitorGapForBusiness(businessId: string): Promise<{
 
     // Legitimate action: queue ONE page for an actionable service gap.
     let queuedTitle: string | null = null;
+    for (const g of gaps) {
+      await recordOpportunity({
+        businessId,
+        opportunityType: GAP_OPPORTUNITY_TYPE[g.type],
+        engine: "competitor_gap",
+        evidence: { gapType: g.type, evidence: g.evidence, targetService: g.targetService ?? null },
+        expectedImpact: g.actionable ? 55 : 35,
+        confidence: g.actionable ? 65 : 45,
+        cost: 3,
+        risk: 2,
+        requiredCapability: g.type === "reviews" ? "reviews" : "website_write",
+        autoEligible: g.actionable && Boolean(g.targetService),
+        dedupeKey: `competitor_gap:${businessId}:${g.type}:${g.targetService ?? "general"}`,
+      }).catch(() => undefined);
+    }
+
     const actionable = gaps.filter((g) => g.actionable && g.targetService && truth.services.includes(g.targetService));
     if (actionable.length) {
       const existing = await db.select({ title: contentQueue.title }).from(contentQueue).where(eq(contentQueue.businessId, businessId)).orderBy(desc(contentQueue.createdAt)).limit(300);

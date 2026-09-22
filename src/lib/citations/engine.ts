@@ -21,6 +21,7 @@ import { businessConfigs, businesses, citationMonitors, getDb, jobs, operatorTas
 import { ensureFreshTruth, type BusinessTruth } from "@/lib/truth";
 import { targetsFor, automationClassFor, SUBMITTERS, type CitationTarget } from "./registry";
 import { citationListings } from "@/lib/db";
+import { recordOpportunity } from "@/lib/opportunities/queue";
 
 type Db = NonNullable<ReturnType<typeof getDb>>;
 
@@ -101,6 +102,22 @@ async function persistListing(db: Db, businessId: string, t: CitationTarget, tru
   const [existing] = await db.select({ id: citationListings.id }).from(citationListings).where(and(eq(citationListings.businessId, businessId), eq(citationListings.directoryId, t.id))).limit(1);
   if (existing) await db.update(citationListings).set(values).where(eq(citationListings.id, existing.id));
   else await db.insert(citationListings).values(values);
+
+  if (cls === "D" && (status === "needs_one_time_verification" || status === "not_found")) {
+    await recordOpportunity({
+      businessId,
+      opportunityType: "citation",
+      engine: "citation_engine",
+      evidence: { directory: t.name, directoryId: t.id, automationClass: cls, note: result.note },
+      expectedImpact: Math.round(t.authority * 0.5),
+      confidence: 60,
+      cost: 2,
+      risk: 1,
+      requiredCapability: null,
+      autoEligible: false, // class D needs a one-time human verification step by design
+      dedupeKey: `citation_gap:${businessId}:${t.id}`,
+    }).catch(() => undefined);
+  }
 }
 
 async function checkYelp(truth: BusinessTruth): Promise<{ status: string; url: string | null; note: string }> {

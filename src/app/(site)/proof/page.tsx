@@ -161,7 +161,12 @@ export default async function ProofPage() {
           <ul className="mt-4 space-y-3">
             {ledger.map((p) => (
               <li key={p.id} className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
-                <p className="font-medium text-zinc-900">{p.businessName}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-zinc-900">{p.businessName}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${p.proofLevel >= 3 ? "bg-emerald-100 text-emerald-800" : p.proofLevel === 2 ? "bg-sky-100 text-sky-800" : "bg-zinc-100 text-zinc-600"}`}>
+                    {p.proofLevel >= 3 ? "Business result" : p.proofLevel === 2 ? "Search/visibility result" : "Execution"}
+                  </span>
+                </div>
                 <p className="mt-1">{p.summary}</p>
                 <p className="mt-1 text-xs text-zinc-500">
                   Verified {p.verifiedAt.toISOString().slice(0, 10)}
