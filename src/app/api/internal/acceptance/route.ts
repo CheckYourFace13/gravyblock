@@ -26,8 +26,10 @@ function authorized(req: Request): boolean {
 
 async function run(engine: string, id: string) {
   switch (engine) {
-    case "profile":
-      return getCapabilityProfile(id);
+    case "profile": {
+      const p = await getCapabilityProfile(id);
+      return { ...p, active: [...p.active] };
+    }
     case "mode":
       return getOperatingMode(id);
     case "opportunities":
@@ -74,7 +76,10 @@ export async function POST(req: Request) {
   const which = (url.searchParams.get("biz") ?? "").toLowerCase();
   const sql = getSqlClient();
   if (!sql) return Response.json({ error: "no_db" }, { status: 500 });
-  const rows = (await sql.unsafe(`select id, name from businesses where lower(name) like $1 order by created_at desc limit 1`, [`%${which}%`] as never[])) as unknown as { id: string; name: string }[];
+  const rows = (await sql.unsafe(
+    `select id, name from businesses where lower(name) like $1 and account_type = 'house' order by (name ilike $2) desc, created_at desc limit 1`,
+    [`%${which}%`, which] as never[],
+  )) as unknown as { id: string; name: string }[];
   const biz = rows[0];
   if (!biz) return Response.json({ error: "business_not_found" }, { status: 404 });
   const started = Date.now();
