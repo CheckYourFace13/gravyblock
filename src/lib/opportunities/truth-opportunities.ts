@@ -13,7 +13,7 @@
  */
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { businesses, businessFacts, contentQueue, getDb, publishedContent } from "@/lib/db";
-import { getBusinessTruth } from "@/lib/truth";
+import { getBusinessTruth, promotableContent } from "@/lib/truth";
 import { recordOpportunity } from "./queue";
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -81,8 +81,13 @@ export async function createOpportunitiesFromTruth(businessId: string): Promise<
   }
 
   // New article/project the company published -> a fresh asset authority outreach can pitch.
+  // Uses the SAME own-voice/alert filter as social/authority (promotableContent) — a site's
+  // /news/ feed of third-party weather alerts and wire stories is never a "company asset."
   const publishedUrls = new Set((await db.select({ publicUrl: publishedContent.publicUrl }).from(publishedContent).where(eq(publishedContent.businessId, businessId))).map((r) => r.publicUrl));
-  for (const f of facts.filter((x) => x.factKey === "recent_content" && x.sourceUrl)) {
+  for (const tf of promotableContent(truth.facts)) {
+    if (!tf.sourceUrl) continue;
+    const f = facts.find((x) => x.factKey === "recent_content" && x.sourceUrl === tf.sourceUrl && x.factValue === tf.value);
+    if (!f) continue;
     const r = await recordOpportunity({
       businessId,
       opportunityType: "backlink",
