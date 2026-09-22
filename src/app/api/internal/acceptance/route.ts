@@ -50,6 +50,11 @@ async function run(engine: string, id: string) {
       return discoverAndQualify(id);
     case "authority_batch":
       return runAuthorityBatch({ maxBusinesses: 10 });
+    case "retract_bad_asset_opps": {
+      const sql = getSqlClient()!;
+      const r = await sql.unsafe(`delete from growth_opportunities where business_id=$1 and subtype='new_asset_available' and status='open' and (evidence->>'sourceUrl' ilike '%/news/%') returning id`, [id] as never[]);
+      return { deleted: r.length };
+    }
     case "canary":
       return runCanaryAssertions(id);
     default:
