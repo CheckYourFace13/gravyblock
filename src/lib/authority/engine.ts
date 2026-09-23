@@ -20,7 +20,7 @@
  */
 
 import { recordProof } from "@/lib/proof/ledger";
-import { recordOpportunity, markActed, recordMeasuredResultByDedupeKey } from "@/lib/opportunities/queue";
+import { recordOpportunity, markActed, recordMeasurementByDedupeKey, getMeasurementPlanByDedupeKey } from "@/lib/opportunities/queue";
 import { buildMeasurementPlan } from "@/lib/opportunities/measurement";
 import { getOperatingMode, webSearchSites } from "@/lib/business-mode";
 import { randomUUID } from "node:crypto";
@@ -872,7 +872,19 @@ export async function verifyAcquisitions(businessId: string, limit = 6): Promise
         dedupeKey: `link_acquired:${r.id}`,
         findingType: "backlink",
       });
-      await recordMeasuredResultByDedupeKey(`authority_prospect:${r.id}`, "positive", { referringDomain: domainOf(check.pageUrl ?? r.targetUrl), pageUrl: check.pageUrl });
+      {
+        const plan = await getMeasurementPlanByDedupeKey(`authority_prospect:${r.id}`);
+        await recordMeasurementByDedupeKey(`authority_prospect:${r.id}`, {
+          metric: "referring_domain_live",
+          baselineValue: plan?.baselineValue ?? 0,
+          actionAt: plan?.actionAt ?? r.createdAt.toISOString(),
+          evaluatedAt: new Date().toISOString(),
+          beforeValue: 0,
+          afterValue: 1,
+          status: "POSITIVE",
+          evidence: { referringDomain: domainOf(check.pageUrl ?? r.targetUrl), pageUrl: check.pageUrl, href: check.href, rel: check.rel ?? null },
+        });
+      }
     } else if (check.mentionedWithoutLink) {
       await logEvent(db, businessId, r.id, "unlinked_mention_detected", { targetUrl: r.targetUrl });
     }
@@ -887,7 +899,19 @@ export async function verifyAcquisitions(businessId: string, limit = 6): Promise
     const [stillPending] = await db.select({ id: backlinkOpportunities.id }).from(backlinkOpportunities).where(and(eq(backlinkOpportunities.id, id), inArray(backlinkOpportunities.status, ["contacted", "followed_up"])));
     if (!stillPending) continue;
     await db.update(backlinkOpportunities).set({ status: "expired" }).where(eq(backlinkOpportunities.id, id));
-    await recordMeasuredResultByDedupeKey(`authority_prospect:${id}`, "no_material_change", { reason: "no link detected within the outreach window" });
+    {
+      const plan = await getMeasurementPlanByDedupeKey(`authority_prospect:${id}`);
+      await recordMeasurementByDedupeKey(`authority_prospect:${id}`, {
+        metric: "referring_domain_live",
+        baselineValue: plan?.baselineValue ?? 0,
+        actionAt: plan?.actionAt ?? new Date().toISOString(),
+        evaluatedAt: new Date().toISOString(),
+        beforeValue: 0,
+        afterValue: 0,
+        status: "NO_MATERIAL_CHANGE",
+        evidence: { reason: "no link detected within the outreach window" },
+      });
+    }
   }
   return { checked: rows.length, acquired };
 }
@@ -990,7 +1014,15 @@ export async function actOnBestAuthorityOpportunity(businessId: string): Promise
   return { sent, followUps, reason: sent || followUps ? undefined : "no_eligible_prospect" };
 }
 
-export async function runAuthorityBatch(opts: { maxBusinesses?: number } = {}): Promise<{ businesses: number; found: number; qualified: number; sent: number; followUps: number; checked: number; acquired: number; skipped?: string }> {
+/**
+ * Discovery + qualification + acquisition-verification across businesses — an OBSERVER/SCANNER
+ * batch (see docs/orchestration-authority.md). Sending is off by default: the universal
+ * opportunity queue (via `actOnBestAuthorityOpportunity`, called by the orchestrator) is the
+ * single place that decides whether an authority send is the best next action for a business.
+ * `sendEnabled: true` exists only for tooling/tests that intentionally want the old whole-batch
+ * send path; production scheduling never sets it.
+ */
+export async function runAuthorityBatch(opts: { maxBusinesses?: number; sendEnabled?: boolean } = {}): Promise<{ businesses: number; found: number; qualified: number; sent: number; followUps: number; checked: number; acquired: number; skipped?: string }> {
   const out = { businesses: 0, found: 0, qualified: 0, sent: 0, followUps: 0, checked: 0, acquired: 0 };
   const db = getDb();
   if (!db) return out;
@@ -998,7 +1030,7 @@ export async function runAuthorityBatch(opts: { maxBusinesses?: number } = {}): 
   const health = await checkOutreachHealth();
   const budget = { left: Math.min(6, await getRemainingSharedBudget()) };
   const enabled = await authoritySendingEnabled(db);
-  const sendingOk = enabled && health.healthy && budget.left > 0; // per-business authorization is checked below
+  const sendingOk = Boolean(opts.sendEnabled) && enabled && health.healthy && budget.left > 0; // per-business authorization is checked below
 
   const biz = await db
     .select({ id: businesses.id })

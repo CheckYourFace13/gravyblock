@@ -98,10 +98,11 @@ async function alreadyActedOnPrompt(db: Db, businessId: string, prompt: string):
   return !!row;
 }
 
-import { recordOpportunity, markActed, recordMeasuredResultByDedupeKey } from "@/lib/opportunities/queue";
+import { recordOpportunity, markActed, recordMeasurementByDedupeKey, getMeasurementPlanByDedupeKey } from "@/lib/opportunities/queue";
 import { buildMeasurementPlan } from "@/lib/opportunities/measurement";
 
-export async function runAeoActionForBusiness(businessId: string): Promise<{ queued: number; considered: number }> {
+/** `scanOnly: true` records aeo_gap opportunities into the universal queue but never queues an article — the orchestrator's aeo handler is the only path that acts, so the independent daily sweep stays an OBSERVER. */
+export async function runAeoActionForBusiness(businessId: string, opts: { scanOnly?: boolean } = {}): Promise<{ queued: number; considered: number }> {
   const db = getDb();
   if (!db) return { queued: 0, considered: 0 };
   let queued = 0;
@@ -167,6 +168,7 @@ export async function runAeoActionForBusiness(businessId: string): Promise<{ que
         });
         continue;
       }
+      if (opts.scanOnly) continue; // opportunity already recorded above; the orchestrator decides whether to act on it
 
       await db.insert(contentQueue).values({
         businessId,
@@ -225,7 +227,8 @@ export async function runAeoActionBatch(limit = 4): Promise<{ businesses: number
         .where(and(eq(jobs.businessId, r.businessId), eq(jobs.type, "aeo_action"), gte(jobs.createdAt, new Date(Date.now() - 7 * DAY))))
         .limit(1);
       if (recent) continue;
-      const res = await runAeoActionForBusiness(r.businessId);
+      // Discovery only — the orchestrator's aeo handler is the only path that queues an article.
+      const res = await runAeoActionForBusiness(r.businessId, { scanOnly: true });
       if (res.considered > 0) n++;
       queued += res.queued;
     }
@@ -335,10 +338,32 @@ export async function runAeoRecheckBatch(limit = 4): Promise<{ rechecked: number
             dedupeKey: `aeo_action:${job.id}`,
           });
           if (res.recorded) proofs++;
-          await recordMeasuredResultByDedupeKey(`aeo_gap:${job.businessId}:${p.prompt}`, "positive", { engine: probe.engine, publicUrl: pub.publicUrl });
+          {
+            const plan = await getMeasurementPlanByDedupeKey(`aeo_gap:${job.businessId}:${p.prompt}`);
+            await recordMeasurementByDedupeKey(`aeo_gap:${job.businessId}:${p.prompt}`, {
+              metric: "ai_mention_rate",
+              baselineValue: plan?.baselineValue ?? 0,
+              actionAt: plan?.actionAt ?? pub.createdAt.toISOString(),
+              evaluatedAt: new Date().toISOString(),
+              beforeValue: 0,
+              afterValue: 1,
+              status: "POSITIVE",
+              evidence: { engine: probe.engine, publicUrl: pub.publicUrl, probedAt: probe.createdAt.toISOString() },
+            });
+          }
         } else if (ageDays > RECHECK_DAYS + 14) {
           // Given a fair window past the recheck date with no mention yet, call it honestly rather than leaving it open forever.
-          await recordMeasuredResultByDedupeKey(`aeo_gap:${job.businessId}:${p.prompt}`, "no_material_change", { publicUrl: pub.publicUrl, note: "no AI mention detected within a fair window after publishing" });
+          const plan = await getMeasurementPlanByDedupeKey(`aeo_gap:${job.businessId}:${p.prompt}`);
+          await recordMeasurementByDedupeKey(`aeo_gap:${job.businessId}:${p.prompt}`, {
+            metric: "ai_mention_rate",
+            baselineValue: plan?.baselineValue ?? 0,
+            actionAt: plan?.actionAt ?? pub.createdAt.toISOString(),
+            evaluatedAt: new Date().toISOString(),
+            beforeValue: 0,
+            afterValue: 0,
+            status: "NO_MATERIAL_CHANGE",
+            evidence: { publicUrl: pub.publicUrl, note: "no AI mention detected within a fair window after publishing" },
+          });
         }
       } catch (err) {
         console.error("[aeo-recheck] job failed", { jobId: job.id, error: err instanceof Error ? err.message : String(err) });

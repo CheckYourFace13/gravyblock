@@ -115,7 +115,8 @@ async function validImage(url: string): Promise<boolean> {
 export type BasicSeoResult = { state: string; action?: string; pages?: number; note?: string };
 
 /** Phase 1: audit and apply. Never edits a page inside its cooldown or with nothing honest to write. */
-export async function runBasicSeoForBusiness(businessId: string): Promise<BasicSeoResult> {
+/** `scanOnly: true` audits and records opportunities but never applies a fix — the independent daily sweep uses this; the orchestrator's seoHandler (scanOnly:false, the default) is the only path that acts. */
+export async function runBasicSeoForBusiness(businessId: string, opts: { scanOnly?: boolean } = {}): Promise<BasicSeoResult> {
   const db = getDb();
   if (!db) return { state: "no_db" };
   const [biz] = await db.select({ name: businesses.name, website: businesses.website }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
@@ -134,6 +135,7 @@ export async function runBasicSeoForBusiness(businessId: string): Promise<BasicS
     payload: { pages: pages.length, defects: defects.reduce<Record<string, number>>((m, d) => ((m[d.type] = (m[d.type] ?? 0) + 1), m), {}), connector: target?.adapter ?? null },
   });
 
+  if (opts.scanOnly) return { state: "scanned" };
   if (!target || !target.capabilities.pageMetadata) return { state: "audit_only_no_site_connector", note: "Findings recorded; a site connector is needed to apply them." };
 
   // Cooldown is scoped to (page, defect class) — the same defect on the same page can't
@@ -316,7 +318,9 @@ export async function verifyBasicSeoActions(businessId?: string): Promise<{ chec
         findingType: p.defectType === "no_social_image" ? "crawl-og" : `crawl-${p.defectType.replace(/_/g, "-")}`,
         dedupeKey: `seo_basic:${p.actionId}`,
       });
-      await Promise.all(p.paths.map((path) => resolveOpportunityByDedupeKey(`seo_basic_defect:${row.businessId}:${p.defectType}:${path}`, "verified", { livePagesConfirmed: ok })));
+      // "verified" here means the site change confirmed live — a real growth measurement (if any)
+      // is a separate, later step written only by evaluateMeasurementPlans via recordMeasurement.
+      await Promise.all(p.paths.map((path) => resolveOpportunityByDedupeKey(`seo_basic_defect:${row.businessId}:${p.defectType}:${path}`, "verified")));
       verified++;
     } else if (ageMs > 48 * 3_600_000) {
       for (const path of p.paths) {
@@ -342,7 +346,8 @@ export async function runBasicSeoBatch(limit = 6): Promise<{ businesses: number;
     if (recent) continue;
     n++;
     try {
-      const r = await runBasicSeoForBusiness(t.id);
+      // Discovery/audit only — the orchestrator's seoHandler is the only path that applies a fix.
+      const r = await runBasicSeoForBusiness(t.id, { scanOnly: true });
       if (r.state === "applied") applied++;
     } catch (err) {
       console.error("[seo-basic] failed", { businessId: t.id, error: err instanceof Error ? err.message : String(err) });

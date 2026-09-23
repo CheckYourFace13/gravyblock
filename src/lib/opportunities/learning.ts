@@ -31,10 +31,13 @@ export async function getLearnedWeights(): Promise<Map<string, LearnedWeight>> {
   for (const r of rows) {
     const key = `${r.type}|${r.mode ?? "unknown"}`;
     const e = byKey.get(key) ?? { positive: 0, negative: 0, neutral: 0 };
-    if (r.result === "positive") e.positive += r.n;
-    else if (r.result === "negative") e.negative += r.n;
-    else if (r.result === "no_material_change") e.neutral += r.n;
-    // "too_early" / "inconclusive" are excluded from the sample — they are not evidence either way.
+    // Canonical status values are uppercase (see types.ts CanonicalMeasurement); any row that
+    // doesn't match one of these three isn't a canonical measurement and is excluded — this is
+    // also what keeps a legacy/ambiguous measuredResult shape from silently becoming evidence.
+    if (r.result === "POSITIVE") e.positive += r.n;
+    else if (r.result === "NEGATIVE") e.negative += r.n;
+    else if (r.result === "NO_MATERIAL_CHANGE") e.neutral += r.n;
+    // "TOO_EARLY" / "INCONCLUSIVE" are excluded from the sample — they are not evidence either way.
     byKey.set(key, e);
   }
 

@@ -43,7 +43,6 @@ import { runConnectionReadinessBatch } from "@/lib/onboarding/connection-readine
 import { runBasicSeoBatch, verifyBasicSeoActions } from "@/lib/seo/basic-autopilot";
 import { ensureInboundReceiving } from "@/lib/authority/inbound-setup";
 import { autoConnectManagedSites } from "@/lib/site-publish/adapters";
-import { runReviewRequestSendBatch } from "@/lib/reviews/review-request-engine";
 import { prepareProofCandidates, generateCaseStudies } from "@/lib/proof/sales";
 import { expireStaleOpportunities } from "@/lib/opportunities/queue";
 import { runCanaryAssertionsBatch } from "@/lib/canary/assertions";
@@ -67,7 +66,6 @@ import { runFollowupOutreachBatch } from "@/lib/outreach/run-followup-batch";
 import { runBreakupOutreachBatch } from "@/lib/outreach/run-breakup-batch";
 import { runGbpReviewReplyBatch } from "@/lib/gbp/review-responder";
 import { ensureResendWebhookRegistered } from "@/lib/integrations/resend-setup";
-import { runGbpPostBatch } from "@/lib/gbp/post-publisher";
 import { runGbpPhotoUploadBatch } from "@/lib/gbp/photo-uploader";
 import { runListingWatchdogBatch } from "@/lib/gbp/listing-watchdog";
 import { runReviewSpotlightBatch } from "@/lib/social/review-spotlight";
@@ -658,8 +656,10 @@ async function tick() {
     }
   }
 
-  // Authority engine — weekdays 15:00 UTC (US business hours): discover, qualify,
-  // pitch, follow up, and VERIFY whether links were actually acquired.
+  // Authority engine — weekdays 15:00 UTC (US business hours): discover, qualify, and VERIFY
+  // whether links were actually acquired. Sending is NOT decided here (sendEnabled defaults to
+  // false) — the orchestrator's backlink handler (actOnBestAuthorityOpportunity) is the single
+  // place that decides whether an authority send is this business's best next action.
   {
     const now = new Date();
     const weekday = now.getUTCDay() >= 1 && now.getUTCDay() <= 5;
@@ -697,12 +697,14 @@ async function tick() {
   {
     const h = new Date().getUTCHours();
     const growthJobs: { name: string; hour: number | null; run: () => Promise<unknown> }[] = [
-      { name: 'existing_page_seo_batch', hour: 10, run: () => runExistingPageSeoBatch(5) },
-      { name: 'auto_repair_batch', hour: 8, run: () => runAutoRepairBatch(5) },
+      // Discovery/observer only (scanOnly) — the universal opportunity queue, via the
+      // orchestrator, is the only path that acts on what these find. See
+      // docs/orchestration-authority.md for the full scheduler-ownership table.
+      { name: 'existing_page_seo_batch', hour: 10, run: () => runExistingPageSeoBatch(5, { scanOnly: true }) },
+      { name: 'auto_repair_batch', hour: 8, run: () => runAutoRepairBatch(5) }, // maintenance: fixes an already-broken page, not a channel-priority choice
       { name: 'competitor_gap_batch', hour: 11, run: () => runCompetitorGapBatch(4) },
       { name: 'aeo_action_batch', hour: 12, run: async () => ({ act: await runAeoActionBatch(4), recheck: await runAeoRecheckBatch(4) }) },
       { name: 'connection_readiness_batch', hour: 4, run: () => runConnectionReadinessBatch(10) },
-      { name: 'review_request_send_batch', hour: 16, run: () => runReviewRequestSendBatch(40) },
       { name: 'managed_site_connect_batch', hour: 2, run: () => autoConnectManagedSites(20) },
       { name: 'basic_seo_batch', hour: 9, run: () => runBasicSeoBatch(6) },
       { name: 'proof_candidate_batch', hour: 3, run: () => prepareProofCandidates(200) },
@@ -768,14 +770,9 @@ async function tick() {
     console.error("[worker] gbp review replies failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
-  try {
-    const gbpPostResult = await runGbpPostBatch(3);
-    if (gbpPostResult.posted > 0) {
-      console.info("[worker] gbp posts published", gbpPostResult);
-    }
-  } catch (error) {
-    console.error("[worker] gbp posts failed", { error: error instanceof Error ? error.message : String(error) });
-  }
+  // GBP posting is decided by the universal queue now (orchestrator -> postGbpForBusiness);
+  // runGbpPostBatch (which decided independently) is no longer scheduled here. GBP-eligibility
+  // observation happens in scanCrossEngineOpportunitiesBatch.
 
   try {
     const photoResult = await runGbpPhotoUploadBatch(3);

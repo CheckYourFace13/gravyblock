@@ -34,7 +34,32 @@ export type MeasurementPlan = {
   evaluationWindowDays: number;
 };
 
-export type MeasuredResultStatus = "too_early" | "no_material_change" | "positive" | "negative" | "inconclusive";
+/**
+ * THE canonical persisted measurement-result shape. This is the ONLY shape ever written to
+ * growthOpportunities.measuredResult — resolveOpportunity()/resolveOpportunityByDedupeKey()
+ * (opportunity lifecycle status) do not accept a measuredResult argument at all, and
+ * recordMeasurement()/recordMeasurementByDedupeKey() (this module) are the only writers, so the
+ * two formats that previously drifted apart cannot recur.
+ */
+export type CanonicalMeasurement = {
+  /** The measurement plan's own metric name (mirrors measurementPlan.metric). */
+  metric: string;
+  /** Baseline value at action time (mirrors measurementPlan.baselineValue), or null if none was captured. */
+  baselineValue: number | null;
+  /** ISO timestamp the action was taken (mirrors measurementPlan.actionAt). */
+  actionAt: string;
+  /** ISO timestamp this evaluation ran. */
+  evaluatedAt: string;
+  /** The value actually compared against baseline (may equal baselineValue for a before/after pair, or be the "before" reading for TOO_EARLY). */
+  beforeValue: number | null;
+  /** The after value, or null if not yet available (TOO_EARLY/INCONCLUSIVE). */
+  afterValue: number | null;
+  status: "TOO_EARLY" | "POSITIVE" | "NEGATIVE" | "NO_MATERIAL_CHANGE" | "INCONCLUSIVE";
+  /** Raw supporting data (API response fragments, URLs, counts) — whatever proves the values above. */
+  evidence: Record<string, unknown>;
+  /** Free-text caveat, e.g. "no later probe available yet" — optional. */
+  limitations?: string | null;
+};
 
 export type OpportunityCandidate = {
   businessId: string;

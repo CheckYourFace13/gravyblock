@@ -5,8 +5,7 @@
  * measurable causal metric (most technical fixes) gets no plan and stays Level-1 execution
  * proof, honestly, rather than a fabricated "measurement."
  */
-import type { MeasurementPlan, MeasuredResultStatus } from "./types";
-import type { OpportunityType } from "./types";
+import type { MeasurementPlan, CanonicalMeasurement, OpportunityType } from "./types";
 
 const DAY = 86_400_000;
 
@@ -37,12 +36,12 @@ export function buildMeasurementPlan(type: OpportunityType, baselineValue: numbe
 }
 
 /** Compares before/after with a simple, honest threshold — never claims a result on noise. */
-export function evaluateChange(before: number | null, after: number | null, minRelativeChange = 0.1, minAbsolute = 1): MeasuredResultStatus {
-  if (before == null || after == null) return "inconclusive";
-  if (before === 0) return after >= minAbsolute ? "positive" : "no_material_change";
+export function evaluateChange(before: number | null, after: number | null, minRelativeChange = 0.1, minAbsolute = 1): CanonicalMeasurement["status"] {
+  if (before == null || after == null) return "INCONCLUSIVE";
+  if (before === 0) return after >= minAbsolute ? "POSITIVE" : "NO_MATERIAL_CHANGE";
   const rel = (after - before) / before;
-  if (Math.abs(after - before) < minAbsolute) return "no_material_change";
-  if (rel >= minRelativeChange) return "positive";
-  if (rel <= -minRelativeChange) return "negative";
-  return "no_material_change";
+  if (Math.abs(after - before) < minAbsolute) return "NO_MATERIAL_CHANGE";
+  if (rel >= minRelativeChange) return "POSITIVE";
+  if (rel <= -minRelativeChange) return "NEGATIVE";
+  return "NO_MATERIAL_CHANGE";
 }

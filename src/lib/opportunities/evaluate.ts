@@ -8,7 +8,7 @@
  */
 import { and, desc, eq } from "drizzle-orm";
 import { getDb, pagePerformance } from "@/lib/db";
-import { dueForMeasurementEvaluation, recordMeasuredResult } from "./queue";
+import { dueForMeasurementEvaluation, recordMeasurement } from "./queue";
 import { evaluateChange } from "./measurement";
 import { matureProof } from "@/lib/proof/ledger";
 import type { MeasurementPlan } from "./types";
@@ -51,8 +51,17 @@ export async function evaluateMeasurementPlans(limit = 20): Promise<{ evaluated:
         const afterValue = plan.metric === "gsc_ctr" ? (perf.impressions > 0 ? perf.clicks / perf.impressions : 0) : perf.clicks;
         const status = evaluateChange(plan.baselineValue, afterValue, 0.1, plan.metric === "gsc_ctr" ? 0.01 : 3);
         evaluated++;
-        await recordMeasuredResult(opp.id, status, { metric: plan.metric, before: plan.baselineValue, after: afterValue, period: perf.periodStart });
-        if (status === "positive") {
+        await recordMeasurement(opp.id, {
+          metric: plan.metric,
+          baselineValue: plan.baselineValue,
+          actionAt: plan.actionAt,
+          evaluatedAt: new Date().toISOString(),
+          beforeValue: plan.baselineValue,
+          afterValue,
+          status,
+          evidence: { url, period: perf.periodStart, impressions: perf.impressions, clicks: perf.clicks },
+        });
+        if (status === "POSITIVE") {
           positive++;
           const dedupeKey = opp.actionId ? `seo_basic:${opp.actionId}` : null;
           if (dedupeKey) {

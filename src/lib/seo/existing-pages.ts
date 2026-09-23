@@ -689,7 +689,13 @@ export async function recheckActions(businessId?: string): Promise<{ rechecked: 
 
 export type ExistingPageSeoCounts = { businesses: number; connected: number; opportunities: number; acted: number; rechecked: number; proofRecorded: number; skippedNoWordpress: number };
 
-export async function runExistingPageSeoBatch(limit = 5): Promise<ExistingPageSeoCounts> {
+/**
+ * `scanOnly: true` (the independent scheduled sweep) fetches GSC data and records opportunities
+ * but never edits a page. GSC-based opportunities are not yet unified into the universal
+ * growthOpportunities queue (a disclosed gap — see docs/orchestration-authority.md); until then,
+ * keeping this observer-only is what prevents it from being a second independent decision-maker.
+ */
+export async function runExistingPageSeoBatch(limit = 5, opts: { scanOnly?: boolean } = {}): Promise<ExistingPageSeoCounts> {
   const counts: ExistingPageSeoCounts = { businesses: 0, connected: 0, opportunities: 0, acted: 0, rechecked: 0, proofRecorded: 0, skippedNoWordpress: 0 };
   try {
     const db = getDb();
@@ -728,7 +734,7 @@ export async function runExistingPageSeoBatch(limit = 5): Promise<ExistingPageSe
           status: "completed",
           payload: { total: opps.length, top: opps.slice(0, 20), fetched: fetched.fetched ?? false },
         });
-        if (!opps.length) continue;
+        if (!opps.length || opts.scanOnly) continue;
 
         const wp = await getWordPressTarget(id);
         if (!wp) {

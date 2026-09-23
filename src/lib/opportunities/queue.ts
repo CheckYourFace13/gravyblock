@@ -18,7 +18,7 @@ import { getCapabilityProfile } from "@/lib/capability-profile";
 import { strategyWeight } from "./strategy";
 import { getMaturitySignals, maturityMultiplier } from "./maturity";
 import { getLearnedWeights, learnedMultiplier } from "./learning";
-import type { EligibilityLabel, MeasurementPlan, MeasuredResultStatus, OpportunityCandidate, OpportunityType, ValueClass } from "./types";
+import type { CanonicalMeasurement, EligibilityLabel, MeasurementPlan, OpportunityCandidate, OpportunityType, ValueClass } from "./types";
 
 const CAPABILITY_FLAG: Record<string, string> = {
   website_write: "website_write",
@@ -149,19 +149,27 @@ export async function markActing(id: string): Promise<void> {
   await db.update(growthOpportunities).set({ status: "acting", actedAt: new Date() }).where(eq(growthOpportunities.id, id));
 }
 
-export async function resolveOpportunity(id: string, status: "acted" | "verified" | "no_gain" | "rejected", measuredResult?: Record<string, unknown>): Promise<void> {
+/**
+ * Opportunity LIFECYCLE status only (was this site change applied/verified live, did this send
+ * go out) — deliberately does NOT accept a measuredResult argument. Whether the underlying
+ * GROWTH METRIC moved is a separate question, answered only by recordMeasurement() /
+ * recordMeasurementByDedupeKey() below with the canonical CanonicalMeasurement shape. This
+ * split is the fix for the earlier bug where a "verified live" site-check was being written into
+ * the same measuredResult column as a real before/after growth measurement.
+ */
+export async function resolveOpportunity(id: string, status: "acted" | "verified" | "no_gain" | "rejected"): Promise<void> {
   const db = getDb();
   if (!db) return;
-  await db.update(growthOpportunities).set({ status, measuredResult: measuredResult ?? null, resolvedAt: new Date() }).where(eq(growthOpportunities.id, id));
+  await db.update(growthOpportunities).set({ status, resolvedAt: new Date() }).where(eq(growthOpportunities.id, id));
 }
 
 /** Same as resolveOpportunity, addressed by the stable dedupeKey an engine used when recording it. Never throws — a missing row is a no-op. */
-export async function resolveOpportunityByDedupeKey(dedupeKey: string, status: "acted" | "verified" | "no_gain" | "rejected", measuredResult?: Record<string, unknown>): Promise<void> {
+export async function resolveOpportunityByDedupeKey(dedupeKey: string, status: "acted" | "verified" | "no_gain" | "rejected"): Promise<void> {
   const db = getDb();
   if (!db) return;
   await db
     .update(growthOpportunities)
-    .set({ status, measuredResult: measuredResult ?? null, resolvedAt: new Date() })
+    .set({ status, resolvedAt: new Date() })
     .where(eq(growthOpportunities.dedupeKey, dedupeKey))
     .catch(() => undefined);
 }
@@ -195,26 +203,61 @@ export async function dueForMeasurementEvaluation(limit = 20): Promise<(typeof g
     .limit(limit);
 }
 
-/** Same as recordMeasuredResult, addressed by dedupeKey — used by engines (authority, AEO) whose own verify/recheck loop already has the real after-value in hand. */
-export async function recordMeasuredResultByDedupeKey(dedupeKey: string, resultStatus: MeasuredResultStatus, detail: Record<string, unknown>): Promise<void> {
+function lifecycleStatusFor(status: CanonicalMeasurement["status"]): "acted" | "verified" | "no_gain" {
+  if (status === "POSITIVE") return "verified";
+  if (status === "TOO_EARLY") return "acted";
+  return "no_gain"; // NEGATIVE | NO_MATERIAL_CHANGE | INCONCLUSIVE
+}
+
+/**
+ * THE single write path for a real growth measurement. Every caller supplies the full canonical
+ * shape (see types.ts) — there is no second, looser format a caller can fall back to.
+ */
+export async function recordMeasurement(id: string, result: CanonicalMeasurement): Promise<void> {
   const db = getDb();
   if (!db) return;
-  const finalStatus = resultStatus === "positive" ? "verified" : resultStatus === "too_early" ? "acted" : "no_gain";
+  const finalStatus = lifecycleStatusFor(result.status);
   await db
     .update(growthOpportunities)
-    .set({ status: finalStatus, measuredResult: { status: resultStatus, evaluatedAt: new Date().toISOString(), ...detail }, resolvedAt: finalStatus === "acted" ? null : new Date() })
+    .set({ status: finalStatus, measuredResult: result, resolvedAt: finalStatus === "acted" ? null : new Date() })
+    .where(eq(growthOpportunities.id, id));
+}
+
+/** Reads back an opportunity's own measurementPlan (for building a canonical measurement that reuses its baseline/actionAt) by the dedupeKey the engine used when recording it. */
+export async function getMeasurementPlanByDedupeKey(dedupeKey: string): Promise<MeasurementPlan | null> {
+  const db = getDb();
+  if (!db) return null;
+  const [row] = await db.select({ measurementPlan: growthOpportunities.measurementPlan }).from(growthOpportunities).where(eq(growthOpportunities.dedupeKey, dedupeKey)).limit(1);
+  return (row?.measurementPlan as MeasurementPlan | null) ?? null;
+}
+
+/** Same as recordMeasurement, addressed by dedupeKey — used by engines (authority, AEO) whose own verify/recheck loop already has the real after-value in hand. */
+export async function recordMeasurementByDedupeKey(dedupeKey: string, result: CanonicalMeasurement): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  const finalStatus = lifecycleStatusFor(result.status);
+  await db
+    .update(growthOpportunities)
+    .set({ status: finalStatus, measuredResult: result, resolvedAt: finalStatus === "acted" ? null : new Date() })
     .where(eq(growthOpportunities.dedupeKey, dedupeKey))
     .catch(() => undefined);
 }
 
-export async function recordMeasuredResult(id: string, resultStatus: MeasuredResultStatus, detail: Record<string, unknown>): Promise<void> {
+/**
+ * One-time normalization for rows written before the canonical measurement shape existed: a
+ * measuredResult with no 'status' key is not a real measurement (it was a site-verification
+ * signal accidentally written to this column) — clear it rather than guess what it meant, per
+ * "do not interpret ambiguous rows as positive or negative evidence." Safe to run repeatedly.
+ */
+export async function normalizeLegacyMeasuredResults(): Promise<{ cleared: number }> {
   const db = getDb();
-  if (!db) return;
-  const finalStatus = resultStatus === "positive" ? "verified" : resultStatus === "too_early" ? "acted" : "no_gain";
-  await db
+  if (!db) return { cleared: 0 };
+  const rows = await db
     .update(growthOpportunities)
-    .set({ status: finalStatus, measuredResult: { status: resultStatus, evaluatedAt: new Date().toISOString(), ...detail }, resolvedAt: finalStatus === "acted" ? null : new Date() })
-    .where(eq(growthOpportunities.id, id));
+    .set({ measuredResult: null })
+    .where(and(sql`${growthOpportunities.measuredResult} is not null`, sql`${growthOpportunities.measuredResult}->>'status' is null`))
+    .returning({ id: growthOpportunities.id });
+  return { cleared: rows.length };
 }
 
 /** Expire open opportunities past their own TTL so the queue self-cleans; each opportunity class sets its own TTL via ttlDays. */

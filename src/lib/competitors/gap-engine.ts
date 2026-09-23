@@ -372,7 +372,13 @@ async function logRun(db: Db, businessId: string, status: string, payload: Recor
 
 const GAP_OPPORTUNITY_TYPE: Record<Gap["type"], "content_gap" | "schema" | "review"> = { service_page: "content_gap", schema: "schema", reviews: "review", cadence: "content_gap" };
 
-export async function runCompetitorGapForBusiness(businessId: string): Promise<{ status: string; gaps: number; queued: string | null }> {
+/**
+ * `scanOnly: true` runs discovery/gap-detection and records opportunities into the universal
+ * queue, but never queues content itself. The orchestrator (or a direct call with the default
+ * scanOnly:false, used only by the orchestrator's competitor_gap handler and tooling) is the
+ * only path that acts — this keeps the independent scheduled sweep an OBSERVER, not a decider.
+ */
+export async function runCompetitorGapForBusiness(businessId: string, opts: { scanOnly?: boolean } = {}): Promise<{ status: string; gaps: number; queued: string | null }> {
   const db = getDb();
   if (!db) return { status: "no_db", gaps: 0, queued: null };
   try {
@@ -505,7 +511,7 @@ export async function runCompetitorGapForBusiness(businessId: string): Promise<{
       }).catch(() => undefined);
     }
 
-    const actionable = gaps.filter((g) => g.actionable && g.targetService && truth.services.includes(g.targetService));
+    const actionable = opts.scanOnly ? [] : gaps.filter((g) => g.actionable && g.targetService && truth.services.includes(g.targetService));
     if (actionable.length) {
       const existing = await db.select({ title: contentQueue.title }).from(contentQueue).where(eq(contentQueue.businessId, businessId)).orderBy(desc(contentQueue.createdAt)).limit(300);
       const used = existing.map((e) => norm(e.title));
@@ -585,7 +591,9 @@ export async function runCompetitorGapBatch(limit = 4): Promise<{ ran: number; q
       const age = last ? Date.now() - last.createdAt.getTime() : Infinity;
       const window = last && last.status === "completed" ? 30 * DAY : 7 * DAY;
       if (age < window) continue;
-      const r = await runCompetitorGapForBusiness(b.id);
+      // Discovery only — the universal opportunity queue (via the orchestrator) decides
+      // whether to actually queue a content_gap action, not this independent sweep.
+      const r = await runCompetitorGapForBusiness(b.id, { scanOnly: true });
       ran++;
       if (r.queued) queued++;
     }
