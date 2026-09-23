@@ -31,7 +31,7 @@ export default function AboutPage() {
         <div className="mx-auto max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-800">About GravyBlock</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
-            Local SEO work, run on a schedule.
+            An engine that decides, does, and keeps going.
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-zinc-600">
             GravyBlock is an automated local SEO platform. It runs the ongoing work that gets a business found on

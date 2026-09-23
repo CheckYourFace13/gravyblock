@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 
 const featuredComps = [
   { slug: "gravyblock-vs-brightlocal", name: "BrightLocal", price: "From ~$39/mo", note: "Established listing, review and rank-tracking suite, popular with agencies. GravyBlock is a lower-cost option focused on content, Google posts and outreach." },
-  { slug: "gravyblock-vs-whitespark", name: "Whitespark", price: "From ~$33/mo", note: "Citation and local rank tools long used by local SEO specialists. GravyBlock is aimed at owners who want scheduled content and posting." },
-  { slug: "gravyblock-vs-gmb-everywhere", name: "GMB Everywhere", price: "From ~$14/mo", note: "Chrome extension for viewing Google Business Profile data. GravyBlock is a different kind of product: scheduled publishing and posting." },
+  { slug: "gravyblock-vs-whitespark", name: "Whitespark", price: "From ~$33/mo", note: "Citation and local rank tools long used by local SEO specialists. GravyBlock is aimed at owners who want that work decided and done for them automatically." },
+  { slug: "gravyblock-vs-gmb-everywhere", name: "GMB Everywhere", price: "From ~$14/mo", note: "Chrome extension for viewing Google Business Profile data. GravyBlock is a different kind of product: it automatically decides what to publish and post." },
   { slug: "gravyblock-vs-yext", name: "Yext", price: "From ~$199/yr", note: "Listing sync and reputation platform. GravyBlock is a lower-cost option focused on content, Google posts and outreach." },
   { slug: "gravyblock-vs-semrush-local", name: "Semrush Local", price: "From ~$140/mo", note: "Broad SEO suite with a local toolkit. GravyBlock is narrower and priced for single-location owners." },
   { slug: "gravyblock-vs-searchatlas", name: "Search Atlas", price: "From ~$99/mo", note: "Large SEO toolset. GravyBlock is a narrower, lower-cost option for local businesses." },
@@ -43,7 +43,7 @@ export default function CompareIndexPage() {
       {/* GravyBlock summary */}
       <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-6">
         <p className="text-xs font-bold uppercase tracking-widest text-red-700">Why GravyBlock is different</p>
-        <p className="mt-2 font-semibold text-zinc-900">A lower-cost option that runs scheduled local SEO work for you.</p>
+        <p className="mt-2 font-semibold text-zinc-900">A lower-cost option that decides what will help and does it for you.</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 text-sm text-zinc-700">
           {[
             "Articles and service pages published to your connected website",

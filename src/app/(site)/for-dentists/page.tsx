@@ -11,7 +11,7 @@ export default function ForDentistsPage() {
     <VerticalLanding
       eyebrow="Dentists"
       title="New patients search for a dentist on Google before they ever call. Win that first click."
-      body="Successful dental practices on Google Maps have strong profiles, active reviews, and fresh content. GravyBlock handles a defined set of that work on a schedule (website content, Google posts, review replies, local outreach) so you can focus on patients."
+      body="Successful dental practices on Google Maps have strong profiles, active reviews, and fresh content. GravyBlock automatically decides what will help and does it (website content, Google posts, review replies, local outreach) so you can focus on patients."
       bullets={[
         "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Publish weekly content: patient FAQs, procedure guides, oral health tips, and local health resources.",

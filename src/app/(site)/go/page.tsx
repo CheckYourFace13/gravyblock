@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Automated Local SEO for Small Businesses | GravyBlock",
   description:
-    "Stop paying an agency. GravyBlock publishes website content, posts to your Google Business Profile, replies to Google reviews, and tracks your Google rankings on a schedule. Free scan, no credit card.",
+    "Stop paying an agency. GravyBlock decides what will help and does it automatically: website content, Google Business Profile posts, Google review replies, and rank tracking. Free scan, no credit card.",
   robots: { index: false }, // Paid traffic page — keep SEO equity on homepage
 };
 
@@ -32,10 +32,10 @@ export default function GoPage() {
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-red-700 mb-3">Local SEO autopilot</p>
             <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl leading-tight">
-              Stop doing SEO.<br />Let it run itself.
+              Stop doing SEO.<br />GravyBlock does it for you.
             </h1>
             <p className="mt-5 text-lg text-zinc-600 leading-relaxed">
-              Local SEO agencies charge $1,000–$3,000/month. GravyBlock is a lower-cost option that runs a defined set of that work on a schedule — publishing website content, posting to Google, replying to Google reviews, running local outreach, and tracking your Google rankings.
+              Local SEO agencies charge $1,000–$3,000/month. GravyBlock is a lower-cost option that decides what will help and does it automatically — publishing website content, posting to Google, replying to Google reviews, running local outreach, and tracking your Google rankings.
             </p>
 
             <ul className="mt-8 space-y-3">

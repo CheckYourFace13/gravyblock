@@ -25,8 +25,8 @@ const PLAN_INFO = {
     label: "Scale",
     monthly: 149.99,
     intro: 74.99,
-    tagline: "Content, Google Business Profile posts, review replies, and social running on a schedule.",
-    bullets: ["Articles published to your connected site", "Weekly Google Business Profile posts", "Google review replies posted automatically", "Facebook + Instagram posting (no per-post approval)", "Weekly review reminder + shareable review link for you"],
+    tagline: "GravyBlock decides what will help and does it — content, Google Business Profile, reviews, and social.",
+    bullets: ["Articles published to your connected site", "Google Business Profile posts", "Google review replies posted automatically", "Facebook + Instagram posting (no per-post approval)", "Automatic review requests to your real customers (once connected)"],
     highlight: true,
   },
   pro: {

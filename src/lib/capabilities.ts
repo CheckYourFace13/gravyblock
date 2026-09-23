@@ -97,11 +97,12 @@ export const CAPABILITIES: Capability[] = [
   {
     id: "review_requests",
     label: "Review requests sent to your customers",
-    status: "not_implemented",
-    plans: [],
-    publicLine: undefined,
-    limits: "GravyBlock emails the owner a weekly reminder and a shareable review link; it does not contact your customers.",
-    engine: "src/lib/email/review-request.ts (owner reminder only)",
+    status: "partial",
+    plans: ["growth", "pro"],
+    oneTime: "Connect your booking/invoicing system once so GravyBlock knows who your real completed customers are",
+    publicLine: "Once connected, GravyBlock emails every real completed customer the same neutral request to leave a Google review, with one follow-up — no selecting who gets asked, no manual sending.",
+    limits: "Needs a connected transaction/customer source; without one, GravyBlock cannot identify real completed customers to ask.",
+    engine: "src/lib/reviews/review-request-engine.ts",
   },
   {
     id: "social_posting",

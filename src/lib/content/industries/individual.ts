@@ -44,7 +44,7 @@ export const INDIVIDUAL_INDUSTRY_PAGES: Record<string, IndividualIndustryPage> =
       "Review and social proof patterns visible from public pages.",
     ],
     baseImprovements: ["Monthly readiness refresh and score updates.", "Monthly summary of listing, trust, and conversion drift.", "Ongoing trend history for one plumbing business profile."],
-    proAutomations: ["Faster recurring refreshes.", "More frequent checks and expanded scheduled work for content and Google posting where connected.", "Expanded workspace automation coverage."],
+    proAutomations: ["Faster recurring refreshes.", "More frequent checks and expanded automatic work for content and Google posting where connected.", "Expanded workspace automation coverage."],
     discoveryNotes: ["Google profile accuracy affects emergency and near-me decisions.", "Website trust signals reduce call hesitation.", "Reviews and AI summaries shape who gets called first."],
     guideLinks: [{ href: "/guides/local-seo-for-home-services", label: "Local SEO for home services" }, ...baseGuideLinks],
   },

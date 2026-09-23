@@ -19,13 +19,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: `Local SEO Services in ${city.name}, ${city.state} — GravyBlock`,
-    description: `GravyBlock runs scheduled local SEO work for small businesses in ${city.name}: website content, Google Business Profile posts, Google review replies, and local outreach. Free scan — no credit card.`,
+    description: `GravyBlock automatically decides and does local SEO work for small businesses in ${city.name}: website content, Google Business Profile posts, Google review replies, and local outreach. Free scan — no credit card.`,
     alternates: {
       canonical: `/local-seo/${citySlug}`,
     },
     openGraph: {
       title: `Local SEO Services in ${city.name}, ${city.state}`,
-      description: `Scheduled local SEO for ${city.name} businesses — website content, Google posts, review replies, and AI visibility checks.`,
+      description: `Automated local SEO for ${city.name} businesses — website content, Google posts, review replies, and AI visibility checks.`,
     },
   };
 }
@@ -41,7 +41,7 @@ export default async function CityHubPage({ params }: Props) {
     "@context": "https://schema.org",
     "@type": "WebPage",
     name: `Local SEO Services in ${city.name}, ${city.state}`,
-    description: `Scheduled local SEO work for small businesses in ${city.name}: website content, Google Business Profile posts, and Google review replies.`,
+    description: `Automated local SEO work for small businesses in ${city.name}: website content, Google Business Profile posts, and Google review replies.`,
     url: `${siteUrl}/local-seo/${citySlug}`,
     mainEntity: {
       "@type": "Service",
@@ -60,7 +60,7 @@ export default async function CityHubPage({ params }: Props) {
         name: `How much does local SEO cost for a ${city.name} business?`,
         acceptedAnswer: {
           "@type": "Answer",
-          text: `Local SEO agencies in ${city.name} typically charge $500–$3,000/month. GravyBlock is a lower-cost option that runs part of that work on a schedule — website content, Google Business Profile posts, Google review replies, citation consistency checks, and rank tracking. Scale is $149.99/month, or $74.99/month with code GROWTH50, locked for as long as you stay subscribed.`,
+          text: `Local SEO agencies in ${city.name} typically charge $500–$3,000/month. GravyBlock is a lower-cost option that decides what will help and does it automatically — website content, Google Business Profile posts, Google review replies, citation consistency checks, and rank tracking. Scale is $149.99/month, or $74.99/month with code GROWTH50, locked for as long as you stay subscribed.`,
         },
       },
       {
@@ -68,7 +68,7 @@ export default async function CityHubPage({ params }: Props) {
         name: `How long does it take to rank higher on Google in ${city.name}?`,
         acceptedAnswer: {
           "@type": "Answer",
-          text: `Most businesses in ${city.name} see measurable improvement in their Google Maps rankings within 60–90 days of consistent local SEO work: an active Google Business Profile, fresh content, growing reviews, and consistent business details. GravyBlock runs part of this on a schedule; results are never guaranteed.`,
+          text: `Most businesses in ${city.name} see measurable improvement in their Google Maps rankings within 60–90 days of consistent local SEO work: an active Google Business Profile, fresh content, growing reviews, and consistent business details. GravyBlock automatically works on this; results are never guaranteed.`,
         },
       },
       {
@@ -96,9 +96,9 @@ export default async function CityHubPage({ params }: Props) {
             Local SEO services in {city.name}
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-zinc-600">
-            GravyBlock runs scheduled local SEO work for small businesses in {city.name}, {city.state}. Publish website content,
+            GravyBlock automatically decides and does local SEO work for small businesses in {city.name}, {city.state}. Publishes website content,
             post to your Google Business Profile, reply to Google reviews, and check whether AI assistants
-            mention your business — on a schedule, after a one-time setup.
+            mention your business — automatically, after a one-time setup.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -131,7 +131,7 @@ export default async function CityHubPage({ params }: Props) {
             },
             {
               title: "Reviews drive bookings",
-              body: `Businesses with 50+ Google reviews and a 4.5+ star rating convert 3× better than competitors with fewer reviews. GravyBlock monitors your reviews, replies to Google reviews automatically once Google is connected, and emails you a weekly reminder and a shareable review link to send to your own customers.`,
+              body: `Businesses with 50+ Google reviews and a 4.5+ star rating convert 3× better than competitors with fewer reviews. GravyBlock monitors your reviews, replies to Google reviews automatically once Google is connected, and — once your booking/invoicing system is connected — automatically asks your real completed customers for a review.`,
             },
             {
               title: "AI assistants now recommend local businesses",

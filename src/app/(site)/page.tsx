@@ -60,8 +60,8 @@ const steps = [
   },
   {
     n: "3",
-    title: "Let it run every week",
-    desc: "Connect your site and turn on a plan. GravyBlock publishes content, posts to your Google Business Profile, sends personalized outreach to local organizations, monitors reviews, and refreshes your score.",
+    title: "GravyBlock takes it from there",
+    desc: "Connect your site and turn on a plan. GravyBlock decides what will help most — content, your Google profile, outreach, reviews — does it automatically, verifies it happened, and keeps going.",
   },
 ];
 
@@ -151,10 +151,10 @@ export default function HomePage() {
             Autopilot: $74.99/mo, locked while subscribed
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl leading-[1.08]">
-            Get found by more<br className="hidden sm:block" /> local customers.
+            More customers find you.<br className="hidden sm:block" /> You don&apos;t lift a finger.
           </h1>
           <p className="mx-auto max-w-xl text-lg text-zinc-600">
-            GravyBlock does the weekly SEO work for you — publishing content, keeping your Google profile active, and building the trust signals it takes to compete, so you can see what&apos;s improving without doing it yourself.
+            GravyBlock reads your real website and Google profile, figures out what will actually help you get found, and does that work automatically — then checks that it happened and keeps going. No SEO tactics to learn, no tasks to manage.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Link href="/scan" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-semibold text-white hover:bg-red-500 shadow-sm">
@@ -210,10 +210,38 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── THE LOOP ───────────────────────────────────────── */}
+      <section className="px-4 py-12 sm:px-6">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-center text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">
+            One engine. It never stops working.
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-center text-sm text-zinc-600">
+            This is what makes GravyBlock different from a checklist tool: it decides what to do next, not just what to complain about.
+          </p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {[
+              { n: "1", title: "Learns your business", desc: "Reads your real website and connected profiles." },
+              { n: "2", title: "Finds what will help", desc: "SEO, Google, content, authority, reviews, AI search, citations, conversion." },
+              { n: "3", title: "Does the work", desc: "Automatically performs the best legitimate action available." },
+              { n: "4", title: "Verifies it", desc: "Checks that the action actually happened." },
+              { n: "5", title: "Measures it", desc: "Tracks what changed afterward." },
+              { n: "6", title: "Keeps going", desc: "Uses what it learns to choose the next worthwhile action." },
+            ].map((s) => (
+              <div key={s.n} className="rounded-xl border border-zinc-200 bg-white p-4 text-center shadow-sm">
+                <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">{s.n}</div>
+                <p className="mt-2 text-sm font-semibold text-zinc-900">{s.title}</p>
+                <p className="mt-1 text-xs text-zinc-500">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── WHAT IT DOES ───────────────────────────────────── */}
       <section className="border-y border-zinc-100 bg-zinc-50 px-4 py-10 sm:px-6">
         <div className="mx-auto max-w-5xl">
-          <p className="mb-6 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">What runs on a schedule</p>
+          <p className="mb-6 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">Verified work, not promises</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { icon: "✍️", title: "Content published", desc: "Articles and service pages written from your own website's facts are published to your connected WordPress, Webflow or Shopify site, then checked live" },

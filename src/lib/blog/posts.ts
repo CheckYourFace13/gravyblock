@@ -83,7 +83,7 @@ Google's local algorithm uses review count, review velocity (how often new revie
 
 **Bottom line:** The most reliable review strategy is a simple, consistent system: ask every happy customer, make it one tap, and respond to every review you receive.
 
-[GravyBlock monitors your reviews, replies to Google reviews automatically, and emails you a weekly reminder and shareable review link →](/scan)`,
+[GravyBlock monitors your reviews, replies to Google reviews automatically, and automatically asks your real completed customers for a review once connected →](/scan)`,
   },
   {
     slug: "local-seo-checklist",
@@ -203,7 +203,7 @@ Most businesses see meaningful movement (moving from position 7–15 to position
 
 **Bottom line:** The businesses in the Google Maps top 3 aren't there by accident — they have complete profiles, strong review velocity, consistent citations, and regular content. Fix all four and you'll get there.
 
-[GravyBlock handles part of this on a schedule, starting at $74.99/month with code GROWTH50 →](/scan)`,
+[GravyBlock automatically decides and does this work for you, starting at $74.99/month with code GROWTH50 →](/scan)`,
   },
   {
     slug: "local-seo-vs-google-ads",
@@ -646,9 +646,9 @@ Yext syncs your business data to a large publisher network and also offers revie
 Semrush is a broad SEO suite with a local toolkit that includes listing management. It is a good fit for people who already use Semrush for keyword research and rank tracking.
 
 ### GravyBlock (Starter $59.99, Scale $149.99, Pro $299.99 per month; promo codes are available)
-**Best for:** Owner-operated local businesses that want a small set of scheduled tasks handled
+**Best for:** Owner-operated local businesses that want the work decided and done for them automatically
 
-GravyBlock is a lower-cost option focused on a defined set of scheduled work: articles and service pages written from your own website's information and published to your connected WordPress, Webflow or Shopify site, weekly Google Business Profile posts, automatic replies to Google reviews (Yelp and TripAdvisor replies are drafted for you to paste), personalized local outreach, and citation consistency checks with drift alerts. It does not build or fix listings on hundreds of directories.
+GravyBlock is a lower-cost option that automatically decides and does a defined set of work: articles and service pages written from your own website's information and published to your connected WordPress, Webflow or Shopify site, Google Business Profile posts, automatic replies to Google reviews (Yelp and TripAdvisor replies are drafted for you to paste), automatic review requests to your real customers, personalized local outreach, and citation consistency checks with drift alerts. It does not build or fix listings on hundreds of directories.
 
 ## Which Tool Should You Choose?
 
@@ -657,9 +657,9 @@ GravyBlock is a lower-cost option focused on a defined set of scheduled work: ar
 | Detailed reporting and you have someone to act on it | BrightLocal |
 | Listing sync across a large publisher network | Yext |
 | Keyword research alongside local SEO | Semrush |
-| A lower-cost option that runs scheduled content, Google posts and review replies | GravyBlock |
+| A lower-cost option that automatically decides and does content, Google posts and review replies | GravyBlock |
 
-**Bottom line:** If you have an in-house marketing person or work with an agency, BrightLocal gives you the best reporting. If you're a small business owner who wants a lower-cost option that runs a defined set of tasks on a schedule, GravyBlock may fit. Results are not guaranteed.
+**Bottom line:** If you have an in-house marketing person or work with an agency, BrightLocal gives you the best reporting. If you're a small business owner who wants a lower-cost option that decides and does that work automatically, GravyBlock may fit. Results are not guaranteed.
 
 [Start your free GravyBlock scan and see your visibility score in 60 seconds →](/scan)`,
   },
@@ -865,7 +865,7 @@ However, in most competitive urban markets, 20+ reviews with a 4.3+ average is e
 
 **Bottom line:** You can rank without reviews by maximizing every other factor. But 25+ reviews remains the fastest path to consistent top-3 appearances. Make review generation your primary activity in months 1–3.
 
-[GravyBlock monitors your reviews, replies to Google reviews automatically, and emails you a weekly reminder and shareable review link →](/scan)`,
+[GravyBlock monitors your reviews, replies to Google reviews automatically, and automatically asks your real completed customers for a review once connected →](/scan)`,
   },
 ];
 

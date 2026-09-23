@@ -16,7 +16,7 @@ export default function ForPlumbersPage() {
         "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Publish weekly content: DIY guides, prevention tips, city-specific plumbing guides that rank long-term.",
         "Track Google Map rankings for 'plumber near me,' 'emergency plumber,' and specific service searches.",
-        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor replies are drafted for you to paste. GravyBlock also emails you a weekly reminder and a shareable review link to send to your own customers.",
+        "Monitor reviews and reply to Google reviews automatically once Google is connected. Once your booking/invoicing system is connected, GravyBlock automatically asks your real completed customers for a review — no list to send yourself.",
         "Send personalized outreach to relevant local organizations. A link only counts once verified live; links are never guaranteed.",
         "Track AI visibility for home emergency searches. More homeowners ask ChatGPT first now.",
       ]}

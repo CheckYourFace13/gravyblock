@@ -13,7 +13,7 @@ const faqs = [
     items: [
       {
         q: "What is GravyBlock?",
-        a: "GravyBlock is an automated local SEO platform for small and local businesses. It writes articles and service pages from your own website's facts and publishes them to your connected website, posts weekly to your Google Business Profile, replies to your Google reviews, sends personalized outreach to relevant local organizations, and tracks your Google rankings. It runs on a schedule after a one-time setup.",
+        a: "GravyBlock is an automated local SEO platform for small and local businesses. It writes articles and service pages from your own website's facts and publishes them to your connected website, posts weekly to your Google Business Profile, replies to your Google reviews, sends personalized outreach to relevant local organizations, and tracks your Google rankings. It decides what will help and does it automatically, after a one-time setup.",
       },
       {
         q: "How does the free scan work?",
@@ -34,7 +34,7 @@ const faqs = [
     items: [
       {
         q: "What's the difference between Starter, Scale, and Pro?",
-        a: "Starter monitors your visibility each month: a prioritized fix list, citation consistency checks, review alerts, and AI search checks. Scale adds the work that runs on a schedule: articles and service pages published to your connected website, weekly Google Business Profile posts, automatic Google review replies, Facebook and Instagram posting, and personalized local outreach. Pro increases the volume.",
+        a: "Starter monitors your visibility each month: a prioritized fix list, citation consistency checks, review alerts, and AI search checks. Scale adds the automatic work: articles and service pages published to your connected website, Google Business Profile posts, automatic Google review replies and requests, Facebook and Instagram posting, and personalized local outreach. Pro increases the volume.",
       },
       {
         q: "What is the INTRO50 discount?",
@@ -42,7 +42,7 @@ const faqs = [
       },
       {
         q: "Is there a free plan?",
-        a: "Yes. The free tier gives you a full visibility score, a prioritized fix list, and one-time competitor snapshot. No credit card needed. To get the scheduled work running (publishing, Google Business Profile posts, outreach), you'll need a paid plan.",
+        a: "Yes. The free tier gives you a full visibility score, a prioritized fix list, and one-time competitor snapshot. No credit card needed. To get GravyBlock actually publishing, posting and reaching out for you, you'll need a paid plan.",
       },
       {
         q: "Can I change plans later?",
@@ -105,7 +105,7 @@ const faqs = [
       },
       {
         q: "Does GravyBlock fake reviews?",
-        a: "No. Never. Fake reviews violate Google's terms of service and can get your Business Profile suspended. GravyBlock does not contact your customers for you. It emails you a weekly reminder and gives you a shareable review link to send to real customers yourself. All reviews should be genuine, public, and unselected by you.",
+        a: "No. Never. Fake reviews violate Google's terms of service and can get your Business Profile suspended. Once you connect your booking or invoicing system, GravyBlock automatically emails every real completed customer the same neutral request to leave a Google review — no picking who gets asked, no sending anything yourself. All reviews stay genuine, public, and unselected by you.",
       },
     ],
   },

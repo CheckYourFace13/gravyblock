@@ -47,12 +47,13 @@ const plans = [
     // applies to every renewal, not just month one (unlike INTRO50 on the
     // other two plans). priceLocked drives the true copy below.
     priceLocked: true,
-    tagline: "Content, Google posts, review replies, outreach, and social running on a schedule.",
+    tagline: "GravyBlock decides what will help and does it automatically — content, Google posts, review replies, outreach, and social.",
     bullets: [
       "Everything in Starter",
       "Weekly AI articles written and published to your site",
       "Weekly Google Business Profile posts and your own website images added to your profile — with Google connected",
       "Review replies posted to Google automatically (Yelp & TripAdvisor replies are drafted for you to paste)",
+      "Automatic review requests to your real completed customers, once your booking/invoicing system is connected",
       "Real Google Maps ranking checks every week",
       "Review spotlights — your real 5-star reviews shared on your connected Facebook Page",
       "Up to 8 personalized outreach attempts/month to relevant local organizations — only to a real published contact, never a guessed address. Links are never guaranteed and only counted once verified live",
@@ -90,7 +91,7 @@ const plans = [
 const faqs = [
   {
     q: "What does 'automated' actually mean?",
-    a: "GravyBlock runs on a schedule — you do not have to log in each week. Articles are written from your own website's facts and published to your connected site automatically. Google Business Profile posts go out. Google review replies are posted automatically. Outreach goes to real, published contacts of relevant local organizations when one can be found, and a link is only counted once it is verified live. Review alerts surface in your inbox. Your visibility score refreshes. All without you initiating anything.",
+    a: "GravyBlock decides what will help your business and does it automatically — you do not have to log in each week. Articles are written from your own website's facts and published to your connected site automatically. Google Business Profile posts go out. Google review replies are posted automatically. Outreach goes to real, published contacts of relevant local organizations when one can be found, and a link is only counted once it is verified live. Review alerts surface in your inbox. Your visibility score refreshes. All without you initiating anything.",
   },
   {
     q: "Do I need to know anything about SEO?",
@@ -290,7 +291,7 @@ export default function PricingPage() {
                     <td className="px-4 py-3.5 font-bold text-zinc-900 border-t border-red-100">GravyBlock</td>
                     <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">$59.99–$299.99</td>
                     <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">~0 hrs/week</td>
-                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-red-100">GravyBlock — website content published, Google posts and Google review replies handled on a schedule</td>
+                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-red-100">GravyBlock — website content, Google posts and Google review replies handled automatically</td>
                   </tr>
                 </tbody>
               </table>
@@ -329,7 +330,7 @@ export default function PricingPage() {
                   ["Local outreach attempts/mo (real contacts only, links not guaranteed)", "—", "up to 8", "up to 16"],
                   ["Facebook + Instagram posting (no per-post approval)", "—", "✓", "✓"],
                   ["Review monitoring (Google, Yelp, TripAdvisor)", "✓", "✓", "✓"],
-                  ["Weekly review reminder + shareable review link (sent to you)", "—", "✓", "✓"],
+                  ["Automatic review requests to your real customers (once connected)", "—", "✓", "✓"],
                   ["Citation consistency checks + drift alerts", "✓", "✓", "✓"],
                   ["AI visibility checks (monthly)", "✓", "✓", "✓"],
                   ["AEO / GEO / Entity scores", "—", "✓", "✓"],

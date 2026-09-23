@@ -56,7 +56,7 @@ const faqs = [
   },
   {
     q: "How is this different from BrightLocal or Semrush?",
-    a: "BrightLocal and Semrush are established platforms with broad toolsets. GravyBlock is a lower-cost option focused on a defined set of scheduled work: it publishes website content, posts to Google, replies to Google reviews, runs local outreach, and monitors reviews and rankings.",
+    a: "BrightLocal and Semrush are established platforms with broad toolsets. GravyBlock is a lower-cost option that decides what will help and does it automatically: publishing website content, posting to Google, replying to Google reviews, running local outreach, and monitoring reviews and rankings.",
   },
   {
     q: "Who is this for?",
@@ -80,10 +80,10 @@ export default function LaunchPage() {
             <span className="text-xs font-bold uppercase tracking-widest text-orange-700">Launching on Product Hunt today</span>
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl leading-[1.08]">
-            Local SEO that runs<br className="hidden sm:block" /> itself, every week.
+            More customers find you.<br className="hidden sm:block" /> You do not lift a finger.
           </h1>
           <p className="mx-auto max-w-xl text-lg text-zinc-600">
-            GravyBlock publishes website content, posts to your Google Business Profile, sends personalized local outreach, monitors reviews, and tracks your Google rankings. <strong className="text-zinc-800">Set up once, then it runs on a schedule.</strong>
+            GravyBlock reads your real website and Google profile, figures out what will help, and does it automatically — website content, Google Business Profile posts, local outreach, review requests, and rank tracking. <strong className="text-zinc-800">Set up once. It takes it from there.</strong>
           </p>
           <p className="text-sm text-zinc-500">
             Built for restaurants, dentists, contractors, salons, lawyers, and any local business that gets customers through Google.
@@ -119,7 +119,7 @@ export default function LaunchPage() {
             Local SEO agencies charge $1,000–$3,000/month.<br className="hidden sm:block" /> Most of it is work a machine can do better.
           </p>
           <p className="text-zinc-400 text-sm max-w-xl mx-auto">
-            Publishing content, sending outreach emails, monitoring reviews, tracking rankings — these are repeatable tasks. GravyBlock runs them on a schedule so you don't have to hire an agency or remember to log in.
+            GravyBlock decides which of these will actually help your business and does them automatically — publishing content, sending outreach, monitoring reviews, tracking rankings — so you do not have to hire an agency or remember to log in.
           </p>
         </div>
       </section>
@@ -127,7 +127,7 @@ export default function LaunchPage() {
       {/* Features */}
       <section className="px-4 py-14 sm:px-6">
         <div className="mx-auto max-w-5xl">
-          <p className="mb-8 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">What runs on a schedule</p>
+          <p className="mb-8 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">What GravyBlock does automatically</p>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((f) => (
               <div key={f.title} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">

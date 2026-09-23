@@ -114,10 +114,10 @@ export default function ReviewLinkGeneratorPage() {
         <section className="mt-12 rounded-2xl border border-red-200 bg-red-50/60 p-8 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-800">Go further</p>
           <h2 className="mt-2 text-2xl font-semibold text-zinc-900">
-            GravyBlock reminds you to keep asking
+            GravyBlock asks for you, automatically
           </h2>
           <p className="mt-2 text-sm text-zinc-600 max-w-lg mx-auto">
-            A weekly reminder to you with a shareable review link to send to your own customers, review monitoring, and automatic Google review replies once Google is connected — Scale plan, $74.99/mo with GROWTH50, locked while subscribed.
+            Once you connect your booking or invoicing system, GravyBlock emails every real completed customer this same request automatically — plus review monitoring and automatic Google review replies once Google is connected. Scale plan, $74.99/mo with GROWTH50, locked while subscribed.
           </p>
           <Link
             href="/scan"

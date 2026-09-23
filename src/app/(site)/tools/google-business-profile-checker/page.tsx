@@ -118,7 +118,7 @@ export default function GbpCheckerPage() {
         <p className="mt-4 text-sm text-zinc-400">
           Already have results?{" "}
           <Link href="/#plans" className="text-zinc-300 underline">
-            See what GravyBlock does on a schedule.
+            See what GravyBlock does automatically.
           </Link>
         </p>
       </div>

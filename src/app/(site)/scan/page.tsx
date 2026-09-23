@@ -101,7 +101,7 @@ export default async function ScanPage({ searchParams }: Props) {
       </div>
 
       <div className="mx-auto mt-6 flex max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4">
-        <p className="text-sm font-semibold text-zinc-900">Want ongoing scheduled work? Pick a plan after your scan:</p>
+        <p className="text-sm font-semibold text-zinc-900">Want GravyBlock working on this automatically? Pick a plan after your scan:</p>
         <div className="flex flex-wrap gap-2">
           <Link
             href={promoCode ? `/start?plan=starter&promo=${encodeURIComponent(promoCode)}` : "/start?plan=starter"}
