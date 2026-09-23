@@ -12,7 +12,7 @@
  * The queue decides which of these are actually worthwhile — this module only proposes.
  */
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { businesses, businessFacts, contentQueue, getDb, publishedContent } from "@/lib/db";
+import { businesses, businessFacts, contentQueue, getDb, growthOpportunities, publishedContent } from "@/lib/db";
 import { getBusinessTruth, promotableContent } from "@/lib/truth";
 import { recordOpportunity } from "./queue";
 
@@ -121,6 +121,39 @@ export async function createOpportunitiesFromTruthBatch(businessIds: string[]): 
     }
   }
   return { businesses: businessIds.length, recorded };
+}
+
+/**
+ * Provenance-based invalidation: every truth_opportunities-sourced row's dedupeKey ends in the
+ * exact contentHash of the fact that created it. If that fact is no longer `current` (superseded
+ * or expired), the opportunity it produced is stale and is expired too — a superseded offer, a
+ * removed service, a retracted article should not keep generating outreach/social/content work.
+ */
+export async function invalidateStaleTruthOpportunities(): Promise<{ expired: number }> {
+  const db = getDb();
+  if (!db) return { expired: 0 };
+  const openRows = await db
+    .select({ id: growthOpportunities.id, businessId: growthOpportunities.businessId, dedupeKey: growthOpportunities.dedupeKey })
+    .from(growthOpportunities)
+    .where(and(eq(growthOpportunities.engine, "truth_opportunities"), eq(growthOpportunities.status, "open")));
+  if (openRows.length === 0) return { expired: 0 };
+  let expired = 0;
+  const currentHashesByBusiness = new Map<string, Set<string>>();
+  for (const row of openRows) {
+    const hash = row.dedupeKey.split(":").pop();
+    if (!hash) continue;
+    let hashes = currentHashesByBusiness.get(row.businessId);
+    if (!hashes) {
+      const facts = await db.select({ contentHash: businessFacts.contentHash }).from(businessFacts).where(and(eq(businessFacts.businessId, row.businessId), eq(businessFacts.status, "current")));
+      hashes = new Set(facts.map((f) => f.contentHash));
+      currentHashesByBusiness.set(row.businessId, hashes);
+    }
+    if (!hashes.has(hash)) {
+      await db.update(growthOpportunities).set({ status: "expired", resolvedAt: new Date() }).where(eq(growthOpportunities.id, row.id));
+      expired++;
+    }
+  }
+  return { expired };
 }
 
 const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];

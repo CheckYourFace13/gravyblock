@@ -455,6 +455,10 @@ export const backlinkOpportunities = pgTable("backlink_opportunities", {
   locationId: uuid("location_id").references(() => locations.id, { onDelete: "set null" }),
   sourceName: text("source_name").notNull(),
   sourceType: text("source_type").notNull().default("partner"),
+  /** outreach (cold pitch) | unlinked_mention (brand named, no link) | broken_link (dead relevant destination, offering a truthful replacement) */
+  opportunityKind: text("opportunity_kind").notNull().default("outreach"),
+  /** For unlinked_mention/broken_link: the exact page where the mention/dead link was found. */
+  evidenceUrl: text("evidence_url"),
   targetUrl: text("target_url"),
   relevanceNote: text("relevance_note"),
   qualityScore: integer("quality_score"),

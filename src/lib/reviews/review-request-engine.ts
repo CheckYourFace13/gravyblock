@@ -132,6 +132,7 @@ async function sendViaResend(params: {
 
 export async function runReviewRequestSendBatch(
   limit = 40,
+  businessId?: string,
 ): Promise<{ sent: number; followedUp: number; skipped: number; stopped: number }> {
   const result = { sent: 0, followedUp: 0, skipped: 0, stopped: 0 };
   const db = getDb();
@@ -173,6 +174,7 @@ export async function runReviewRequestSendBatch(
         eq(reviewRequests.status, "pending"),
         lte(reviewRequests.completedAt, maxCompleted),
         gte(reviewRequests.completedAt, minCompleted),
+        businessId ? eq(reviewRequests.businessId, businessId) : sql`true`,
       ),
     )
     .orderBy(asc(reviewRequests.completedAt))
@@ -187,6 +189,7 @@ export async function runReviewRequestSendBatch(
         eq(reviewRequests.status, "sent"),
         lte(reviewRequests.sentAt, followUpBefore),
         gte(reviewRequests.completedAt, minCompleted),
+        businessId ? eq(reviewRequests.businessId, businessId) : sql`true`,
       ),
     )
     .orderBy(asc(reviewRequests.sentAt))

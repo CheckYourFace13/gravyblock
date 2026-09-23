@@ -312,6 +312,234 @@ export async function requalifyProspects(businessId: string): Promise<{ rechecke
   return { rechecked: rows.length, stillQualified: n };
 }
 
+const MENTION_MAX_PER_BUSINESS_PER_MONTH = 6;
+const BROKEN_LINK_MAX_PER_BUSINESS_PER_MONTH = 6;
+
+function nameFragments(businessName: string): string[] {
+  return businessName
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !/^(the|inc|llc|co|corp|ltd)$/i.test(w));
+}
+
+/**
+ * Unlinked-mention discovery: finds real pages that already name the business (via a validated
+ * web search — the same generic search used for national/online authority prospecting) but do
+ * not link to it, and asks whether they'd add the link. Never guesses a mention; the business
+ * name must actually appear as running text on the page, and the page must genuinely NOT already
+ * link to the business's own domain.
+ */
+export async function discoverUnlinkedMentions(businessId: string, limit = 2): Promise<{ found: number; reason: string }> {
+  const db = getDb();
+  if (!db) return { found: 0, reason: "no_db" };
+  const monthAgo = new Date(Date.now() - 30 * 86_400_000);
+  const [{ n: recentCount }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(backlinkOpportunities)
+    .where(and(eq(backlinkOpportunities.businessId, businessId), eq(backlinkOpportunities.opportunityKind, "unlinked_mention"), gte(backlinkOpportunities.createdAt, monthAgo)));
+  if (recentCount >= MENTION_MAX_PER_BUSINESS_PER_MONTH) return { found: 0, reason: "monthly_cap_reached" };
+
+  const truth = await ensureFreshTruth(businessId);
+  if (!truth.sufficient || truth.businessName.length < 3) return { found: 0, reason: `insufficient_truth:${truth.insufficientReason ?? ""}` };
+  const [biz] = await db.select({ website: businesses.website }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
+  const ownDomain = biz?.website ? domainOf(biz.website) : null;
+  const bm = await getOperatingMode(businessId);
+  const frags = nameFragments(truth.businessName);
+  if (frags.length === 0) return { found: 0, reason: "name_too_generic_to_search" };
+
+  const existing = await db.select({ targetUrl: backlinkOpportunities.targetUrl }).from(backlinkOpportunities).where(eq(backlinkOpportunities.businessId, businessId));
+  const seenDomains = new Set(existing.map((e) => (e.targetUrl ? domainOf(e.targetUrl) : null)).filter((d): d is string => Boolean(d)));
+
+  const query = bm.placeLabel ? `"${truth.businessName}" ${bm.placeLabel}` : `"${truth.businessName}"`;
+  const candidates = await webSearchSites(query, 8);
+  let found = 0;
+  for (const c of candidates) {
+    if (found >= limit || found + recentCount >= MENTION_MAX_PER_BUSINESS_PER_MONTH) break;
+    const dom = domainOf(c.website);
+    if (!dom || dom === ownDomain || seenDomains.has(dom) || BLOCKED_DOMAINS.test(`${dom}.`)) continue;
+    const page = await safeFetchText(c.website, { timeoutMs: 8000 });
+    if (!page.ok || page.status >= 400) continue;
+    const text = page.body.replace(/<script[\s\S]*?<\/script>/gi, " ");
+    const lowerText = text.toLowerCase();
+    const nameHit = lowerText.includes(truth.businessName.toLowerCase()) || frags.every((f) => lowerText.includes(f.toLowerCase()));
+    if (!nameHit) continue; // the search engine's own snippet can be wrong — require the name actually on the page
+    // Already linked? Then it's not an "unlinked" mention — skip (this is what verifyAcquisitions is for).
+    const alreadyLinked = ownDomain ? new RegExp(`href=["'][^"']*${ownDomain.replace(/\./g, "\\.")}`, "i").test(text) : false;
+    if (alreadyLinked) continue;
+    seenDomains.add(dom);
+    const contact = await discoverContactEmail(c.website);
+    const [row] = await db
+      .insert(backlinkOpportunities)
+      .values({
+        businessId,
+        sourceName: c.name,
+        sourceType: "resource_page",
+        opportunityKind: "unlinked_mention",
+        evidenceUrl: page.finalUrl,
+        targetUrl: c.website,
+        relevanceNote: `Business name found as plain text on this page, with no link to ${ownDomain ?? "the business's site"}.`,
+        qualityScore: 70,
+        status: contact.email ? "qualified" : "no_contact",
+        contactEmail: contact.email,
+        contactSource: contact.source,
+      })
+      .returning({ id: backlinkOpportunities.id });
+    if (contact.email && row) {
+      await recordOpportunity({
+        businessId,
+        opportunityType: "backlink",
+        subtype: "unlinked_mention",
+        engine: "authority",
+        valueClass: "growth", // a confirmed real mention is stronger evidence than a cold prospect
+        evidence: { prospect: c.name, evidenceUrl: page.finalUrl },
+        expectedImpact: 65,
+        confidence: 70,
+        cost: 2,
+        risk: 2,
+        requiredCapability: "authority_contact",
+        autoEligible: true,
+        dedupeKey: `authority_prospect:${row.id}`,
+      }).catch(() => undefined);
+    }
+    found++;
+  }
+  await db.insert(jobs).values({ businessId, type: "authority_mention_discovery", status: "completed", payload: { found, query } });
+  return { found, reason: found ? "ok" : "no_unlinked_mentions_found" };
+}
+
+/**
+ * Broken-link/resource-replacement discovery: reads the pages GravyBlock already knows are
+ * relevant to this business (chambers/associations/resource pages found during ordinary
+ * prospecting, regardless of outreach status) and checks their own outbound links for ones that
+ * are genuinely dead AND topically relevant to this business, before offering the business's own
+ * truthful page as a replacement. Never invents a broken link and never pitches an irrelevant one.
+ */
+export async function discoverBrokenLinkOpportunities(businessId: string, limit = 2): Promise<{ found: number; reason: string }> {
+  const db = getDb();
+  if (!db) return { found: 0, reason: "no_db" };
+  const monthAgo = new Date(Date.now() - 30 * 86_400_000);
+  const [{ n: recentCount }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(backlinkOpportunities)
+    .where(and(eq(backlinkOpportunities.businessId, businessId), eq(backlinkOpportunities.opportunityKind, "broken_link"), gte(backlinkOpportunities.createdAt, monthAgo)));
+  if (recentCount >= BROKEN_LINK_MAX_PER_BUSINESS_PER_MONTH) return { found: 0, reason: "monthly_cap_reached" };
+
+  const truth = await ensureFreshTruth(businessId);
+  if (!truth.sufficient) return { found: 0, reason: `insufficient_truth:${truth.insufficientReason ?? ""}` };
+  const [biz] = await db.select({ website: businesses.website }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
+  const ownDomain = biz?.website ? domainOf(biz.website) : null;
+  const asset = chooseAsset(truth, biz?.website ?? null);
+  if (!asset) return { found: 0, reason: "no_linkable_asset_in_verified_facts" };
+
+  const [catJob] = await db.select({ payload: jobs.payload }).from(jobs).where(and(eq(jobs.businessId, businessId), eq(jobs.type, "category_derived"))).orderBy(desc(jobs.createdAt)).limit(1);
+  const vocab = topicVocabulary(truth, (catJob?.payload as { category?: string | null } | null)?.category ?? null);
+  if (vocab.length < 3) return { found: 0, reason: "insufficient_topic_vocabulary" };
+
+  // Known-relevant resource pages this business has already been matched against (any status — this is a read, not outreach).
+  const pool = await db
+    .select({ id: backlinkOpportunities.id, sourceName: backlinkOpportunities.sourceName, sourceType: backlinkOpportunities.sourceType, targetUrl: backlinkOpportunities.targetUrl })
+    .from(backlinkOpportunities)
+    .where(and(eq(backlinkOpportunities.businessId, businessId), inArray(backlinkOpportunities.sourceType, RELEVANT_SOURCE_TYPES), eq(backlinkOpportunities.opportunityKind, "outreach")))
+    .limit(20);
+
+  const existing = await db.select({ evidenceUrl: backlinkOpportunities.evidenceUrl }).from(backlinkOpportunities).where(and(eq(backlinkOpportunities.businessId, businessId), eq(backlinkOpportunities.opportunityKind, "broken_link")));
+  const seenPages = new Set(existing.map((e) => e.evidenceUrl).filter(Boolean));
+
+  let found = 0;
+  for (const p of pool) {
+    if (found >= limit || found + recentCount >= BROKEN_LINK_MAX_PER_BUSINESS_PER_MONTH) break;
+    if (!p.targetUrl || seenPages.has(p.targetUrl)) continue;
+    const page = await safeFetchText(p.targetUrl, { timeoutMs: 8000 });
+    if (!page.ok || page.status >= 400) continue;
+    // Outbound links whose anchor text is topically relevant to this business.
+    const linkRe = /<a\s[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    let m: RegExpExecArray | null;
+    const checked = new Set<string>();
+    let deadRelevant: { href: string; anchor: string } | null = null;
+    while ((m = linkRe.exec(page.body)) && checked.size < 15) {
+      let abs: string;
+      try {
+        abs = new URL(m[1]!, page.finalUrl).toString();
+      } catch {
+        continue;
+      }
+      const dom = domainOf(abs);
+      if (!dom || dom === domainOf(p.targetUrl) || dom === ownDomain || checked.has(abs)) continue;
+      const anchorText = m[2]!.replace(/<[^>]+>/g, " ").toLowerCase();
+      const anchorHit = vocab.some((w) => anchorText.includes(w));
+      if (!anchorHit) continue;
+      checked.add(abs);
+      const check = await safeFetchText(abs, { timeoutMs: 6000 }).catch(() => null);
+      const dead = !check || !check.ok || check.status >= 400;
+      if (dead) {
+        deadRelevant = { href: abs, anchor: anchorText.trim().slice(0, 80) };
+        break;
+      }
+    }
+    if (!deadRelevant) continue;
+    const contact = await discoverContactEmail(p.targetUrl);
+    const [row] = await db
+      .insert(backlinkOpportunities)
+      .values({
+        businessId,
+        sourceName: p.sourceName,
+        sourceType: p.sourceType,
+        opportunityKind: "broken_link",
+        evidenceUrl: p.targetUrl,
+        targetUrl: p.targetUrl,
+        relevanceNote: `Dead link found on this relevant page (anchor "${deadRelevant.anchor}" -> ${deadRelevant.href}, unreachable); ${truth.businessName} has a truthful, topically relevant replacement.`,
+        qualityScore: 65,
+        status: contact.email ? "qualified" : "no_contact",
+        contactEmail: contact.email,
+        contactSource: contact.source,
+      })
+      .returning({ id: backlinkOpportunities.id });
+    if (contact.email && row) {
+      await recordOpportunity({
+        businessId,
+        opportunityType: "backlink",
+        subtype: "broken_link",
+        engine: "authority",
+        valueClass: "growth",
+        evidence: { prospect: p.sourceName, evidenceUrl: p.targetUrl, deadHref: deadRelevant.href },
+        expectedImpact: 60,
+        confidence: 65,
+        cost: 2,
+        risk: 2,
+        requiredCapability: "authority_contact",
+        autoEligible: true,
+        dedupeKey: `authority_prospect:${row.id}`,
+      }).catch(() => undefined);
+    }
+    found++;
+  }
+  await db.insert(jobs).values({ businessId, type: "authority_broken_link_discovery", status: "completed", payload: { found, checkedPages: pool.length } });
+  return { found, reason: found ? "ok" : "no_broken_relevant_links_found" };
+}
+
+const AUTHORITY_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
+
+/** Daily discovery sweep for both loops, across a rotating slice of paid businesses. */
+export async function runAuthorityDiscoveryLoopsBatch(limit = 8): Promise<{ businesses: number; mentions: number; brokenLinks: number }> {
+  const db = getDb();
+  if (!db) return { businesses: 0, mentions: 0, brokenLinks: 0 };
+  const rows = await db.select({ id: businesses.id }).from(businesses).where(inArray(businesses.planTier, AUTHORITY_TIERS)).limit(limit);
+  let mentions = 0;
+  let brokenLinks = 0;
+  for (const b of rows) {
+    try {
+      mentions += (await discoverUnlinkedMentions(b.id, 2)).found;
+    } catch (err) {
+      console.error("[authority] mention discovery failed", { businessId: b.id, error: err instanceof Error ? err.message : String(err) });
+    }
+    try {
+      brokenLinks += (await discoverBrokenLinkOpportunities(b.id, 2)).found;
+    } catch (err) {
+      console.error("[authority] broken-link discovery failed", { businessId: b.id, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return { businesses: rows.length, mentions, brokenLinks };
+}
+
 /* ─────────────── 2. learning: which opportunity types actually produce links ─────────────── */
 
 export type SourceTypeStats = Record<string, { contacted: number; acquired: number; rate: number }>;
@@ -353,12 +581,35 @@ function shortenAtSentence(text: string, max = 180): string {
   return cut.replace(/[,;:\s]+$/, "") + ".";
 }
 
-function fallbackPitch(input: { business: string; prospect: string; sourceType: SourceType; asset: { url: string; title: string }; description: string | null; city: string | null }): string {
+function fallbackPitch(input: { business: string; prospect: string; sourceType: SourceType; asset: { url: string; title: string }; description: string | null; city: string | null; kind: string; evidenceUrl?: string | null }): string {
   const audience = AUDIENCE[input.sourceType];
+  const intro = `I'm writing on behalf of ${input.business}${input.city && !input.business.toLowerCase().includes(input.city.toLowerCase()) ? ` in ${input.city}` : ""}${input.description ? `. ${shortenAtSentence(input.description)}` : "."}`;
+  if (input.kind === "unlinked_mention") {
+    return [
+      `Hello ${input.prospect} team,`,
+      "",
+      intro,
+      "",
+      `I noticed ${input.business} is mentioned on your page (${input.evidenceUrl}) — thank you for that. Since we're already mentioned there, would you consider linking the name to our site? Here's the most relevant page: ${input.asset.title} — ${input.asset.url}`,
+      "",
+      `If that's not something you do, no worries at all, and thanks again for the mention.`,
+    ].join("\n");
+  }
+  if (input.kind === "broken_link") {
+    return [
+      `Hello ${input.prospect} team,`,
+      "",
+      intro,
+      "",
+      `I was reading your page (${input.evidenceUrl}) and noticed one of the links there looks broken. If it's helpful, ${input.business} has a page covering similar ground you're welcome to swap in instead: ${input.asset.title} — ${input.asset.url}`,
+      "",
+      `Either way, wanted to flag the broken link — hope that's useful.`,
+    ].join("\n");
+  }
   return [
     `Hello ${input.prospect} team,`,
     "",
-    `I'm writing on behalf of ${input.business}${input.city && !input.business.toLowerCase().includes(input.city.toLowerCase()) ? ` in ${input.city}` : ""}${input.description ? `. ${shortenAtSentence(input.description)}` : "."}`,
+    intro,
     "",
     `We recently put together this page that may be useful to your ${audience}: ${input.asset.title} — ${input.asset.url}`,
     "",
@@ -366,9 +617,10 @@ function fallbackPitch(input: { business: string; prospect: string; sourceType: 
   ].join("\n");
 }
 
-async function buildPitch(truth: BusinessTruth, r: { sourceName: string; sourceType: string }, asset: { url: string; title: string }): Promise<string> {
+async function buildPitch(truth: BusinessTruth, r: { sourceName: string; sourceType: string; opportunityKind: string; evidenceUrl: string | null }, asset: { url: string; title: string }): Promise<string> {
   const sourceType = r.sourceType as SourceType;
-  const fallback = fallbackPitch({ business: truth.businessName, prospect: r.sourceName, sourceType, asset, description: truth.description, city: truth.verifiedCity });
+  const fallback = fallbackPitch({ business: truth.businessName, prospect: r.sourceName, sourceType, asset, description: truth.description, city: truth.verifiedCity, kind: r.opportunityKind, evidenceUrl: r.evidenceUrl });
+  if (r.opportunityKind !== "outreach") return fallback; // mention/broken-link pitches are precise about a specific page — the template is more reliable than an LLM rewrite here
   const llm = await openRouterChat({
     model: MODELS.content,
     maxTokens: 260,
@@ -481,7 +733,7 @@ async function sendInitialOutreach(db: Db, businessId: string, truth: BusinessTr
       continue;
     }
     const text = await buildPitch(truth, c, asset);
-    const subject = `A resource for ${c.sourceName}`.slice(0, 120);
+    const subject = (c.opportunityKind === "unlinked_mention" ? `Quick note about your mention of ${truth.businessName}` : c.opportunityKind === "broken_link" ? `A broken link on your site` : `A resource for ${c.sourceName}`).slice(0, 120);
     const res = await sendPitch({ to: c.contactEmail, business: truth.businessName, subject, text, replyTo: await replyAddressFor(c.id, replyTo) });
     if (!res.ok) {
       await logEvent(db, businessId, c.id, "send_failed", { error: res.error });

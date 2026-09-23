@@ -17,6 +17,7 @@ import { getOperatingMode } from "@/lib/business-mode";
 import { getCapabilityProfile } from "@/lib/capability-profile";
 import { strategyWeight } from "./strategy";
 import { getMaturitySignals, maturityMultiplier } from "./maturity";
+import { getLearnedWeights, learnedMultiplier } from "./learning";
 import type { EligibilityLabel, MeasurementPlan, MeasuredResultStatus, OpportunityCandidate, OpportunityType, ValueClass } from "./types";
 
 const CAPABILITY_FLAG: Record<string, string> = {
@@ -77,7 +78,7 @@ export type RankedOpportunity = typeof growthOpportunities.$inferSelect & { rank
 export async function nextOpportunities(businessId: string, limit = 5): Promise<RankedOpportunity[]> {
   const db = getDb();
   if (!db) return [];
-  const [mode, profile, maturity] = await Promise.all([getOperatingMode(businessId), getCapabilityProfile(businessId), getMaturitySignals(businessId)]);
+  const [mode, profile, maturity, learned] = await Promise.all([getOperatingMode(businessId), getCapabilityProfile(businessId), getMaturitySignals(businessId), getLearnedWeights()]);
   const rows = await db
     .select()
     .from(growthOpportunities)
@@ -90,7 +91,7 @@ export async function nextOpportunities(businessId: string, limit = 5): Promise<
     return flag ? profile.active.has(flag) : true;
   });
   return eligible
-    .map((r) => ({ ...r, rankScore: rank(r, strategyWeight(mode.mode, r.opportunityType as OpportunityType) * maturityMultiplier(maturity, r.opportunityType as OpportunityType)) }))
+    .map((r) => ({ ...r, rankScore: rank(r, strategyWeight(mode.mode, r.opportunityType as OpportunityType) * maturityMultiplier(maturity, r.opportunityType as OpportunityType) * learnedMultiplier(learned, r.opportunityType as OpportunityType, r.businessMode)) }))
     .sort((a, b) => b.rankScore - a.rankScore)
     .slice(0, limit);
 }
@@ -112,10 +113,10 @@ export function classifyEligibility(r: { status: string; autoEligible: string; r
 export async function allOpenRanked(businessId: string, limit = 20): Promise<(RankedOpportunity & { eligibility: EligibilityLabel })[]> {
   const db = getDb();
   if (!db) return [];
-  const [mode, profile, maturity] = await Promise.all([getOperatingMode(businessId), getCapabilityProfile(businessId), getMaturitySignals(businessId)]);
+  const [mode, profile, maturity, learned] = await Promise.all([getOperatingMode(businessId), getCapabilityProfile(businessId), getMaturitySignals(businessId), getLearnedWeights()]);
   const rows = await db.select().from(growthOpportunities).where(and(eq(growthOpportunities.businessId, businessId), sql`${growthOpportunities.status} in ('open','acting','acted')`)).limit(300);
   return rows
-    .map((r) => ({ ...r, rankScore: rank(r, strategyWeight(mode.mode, r.opportunityType as OpportunityType) * maturityMultiplier(maturity, r.opportunityType as OpportunityType)), eligibility: classifyEligibility(r, profile.active) }))
+    .map((r) => ({ ...r, rankScore: rank(r, strategyWeight(mode.mode, r.opportunityType as OpportunityType) * maturityMultiplier(maturity, r.opportunityType as OpportunityType) * learnedMultiplier(learned, r.opportunityType as OpportunityType, r.businessMode)), eligibility: classifyEligibility(r, profile.active) }))
     .sort((a, b) => b.rankScore - a.rankScore)
     .slice(0, limit);
 }

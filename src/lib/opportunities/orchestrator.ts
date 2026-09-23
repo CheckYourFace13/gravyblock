@@ -18,6 +18,7 @@ import { runCitationEngineForBusiness } from "@/lib/citations/engine";
 import { actOnBestAuthorityOpportunity } from "@/lib/authority/engine";
 import { postGbpForBusiness } from "@/lib/gbp/post-publisher";
 import { planTruthGroundedSocial } from "@/lib/social/truth-social";
+import { runReviewRequestSendBatch } from "@/lib/reviews/review-request-engine";
 import { planTruthGroundedContent, hasExternalPublishingTarget } from "@/lib/autopilot/content-planner";
 import { executeContentPublishPath } from "@/lib/autopilot/executor";
 import { getDb, businesses } from "@/lib/db";
@@ -64,6 +65,10 @@ const HANDLERS: Partial<Record<OpportunityType, (businessId: string) => Promise<
   social: async (businessId) => {
     const r = await planTruthGroundedSocial(businessId);
     return { attempted: true, outcome: r.queued > 0 ? "acted" : r.reason === "social_not_connected" ? "blocked" : "not_worth_acting", detail: r };
+  },
+  review: async (businessId) => {
+    const r = await runReviewRequestSendBatch(10, businessId);
+    return { attempted: true, outcome: r.sent > 0 || r.followedUp > 0 ? "acted" : "not_worth_acting", detail: r };
   },
   content_gap: async (businessId) => {
     if (!(await hasExternalPublishingTarget(businessId))) return { attempted: true, outcome: "blocked", detail: { reason: "no_publishing_target" } };
