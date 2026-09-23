@@ -29,6 +29,14 @@ async function run(engine: string, id: string) {
       return discoverBrokenLinkOpportunities(id, 3);
     case "canary":
       return runCanaryAssertions(id);
+    case "mention_detail": {
+      const sql = getSqlClient()!;
+      return sql.unsafe(`select b.name, o.source_name, o.evidence_url, o.target_url, o.relevance_note, o.status, o.contact_email, o.contact_source, o.created_at from backlink_opportunities o join businesses b on b.id=o.business_id where o.opportunity_kind='unlinked_mention' and b.account_type='house' order by o.created_at desc`);
+    }
+    case "cap_detail": {
+      const sql = getSqlClient()!;
+      return sql.unsafe(`select b.name, j.created_at from jobs j join businesses b on b.id=j.business_id where j.type='authority_outreach_sent' and b.account_type='house' and j.created_at > now() - interval '7 days' order by j.created_at asc`);
+    }
     case "migrate":
       return normalizeLegacyMeasuredResults();
     case "learning":
