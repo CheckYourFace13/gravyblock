@@ -28,6 +28,10 @@ async function run(engine: string, id: string) {
       const { discoverAndQualify } = await import("@/lib/authority/engine");
       return discoverAndQualify(id);
     }
+    case "verify": {
+      const { verifyBasicSeoActions } = await import("@/lib/seo/basic-autopilot");
+      return verifyBasicSeoActions(id);
+    }
     case "canary":
       return runCanaryAssertions(id);
     default:
