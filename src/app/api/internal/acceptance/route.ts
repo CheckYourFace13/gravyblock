@@ -24,6 +24,10 @@ async function run(engine: string, id: string) {
       return runOrchestrator(id, 6);
     case "connect_sites":
       return autoConnectManagedSites(20, id);
+    case "authority_discover": {
+      const { discoverAndQualify } = await import("@/lib/authority/engine");
+      return discoverAndQualify(id);
+    }
     case "canary":
       return runCanaryAssertions(id);
     default:
