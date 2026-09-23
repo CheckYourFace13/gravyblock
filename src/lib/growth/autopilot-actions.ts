@@ -59,9 +59,9 @@ const BY_CATEGORY: Record<string, AutopilotAction> = {
     verify: "Monthly checks of what ChatGPT, Perplexity, and Gemini say when asked about businesses like yours.",
   },
   priority: {
-    whatWeDo: "Take this on first — it's ranked ahead of your other findings because it carries the most upside for the least risk.",
-    connectionNeeded: "Depends on the fix — shown once you're in your workspace",
-    verify: "Tracked against your baseline and reported once there's a real, measured result.",
+    whatWeDo: "Prioritize it against everything else it finds, act on it automatically once it's eligible, and hold off if the connection it needs isn't there yet.",
+    connectionNeeded: "Depends on the fix — GravyBlock tells you exactly what's needed once you're in your workspace",
+    verify: "Tracked against your baseline and reported once there's a real, measured result — never claimed in advance.",
   },
 };
 

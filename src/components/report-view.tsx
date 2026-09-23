@@ -176,30 +176,31 @@ export function ReportView({
           ))}
         </div>
         <ol className="mt-4 space-y-3">
-          {topFindings.map((fix, idx) => {
-            const action = describeAutopilotAction("priority");
-            return (
-              <li key={fix.id} className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
-                    {idx + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-zinc-900">{fix.title}</p>
-                    <p className="mt-1 text-sm text-zinc-600">{fix.detail}</p>
-                    <p className="mt-2 text-xs text-zinc-500">
-                      <span className="font-semibold text-red-700">GravyBlock would: </span>
-                      {action.whatWeDo}
-                    </p>
-                  </div>
+          {topFindings.map((fix, idx) => (
+            <li key={fix.id} className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
+                  {idx + 1}
+                </span>
+                <div>
+                  <p className="font-semibold text-zinc-900">{fix.title}</p>
+                  <p className="mt-1 text-sm text-zinc-600">{fix.detail}</p>
                 </div>
-              </li>
-            );
-          })}
+              </div>
+            </li>
+          ))}
         </ol>
-        <p className="mt-4 text-sm font-medium text-zinc-700">
-          Why do this yourself? Turn on Autopilot and GravyBlock does it — then shows you what actually changed.
-        </p>
+        {topFindings.length > 0 ? (
+          <div className="mt-4 rounded-xl border border-red-100 bg-red-50/60 p-4 text-sm text-zinc-700">
+            <p>
+              <span className="font-semibold text-red-700">GravyBlock would: </span>
+              {describeAutopilotAction("priority").whatWeDo}
+            </p>
+            <p className="mt-2 font-medium text-zinc-900">
+              Why do this yourself? Turn on Autopilot and GravyBlock does it — then shows you what actually changed.
+            </p>
+          </div>
+        ) : null}
       </section>
 
       {unlocked ? (

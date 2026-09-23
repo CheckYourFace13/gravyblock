@@ -151,7 +151,7 @@ export default function HomePage() {
             Autopilot: $74.99/mo, locked while subscribed
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl leading-[1.08]">
-            More customers find you.<br className="hidden sm:block" /> You don&apos;t lift a finger.
+            More customers find you.<br className="hidden sm:block" />{" "}You don&apos;t lift a finger.
           </h1>
           <p className="mx-auto max-w-xl text-lg text-zinc-600">
             GravyBlock reads your real website and Google profile, figures out what will actually help you get found, and does that work automatically — then checks that it happened and keeps going. No SEO tactics to learn, no tasks to manage.
