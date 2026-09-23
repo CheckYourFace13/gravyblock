@@ -1030,7 +1030,13 @@ export async function runAuthorityBatch(opts: { maxBusinesses?: number; sendEnab
   const health = await checkOutreachHealth();
   const budget = { left: Math.min(6, await getRemainingSharedBudget()) };
   const enabled = await authoritySendingEnabled(db);
-  const sendingOk = Boolean(opts.sendEnabled) && enabled && health.healthy && budget.left > 0; // per-business authorization is checked below
+  // Follow-ups continue work the orchestrator already decided to start (a prospect it already
+  // chose to contact) — that's not a new priority decision, so they're never gated behind
+  // sendEnabled. Brand-new sends ARE a priority decision and stay off by default; only the
+  // orchestrator's actOnBestAuthorityOpportunity (sendEnabled unused there — it does its own
+  // per-business check) picks a new prospect to contact.
+  const followUpsOk = enabled && health.healthy && budget.left > 0;
+  const sendingOk = Boolean(opts.sendEnabled) && followUpsOk;
 
   const biz = await db
     .select({ id: businesses.id })
@@ -1058,11 +1064,11 @@ export async function runAuthorityBatch(opts: { maxBusinesses?: number; sendEnab
       const v = await verifyAcquisitions(b.id);
       out.checked += v.checked;
       out.acquired += v.acquired;
-      if (sendingOk && (await isOutreachAuthorized(db, b.id))) {
+      if (followUpsOk && (await isOutreachAuthorized(db, b.id))) {
         const truth = await ensureFreshTruth(b.id);
         if (truth.sufficient) {
           out.followUps += await sendFollowUps(db, b.id, truth, budget);
-          out.sent += await sendInitialOutreach(db, b.id, truth, stats, budget);
+          if (sendingOk) out.sent += await sendInitialOutreach(db, b.id, truth, stats, budget);
         }
       }
     } catch (err) {
