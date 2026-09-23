@@ -55,9 +55,9 @@ export async function IssueTrackerPanel({ businessId }: { businessId: string }) 
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">Website fix list</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">Website issues GravyBlock is tracking</h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Tracked automatically on every refresh — checked off as soon as we see it&apos;s fixed.
+            Found automatically on every refresh. Eligible issues on a connected site are fixed automatically and check themselves off here; anything outside GravyBlock's reach stays listed for visibility.
           </p>
         </div>
         {open.length > 0 ? <CopyChecklistButton text={checklistText} /> : null}

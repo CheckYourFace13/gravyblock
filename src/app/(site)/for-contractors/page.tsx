@@ -16,7 +16,7 @@ export default function ForContractorsPage() {
         "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Publish weekly content: project spotlights, how-to guides, city-specific service pages.",
         "Track Google Map rankings for high-intent searches like 'contractor near me' by city and service.",
-        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor replies are drafted for you to paste.",
+        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor reviews are monitored and flagged for you — their APIs do not allow automatic replies.",
         "Send personalized outreach to relevant local organizations. A link only counts once verified live; links are never guaranteed.",
         "Track AI search visibility so your business gets mentioned when homeowners ask for contractor recommendations.",
       ]}

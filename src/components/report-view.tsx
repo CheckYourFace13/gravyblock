@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { AutopilotRoadmap } from "@/components/autopilot-roadmap";
 import { ReportUnlockCard } from "@/components/report-unlock-card";
 import { buildRoadmapRows } from "@/lib/growth/roadmap";
+import { describeAutopilotAction } from "@/lib/growth/autopilot-actions";
 import type { DataSourceAttribution, ReportPayload } from "@/lib/report/types";
 
 function scoreTone(score: number) {
@@ -175,20 +176,30 @@ export function ReportView({
           ))}
         </div>
         <ol className="mt-4 space-y-3">
-          {topFindings.map((fix, idx) => (
-            <li key={fix.id} className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
-                  {idx + 1}
-                </span>
-                <div>
-                  <p className="font-semibold text-zinc-900">{fix.title}</p>
-                  <p className="mt-1 text-sm text-zinc-600">{fix.detail}</p>
+          {topFindings.map((fix, idx) => {
+            const action = describeAutopilotAction("priority");
+            return (
+              <li key={fix.id} className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
+                    {idx + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-zinc-900">{fix.title}</p>
+                    <p className="mt-1 text-sm text-zinc-600">{fix.detail}</p>
+                    <p className="mt-2 text-xs text-zinc-500">
+                      <span className="font-semibold text-red-700">GravyBlock would: </span>
+                      {action.whatWeDo}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ol>
+        <p className="mt-4 text-sm font-medium text-zinc-700">
+          Why do this yourself? Turn on Autopilot and GravyBlock does it — then shows you what actually changed.
+        </p>
       </section>
 
       {unlocked ? (
@@ -400,8 +411,8 @@ export function ReportView({
           ) : null}
 
           <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-zinc-900">Highest-impact fixes</h2>
-            <p className="mt-1 text-sm text-zinc-600">Full prioritized list after unlock.</p>
+            <h2 className="text-lg font-semibold text-zinc-900">Everything found, ranked by impact</h2>
+            <p className="mt-1 text-sm text-zinc-600">The full list behind the roadmap above — what GravyBlock would act on, in priority order.</p>
             <ol className="mt-4 space-y-3">
               {payload.prioritizedFixes.map((fix, idx) => (
                 <li key={fix.id} className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
@@ -483,7 +494,7 @@ export function ReportView({
                   <div className="mt-3 rounded-lg border border-red-200 bg-white p-3">
                     <p className="text-sm font-semibold text-zinc-900">Are you sure you want to skip Growth?</p>
                     <p className="mt-1 text-xs text-zinc-600">
-                      Scale adds the scheduled work: website content, weekly Google Business Profile posts, automatic Google review replies, Facebook and Instagram posting, and personalized local outreach.
+                      Scale adds the automatic work: website content, weekly Google Business Profile posts, automatic Google review replies, Facebook and Instagram posting, and personalized local outreach.
                     </p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Link

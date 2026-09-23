@@ -76,7 +76,7 @@ export function VerticalLanding({
           ))}
         </ul>
         <p className="mt-4 text-sm text-zinc-500">
-          After a one-time connection of your website, Google account and Facebook Page, this runs on a schedule. No agency required.{" "}
+          After a one-time connection of your website, Google account and Facebook Page, GravyBlock continually decides what worthwhile eligible work should happen next. No agency required.{" "}
           <Link href="/scan" className="font-semibold text-red-800 hover:underline">Start with a free scan →</Link>
         </p>
       </div>

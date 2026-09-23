@@ -46,6 +46,33 @@ export async function runLegacyCleanupOnce(): Promise<{ ran: boolean; tasks?: nu
   return { ran: true, tasks: tasks.length, content: content.length, publishing: publishing.length };
 }
 
+const MARKER_V3 = "legacy_cleanup_truth_v3";
+
+/**
+ * Fixes content stuck in "approved" status: that status was written by a
+ * workspace "Approve" button, but no publish path ever reads it (only
+ * "queued" is picked up by the WordPress/Webflow/Shopify publisher and the
+ * social posters) — so anything a customer "approved" silently stopped
+ * short of ever publishing. Reverts those rows back to "queued" so they
+ * actually go out, and is safe to run repeatedly (idempotent no-op once
+ * clear). Runs once per deploy via the jobs marker.
+ */
+export async function runLegacyCleanupV3Once(): Promise<{ ran: boolean; requeued?: number }> {
+  const db = getDb();
+  if (!db) return { ran: false };
+  const [done] = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.type, MARKER_V3)).limit(1);
+  if (done) return { ran: false };
+
+  const requeued = await db
+    .update(contentQueue)
+    .set({ status: "queued" })
+    .where(eq(contentQueue.status, "approved"))
+    .returning({ id: contentQueue.id });
+
+  await db.insert(jobs).values({ type: MARKER_V3, status: "completed", payload: { requeued: requeued.length } });
+  return { ran: true, requeued: requeued.length };
+}
+
 const MARKER_V2 = "legacy_cleanup_truth_v2";
 
 /**

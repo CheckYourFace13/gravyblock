@@ -90,8 +90,8 @@ export const CAPABILITIES: Capability[] = [
     status: "partial",
     plans: ["growth", "pro"],
     oneTime: "Connect Google once",
-    publicLine: "Posts replies to your Google reviews automatically. Yelp and TripAdvisor replies are drafted for you to paste.",
-    limits: "Yelp and TripAdvisor do not allow API replies.",
+    publicLine: "Posts replies to your Google reviews automatically. Yelp and TripAdvisor don't allow automatic replies through their API, so GravyBlock monitors those reviews and flags anything that needs your attention instead of adding a recurring task to your plate.",
+    limits: "Yelp and TripAdvisor do not allow API replies — monitored and flagged only.",
     engine: "src/lib/gbp/review-responder.ts",
   },
   {

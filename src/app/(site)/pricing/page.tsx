@@ -52,7 +52,7 @@ const plans = [
       "Everything in Starter",
       "Weekly AI articles written and published to your site",
       "Weekly Google Business Profile posts and your own website images added to your profile — with Google connected",
-      "Review replies posted to Google automatically (Yelp & TripAdvisor replies are drafted for you to paste)",
+      "Review replies posted to Google automatically (Yelp & TripAdvisor reviews are monitored and flagged — their APIs don't allow automatic replies)",
       "Automatic review requests to your real completed customers, once your booking/invoicing system is connected",
       "Real Google Maps ranking checks every week",
       "Review spotlights — your real 5-star reviews shared on your connected Facebook Page",
@@ -107,7 +107,7 @@ const faqs = [
   },
   {
     q: "What do I need to connect for content to publish automatically?",
-    a: "You connect your WordPress, Webflow or Shopify website once in your workspace. For other platforms (Squarespace, Wix and others), content is not published automatically: you get drafted content to paste in yourself.",
+    a: "You connect your WordPress, Webflow or Shopify website once in your workspace, and GravyBlock publishes to it automatically from then on. Squarespace, Wix and a few other platforms aren't supported for automatic publishing yet — on those, content publishing waits for a supported connection, but everything else (Google Business Profile posts, review replies and requests, citations, outreach, AI-visibility checks) keeps running automatically.",
   },
   {
     q: "How is GravyBlock different from BrightLocal or Yext?",

@@ -447,11 +447,13 @@ async function tick() {
 
   // One-time: retire work items from the old template engine before any new work is planned.
   try {
-    const { runLegacyCleanupOnce, runLegacyCleanupV2Once } = await import("@/lib/autopilot/legacy-cleanup");
+    const { runLegacyCleanupOnce, runLegacyCleanupV2Once, runLegacyCleanupV3Once } = await import("@/lib/autopilot/legacy-cleanup");
     const cleanup = await runLegacyCleanupOnce();
     if (cleanup.ran) console.info("[worker] legacy cleanup", cleanup);
     const cleanup2 = await runLegacyCleanupV2Once();
     if (cleanup2.ran) console.info("[worker] legacy cleanup v2", cleanup2);
+    const cleanup3 = await runLegacyCleanupV3Once();
+    if (cleanup3.ran) console.info("[worker] legacy cleanup v3", cleanup3);
   } catch (error) {
     console.error("[worker] legacy cleanup failed", { error: error instanceof Error ? error.message : String(error) });
   }
@@ -537,7 +539,12 @@ async function tick() {
   await maybeSendDailyReport();
   await maybeSendMonthlyDigest();
   await maybeSendQuarterlyUpsell();
-  await maybeSendReviewRequests();
+  // maybeSendReviewRequests() retired: it emailed paying customers weekly
+  // telling them to manually text their last 5 customers for a review — the
+  // exact recurring customer labor the real automatic review-request system
+  // (connect a booking/invoicing feed once, GravyBlock asks real completed
+  // customers itself) now replaces. Left disabled rather than deleted so the
+  // history of why is visible; see src/lib/email/review-request.ts.
   await maybeSendColdOutreach();
 
   // Defense-in-depth: independently re-verify no real send bypassed the

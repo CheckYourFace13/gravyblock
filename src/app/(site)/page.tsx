@@ -246,7 +246,7 @@ export default function HomePage() {
             {[
               { icon: "✍️", title: "Content published", desc: "Articles and service pages written from your own website's facts are published to your connected WordPress, Webflow or Shopify site, then checked live" },
               { icon: "📍", title: "GBP posts published", desc: "A weekly Google Business Profile post and your own website images added to your profile — with your Google account connected" },
-              { icon: "⭐", title: "Reviews answered", desc: "New reviews monitored from Google, Yelp & TripAdvisor — replies posted automatically to Google; Yelp and TripAdvisor replies drafted for you to paste" },
+              { icon: "⭐", title: "Reviews answered", desc: "New reviews monitored from Google, Yelp & TripAdvisor — replies posted automatically to Google; Yelp and TripAdvisor are monitored and flagged since their APIs don't allow automatic replies" },
               { icon: "📈", title: "Rankings checked", desc: "Real Google Maps pack positions checked weekly, plus daily keyword data when Search Console is connected" },
               { icon: "🔗", title: "Local outreach", desc: "Personalized pitches to real published contacts of relevant local organizations, one follow-up, and a link counted only once verified live" },
               { icon: "🤖", title: "AI search checked", desc: "We probe ChatGPT, Perplexity & Gemini monthly to see if they mention your business" },

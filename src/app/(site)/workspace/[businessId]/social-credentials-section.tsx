@@ -47,9 +47,9 @@ export function SocialCredentialsSection({ businessId, initial }: Props) {
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">Facebook + Instagram auto-posting</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">Connect Facebook</h2>
           <p className="mt-1 max-w-xl text-sm text-zinc-600">
-            Connect your Facebook Page and Instagram Business account. GravyBlock will automatically post content on your behalf.
+            Lets GravyBlock publish relevant social updates automatically to your Facebook Page (and Instagram, if linked). Connect once. GravyBlock takes it from there.
           </p>
         </div>
         {isConnected ? (
@@ -133,9 +133,9 @@ export function SocialCredentialsSection({ businessId, initial }: Props) {
             {isPending ? "Saving…" : "Save credentials"}
           </button>
           {isConnected ? (
-            <p className="text-xs text-zinc-500">Autopilot will post to Facebook on the next scheduled run.</p>
+            <p className="text-xs text-zinc-500">GravyBlock will keep posting to Facebook as new, relevant updates come up.</p>
           ) : (
-            <p className="text-xs text-zinc-500">Posts will begin on the next autopilot run after saving.</p>
+            <p className="text-xs text-zinc-500">Posts begin automatically once GravyBlock has something worth sharing.</p>
           )}
         </div>
       </form>

@@ -16,7 +16,7 @@ export default function ForChiropractorsPage() {
         "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Publish weekly patient-friendly content: condition guides, treatment FAQs, wellness tips, and local health articles.",
         "Track Google Map rankings for 'chiropractor near me' and condition-specific searches in your city.",
-        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor replies are drafted for you to paste.",
+        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor reviews are monitored and flagged for you — their APIs do not allow automatic replies.",
         "Send personalized outreach to relevant local organizations. A link only counts once verified live; links are never guaranteed.",
         "Track AI search mentions for health and pain relief queries in your area.",
       ]}

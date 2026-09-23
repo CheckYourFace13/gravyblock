@@ -16,7 +16,7 @@ export default function ForHealthWellnessPage() {
         "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Publish weekly content: workout tips, wellness guides, and local health resources that rank long-term.",
         "Track Google Map rankings for 'gym near me,' 'personal trainer,' 'yoga studio,' and city-specific searches.",
-        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor replies are drafted for you to paste.",
+        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor reviews are monitored and flagged for you — their APIs do not allow automatic replies.",
         "Send personalized outreach to relevant local organizations. A link only counts once verified live; links are never guaranteed.",
         "Monitor AI visibility — health and wellness searches are increasingly answered by ChatGPT and Perplexity.",
       ]}

@@ -134,9 +134,9 @@ export function IntegrationsSection({
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-semibold text-zinc-900">Publishing integrations</h2>
+      <h2 className="text-lg font-semibold text-zinc-900">Connect your website</h2>
       <p className="mt-1 text-sm text-zinc-600">
-        Connect your CMS to auto-publish AI-generated content directly to your blog or site.
+        Lets GravyBlock safely publish and improve eligible pages automatically. Connect once. GravyBlock takes it from there.
       </p>
 
       {status ? (

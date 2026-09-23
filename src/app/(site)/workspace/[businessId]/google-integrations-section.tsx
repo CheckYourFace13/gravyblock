@@ -42,9 +42,9 @@ export function GoogleIntegrationsSection({
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">Google integrations</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">Connect Google</h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Connect your Google account to pull real Search Console ranking data and post directly to your Google Business Profile. No third-party tools needed.
+            Unlocks Google Business Profile posting, review replies, and real Search Console measurement. Connect once. GravyBlock takes it from there.
           </p>
         </div>
         {connected ? (

@@ -17,7 +17,7 @@ export default function ForBarsPage() {
         "Publish a weekly Google Business Profile post based on a page from your own website, and add your own website images to your profile once Google is connected.",
         "Track your Google Map ranking for 'bars near me' and specific drink/vibe searches.",
         "Publish local content: best happy hours, weekend events, drink specials. Drives discovery.",
-        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor replies are drafted for you to paste.",
+        "Monitor reviews and reply to Google reviews automatically once Google is connected. Yelp and TripAdvisor reviews are monitored and flagged for you — their APIs do not allow automatic replies.",
         "Check AI search mentions. ChatGPT and Perplexity increasingly answer nightlife questions.",
         "Share your real reviews on your connected Facebook Page, with no per-post approval.",
       ]}

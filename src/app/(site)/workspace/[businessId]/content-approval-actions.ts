@@ -1,12 +1,8 @@
 "use server";
 
 import { and, eq, or } from "drizzle-orm";
-import { getDb, contentQueue, businesses } from "@/lib/db";
+import { getDb, contentQueue } from "@/lib/db";
 import { requireBusinessAccess } from "@/lib/auth/customer-guards";
-
-// Facebook and Instagram have a real posting integration (facebook-poster
-// worker, Graph API) — approving them queues them for auto-posting.
-const SOCIAL_KINDS = ["facebook_post", "instagram_caption"] as const;
 
 export type QueuedDraft = {
   id: string;
@@ -19,6 +15,11 @@ export type QueuedDraft = {
   createdAt: string;
 };
 
+// Everything with status "queued" publishes automatically — the WordPress/
+// Webflow/Shopify publisher and the Facebook/Instagram posters both pick up
+// "queued" items on their own schedule. There is no approval gate; this
+// panel is read-only except for "Skip", which pulls an item out before it
+// goes out.
 export async function getQueuedDrafts(businessId: string): Promise<QueuedDraft[]> {
   await requireBusinessAccess(businessId);
   const db = getDb();
@@ -39,11 +40,9 @@ export async function getQueuedDrafts(businessId: string): Promise<QueuedDraft[]
     .where(
       and(
         eq(contentQueue.businessId, businessId),
-        // Include regular queued drafts AND social posts awaiting approval
         or(
           eq(contentQueue.status, "queued"),
-          eq(contentQueue.status, "pending_approval"),
-          eq(contentQueue.status, "approved"),
+          eq(contentQueue.status, "published"),
         ),
       ),
     )
@@ -53,45 +52,7 @@ export async function getQueuedDrafts(businessId: string): Promise<QueuedDraft[]
   return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
 }
 
-/** Mark a queued item as approved.
- *  - Social posts (facebook_post, instagram_caption) → "queued"
- *    so the facebook-poster worker picks them up immediately.
- *  - Everything else → "approved" (autopilot priority flag).
- */
-export async function approveQueuedDraft(
-  businessId: string,
-  queueItemId: string,
-): Promise<{ ok: boolean }> {
-  await requireBusinessAccess(businessId);
-  const db = getDb();
-  if (!db) return { ok: false };
-
-  // Fetch the item kind to decide target status
-  const [item] = await db
-    .select({ kind: contentQueue.kind })
-    .from(contentQueue)
-    .where(and(eq(contentQueue.id, queueItemId), eq(contentQueue.businessId, businessId)))
-    .limit(1);
-
-  if (!item) return { ok: false };
-
-  const isSocial = (SOCIAL_KINDS as readonly string[]).includes(item.kind);
-  const nextStatus = isSocial ? "queued" : "approved";
-
-  await db
-    .update(contentQueue)
-    .set({ status: nextStatus })
-    .where(
-      and(
-        eq(contentQueue.id, queueItemId),
-        eq(contentQueue.businessId, businessId),
-      ),
-    );
-
-  return { ok: true };
-}
-
-/** Dismiss a queued item so it won't be published. */
+/** Pull a queued item out so it won't publish. */
 export async function dismissQueuedDraft(
   businessId: string,
   queueItemId: string,

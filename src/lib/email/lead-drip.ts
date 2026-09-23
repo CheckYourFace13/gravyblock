@@ -69,7 +69,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
         When someone searches for a business like ${businessName}, they compare 3–5 options in about 90 seconds. The winners have complete profiles, recent reviews, and fresh content. The losers have outdated listings and missing information — even if they're the better business.
       </p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        GravyBlock runs part of that work on a schedule: it writes and publishes website content from your own site's facts, posts to your Google Business Profile, replies to your Google reviews, and checks that your business details agree across your website and Google.
+        GravyBlock decides what worthwhile eligible work should happen next and does it: it writes and publishes website content from your own site's facts, posts to your Google Business Profile, replies to your Google reviews, and checks that your business details agree across your website and Google.
       </p>
       ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start Scale — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Locked at $74.99/mo for as long as you stay subscribed. No contract.</p>
@@ -250,10 +250,10 @@ const DRIP_SEQUENCE: DripEmail[] = [
         <li>Scans your Google listing, website, and nearby competitors. Scores all visibility signals.</li>
         <li>Writes the first ${vertical ? vertical.toLowerCase() : "local"} article targeting your city and publishes it to your site.</li>
         <li>Checks that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook, and alerts you if they drift.</li>
-        <li>New Google reviews get a reply posted automatically. Yelp and TripAdvisor replies are drafted for you to paste.</li>
-        <li>On a schedule: visibility score refreshes, content is published, and outreach goes out. A monthly digest summarizes what ran.</li>
+        <li>New Google reviews get a reply posted automatically. Yelp and TripAdvisor reviews are monitored and flagged, since their APIs don't allow automatic replies.</li>
+        <li>GravyBlock continually decides what worthwhile eligible work should happen next — visibility score refreshes, content publishes, and outreach goes out as it earns its place. A monthly digest summarizes what ran.</li>
       </ol>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">You don't need to learn SEO. After setup it runs on a schedule.</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">You don't need to learn SEO. After setup, GravyBlock keeps deciding what to do next on its own.</p>
       ${btn(`${siteUrl}/scan?plan=growth&promo=GROWTH50`, "Start Scale — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">Locked at $74.99/mo for as long as you stay subscribed.</p>
     `, email, leadId),

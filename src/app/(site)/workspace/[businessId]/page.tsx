@@ -520,7 +520,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           />
           </div>
 
-          {/* Content drafts to approve */}
+          {/* Content GravyBlock is about to publish — read-only, dismiss to skip */}
           {features.contentDraftsPerMonth > 0 && queuedDrafts.length > 0 ? (
             <ContentApprovalSection businessId={businessId} initialDrafts={queuedDrafts} />
           ) : null}
@@ -528,13 +528,12 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
           {/* GBP tasks */}
           {pendingGbpTasks.length > 0 ? (
             <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-5 shadow-sm">
-              <h3 className="text-base font-semibold text-zinc-900">Google Business Profile: paste these in</h3>
+              <h3 className="text-base font-semibold text-zinc-900">Google Business Profile needs your input</h3>
               <p className="mt-1 text-sm text-zinc-600">
-                Go to{" "}
+                Google doesn't allow these specific fields through its API, so they need a one-time entry from you at{" "}
                 <a href="https://business.google.com" className="text-red-800 underline" target="_blank" rel="noreferrer">
                   business.google.com
-                </a>{" "}
-                and paste each item below. Takes about 5 minutes total.
+                </a>. Everything else on your profile keeps posting automatically.
               </p>
               <ul className="mt-4 space-y-4">
                 {pendingGbpTasks.map((task) => (

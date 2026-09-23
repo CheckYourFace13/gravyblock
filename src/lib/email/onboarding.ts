@@ -58,7 +58,7 @@ const ONBOARD_SEQUENCE: OnboardEmail[] = [
       <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
         <ul style="margin:0;padding-left:20px;color:#3f3f46;font-size:13px;line-height:2">
           <li>Content ideas and consistency checks appear in your workspace</li>
-          <li>On Scale and Pro, once your website is connected, articles are published to your site on the next scheduled run</li>
+          <li>On Scale and Pro, once your website is connected, articles publish to your site automatically</li>
           <li>A monthly summary email arrives with what ran</li>
         </ul>
       </div>
@@ -70,26 +70,26 @@ const ONBOARD_SEQUENCE: OnboardEmail[] = [
   },
   {
     day: 3,
-    subject: ({ businessName }) => `3 things to do this week for ${businessName}`,
+    subject: ({ businessName }) => `What GravyBlock has already started for ${businessName}`,
     html: ({ firstName, businessName, workspaceUrl, email }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Quick Wins</p>
-      <h1 style="margin:8px 0 0;font-size:22px;font-weight:700;color:#18181b">3 things worth doing this week</h1>
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Three days in</p>
+      <h1 style="margin:8px 0 0;font-size:22px;font-weight:700;color:#18181b">Here's what's already running</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${firstName},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">
-        GravyBlock runs scheduled work for ${businessName}. Here are three things you can do yourself this week that may help:
+        GravyBlock decides what's worth doing for ${businessName} and does it — no action list for you to work through. A few things are worth knowing about:
       </p>
       <div style="margin:16px 0">
         <div style="padding:14px;background:#f4f4f5;border-radius:10px;margin-bottom:10px">
-          <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">1. Ask your last 5 customers for a Google review</p>
-          <p style="margin:6px 0 0;font-size:13px;color:#52525b">Review recency is the fastest way to move your local ranking. A personal text or message converts at 30–40%.</p>
+          <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Review requests happen automatically</p>
+          <p style="margin:6px 0 0;font-size:13px;color:#52525b">Once you connect your booking or invoicing system, GravyBlock emails every real completed customer a neutral request to leave a Google review — nothing for you to send yourself.</p>
         </div>
         <div style="padding:14px;background:#f4f4f5;border-radius:10px;margin-bottom:10px">
-          <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">2. Add or update your Google Business Profile photos</p>
-          <p style="margin:6px 0 0;font-size:13px;color:#52525b">Profiles with recent photos get 35% more direction requests and 42% more website clicks on average.</p>
+          <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Google Business Profile posts go out on their own</p>
+          <p style="margin:6px 0 0;font-size:13px;color:#52525b">Once Google is connected, GravyBlock posts and adds your own photos automatically — no calendar to keep.</p>
         </div>
         <div style="padding:14px;background:#f4f4f5;border-radius:10px">
-          <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">3. Check your workspace for new action items</p>
-          <p style="margin:6px 0 0;font-size:13px;color:#52525b">Content ideas and any flagged items are waiting in your workspace.</p>
+          <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Any one-time connections still open are in your workspace</p>
+          <p style="margin:6px 0 0;font-size:13px;color:#52525b">Each one unlocks more automatic work — nothing recurring, just a one-time authorization.</p>
         </div>
       </div>
       ${btn(workspaceUrl, "Open my workspace")}
@@ -108,14 +108,14 @@ const ONBOARD_SEQUENCE: OnboardEmail[] = [
       <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
         ${score !== null ? `<p style="margin:0;font-size:15px;color:#18181b">Current visibility score: <strong style="font-size:20px;color:#dc2626">${score}/100</strong></p>` : ""}
         <ul style="margin:${score !== null ? "12px" : "0"} 0 0;padding-left:20px;color:#3f3f46;font-size:13px;line-height:2">
-          <li>Scheduled jobs run once your website and accounts are connected</li>
+          <li>GravyBlock keeps deciding what's worth doing once your website and accounts are connected</li>
           <li>Content ideas and flagged items are in your workspace</li>
           <li>AI visibility is checked monthly to see whether your business is being recommended</li>
           <li>A monthly summary email will arrive at the end of your first cycle</li>
         </ul>
       </div>
       <p style="color:#52525b;font-size:14px;margin:16px 0">
-        Your workspace shows everything that has been done and what is queued next. Open it any time to review action items.
+        Your workspace shows everything GravyBlock has done for you so far. Open it any time to see what's running.
       </p>
       ${btn(workspaceUrl, "Open my workspace")}
       <p style="color:#71717a;font-size:13px;margin:20px 0 0">

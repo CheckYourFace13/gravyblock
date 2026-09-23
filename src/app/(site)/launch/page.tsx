@@ -27,7 +27,7 @@ const features = [
   {
     icon: "⭐",
     title: "Review monitoring + automatic Google replies",
-    desc: "New Google, Yelp and TripAdvisor reviews are monitored and you are alerted. Replies to Google reviews are posted automatically once Google is connected; Yelp and TripAdvisor replies are drafted for you to paste.",
+    desc: "New Google, Yelp and TripAdvisor reviews are monitored and you are alerted. Replies to Google reviews are posted automatically once Google is connected; Yelp and TripAdvisor are monitored and flagged since their APIs don't allow automatic replies.",
   },
   {
     icon: "🤖",
@@ -44,7 +44,7 @@ const features = [
 const faqs = [
   {
     q: "Does this actually publish to my site automatically?",
-    a: "Yes, for WordPress, Webflow and Shopify sites. Connect your site once and articles are published on schedule. Other platforms get drafted content to paste in yourself.",
+    a: "Yes, for WordPress, Webflow and Shopify sites. Connect your site once and GravyBlock publishes automatically from then on. Other platforms aren't supported for automatic publishing yet — content publishing waits for a supported connection, but everything else keeps running.",
   },
   {
     q: "What if I don't have a Google Business Profile?",

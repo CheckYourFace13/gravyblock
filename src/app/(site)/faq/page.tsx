@@ -83,6 +83,10 @@ const faqs = [
         a: "Our AI writes articles and service pages using facts taken from your own website, so nothing is written about details your site does not state. They are published to your connected WordPress, Webflow or Shopify site and checked to confirm the page is live.",
       },
       {
+        q: "How does GravyBlock know what my business actually offers?",
+        a: "GravyBlock keeps learning from your current website so its marketing stays based on what your business actually offers, not a stale snapshot from signup day. It checks for changes daily and does a deeper re-read at least once a week, so if you add a service, change your hours, or run a new offer, that shows up in what GravyBlock writes and posts without you telling it.",
+      },
+      {
         q: "Will the content hurt my site if Google detects it's AI?",
         a: "Google's quality guidelines focus on helpfulness, not authorship. Our content is locally relevant, genuinely useful, and follows Google's E-E-A-T guidelines. We add location-specific details, real stats, and your business context to make each piece substantive.",
       },
@@ -101,7 +105,7 @@ const faqs = [
     items: [
       {
         q: "How does the review inbox work?",
-        a: "GravyBlock monitors your Google, Yelp and TripAdvisor reviews and alerts you when a new one arrives. On Scale and Pro, replies to Google reviews are posted automatically once your Google account is connected. Yelp and TripAdvisor do not allow replies through their API, so those replies are drafted for you to paste. Negative reviews are flagged.",
+        a: "GravyBlock monitors your Google, Yelp and TripAdvisor reviews and alerts you when a new one arrives. On Scale and Pro, replies to Google reviews are posted automatically once your Google account is connected. Yelp and TripAdvisor do not allow replies through their API, so those are monitored and flagged for you instead — not a task added to your plate. Negative reviews are flagged.",
       },
       {
         q: "Does GravyBlock fake reviews?",

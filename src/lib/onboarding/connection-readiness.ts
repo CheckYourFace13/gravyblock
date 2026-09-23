@@ -390,10 +390,19 @@ function buildNeedsYou(r: ConnectionReadiness, pendingDirectories: string[]): Ne
     else byKind.set(e.oneTimeAction.kind, { action: e.oneTimeAction, engines: [e.engine] });
   }
 
+  const CONNECT_COPY: Partial<Record<OneTimeActionKind, string>> = {
+    connect_google: "Unlocks Google Business Profile posting, review replies and Search Console measurement.",
+    connect_publishing: "Lets GravyBlock safely publish and improve eligible pages automatically.",
+    connect_facebook: "Lets GravyBlock publish relevant social updates automatically.",
+    connect_customer_feed: "Lets GravyBlock send neutral review requests automatically after real completed transactions.",
+  };
+
   const items: NeedsYouItem[] = [];
   for (const [kind, { action, engines }] of byKind) {
-    let why = `Unlocks: ${engines.map((e) => ENGINE_NAMES[e]).join(", ")}.`;
-    if (kind === "connect_google") why = "One Google authorization covers Business Profile posts, photos, review replies and Search Console. Unlocks: " + engines.map((e) => ENGINE_NAMES[e]).join(", ") + ".";
+    const preset = CONNECT_COPY[kind];
+    const why = preset
+      ? `${preset} Connect once. GravyBlock takes it from there.`
+      : `Unlocks: ${engines.map((e) => ENGINE_NAMES[e]).join(", ")}. Connect once. GravyBlock takes it from there.`;
     items.push({ id: kind, label: action.label, why, href: action.href ?? `/workspace/${r.businessId}`, kind });
   }
 

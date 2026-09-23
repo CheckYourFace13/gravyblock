@@ -99,7 +99,7 @@ function buildFollowUpEmail(businessName: string, plan: string): { subject: stri
   const isGrowth = plan === "growth";
   const subject = `still there? your GravyBlock workspace is waiting`;
   const priceLine = isGrowth
-    ? `If the price was the issue: ${planLabel} is locked at ${introPrice}/mo for as long as your subscription stays active. That includes articles published to your connected site, weekly Google Business Profile posts, automatic Google review replies, citation consistency checks, and rank tracking, running on a schedule after a one-time setup.`
+    ? `If the price was the issue: ${planLabel} is locked at ${introPrice}/mo for as long as your subscription stays active. That includes articles published to your connected site, weekly Google Business Profile posts, automatic Google review replies, citation consistency checks, and rank tracking — all decided and done automatically after a one-time setup.`
     : `If the price was the issue: use code <strong>INTRO50</strong> at checkout and ${planLabel} drops to ${introPrice} for the first month.`;
   const html = wrap(`
     <p style="color:#52525b;font-size:15px;margin:0 0 16px 0">Hey,</p>

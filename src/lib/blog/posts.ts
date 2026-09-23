@@ -648,7 +648,7 @@ Semrush is a broad SEO suite with a local toolkit that includes listing manageme
 ### GravyBlock (Starter $59.99, Scale $149.99, Pro $299.99 per month; promo codes are available)
 **Best for:** Owner-operated local businesses that want the work decided and done for them automatically
 
-GravyBlock is a lower-cost option that automatically decides and does a defined set of work: articles and service pages written from your own website's information and published to your connected WordPress, Webflow or Shopify site, Google Business Profile posts, automatic replies to Google reviews (Yelp and TripAdvisor replies are drafted for you to paste), automatic review requests to your real customers, personalized local outreach, and citation consistency checks with drift alerts. It does not build or fix listings on hundreds of directories.
+GravyBlock is a lower-cost option that automatically decides and does a defined set of work: articles and service pages written from your own website's information and published to your connected WordPress, Webflow or Shopify site, Google Business Profile posts, automatic replies to Google reviews (Yelp and TripAdvisor reviews are monitored and flagged, since their APIs don't allow automatic replies), automatic review requests to your real customers, personalized local outreach, and citation consistency checks with drift alerts. It does not build or fix listings on hundreds of directories.
 
 ## Which Tool Should You Choose?
 
