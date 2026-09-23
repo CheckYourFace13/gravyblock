@@ -17,7 +17,7 @@ import { getOperatingMode } from "@/lib/business-mode";
 import { getCapabilityProfile } from "@/lib/capability-profile";
 import { strategyWeight } from "./strategy";
 import { getMaturitySignals, maturityMultiplier } from "./maturity";
-import type { MeasurementPlan, MeasuredResultStatus, OpportunityCandidate, OpportunityType, ValueClass } from "./types";
+import type { EligibilityLabel, MeasurementPlan, MeasuredResultStatus, OpportunityCandidate, OpportunityType, ValueClass } from "./types";
 
 const CAPABILITY_FLAG: Record<string, string> = {
   website_write: "website_write",
@@ -91,6 +91,31 @@ export async function nextOpportunities(businessId: string, limit = 5): Promise<
   });
   return eligible
     .map((r) => ({ ...r, rankScore: rank(r, strategyWeight(mode.mode, r.opportunityType as OpportunityType) * maturityMultiplier(maturity, r.opportunityType as OpportunityType)) }))
+    .sort((a, b) => b.rankScore - a.rankScore)
+    .slice(0, limit);
+}
+
+export function classifyEligibility(r: { status: string; autoEligible: string; requiredCapability: string | null; measurementPlan: unknown; valueClass: string; expectedImpact: number; confidence: number }, profileActive: Set<string>): EligibilityLabel {
+  if (r.status === "acting") return "ACTING";
+  if (r.status === "acted" && r.measurementPlan) return "MEASURING";
+  if (r.autoEligible !== "true") return "NOT_WORTH_ACTING";
+  const need = r.requiredCapability;
+  if (need) {
+    const flag = CAPABILITY_FLAG[need];
+    if (flag && !profileActive.has(flag)) return "BLOCKED_ONE_TIME_CONNECTION";
+  }
+  if (r.expectedImpact * r.confidence < 400) return "NOT_WORTH_ACTING";
+  return "AUTO_ELIGIBLE";
+}
+
+/** Every open opportunity for a business, ranked, with a human-readable eligibility label — this is what the orchestrator and any "top 5" report reads from. Cooldown-blocked rows won't appear here (the engine that owns the cooldown never records them as open in the first place, or records them not-auto-eligible) — see per-engine notes. */
+export async function allOpenRanked(businessId: string, limit = 20): Promise<(RankedOpportunity & { eligibility: EligibilityLabel })[]> {
+  const db = getDb();
+  if (!db) return [];
+  const [mode, profile, maturity] = await Promise.all([getOperatingMode(businessId), getCapabilityProfile(businessId), getMaturitySignals(businessId)]);
+  const rows = await db.select().from(growthOpportunities).where(and(eq(growthOpportunities.businessId, businessId), sql`${growthOpportunities.status} in ('open','acting','acted')`)).limit(300);
+  return rows
+    .map((r) => ({ ...r, rankScore: rank(r, strategyWeight(mode.mode, r.opportunityType as OpportunityType) * maturityMultiplier(maturity, r.opportunityType as OpportunityType)), eligibility: classifyEligibility(r, profile.active) }))
     .sort((a, b) => b.rankScore - a.rankScore)
     .slice(0, limit);
 }

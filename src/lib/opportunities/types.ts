@@ -16,6 +16,9 @@ export type OpportunityType =
 
 export type OpportunityStatus = "open" | "acting" | "acted" | "verified" | "no_gain" | "blocked_missing_capability" | "rejected" | "expired";
 
+/** Reported eligibility — distinct from the persisted `status`, computed fresh against the business's current capability profile and cooldown/dedupe state. */
+export type EligibilityLabel = "AUTO_ELIGIBLE" | "BLOCKED_ONE_TIME_CONNECTION" | "BLOCKED_MEASUREMENT" | "COOLDOWN" | "UNSUPPORTED" | "NOT_WORTH_ACTING" | "ACTING" | "MEASURING";
+
 /** Capability keys as produced by CapabilityProfile.active. */
 export type RequiredCapability = "website_write" | "gsc" | "gbp" | "social" | "reviews" | "authority_contact" | null;
 

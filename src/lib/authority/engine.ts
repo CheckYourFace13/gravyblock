@@ -719,6 +719,25 @@ export async function discoverAndQualify(businessId: string): Promise<{ discover
 
 /* ─────────────── 5. batch + metrics ─────────────── */
 
+/** Act on the best available authority opportunity for ONE business — the unit the opportunity-queue orchestrator calls. Same safeguards as the batch (authorization, health, shared budget, relevance gate). */
+export async function actOnBestAuthorityOpportunity(businessId: string): Promise<{ sent: number; followUps: number; reason?: string }> {
+  const db = getDb();
+  if (!db) return { sent: 0, followUps: 0, reason: "no_db" };
+  const health = await checkOutreachHealth();
+  const budget = { left: Math.min(2, await getRemainingSharedBudget()) };
+  const enabled = await authoritySendingEnabled(db);
+  if (!enabled) return { sent: 0, followUps: 0, reason: "sending_paused" };
+  if (!health.healthy) return { sent: 0, followUps: 0, reason: `health:${health.reason}` };
+  if (budget.left <= 0) return { sent: 0, followUps: 0, reason: "shared_budget_exhausted" };
+  if (!(await isOutreachAuthorized(db, businessId))) return { sent: 0, followUps: 0, reason: "not_authorized" };
+  const truth = await ensureFreshTruth(businessId);
+  if (!truth.sufficient) return { sent: 0, followUps: 0, reason: `insufficient_truth:${truth.insufficientReason}` };
+  const stats = await getSourceTypeStats(db);
+  const followUps = await sendFollowUps(db, businessId, truth, budget);
+  const sent = budget.left > 0 ? await sendInitialOutreach(db, businessId, truth, stats, budget) : 0;
+  return { sent, followUps, reason: sent || followUps ? undefined : "no_eligible_prospect" };
+}
+
 export async function runAuthorityBatch(opts: { maxBusinesses?: number } = {}): Promise<{ businesses: number; found: number; qualified: number; sent: number; followUps: number; checked: number; acquired: number; skipped?: string }> {
   const out = { businesses: 0, found: 0, qualified: 0, sent: 0, followUps: 0, checked: 0, acquired: 0 };
   const db = getDb();

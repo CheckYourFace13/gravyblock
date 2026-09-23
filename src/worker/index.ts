@@ -50,6 +50,7 @@ import { runCanaryAssertionsBatch } from "@/lib/canary/assertions";
 import { runTruthOpportunitiesBatch } from "@/lib/opportunities/truth-opportunities";
 import { scanCrossEngineOpportunitiesBatch } from "@/lib/opportunities/scan";
 import { evaluateMeasurementPlans } from "@/lib/opportunities/evaluate";
+import { runOrchestratorBatch } from "@/lib/opportunities/orchestrator";
 import { runSiteWatchdogBatch } from "@/lib/watchdog/site-watchdog";
 import { runCitationEngineBatch } from "@/lib/citations/engine";
 import { runRepurposeBatch } from "@/lib/content-gen/repurpose";
@@ -710,6 +711,7 @@ async function tick() {
       { name: 'truth_opportunities_batch', hour: 5, run: () => runTruthOpportunitiesBatch(15) },
       { name: 'cross_engine_opportunity_scan', hour: 6, run: () => scanCrossEngineOpportunitiesBatch(15) },
       { name: 'opportunity_measurement_eval', hour: 17, run: () => evaluateMeasurementPlans(20) },
+      { name: 'opportunity_orchestrator_batch', hour: 18, run: () => runOrchestratorBatch(10) },
     ];
     try {
       const inb = await ensureInboundReceiving();

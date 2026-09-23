@@ -108,3 +108,24 @@ any write:
 
 A future adapter (a GitHub-commit connector, a Wix/Squarespace app, a headless CMS) is added by
 implementing this same capability set — no engine changes.
+
+## Minimal integration checklist (any Next.js site)
+
+Proven three times (Boating Chicago, LeaguePour, SeeStew) with the identical steps and zero
+site-specific engine code on GravyBlock's side:
+
+1. Add `src/lib/gravyblock-managed.ts` — `getManagedFeed()` (fetch + Ed25519 verify) and
+   `applyManagedMetadata(path, base)`. ~70 lines, no dependencies beyond Node's built-in `crypto`.
+2. Add `src/app/.well-known/gravyblock.json/route.ts` — a static route returning
+   `{ connector: "gravyblock-managed", version: 1, businessId: "<this business's id>" }`. This is
+   the one piece of per-site config (the business id), exactly like a site storing its own
+   analytics ID — not GravyBlock engine logic.
+3. Wrap each page's `generateMetadata` return in `applyManagedMetadata(path, { ...existing })`
+   (full coverage is ideal; even wrapping only the highest-traffic templates — the homepage and
+   the main content-detail page — lets basic-page-SEO actions apply immediately).
+4. Optional: add `src/app/insights/[slug]/page.tsx` (+ index page) so GravyBlock can publish new
+   articles, and list `getManagedFeed()` items in `sitemap.ts`.
+
+Nothing here requires GravyBlock credentials on the site, a build-time secret, or a webhook back
+to GravyBlock — it is a public, signed, read-only fetch. `autoConnectManagedSites` finds and
+attaches the site automatically on its next run once step 2 is live.
