@@ -3,7 +3,7 @@ import Link from "next/link";
 import { GLOSSARY_TERMS } from "@/lib/content/glossary";
 
 export const metadata: Metadata = {
-  title: "Local SEO Glossary — Key Terms Defined | GravyBlock",
+  title: "Local SEO Glossary — Key Terms Defined",
   description:
     "Clear definitions for the most important local SEO and AI search terms. Learn what NAP consistency, citations, GEO audits, and review signals actually mean for your business.",
   alternates: { canonical: "https://gravyblock.com/glossary" },

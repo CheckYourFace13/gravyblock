@@ -3,7 +3,7 @@ import Link from "next/link";
 import { GuideShell } from "@/components/guide-shell";
 
 export const metadata: Metadata = {
-  title: "Local Citation Sites USA — Complete List for 2026 | GravyBlock",
+  title: "Local Citation Sites USA — Complete List for 2026",
   description:
     "The most important local citation sites in the USA for 2026. Build NAP consistency across Google, Yelp, Apple Maps, Bing, Facebook, and 50+ directories. Free citation audit.",
   alternates: { canonical: "/guides/local-citation-sites-usa" },

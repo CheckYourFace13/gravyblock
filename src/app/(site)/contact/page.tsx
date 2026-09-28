@@ -3,7 +3,7 @@ import Link from "next/link";
 import { CtaLeadForm } from "@/components/cta-lead-form";
 
 export const metadata: Metadata = {
-  title: "Contact — GravyBlock",
+  title: "Contact",
   description:
     "Questions about GravyBlock, pricing, or getting started? Reach us directly at chris@gravyblock.com or send a message below.",
   alternates: { canonical: "https://gravyblock.com/contact" },

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "Local SEO for health & wellness businesses — gyms, spas, therapists | GravyBlock",
+  title: "Local SEO for health & wellness businesses — gyms, spas, therapists",
   description: "GravyBlock automates local SEO for health and wellness: publishes content, gathers reviews, keeps citations consistent, monitors your visibility. Help clients find you. Free scan.",
 };
 

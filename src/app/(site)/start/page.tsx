@@ -5,7 +5,7 @@ import { normalizePromoCode } from "@/lib/stripe/promo-codes";
 import { ANNUAL_SAVINGS } from "@/lib/stripe/server";
 
 export const metadata: Metadata = {
-  title: "Get started — GravyBlock",
+  title: "Get started",
   description: "Start your GravyBlock plan.",
   robots: { index: false, follow: false }, // don't index the signup funnel
 };

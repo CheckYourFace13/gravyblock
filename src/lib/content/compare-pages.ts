@@ -16,7 +16,7 @@ const links = [
 const BASE_PAGES: Record<string, ComparePage> = {
   "local-seo-audit-tools": {
     slug: "local-seo-audit-tools",
-    metaTitle: "Local SEO audit tools comparison | GravyBlock",
+    metaTitle: "Local SEO audit tools comparison",
     metaDescription: "What local SEO audit tools do well, where they fall short, and how GravyBlock differs with scan-to-workspace workflow.",
     model: {
       eyebrow: "Comparison",
@@ -37,7 +37,7 @@ const BASE_PAGES: Record<string, ComparePage> = {
   },
   "google-maps-ranking-tools": {
     slug: "google-maps-ranking-tools",
-    metaTitle: "Google Maps ranking tools comparison | GravyBlock",
+    metaTitle: "Google Maps ranking tools comparison",
     metaDescription: "Compare map-ranking tools and approaches with practical guidance for local businesses needing better call and booking outcomes.",
     model: {
       eyebrow: "Comparison",
@@ -54,7 +54,7 @@ const BASE_PAGES: Record<string, ComparePage> = {
   },
   "ai-search-visibility-tools": {
     slug: "ai-search-visibility-tools",
-    metaTitle: "AI search visibility tools for local businesses | GravyBlock",
+    metaTitle: "AI search visibility tools for local businesses",
     metaDescription: "Evaluate AI search visibility tools based on factual consistency, trust signals, and practical local growth workflows.",
     model: {
       eyebrow: "Comparison",
@@ -71,7 +71,7 @@ const BASE_PAGES: Record<string, ComparePage> = {
   },
   "multi-location-seo-tools": {
     slug: "multi-location-seo-tools",
-    metaTitle: "Multi-location SEO tools comparison | GravyBlock",
+    metaTitle: "Multi-location SEO tools comparison",
     metaDescription: "Compare multi-location SEO tools and workflows for consistency, trust, and conversion across local footprints.",
     model: {
       eyebrow: "Comparison",
@@ -295,7 +295,7 @@ function buildVsPages(): Record<string, ComparePage> {
   for (const c of configs) {
     pages[c.slug] = {
       slug: c.slug,
-      metaTitle: "GravyBlock vs " + c.name + ": local SEO compared | GravyBlock",
+      metaTitle: "GravyBlock vs " + c.name + ": local SEO compared",
       metaDescription: c.metaDescription,
       model: {
         eyebrow: "GravyBlock vs " + c.name,

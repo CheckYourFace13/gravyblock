@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Review connector | GravyBlock",
+  title: "Review connector",
   robots: { index: false, follow: false },
 };
 

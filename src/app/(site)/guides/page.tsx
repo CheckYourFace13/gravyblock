@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Local SEO guides — how to rank higher on Google Maps & AI search | GravyBlock",
+  title: "Local SEO guides — how to rank higher on Google Maps & AI search",
   description:
     "Free local SEO guides for small business owners: how to rank on Google Maps, get more reviews, show up in AI search, earn local links, and convert local visitors into customers.",
   alternates: { canonical: "https://gravyblock.com/guides" },

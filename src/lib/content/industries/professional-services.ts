@@ -1,7 +1,7 @@
 import type { IndustryPageModel } from "./types";
 
 export const professionalServicesPage: IndustryPageModel = {
-  metaTitle: "Local visibility for law firms, finance, and professional services | GravyBlock",
+  metaTitle: "Local visibility for law firms, finance, and professional services",
   metaDescription:
     "Lawyers, CPAs, insurance, real estate, and advisors: strengthen Google profiles, website trust, and reputation signals. Free scan from GravyBlock.",
   eyebrow: "Professional services",

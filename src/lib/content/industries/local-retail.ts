@@ -1,7 +1,7 @@
 import type { IndustryPageModel } from "./types";
 
 export const localRetailPage: IndustryPageModel = {
-  metaTitle: "Retail, food shops, and local consumer businesses: visibility playbook | GravyBlock",
+  metaTitle: "Retail, food shops, and local consumer businesses: visibility playbook",
   metaDescription:
     "Florists, boutiques, bakeries, pet stores, and neighborhood retail: align Google profiles, websites, and reviews. Free GravyBlock scan.",
   eyebrow: "Local retail and consumer",

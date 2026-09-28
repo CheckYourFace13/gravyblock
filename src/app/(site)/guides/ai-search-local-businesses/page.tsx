@@ -3,7 +3,7 @@ import Link from "next/link";
 import { GuideShell } from "@/components/guide-shell";
 
 export const metadata: Metadata = {
-  title: "AI search visibility for local businesses — GravyBlock guide",
+  title: "AI search visibility for local businesses guide",
   description:
     "How assistants and AI summaries use your facts, and how to improve clarity without promising guaranteed rankings.",
 };

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "FAQ — GravyBlock",
+  title: "FAQ",
   description:
     "Answers to the most common questions about GravyBlock: how it works, what's included in each plan, billing, cancellation, and more.",
 };

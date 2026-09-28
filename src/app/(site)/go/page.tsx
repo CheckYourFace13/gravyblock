@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Automated Local SEO for Small Businesses | GravyBlock",
+  title: "Automated Local SEO for Small Businesses",
   description:
     "Stop paying an agency. GravyBlock decides what will help and does it automatically: website content, Google Business Profile posts, Google review replies, and rank tracking. Free scan, no credit card.",
   robots: { index: false }, // Paid traffic page — keep SEO equity on homepage

@@ -5,7 +5,7 @@ import { getAllBlogPosts } from "@/lib/blog/posts";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Local SEO Blog — GravyBlock",
+  title: "Local SEO Blog",
   description: "Practical local SEO guides, tips, and automation strategies for small business owners. Written and published automatically by GravyBlock.",
   alternates: { canonical: "https://gravyblock.com/blog" },
   openGraph: {

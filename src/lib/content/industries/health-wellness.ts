@@ -1,7 +1,7 @@
 import type { IndustryPageModel } from "./types";
 
 export const healthWellnessPage: IndustryPageModel = {
-  metaTitle: "Clinics, dental, med spas, and wellness local visibility | GravyBlock",
+  metaTitle: "Clinics, dental, med spas, and wellness local visibility",
   metaDescription:
     "Dentists, med spas, gyms, vets, and therapy practices: improve listings, site trust, reviews, and AI summaries. Run a free GravyBlock scan.",
   eyebrow: "Health, wellness, and personal care",

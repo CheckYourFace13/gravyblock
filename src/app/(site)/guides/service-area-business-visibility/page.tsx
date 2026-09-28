@@ -3,7 +3,7 @@ import Link from "next/link";
 import { GuideShell } from "@/components/guide-shell";
 
 export const metadata: Metadata = {
-  title: "Service-area business visibility — GravyBlock guide",
+  title: "Service-area business visibility guide",
   description:
     "How service-area businesses (SABs) clarify where they work, what they offer, and how they earn trust without a single flagship storefront.",
 };

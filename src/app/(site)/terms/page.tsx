@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — GravyBlock",
+  title: "Terms of Service",
   description: "The terms that apply to GravyBlock subscriptions, including the one-time outreach authorization.",
 };
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Local SEO Statistics 2026: 60+ Data Points (With Sources) | GravyBlock",
+  title: "Local SEO Statistics 2026: 60+ Data Points (With Sources)",
   description:
     "The most-cited local SEO statistics for 2026: Google Business Profile, reviews, map pack, AI search, and mobile data. Free to cite with attribution.",
   alternates: { canonical: "https://gravyblock.com/local-seo-statistics" },

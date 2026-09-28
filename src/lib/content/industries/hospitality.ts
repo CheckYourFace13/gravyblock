@@ -1,7 +1,7 @@
 import type { IndustryPageModel } from "./types";
 
 export const hospitalityPage: IndustryPageModel = {
-  metaTitle: "Restaurants, bars, breweries, and cafes: maps-first readiness | GravyBlock",
+  metaTitle: "Restaurants, bars, breweries, and cafes: maps-first readiness",
   metaDescription:
     "Hospitality operators: tighten Google profiles, websites, and reviews before guests decide. Free GravyBlock scan plus deep dives for restaurants, bars, and breweries.",
   eyebrow: "Hospitality",

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { GuideShell } from "@/components/guide-shell";
 
 export const metadata: Metadata = {
-  title: "Social proof and local conversion — GravyBlock guide",
+  title: "Social proof and local conversion guide",
   description:
     "Reviews, policies, and low-friction paths that help maps-driven visitors become customers — without manipulative dark patterns.",
 };

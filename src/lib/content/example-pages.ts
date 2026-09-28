@@ -20,7 +20,7 @@ export const EXAMPLE_PAGES: Record<string, ExamplePage> = {
   // a report contains. That static route shadows this dynamic [slug] one.
   "how-a-local-business-improves-visibility-over-time": {
     slug: "how-a-local-business-improves-visibility-over-time",
-    metaTitle: "How a local business improves visibility over time | GravyBlock",
+    metaTitle: "How a local business improves visibility over time",
     metaDescription: "Example progression showing how local businesses improve profile trust, website conversion, and recurring visibility metrics.",
     model: {
       eyebrow: "Examples",
@@ -37,7 +37,7 @@ export const EXAMPLE_PAGES: Record<string, ExamplePage> = {
   },
   "multi-location-visibility-workflow": {
     slug: "multi-location-visibility-workflow",
-    metaTitle: "Multi-location visibility workflow example | GravyBlock",
+    metaTitle: "Multi-location visibility workflow example",
     metaDescription: "Example workflow for multi-location teams improving local profile consistency, trust, and conversion readiness.",
     model: {
       eyebrow: "Examples",

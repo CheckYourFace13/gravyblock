@@ -15,7 +15,7 @@ import { getBusinessIssues } from "@/lib/audit/issue-tracker";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "A real GravyBlock report — sample local growth scan | GravyBlock",
+  title: "A real GravyBlock report — sample local growth scan",
   description:
     "An actual GravyBlock account, live scores and all — not a mockup. See exactly what a business gets: visibility scores, findings, and what runs automatically.",
   alternates: { canonical: "https://gravyblock.com/examples/sample-local-growth-report" },

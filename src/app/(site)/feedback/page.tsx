@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { FeedbackForm } from "./feedback-form";
 
 export const metadata: Metadata = {
-  title: "Share your experience — GravyBlock",
+  title: "Share your experience",
   description: "Tell us how GravyBlock is working for your business.",
   robots: { index: false, follow: false }, // private feedback page
 };

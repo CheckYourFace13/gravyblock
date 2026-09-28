@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const entry = GLOSSARY_BY_SLUG[slug];
   if (!entry) return { title: "Glossary" };
   return {
-    title: `${entry.term} — Local SEO Glossary | GravyBlock`,
+    title: `${entry.term} — Local SEO Glossary`,
     description: entry.definition,
     alternates: { canonical: `https://gravyblock.com/glossary/${slug}` },
   };

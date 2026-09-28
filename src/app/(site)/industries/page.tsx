@@ -4,7 +4,7 @@ import { INDUSTRY_PAGES, INDUSTRY_SLUGS } from "@/lib/content/industries/registr
 import { INDIVIDUAL_INDUSTRY_SLUGS, INDIVIDUAL_INDUSTRY_PAGES } from "@/lib/content/industries/individual";
 
 export const metadata: Metadata = {
-  title: "Local SEO by industry — restaurants, dentists, contractors, salons & more | GravyBlock",
+  title: "Local SEO by industry — restaurants, dentists, contractors, salons & more",
   description:
     "GravyBlock industry guides for local businesses: restaurants, dentists, contractors, salons, lawyers, plumbers, real estate agents, and more. Free scan for any business type.",
   alternates: { canonical: "https://gravyblock.com/industries" },

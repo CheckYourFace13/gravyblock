@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ token: string }> };
 
 export const metadata: Metadata = {
-  title: "Set up your account — GravyBlock",
+  title: "Set up your account",
   robots: { index: false },
 };
 

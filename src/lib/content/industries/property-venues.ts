@@ -1,7 +1,7 @@
 import type { IndustryPageModel } from "./types";
 
 export const propertyVenuesPage: IndustryPageModel = {
-  metaTitle: "Apartments, venues, storage, and childcare: local profile readiness | GravyBlock",
+  metaTitle: "Apartments, venues, storage, and childcare: local profile readiness",
   metaDescription:
     "Property and place-based brands: align maps listings, websites, and policies for tours and bookings. Free GravyBlock scan.",
   eyebrow: "Property and place-based",

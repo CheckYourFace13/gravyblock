@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!city || !industry) return { title: "Not found" };
 
   return {
-    title: `Local SEO for ${industry.plural} in ${city.name}, ${city.state} | GravyBlock`,
+    title: `Local SEO for ${industry.plural} in ${city.name}, ${city.state}`,
     description: `GravyBlock automatically decides and does website content, Google Business Profile posts, Google review replies, and AI visibility checks for ${industry.plural} in ${city.name}. Free scan — no credit card.`,
     alternates: {
       canonical: `/local-seo/${citySlug}/${industrySlug}`,

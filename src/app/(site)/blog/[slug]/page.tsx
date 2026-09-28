@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!post) return { title: "Not found" };
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
   return {
-    title: `${post.title} — GravyBlock`,
+    title: `${post.title}`,
     description: post.metaDescription,
     alternates: { canonical: `${siteUrl}/blog/${slug}` },
     openGraph: {

@@ -4,7 +4,7 @@ import { TestimonialsSection } from "./testimonials-section";
 
 export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/" },
-  title: "GravyBlock — Automated Local SEO for Small Businesses | Free Scan",
+  title: { absolute: "GravyBlock — Automated Local SEO for Small Businesses | Free Scan" },
   description:
     "GravyBlock automates local SEO for small businesses: publishes website content, replies to Google reviews, checks citation consistency, and tracks visibility — so you get discovered on Google Maps and Google Search. Autopilot from $74.99/mo, locked while subscribed. Free scan.",
 };

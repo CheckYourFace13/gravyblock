@@ -8,7 +8,7 @@ import { getShowcaseBusinesses, type ProofActivity } from "@/lib/proof/get-showc
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Proof: we run GravyBlock on our own businesses | GravyBlock",
+  title: "Proof: we run GravyBlock on our own businesses",
   description:
     "Verified activity from businesses we operate ourselves on the same automation paying customers get. Only work confirmed to have happened is shown, not testimonials and not queued or drafted work.",
   alternates: { canonical: "https://gravyblock.com/proof" },

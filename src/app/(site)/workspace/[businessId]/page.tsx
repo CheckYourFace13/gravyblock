@@ -58,7 +58,7 @@ const normalizePromoCodeIntent = normalizePromoCode;
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   await params;
   return {
-    title: "Workspace — GravyBlock",
+    title: "Workspace",
     description: "Customer workspace for visibility, reports, and automation status.",
   };
 }

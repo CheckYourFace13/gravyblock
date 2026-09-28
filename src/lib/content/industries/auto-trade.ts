@@ -1,7 +1,7 @@
 import type { IndustryPageModel } from "./types";
 
 export const autoTradePage: IndustryPageModel = {
-  metaTitle: "Auto repair, body, tire, and towing: local discovery readiness | GravyBlock",
+  metaTitle: "Auto repair, body, tire, and towing: local discovery readiness",
   metaDescription:
     "Shops and mobile mechanics: fix Google Business Profile drift, website trust, and review patterns. Start with a free GravyBlock scan.",
   eyebrow: "Auto and mobile trade",

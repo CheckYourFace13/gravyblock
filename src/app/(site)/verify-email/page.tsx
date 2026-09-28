@@ -5,7 +5,7 @@ import { getDb, businesses } from "@/lib/db";
 import { checkVerifyToken } from "@/lib/auth/email-verify";
 
 export const metadata: Metadata = {
-  title: "Verify email — GravyBlock",
+  title: "Verify email",
   robots: { index: false, follow: false },
 };
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "About — GravyBlock",
+  title: "About",
   description:
     "GravyBlock is an automated local SEO platform: website content, Google Business Profile posts, citation consistency checks, and visibility tracking — built and personally operated by one team, committed to truthful measurement.",
   alternates: { canonical: "https://gravyblock.com/about" },

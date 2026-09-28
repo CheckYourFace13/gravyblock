@@ -3,7 +3,7 @@ import Link from "next/link";
 import { CITIES, INDUSTRIES } from "@/lib/local-seo/markets";
 
 export const metadata: Metadata = {
-  title: "Local SEO by City and Industry | GravyBlock",
+  title: "Local SEO by City and Industry",
   description:
     "Browse GravyBlock local SEO resources by city and industry. Automated local growth for restaurants, dentists, salons, attorneys, home services, and more.",
   alternates: { canonical: "/local-seo" },

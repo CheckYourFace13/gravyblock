@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ReviewLinkTool } from "./review-link-tool";
 
 export const metadata: Metadata = {
-  title: "Free Google Review Link Generator (with QR Code) | GravyBlock",
+  title: "Free Google Review Link Generator (with QR Code)",
   description:
     "Generate a direct 'leave us a review' link and QR code for your Google Business Profile in 10 seconds. Free, no account needed. Works for any business.",
   alternates: { canonical: "https://gravyblock.com/tools/review-link-generator" },

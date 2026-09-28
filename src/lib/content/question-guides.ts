@@ -16,7 +16,7 @@ const related = [
 export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
   "how-to-rank-higher-in-google-maps": {
     slug: "how-to-rank-higher-in-google-maps",
-    metaTitle: "How to rank higher in Google Maps for local businesses | GravyBlock",
+    metaTitle: "How to rank higher in Google Maps for local businesses",
     metaDescription: "Practical steps to improve Google Maps visibility with profile quality, trust signals, and conversion-ready local pages.",
     model: {
       eyebrow: "Question guide",
@@ -34,7 +34,7 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
   },
   "how-to-improve-local-trust-on-your-website": {
     slug: "how-to-improve-local-trust-on-your-website",
-    metaTitle: "How to improve local trust on your website | GravyBlock",
+    metaTitle: "How to improve local trust on your website",
     metaDescription: "Improve local business website trust with clear contact paths, policy clarity, social proof, and conversion-ready design.",
     model: {
       eyebrow: "Question guide",
@@ -51,7 +51,7 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
   },
   "how-to-show-up-in-ai-search-for-local-businesses": {
     slug: "how-to-show-up-in-ai-search-for-local-businesses",
-    metaTitle: "How to show up in AI search for local businesses | GravyBlock",
+    metaTitle: "How to show up in AI search for local businesses",
     metaDescription: "Improve AI-search visibility through clean business facts, trustworthy sources, and easy-to-summarize local pages.",
     model: {
       eyebrow: "Question guide",
@@ -69,7 +69,7 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
   },
   "how-to-get-more-calls-from-google-business-profile": {
     slug: "how-to-get-more-calls-from-google-business-profile",
-    metaTitle: "How to get more calls from Google Business Profile | GravyBlock",
+    metaTitle: "How to get more calls from Google Business Profile",
     metaDescription: "Increase calls from Google Business Profile with stronger profile completion, trust signals, and conversion-ready messaging.",
     model: {
       eyebrow: "Question guide",
@@ -86,7 +86,7 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
   },
   "how-to-improve-near-me-conversion": {
     slug: "how-to-improve-near-me-conversion",
-    metaTitle: "How to improve near me conversion for local businesses | GravyBlock",
+    metaTitle: "How to improve near me conversion for local businesses",
     metaDescription: "Turn near-me search traffic into calls and bookings through clearer trust, relevance, and conversion design.",
     model: {
       eyebrow: "Question guide",
@@ -103,7 +103,7 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
   },
   "how-to-build-better-location-pages": {
     slug: "how-to-build-better-location-pages",
-    metaTitle: "How to build better location pages for local SEO | GravyBlock",
+    metaTitle: "How to build better location pages for local SEO",
     metaDescription: "Create location pages that improve local visibility, trust, and conversion without duplicate or thin content.",
     model: {
       eyebrow: "Question guide",
@@ -120,7 +120,7 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
   },
   "local-seo-for-apartment-complexes": {
     slug: "local-seo-for-apartment-complexes",
-    metaTitle: "Local SEO for apartment complexes | GravyBlock",
+    metaTitle: "Local SEO for apartment complexes",
     metaDescription: "Improve apartment community visibility and leasing conversion with stronger profile trust and location-page clarity.",
     model: {
       eyebrow: "Use-case guide",
@@ -137,7 +137,7 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
   },
   "local-seo-for-home-services": {
     slug: "local-seo-for-home-services",
-    metaTitle: "Local SEO for home services companies | GravyBlock",
+    metaTitle: "Local SEO for home services companies",
     metaDescription: "Home service businesses can improve local calls and bookings with profile, trust, and conversion readiness improvements.",
     model: {
       eyebrow: "Use-case guide",
@@ -154,7 +154,7 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
   },
   "local-seo-for-law-firms": {
     slug: "local-seo-for-law-firms",
-    metaTitle: "Local SEO for law firms | GravyBlock",
+    metaTitle: "Local SEO for law firms",
     metaDescription: "Law firms can improve local intake quality with stronger profile credibility, website trust, and conversion clarity.",
     model: {
       eyebrow: "Use-case guide",
@@ -171,7 +171,7 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
   },
   "how-to-get-more-google-reviews": {
     slug: "how-to-get-more-google-reviews",
-    metaTitle: "How to get more Google reviews for your local business | GravyBlock",
+    metaTitle: "How to get more Google reviews for your local business",
     metaDescription: "Get more Google reviews with proven ask timing, direct review links, and a response strategy that encourages future reviewers.",
     model: {
       eyebrow: "Question guide",
@@ -189,7 +189,7 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
   },
   "local-seo-for-dentists": {
     slug: "local-seo-for-dentists",
-    metaTitle: "Local SEO for dentists and dental practices | GravyBlock",
+    metaTitle: "Local SEO for dentists and dental practices",
     metaDescription: "Dental practices can improve local patient acquisition through stronger profile trust and website conversion readiness.",
     model: {
       eyebrow: "Use-case guide",

@@ -1,7 +1,7 @@
 import type { IndustryPageModel } from "./types";
 
 export const homeServicesPage: IndustryPageModel = {
-  metaTitle: "Local SEO and visibility for home services companies | GravyBlock",
+  metaTitle: "Local SEO and visibility for home services companies",
   metaDescription:
     "Plumbers, HVAC, roofers, cleaners, and trades: improve Google Business Profile clarity, website trust, reviews, and AI-ready facts. Run a free GravyBlock scan.",
   eyebrow: "Home services",

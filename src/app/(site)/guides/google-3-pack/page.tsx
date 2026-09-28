@@ -3,7 +3,7 @@ import Link from "next/link";
 import { GuideShell } from "@/components/guide-shell";
 
 export const metadata: Metadata = {
-  title: "What is the Google 3-Pack? Local Map Pack Explained | GravyBlock",
+  title: "What is the Google 3-Pack? Local Map Pack Explained",
   description:
     "The Google 3-Pack (or map pack) shows the top 3 local businesses in search results. Learn what it is, why it matters, and how to rank in it — with a free scan.",
   alternates: { canonical: "/guides/google-3-pack" },

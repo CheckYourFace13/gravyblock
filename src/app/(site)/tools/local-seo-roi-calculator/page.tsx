@@ -3,7 +3,7 @@ import Link from "next/link";
 import { RoiCalculator } from "./roi-calculator";
 
 export const metadata: Metadata = {
-  title: "Local SEO ROI Calculator — What Is a Top-3 Google Ranking Worth? | GravyBlock",
+  title: "Local SEO ROI Calculator — What Is a Top-3 Google Ranking Worth?",
   description:
     "Calculate how much revenue your business is missing by not ranking in Google's top 3. Free interactive calculator based on real local search click data.",
   alternates: { canonical: "https://gravyblock.com/tools/local-seo-roi-calculator" },

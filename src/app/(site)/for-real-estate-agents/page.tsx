@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
-  title: "Local SEO for real estate agents — get found on Google Maps & Search | GravyBlock",
+  title: "Local SEO for real estate agents — get found on Google Maps & Search",
   description: "GravyBlock automates local SEO for agents: publishes neighborhood content, gathers reviews, monitors your visibility, audits citations. Help buyers find you. Free scan.",
 };
 

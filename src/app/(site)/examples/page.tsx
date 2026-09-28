@@ -3,7 +3,7 @@ import Link from "next/link";
 import { EXAMPLE_PAGES, EXAMPLE_SLUGS } from "@/lib/content/example-pages";
 
 export const metadata: Metadata = {
-  title: "Local visibility examples and sample reports | GravyBlock",
+  title: "Local visibility examples and sample reports",
   description: "Anonymized examples showing sample reports, recurring improvement patterns, and multi-location workflows.",
   alternates: { canonical: "https://gravyblock.com/examples" },
 };
