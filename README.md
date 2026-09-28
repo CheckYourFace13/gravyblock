@@ -1,89 +1,81 @@
 # GravyBlock
 
-GravyBlock is an autopilot growth platform for local businesses, multi-location brands, service-area operators, and online businesses building local trust: scan -> scored diagnosis -> execution queues -> recurring automation -> workspace tracking -> admin operations.
+GravyBlock (https://gravyblock.com) is an autonomous local SEO platform for small businesses.
+It learns the business from first-party facts, finds what would help, does the work on the
+business's own website and Google profile, verifies the change is live, measures the result,
+and keeps going. A free scan is the top of the funnel; paid plans run the autopilot.
 
-## Quick start
+Status as of 2026-09-27: in production, 0 paying subscribers. Owner house businesses run on
+the platform as live canaries.
+
+## Read these first (current docs)
+
+| Doc | What it covers |
+|---|---|
+| `GRAVYBLOCK_FULL_HANDOFF_FOR_CLAUDE.md` (gitignored, lives only on Chris's machine) | Full handoff: production, deploy, stack, env, routes, billing, outreach, rules and gotchas |
+| `docs/AUTOPILOT_ARCHITECTURE.md` | How the autonomous engine works (truth, queue, orchestrator, verification, proof, measurement) |
+| `docs/orchestration-authority.md` | Every scheduled job and whether it may decide, observe, or only execute |
+| `docs/site-connector-protocol.md` | How GravyBlock writes to customer sites (WordPress, Webflow, Shopify, managed feed) |
+| `src/lib/capabilities.ts` | Canonical statement of what paid plans actually do. Public copy must match it |
+| `src/lib/plans.ts` | Plan tiers, prices and feature gates |
+| `AGENTS.md` | Next.js 16 has breaking changes; read `node_modules/next/dist/docs/` before writing Next code |
+
+### Historical docs (do not trust for current behavior)
+
+These describe earlier versions of the product or hosting and are kept only for history:
+`DEPLOY_HOSTINGER.md`, `DEPLOY_VPS.md`, `DISCOVERY.md`, `docs/SETUP.md`, `docs/INTEGRATIONS.md`.
+`docs/marketing-plan.md` (July 2026), `PRODUCT_HUNT_LAUNCH.md` and `docs/directory-listings.md`
+are marketing material; check pricing and claims against `plans.ts` and `capabilities.ts` before
+reusing any copy from them.
+
+## Stack
+
+Next.js 16.2 (App Router, webpack build) + React 19 + TypeScript + Tailwind 4, Drizzle ORM on
+PostgreSQL, Stripe subscriptions, Resend email, Google Places / Search Console / Business
+Profile, OpenRouter for all LLM calls. A separate long-running worker (`src/worker/index.ts`)
+runs all scheduled automation. Hosted on a Hostinger VPS under PM2.
+
+## Local development
 
 ```bash
-cp .env.example .env
-# optional local database
-docker compose up -d
+cp .env.example .env.local   # then fill in real values; .env.example is incomplete, see the handoff doc
 npm install
-npm run db:push
-npm run dev
+npm run db:server            # optional: local PGlite Postgres if you have no DATABASE_URL
+npm run db:push              # apply src/lib/db/schema.ts to DATABASE_URL
+npm run dev                  # web app on http://localhost:3000
+npm run worker               # background worker (separate terminal)
 ```
 
-- Marketing site: `/`
-- Free scan: `/scan`
-- Admin: `/admin/login` (requires `ADMIN_PASSWORD` + `ADMIN_SECRET`)
-
-### Environment
-
-| Variable | Purpose |
-| --- | --- |
-| `DATABASE_URL` | Postgres connection string. If omitted, reports/leads persist **in memory** for the running dev server only. |
-| `NEXT_PUBLIC_SITE_URL` | Canonical URL for metadata / Open Graph. |
-| `ADMIN_PASSWORD` | Admin login password. |
-| `ADMIN_SECRET` | HMAC salt for the admin session cookie. |
-| `GOOGLE_PLACES_API_KEY` | Required. Powers business search, place details, and estimated local rank checks. |
-| `GOOGLE_SEARCH_CONSOLE_ACCESS_TOKEN` | Optional. Enables verified Search Console metrics when paired with a property URL in scan input. |
-| `RESEND_API_KEY` | Optional. Enables lead emails through Resend. |
-| `RESEND_FROM_EMAIL` | Sender used for lead email notifications/confirmations. |
-| `LEAD_NOTIFICATION_EMAIL` | Internal inbox for new/updated lead notifications. |
-| `RESEND_SEND_CONFIRMATION_TO_LEAD` | `true`/`false` toggle for lead confirmation emails. |
-| `GOOGLE_OAUTH_CLIENT_ID` | Optional placeholder for future Search Console owner OAuth flow. |
-| `GOOGLE_OAUTH_CLIENT_SECRET` | Optional placeholder for future Search Console owner OAuth flow. |
-| `GOOGLE_OAUTH_REDIRECT_URI` | Optional OAuth callback URI placeholder. |
-| `CMS_PUBLISHER_MODE` | Optional publishing mode (`manual`, `assisted`, `autopublish`). |
-| `CMS_WEBHOOK_SECRET` | Optional signature key for future CMS publish adapters. |
-| `AUTOMATION_ALERT_EMAIL` | Optional destination for automation failure alerts. |
-
-## Architecture (high level)
-
-- **Marketing routes** — `src/app/(site)/*` with shared chrome (`SiteHeader` / `SiteFooter`). Positioning: *Autopilot growth for local, multi-location, and locally-positioned online businesses*.
-- **Report engine** — `src/lib/report/generator.ts` builds reports from Google Place details + crawl + ranking/search visibility layers.
-- **Growth domain** — `src/lib/growth/roadmap.ts` (autopilot lanes), `content-opportunities.ts`, materialized into DB rows on each scan.
-- **Workspace (autopilot ops)** — `/workspace/[businessId]` surfaces snapshots, roadmap, content queue, backlink queue, AI visibility probes, operator tasks, and automation job status.
-- **Persistence** — `src/lib/db/schema.ts` defines core scan/report entities plus account/autopilot scaffolding: `organizations`, `brands`, `locations`, `website_domains`, `growth_programs`, `content_strategies`, `content_queue`, `publishing_targets`, `publishing_jobs`, `backlink_opportunities`, `authority_campaigns`, `ai_visibility_checks`, `citation_monitors`, `operator_tasks`, `jobs`, and `leads`.
-- **Integrations** — `src/lib/integrations/google-places.ts`, `google-search-console.ts`, and `google-business-profile.ts` (owner-only stub) plus route handlers in `src/app/api/google/places/*`.
-- **Plans / gating** — `src/lib/plans.ts` maps `plan_tier` → feature flags for future billing.
-- **Server actions** — `src/app/actions/*` handle scan generation (with `redirect`), lead capture, and admin login/logout.
-
-## Database
-
-Drizzle Kit is configured in `drizzle.config.ts`. Common commands:
+Before pushing, always run:
 
 ```bash
-npm run db:push     # apply schema to DATABASE_URL
-npm run db:studio   # optional data browser
+npm run build
 ```
 
-## Real scan flow (Google-backed)
+A failed build on the VPS strands the deploy (see the handoff doc). `npm run typecheck` and
+`npm run lint` are also available. There is no automated test suite.
 
-1. User enters business name + city/address on `/scan`.
-2. App calls `POST /api/google/places/search` to fetch Google Place candidates.
-3. User confirms the best match.
-4. Server action runs full scan + autopilot seeding:
-   - Google Place Details (verified)
-   - Homepage crawl audit (verified)
-   - Search Console metrics if connected (verified)
-   - Local tracked-query ranking checks (estimated)
-5. Report is stored with explicit source attribution and rendered at `/report/[publicId]`.
-6. Scan submitter email is persisted as a deduplicated lead (`scan_form`) linked to business/report.
-7. Autopilot tables are seeded with starter content, authority opportunities, AI checks, and operator tasks.
+## Deploying
 
-### Verified vs estimated in report
+Push to `main`. The VPS polls GitHub every 2 minutes (`scripts/self-deploy.sh`) and deploys
+new commits in about 4 to 6 minutes. Confirm with:
 
-- **Verified:** `google_places`, `site_crawl`, `google_search_console` (when connected)
-- **Estimated / monitored:** `estimated_local_rank`
-- **Not used unless owner-connected:** `google_business_profile`
+```bash
+curl -s https://gravyblock.com/api/health
+```
 
-## Production setup docs
+`gitSha` in the response is the live commit. GitHub Actions deploy is manual fallback only.
 
-- Environment, Vercel, Resend, and Google API setup: `docs/SETUP.md`
-- Integration status and source attribution details: `docs/INTEGRATIONS.md`
-- Autopilot execution architecture: `docs/AUTOPILOT_ARCHITECTURE.md`
+## Code map
 
-## Product documentation
-
-See `DISCOVERY.md` for assumptions, blockers, and what could not be extracted from this workspace.
+| Path | Contents |
+|---|---|
+| `src/app/(site)/` | Public marketing site, free scan, reports, customer login, workspace |
+| `src/app/admin/` | Owner admin (businesses, leads, outreach, MRR, autopilot, reports) |
+| `src/app/api/` | Route handlers: Stripe/Resend webhooks, Places lookup, managed-site feed, health, events |
+| `src/app/actions/` | Server actions: scan, lead capture, report unlock, customer and admin login |
+| `src/worker/index.ts` | Scheduled automation (every 15 min tick, hour-gated batches) |
+| `src/lib/opportunities/` | Growth opportunity queue, orchestrator, measurement, learning |
+| `src/lib/truth/` | Business Truth layer |
+| `src/lib/outreach/` | Cold outreach engine and its safety rails |
+| `src/lib/db/schema.ts` | Database schema (Drizzle) |

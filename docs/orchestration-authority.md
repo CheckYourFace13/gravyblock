@@ -22,7 +22,7 @@ marketing action a business should get).
 | Content | `processContentQueue` | C | Publishes whatever is already `status: "queued"` in `content_queue` — does not decide what to write. |
 | GBP | `scanCrossEngineOpportunitiesBatch` | A | Records a `gbp` opportunity only when connected + no recent post. |
 | GBP | `opportunity_orchestrator_batch` | B | `postGbpForBusiness` is called ONLY from the orchestrator's `gbp` handler now — the old independent `runGbpPostBatch` worker entry was removed. |
-| GBP (review replies) | `gbp_review_reply_batch` | C (maintenance) | Always-correct action (reply to an unanswered review) — not a priority choice against other channels. |
+| GBP (review replies) | `runGbpReviewReplyBatch` (every worker tick, no named batch) | C (maintenance) | Always-correct action (reply to an unanswered review) — not a priority choice against other channels. |
 | Social | `scanCrossEngineOpportunitiesBatch` + `truth_opportunities_batch` | A | Record `social` opportunities from freshness/new-fact signals. |
 | Social | `opportunity_orchestrator_batch` | B | `planTruthGroundedSocial` (which queues content) is called only from the orchestrator's `social` handler. |
 | Social (publish) | Reddit/Facebook posting batches | C | Publish whatever is already `status: "queued"` with kind `reddit_post`/`facebook_post`/`instagram_caption` — the decision to create that content happened upstream (orchestrator or content-planner), not here. |
