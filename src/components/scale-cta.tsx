@@ -34,8 +34,9 @@ export function ScaleCta({
   businessId,
   unlockToken,
   placement,
-  label = "Have GravyBlock work on this — $74.99/mo",
+  label = "Start GravyBlock — $74.99/mo",
   showRisk = true,
+  compact = false,
   className = "",
 }: {
   publicId: string;
@@ -44,6 +45,7 @@ export function ScaleCta({
   placement: string;
   label?: string;
   showRisk?: boolean;
+  compact?: boolean;
   className?: string;
 }) {
   const [pending, startTransition] = useTransition();
@@ -74,7 +76,7 @@ export function ScaleCta({
         type="button"
         onClick={onClick}
         disabled={pending}
-        className="w-full rounded-full bg-red-600 px-6 py-4 text-base font-bold text-white shadow-md transition hover:bg-red-500 disabled:cursor-wait disabled:opacity-70 sm:w-auto sm:px-9"
+        className={`w-full rounded-full bg-red-600 px-6 ${compact ? "py-3 text-sm" : "py-4 text-base"} font-bold text-white shadow-md transition hover:bg-red-500 disabled:cursor-wait disabled:opacity-70 sm:w-auto sm:px-9`}
       >
         {pending ? "Taking you to secure checkout…" : label}
       </button>
@@ -143,7 +145,7 @@ export function StickyScaleBar({
   unlockToken?: string | null;
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white/95 px-4 py-2.5 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur md:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white/95 px-4 py-2 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur md:hidden">
       <ScaleCta
         publicId={publicId}
         businessId={businessId}
@@ -151,8 +153,8 @@ export function StickyScaleBar({
         placement="sticky"
         label="Start GravyBlock — $74.99/mo"
         showRisk={false}
+        compact
       />
-      <p className="mt-1 text-center text-[11px] text-zinc-600">Cancel anytime · 30-day money-back guarantee</p>
     </div>
   );
 }

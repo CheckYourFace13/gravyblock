@@ -42,62 +42,29 @@ export function ReportUnlockCard({
   }, [onUnlocked, promoCode, router, selectedPlan, state]);
 
   return (
-    <div className="mx-auto max-w-xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-lg">
-      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-700">Unlock full report</p>
-      <h2 className="mt-2 text-xl font-semibold text-zinc-900">Enter name + email to unlock every section</h2>
-      <p className="mt-2 text-sm text-zinc-600">
-        We will email the full report and unlock it in your current session.
-      </p>
-      <form ref={formRef} action={formAction} className="mt-4 grid gap-3">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <h2 className="text-xl font-semibold text-zinc-900">Want the complete report?</h2>
+      <p className="mt-1 text-sm text-zinc-600">Enter your email to see every finding. We&apos;ll also email you a copy. No account or password.</p>
+      <form ref={formRef} action={formAction} className="mt-4 flex flex-col gap-3 sm:flex-row">
         <input type="hidden" name="publicId" value={publicId} />
-        <label className="space-y-1">
-          <span className="text-xs font-medium text-zinc-700">Name</span>
-          <input
-            name="name"
-            required
-            className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
-          />
-          <FieldError messages={state.status === "error" ? state.fieldErrors?.name : undefined} />
-        </label>
-        <label className="space-y-1">
-          <span className="text-xs font-medium text-zinc-700">Email</span>
-          <input
-            name="email"
-            type="email"
-            required
-            className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
-          />
-          <FieldError messages={state.status === "error" ? state.fieldErrors?.email : undefined} />
-        </label>
-        {state.status === "error" && state.formError ? <p className="text-sm text-red-700">{state.formError}</p> : null}
+        <input
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          placeholder="you@yourbusiness.com"
+          className="min-w-0 flex-1 rounded-full border border-zinc-300 px-5 py-3 text-sm outline-none ring-red-500/30 focus:ring-4"
+        />
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-60"
         >
-          {pending ? "Unlocking..." : "Email and unlock full report"}
+          {pending ? "Unlocking..." : "Show my full report"}
         </button>
       </form>
-      {businessId ? (
-        <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-xs text-zinc-700">
-          <p className="font-semibold text-zinc-900">Want ongoing automation?</p>
-          <p className="mt-1">After unlock, open your workspace and start Base or Pro checkout for this business.</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Link
-              href={promoCode ? `/workspace/${businessId}?plan=base&promo=${encodeURIComponent(promoCode)}#billing` : `/workspace/${businessId}?plan=base#billing`}
-              className="rounded-full border border-zinc-300 bg-white px-3 py-1.5 font-semibold text-zinc-900 hover:border-zinc-400"
-            >
-              Upgrade to Basic
-            </Link>
-            <Link
-              href={promoCode ? `/workspace/${businessId}?plan=pro&promo=${encodeURIComponent(promoCode)}#billing` : `/workspace/${businessId}?plan=pro#billing`}
-              className="rounded-full bg-red-600 px-3 py-1.5 font-semibold text-white hover:bg-red-500"
-            >
-              Upgrade to Pro
-            </Link>
-          </div>
-        </div>
-      ) : null}
+      <FieldError messages={state.status === "error" ? state.fieldErrors?.email : undefined} />
+      {state.status === "error" && state.formError ? <p className="mt-2 text-sm text-red-700">{state.formError}</p> : null}
     </div>
   );
 }

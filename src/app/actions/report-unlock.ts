@@ -11,7 +11,7 @@ import { getAttributionToken } from "@/lib/events/attribution";
 
 const reportUnlockSchema = z.object({
   publicId: z.string().trim().min(6, "Report ID is required"),
-  name: z.string().trim().min(2, "Name is required"),
+  name: z.string().trim().optional(),
   email: z.string().trim().email("Valid email is required"),
 });
 
@@ -40,7 +40,7 @@ export async function unlockReportAction(
 ): Promise<ReportUnlockActionState> {
   const parsed = reportUnlockSchema.safeParse({
     publicId: field(formData, "publicId"),
-    name: field(formData, "name"),
+    name: field(formData, "name") || undefined,
     email: field(formData, "email"),
   });
   if (!parsed.success) {
@@ -49,6 +49,7 @@ export async function unlockReportAction(
 
   const report = await getReportWithContext(parsed.data.publicId);
   if (!report) return initialErrorState;
+  const leadName = parsed.data.name && parsed.data.name.length >= 2 ? parsed.data.name : parsed.data.email.split("@")[0];
 
   const unlockToken = createReportUnlockToken(parsed.data.publicId);
   const unlockPath = `/report/${parsed.data.publicId}?unlock=${encodeURIComponent(unlockToken)}`;
@@ -56,7 +57,7 @@ export async function unlockReportAction(
 
   try {
     const saved = await saveLeadRecord({
-      name: parsed.data.name,
+      name: leadName,
       email: parsed.data.email,
       source: "report_form",
       reportPublicId: parsed.data.publicId,
@@ -66,7 +67,7 @@ export async function unlockReportAction(
     });
     void sendLeadEmails(
       {
-        leadName: parsed.data.name,
+        leadName,
         leadEmail: parsed.data.email,
         source: "report_form",
         businessName: report.payload.business.name,
@@ -74,7 +75,7 @@ export async function unlockReportAction(
       saved?.created ?? true,
     );
     void sendReportDeliveryEmail({
-      leadName: parsed.data.name,
+      leadName,
       leadEmail: parsed.data.email,
       businessName: report.payload.business.name,
       score: report.payload.summary.score,

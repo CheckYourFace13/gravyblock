@@ -104,7 +104,7 @@ export async function HomeSummary({ businessId }: { businessId: string }) {
       </div>
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Needs you</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Unlock more</h2>
         {needsYou.length ? (
           <ul className="mt-3 space-y-3 text-sm">
             {needsYou.map((n) => (
@@ -117,7 +117,7 @@ export async function HomeSummary({ businessId }: { businessId: string }) {
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-zinc-600">Nothing needs you.</p>
+          <p className="mt-3 text-sm text-zinc-600">Nothing else to connect right now.</p>
         )}
       </div>
     </section>

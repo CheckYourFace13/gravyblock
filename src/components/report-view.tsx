@@ -104,7 +104,7 @@ export function ReportView({
   const chosenPlan = (["starter", "growth", "pro", "agency"] as string[]).includes(selectedPlan ?? "") ? selectedPlan : null;
   const promoQuery = promoCode ? `promo=${encodeURIComponent(promoCode)}` : "";
   return (
-    <div className="mx-auto max-w-5xl space-y-10 px-4 py-12 pb-28 sm:px-6 md:pb-12">
+    <div className="mx-auto max-w-4xl space-y-8 px-4 py-12 pb-28 sm:px-6 md:pb-12">
       <div className="flex flex-col gap-6 rounded-3xl border border-zinc-200 bg-gradient-to-br from-white via-white to-red-50 p-8 shadow-sm sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-700">{payload.brand} report</p>
@@ -159,7 +159,7 @@ export function ReportView({
         </ol>
       </section>
 
-      <ScaleOffer publicId={publicId} businessId={businessId} unlockToken={unlockToken} placement="top" />
+      {unlocked ? <ScaleOffer publicId={publicId} businessId={businessId} unlockToken={unlockToken} placement="top" /> : null}
 
       {unlocked ? (
         <>
@@ -340,24 +340,16 @@ export function ReportView({
           <ScaleOffer publicId={publicId} businessId={businessId} unlockToken={unlockToken} placement="bottom" heading="Have GravyBlock work on this" />
         </>
       ) : (
-        <section className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-white/70 to-white backdrop-blur-[2px]" />
-          <div className="space-y-3 opacity-60">
-            <div className="h-7 w-56 rounded bg-zinc-100" />
-            <div className="h-4 w-full rounded bg-zinc-100" />
-            <div className="h-4 w-4/5 rounded bg-zinc-100" />
-            <div className="h-40 rounded-2xl bg-zinc-100" />
-          </div>
-          <div className="relative mt-8">
-            <ReportUnlockCard
-              publicId={publicId}
-              onUnlocked={() => setUnlocked(true)}
-              selectedPlan={chosenPlan}
-              businessId={businessId}
-              promoCode={promoCode}
-            />
-          </div>
-        </section>
+        <>
+          <ReportUnlockCard
+            publicId={publicId}
+            onUnlocked={() => setUnlocked(true)}
+            selectedPlan={chosenPlan}
+            businessId={businessId}
+            promoCode={promoCode}
+          />
+          <ScaleOffer publicId={publicId} businessId={businessId} unlockToken={unlockToken} placement="top" />
+        </>
       )}
 
       <StickyScaleBar publicId={publicId} businessId={businessId} unlockToken={unlockToken} />

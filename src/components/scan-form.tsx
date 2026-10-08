@@ -407,6 +407,18 @@ export function ScanForm({
         </button>
       </div>
 
+      {pending ? (
+        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700" role="status" aria-live="polite">
+          <p className="font-semibold text-zinc-900">GravyBlock is analyzing your business. This takes about a minute.</p>
+          <ul className="mt-2 space-y-1 text-zinc-600">
+            <li>Checking your Google presence</li>
+            <li>Reading your website</li>
+            <li>Looking at reviews and social profiles</li>
+            <li>Comparing nearby competitors</li>
+            <li>Checking AI search visibility</li>
+          </ul>
+        </div>
+      ) : null}
       <p className="text-xs text-zinc-500">
         You see score, verdict, and top findings first. Unlock sends the full report to your inbox.
       </p>

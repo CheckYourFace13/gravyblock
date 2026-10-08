@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { BrandMark } from "@/components/brand-mark";
 import { AdminShellNav } from "@/components/admin-shell-nav";
 import { adminLogoutAction } from "@/app/actions/admin-login";
@@ -16,6 +17,20 @@ const links = [
 
 export function SiteHeader({ isAdmin = false }: { isAdmin?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname() ?? "";
+  // On the scan-to-checkout path the header is just the logo, so nothing pulls the visitor away.
+  const focused = !isAdmin && /^\/(scan|report|start)(\/|$)/.test(pathname);
+
+  if (focused) {
+    return (
+      <header className="border-b border-zinc-200/80 bg-white">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-2 sm:px-6">
+          <BrandMark compact />
+          <span className="text-xs font-medium text-zinc-500">Cancel anytime · 30-day money-back guarantee</span>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <>
@@ -29,10 +44,10 @@ export function SiteHeader({ isAdmin = false }: { isAdmin?: boolean }) {
         </div>
       ) : (
         <div className="bg-zinc-900 px-4 py-2 text-center text-xs font-semibold text-white">
-          <span className="text-red-400">Autopilot:</span>{" "}
+          <span className="text-red-400">GravyBlock:</span>{" "}
           <span className="font-bold text-white">$74.99/mo</span>, locked while subscribed.{" "}
           <Link href="/scan" className="underline underline-offset-2 hover:text-red-300">
-            Start free →
+            Scan free →
           </Link>
         </div>
       )}

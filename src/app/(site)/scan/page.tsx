@@ -71,54 +71,18 @@ export default async function ScanPage({ searchParams }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppSchema) }}
       />
       <FunnelBeacon eventType="scan_started" />
-    <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+    <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
       <div className="mx-auto max-w-3xl text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-800">Free scan</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">
           See your Google visibility score in 60 seconds.
         </h1>
         <p className="mt-4 text-lg text-zinc-600">
-          Find your business on Google, get a score across 6 ranking factors, and see exactly what's holding you back. Free, no credit card required. Works for restaurants, dentists, contractors, salons, lawyers, and any local business.
+          Find your business, get a score across 6 ranking factors, and see what is holding you back and what GravyBlock would do about it. Free, no credit card.
         </p>
-        <div className="mx-auto mt-4 max-w-xl rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3">
-          <p className="text-sm font-semibold text-amber-900">
-            Special rate on Scale: $74.99/month — keep this rate for as long as your subscription stays active.
-          </p>
-        </div>
-        {promoCode ? (
-          <p className="mt-2 text-sm font-medium text-emerald-700">
-            🎁 Your discount code <strong>{promoCode}</strong> applies automatically at checkout.
-          </p>
-        ) : (
-          <p className="mt-2 text-sm text-zinc-500">
-            Already know you want more? Scale locks in at $74.99/mo — see{" "}
-            <Link href="/pricing" className="font-semibold text-zinc-700 underline">
-              pricing
-            </Link>
-            .
-          </p>
-        )}
       </div>
 
-      <p className="mx-auto mt-6 max-w-3xl text-center text-sm text-zinc-600">
-        Your scan shows what GravyBlock would do about each finding. $74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee.
-      </p>
-      {promoCode ? (
-        <div className="mx-auto mt-3 max-w-3xl rounded-xl border border-zinc-200 bg-white px-4 py-3 text-xs font-medium text-zinc-700">
-          Promo code ready: {promoCode}
-        </div>
-      ) : null}
-
-      {selectedPlan ? (
-        <div className="mx-auto mt-6 max-w-3xl rounded-2xl border border-red-200 bg-red-50/70 p-4 text-sm text-zinc-900">
-          <p className="font-semibold">{selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} selected</p>
-          <p className="mt-1 text-zinc-700">
-            Confirm the right Google listing so we can attach {selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)} to this business
-            before checkout in your workspace.
-          </p>
-        </div>
-      ) : null}
-      <div className="mt-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-10">
+      <div className="mt-8 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-10">
         <ScanForm selectedPlan={selectedPlan} promoCode={promoCode} initialQuery={initialQuery} initialCity={initialCity} leadEmail={leadEmail} />
       </div>
     </div>

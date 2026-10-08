@@ -108,7 +108,7 @@ export default async function StartPage({ searchParams }: Props) {
       <div className="mx-auto max-w-lg">
 
         {/* Back link */}
-        <a href="/pricing" className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
+        <a href="/pricing" className={`${prefill ? "hidden" : "inline-flex"} mb-4 items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800`}>
           ← Back to pricing
         </a>
 

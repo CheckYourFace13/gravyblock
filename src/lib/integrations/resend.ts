@@ -132,7 +132,7 @@ export async function sendReportDeliveryEmail(payload: ReportDeliveryPayload) {
            <p>Score: <strong>${payload.score}</strong><br/>${payload.verdict}</p>
            <p>Top findings:</p>
            <ul>${payload.topFindings.map((f) => `<li>${f}</li>`).join("")}</ul>
-           <p style="margin:24px 0 6px"><a href="${cta}" style="display:inline-block;background:#dc2626;color:#fff;font-weight:700;font-size:15px;padding:13px 28px;border-radius:100px;text-decoration:none">Have GravyBlock work on this — $74.99/mo</a></p>
+           <p style="margin:24px 0 6px"><a href="${cta}" style="display:inline-block;background:#dc2626;color:#fff;font-weight:700;font-size:15px;padding:13px 28px;border-radius:100px;text-decoration:none">Start GravyBlock — $74.99/mo</a></p>
            <p style="margin:0 0 18px;font-size:12px;color:#52525b">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
            <p><a href="${payload.unlockUrl}">View my full report</a></p>
            <p>- GravyBlock</p>

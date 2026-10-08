@@ -75,7 +75,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         GravyBlock decides what worthwhile eligible work should happen next and does it: it writes and publishes website content from your own site's facts, posts to your Google Business Profile, replies to your Google reviews, and checks that your business details agree across your website and Google.
       </p>
-      ${btn(scaleUrl, "Have GravyBlock work on this — $74.99/mo →")}
+      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
     `, email, leadId),
   },
@@ -115,7 +115,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
         <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 4</p>
         <p style="margin:6px 0 0;font-size:13px;color:#52525b">Monthly visibility refresh and score update, with a summary of what ran.</p>
       </div>
-      ${btn(scaleUrl, "Have GravyBlock work on this — $74.99/mo →")}
+      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
     `, email, leadId),
   },
@@ -135,7 +135,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:14px;margin:12px 0">
         Doing this consistently by hand is hard for a busy owner. That's the part GravyBlock does for you.
       </p>
-      ${btn(scaleUrl, "Have GravyBlock handle my content — $74.99/mo →")}
+      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
     `, email, leadId),
   },
@@ -161,7 +161,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
           <li>Monthly AI search visibility checks</li>
         </ul>
       </div>
-      ${btn(scaleUrl, "Have GravyBlock work on this — $74.99/mo →")}
+      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
     `, email, leadId),
   },
@@ -216,7 +216,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
           </div>
         </div>
       </div>
-      ${btn(scaleUrl, "Have GravyBlock work on this — $74.99/mo →")}
+      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
     `, email, leadId),
   },
@@ -258,7 +258,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
         <li>GravyBlock continually decides what worthwhile eligible work should happen next — visibility score refreshes, content publishes, and outreach goes out as it earns its place. A monthly digest summarizes what ran.</li>
       </ol>
       <p style="color:#52525b;font-size:14px;margin:12px 0">You don't need to learn SEO. After setup, GravyBlock keeps deciding what to do next on its own.</p>
-      ${btn(scaleUrl, "Have GravyBlock work on this — $74.99/mo →")}
+      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
     `, email, leadId),
   },
@@ -280,7 +280,7 @@ const DRIP_SEQUENCE: DripEmail[] = [
         <p style="margin:0;font-size:15px;font-weight:700;color:#991b1b">Starter — $29.99 first month (reg. $59.99)</p>
         <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">Monthly visibility monitoring, citation consistency checks, review alerts, and content ideas. Good starting point for ${businessName}.</p>
       </div>
-      ${btn(scaleUrl, "Have GravyBlock work on this — $74.99/mo →")}
+      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
       <p style="color:#71717a;font-size:13px;margin:16px 0">
         Your report stays live: <a href="${reportUrl}" style="color:#dc2626">${reportUrl}</a>
       </p>
