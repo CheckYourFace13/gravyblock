@@ -2,11 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getAllBlogPosts } from "@/lib/blog/posts";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Local SEO Blog",
-  description: "Practical local SEO guides, tips, and automation strategies for small business owners. Written and published automatically by GravyBlock.",
+  description: "Practical local SEO guides for small business owners, from GravyBlock.",
   alternates: { canonical: "https://gravyblock.com/blog" },
   openGraph: {
     title: "Local SEO Blog — GravyBlock",
@@ -44,14 +42,14 @@ export default function BlogPage() {
 
       <div className="grid gap-8 sm:grid-cols-2">
         {posts.map((post) => {
-          const dateStr = new Date(post.publishedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+          const dateStr = new Date(post.updatedAt ?? post.publishedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
           const href = `/blog/${post.slug}`;
 
           return (
             <article key={post.slug} className="group flex flex-col rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow">
               <div className="h-2 bg-gradient-to-r from-red-500 to-red-700" />
               <div className="flex flex-1 flex-col p-5">
-                <p className="text-xs text-zinc-400 mb-2">{dateStr}</p>
+                <p className="text-xs text-zinc-500 mb-2">{post.updatedAt ? "Updated " : ""}{dateStr}</p>
                 <h2 className="text-base font-semibold text-zinc-900 group-hover:text-red-700 transition-colors leading-snug">
                   <Link href={href}>{post.title}</Link>
                 </h2>

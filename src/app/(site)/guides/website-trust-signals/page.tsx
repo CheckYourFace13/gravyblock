@@ -3,6 +3,7 @@ import Link from "next/link";
 import { GuideShell } from "@/components/guide-shell";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/guides/website-trust-signals" },
   title: "Website trust signals for local businesses guide",
   description:
     "Security, schema, contact clarity, and mobile UX that make maps traffic convert — explained without SEO snake oil.",

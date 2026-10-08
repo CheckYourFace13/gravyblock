@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/faq" },
   title: "FAQ",
   description:
     "Answers to the most common questions about GravyBlock: how it works, what's included in each plan, billing, cancellation, and more.",
@@ -24,8 +25,16 @@ const faqs = [
         a: "No. GravyBlock is fully web-based. For content publishing you connect your WordPress, Webflow or Shopify website once, and to post to Google and Facebook you authorize those accounts once. We walk you through it during onboarding in a few clicks.",
       },
       {
+        q: "What access does GravyBlock need, and can I take it back?",
+        a: "Only what the work needs, and only when you grant it: your website (WordPress, Webflow or Shopify) to publish content, your Google account to post to your Google Business Profile and reply to reviews, your Facebook Page to post, and a booking or invoicing system to ask real customers for reviews. You grant each once, and you can revoke any of them at any time from that account's own settings or by emailing support. See our Privacy Policy for how information is handled.",
+      },
+      {
+        q: "What does GravyBlock not do?",
+        a: "It does not guarantee rankings, links or traffic. It does not rewrite your existing pages from Search Console data, change your Google profile's hours or categories, watch competitors continuously, build listings on hundreds of directories, or post to Reddit or forums. The features page sorts everything into automatic, automatic after a connection, monitoring only, and not offered.",
+      },
+      {
         q: "How long before I see results?",
-        a: "We don't publish a customer results statistic we can't back with real data. What we can tell you: your visibility score refreshes weekly so you can watch it move as fixes go out, and content and link work generally takes 60–90 days to show up in rankings as Google re-crawls your site — that's how local SEO works generally, not a GravyBlock-specific guarantee.",
+        a: "There is no fixed timeline, and no one can honestly promise one. Rankings depend on your market, your competitors and where you start, and search engines take time to re-crawl and re-evaluate a site. We don't publish a results statistic we can't back with real data. What you can see: your workspace lists the work GravyBlock has completed and verified, and your visibility score refreshes so you can watch it change.",
       },
     ],
   },
@@ -88,7 +97,7 @@ const faqs = [
       },
       {
         q: "Will the content hurt my site if Google detects it's AI?",
-        a: "Google's quality guidelines focus on helpfulness, not authorship. Our content is locally relevant, genuinely useful, and follows Google's E-E-A-T guidelines. We add location-specific details, real stats, and your business context to make each piece substantive.",
+        a: "Google's guidance says it rewards helpful content however it is produced. GravyBlock writes articles from facts on your own website and checks that each page is live, so it does not invent details about your business. We can't promise how any page will rank.",
       },
       {
         q: "What does 'local outreach' mean?",

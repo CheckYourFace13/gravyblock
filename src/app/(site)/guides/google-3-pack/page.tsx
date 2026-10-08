@@ -72,15 +72,16 @@ export default function Google3PackGuidePage() {
           <li>A mini-map showing the business location</li>
         </ul>
         <p>
-          Studies consistently show that the 3-Pack captures 44–56% of all clicks on a local search results
-          page. Businesses outside the top 3 — including those ranked #4 and below — receive a tiny fraction
-          of that traffic.
+          The 3-Pack sits at the top of the results page, so it draws a large share of the attention and clicks on
+          a local search. Exact figures vary by study, query and device, so treat any single percentage with caution.
+          Businesses outside the top 3, including those ranked #4 and below, usually receive far less of that
+          traffic.
         </p>
 
         <h2>Why does Google show only 3 results?</h2>
         <p>
-          Google limits the pack to three results because that's what fits cleanly on mobile screens
-          (where over 60% of local searches happen) without requiring the user to scroll. A "More places"
+          Google limits the pack to three results largely because that fits cleanly on a mobile screen, where
+          many local searches happen, without requiring the user to scroll. A "More places"
           link expands to a full Local Finder view, but very few users click it. Position 1, 2, or 3 in
           the 3-Pack is effectively the entire game for local visibility.
         </p>

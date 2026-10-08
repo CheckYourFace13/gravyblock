@@ -2,83 +2,71 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Local SEO Statistics 2026: 60+ Data Points (With Sources)",
+  title: "Local SEO Statistics: Where to Find Reliable Data",
   description:
-    "The most-cited local SEO statistics for 2026: Google Business Profile, reviews, map pack, AI search, and mobile data. Free to cite with attribution.",
-  alternates: { canonical: "https://gravyblock.com/local-seo-statistics" },
+    "Local SEO statistics get repeated without sources and go out of date. Here is how to read them, and the primary sources worth checking for current figures.",
+  alternates: { canonical: "/local-seo-statistics" },
   openGraph: {
-    title: "Local SEO Statistics 2026 (60+ Data Points)",
-    description: "Citeable local SEO stats for 2026 — GBP, reviews, map pack, AI search. Free to use with a link.",
-    url: "https://gravyblock.com/local-seo-statistics",
+    title: "Local SEO Statistics: Where to Find Reliable Data",
+    description: "How to evaluate local SEO statistics, and the primary sources to check for current figures.",
+    url: "/local-seo-statistics",
     type: "article",
   },
 };
 
-type Stat = { stat: string; claim: string; source: string };
+const SOURCES: { name: string; href: string; what: string }[] = [
+  {
+    name: "BrightLocal Local Consumer Review Survey",
+    href: "https://www.brightlocal.com/research/local-consumer-review-survey/",
+    what: "An annual survey of how consumers use online reviews when choosing local businesses.",
+  },
+  {
+    name: "Whitespark Local Search Ranking Factors",
+    href: "https://whitespark.ca/local-search-ranking-factors/",
+    what: "An annual survey of local SEO professionals on which factors they believe influence local rankings.",
+  },
+  {
+    name: "Google Business Profile Help",
+    href: "https://support.google.com/business",
+    what: "Google's own documentation of how profiles, posts, photos and reviews work.",
+  },
+  {
+    name: "Think with Google",
+    href: "https://business.google.com/us/think/",
+    what: "Google's published research on consumer search behavior.",
+  },
+  {
+    name: "Google Search Central: local business structured data",
+    href: "https://developers.google.com/search/docs/appearance/structured-data/local-business",
+    what: "Google's guidance on marking up a local business so search engines can understand it.",
+  },
+];
 
-const SECTIONS: { title: string; intro: string; stats: Stat[] }[] = [
+const HOW_TO_READ: { title: string; body: string }[] = [
   {
-    title: "Local search behavior",
-    intro: "How people actually use local search in 2026.",
-    stats: [
-      { stat: "46%", claim: "of all Google searches have local intent.", source: "Google" },
-      { stat: "76%", claim: "of people who search for something nearby on a smartphone visit a business within a day.", source: "Google" },
-      { stat: "28%", claim: "of local searches result in a purchase within 24 hours.", source: "Google" },
-      { stat: "~2x", claim: "growth in “near me” searches over the past two years.", source: "Google Trends" },
-      { stat: "88%", claim: "of consumers who do a local search on mobile call or visit a business within a week.", source: "Nectafy / Google" },
-    ],
+    title: "Find the original study",
+    body: "A number repeated across many blogs often traces back to one old survey, or to nothing. Click through to the publisher, and check the year, the sample size and who was asked.",
   },
   {
-    title: "Google Business Profile & the map pack",
-    intro: "The local 3-pack is where the clicks are.",
-    stats: [
-      { stat: "70%+", claim: "of local search clicks go to the top 3 map pack results.", source: "BrightLocal" },
-      { stat: "5.6x", claim: "more views go to businesses with a complete Google Business Profile.", source: "Google" },
-      { stat: "7x", claim: "more clicks for complete profiles vs. empty ones.", source: "Google" },
-      { stat: "+15%", claim: "average ranking lift for businesses that post to GBP weekly vs. not at all.", source: "Whitespark" },
-      { stat: "36%", claim: "of the local pack ranking algorithm is attributed to GBP signals.", source: "Moz Local Search Ranking Factors" },
-    ],
+    title: "Check the date",
+    body: "Search behavior, Google's layouts and AI search change quickly. A figure from several years ago may no longer describe how people search today.",
   },
   {
-    title: "Reviews",
-    intro: "Reviews drive both ranking and conversion.",
-    stats: [
-      { stat: "87%", claim: "of consumers read online reviews for local businesses.", source: "BrightLocal" },
-      { stat: "47+", claim: "average review count of businesses ranking in the local top 3.", source: "BrightLocal" },
-      { stat: "89%", claim: "of consumers read businesses’ responses to reviews.", source: "BrightLocal" },
-      { stat: "12%", claim: "more reviews, on average, for businesses that respond to reviews.", source: "Harvard Business Review" },
-      { stat: "73%", claim: "of consumers only pay attention to reviews written in the last month.", source: "BrightLocal" },
-    ],
+    title: "Separate survey opinions from measurements",
+    body: "Surveys of consumers and of SEO professionals report what people say or believe. They are useful, but they are not controlled experiments, and they do not prove that one tactic causes a ranking.",
   },
   {
-    title: "Citations & consistency",
-    intro: "Inconsistent business data quietly kills rankings.",
-    stats: [
-      { stat: "68%", claim: "of local listings have at least one inconsistency in name, address, or phone.", source: "Moz" },
-      { stat: "#2", claim: "most common reason businesses fail to rank in the local pack: NAP inconsistency.", source: "Moz" },
-      { stat: "2–5", claim: "position improvement typical after building 20+ quality citations.", source: "Whitespark" },
-    ],
-  },
-  {
-    title: "AI search (the new frontier)",
-    intro: "AI assistants now recommend local businesses directly.",
-    stats: [
-      { stat: "58%", claim: "of consumers have used AI to find a local business in the past year.", source: "BrightLocal" },
-      { stat: "~40%", claim: "annual growth in consumers using AI for local discovery.", source: "BrightLocal" },
-      { stat: "60%", claim: "of mobile local searchers never scroll past the map pack / AI overview.", source: "Industry estimate" },
-    ],
+    title: "Be wary of precise promises",
+    body: "Claims like \"post weekly and rank 15% higher\" or \"get 25 reviews and reach the top 3\" are rarely backed by a method you can check. Real results depend on your market, competitors and starting point.",
   },
 ];
 
 export default function LocalSeoStatisticsPage() {
-  const allStats = SECTIONS.flatMap((s) => s.stats);
   const schema = {
     "@context": "https://schema.org",
     "@type": "Article",
-    headline: "Local SEO Statistics 2026",
-    description: "60+ citeable local SEO statistics for 2026.",
-    datePublished: "2026-06-01",
-    dateModified: new Date().toISOString().slice(0, 10),
+    headline: "Local SEO Statistics: Where to Find Reliable Data",
+    description: "How to evaluate local SEO statistics, and the primary sources to check for current figures.",
     author: { "@type": "Organization", name: "GravyBlock" },
     publisher: { "@type": "Organization", name: "GravyBlock", url: "https://gravyblock.com" },
   };
@@ -87,44 +75,59 @@ export default function LocalSeoStatisticsPage() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
       <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-800">Free resource</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">Local SEO Statistics 2026</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-800">Resource</p>
+        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900">
+          Local SEO statistics: where to find reliable data
+        </h1>
         <p className="mt-4 text-lg text-zinc-600">
-          {allStats.length}+ data points on how local search, Google Business Profiles, reviews, and AI search
-          actually work in 2026. Every stat is attributed. <strong>Free to cite</strong> with a link back to this page.
+          Local SEO statistics are repeated everywhere, often without a source and often out of date. We would rather point you to
+          the people who publish the research than repeat numbers we cannot stand behind. Here is how to evaluate any statistic,
+          and where to look for current figures.
         </p>
 
-        {SECTIONS.map((section) => (
-          <section key={section.title} className="mt-12">
-            <h2 className="text-2xl font-semibold text-zinc-900">{section.title}</h2>
-            <p className="mt-1 text-sm text-zinc-500">{section.intro}</p>
-            <div className="mt-5 space-y-3">
-              {section.stats.map((s) => (
-                <div key={s.claim} className="flex gap-4 rounded-2xl border border-zinc-200 bg-white p-5">
-                  <div className="shrink-0 text-2xl font-black text-red-700 w-20">{s.stat}</div>
-                  <div>
-                    <p className="text-sm text-zinc-800 leading-relaxed">{s.claim}</p>
-                    <p className="mt-1 text-xs text-zinc-400">Source: {s.source}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        ))}
+        <section className="mt-12">
+          <h2 className="text-2xl font-semibold text-zinc-900">How to read a local SEO statistic</h2>
+          <div className="mt-5 space-y-3">
+            {HOW_TO_READ.map((h) => (
+              <div key={h.title} className="rounded-2xl border border-zinc-200 bg-white p-5">
+                <h3 className="font-semibold text-zinc-900">{h.title}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-zinc-600">{h.body}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-12">
+          <h2 className="text-2xl font-semibold text-zinc-900">Primary sources worth checking</h2>
+          <p className="mt-1 text-sm text-zinc-500">These are the publishers of the research most often cited. Check each for its latest edition.</p>
+          <ul className="mt-5 space-y-3">
+            {SOURCES.map((s) => (
+              <li key={s.href} className="rounded-2xl border border-zinc-200 bg-white p-5">
+                <a href={s.href} target="_blank" rel="noopener" className="font-semibold text-red-800 underline underline-offset-2">
+                  {s.name}
+                </a>
+                <p className="mt-1 text-sm text-zinc-600">{s.what}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <section className="mt-12 rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
-          <h2 className="text-lg font-semibold text-zinc-900">Citing these statistics</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">What we do instead of quoting numbers</h2>
           <p className="mt-2 text-sm text-zinc-600">
-            You&apos;re welcome to use any stat on this page in your own articles, decks, or reports.
-            We just ask for a link back to{" "}
-            <span className="font-mono text-zinc-700">https://gravyblock.com/local-seo-statistics</span> as the source.
+            GravyBlock does not promise rankings or publish results it cannot back with real data. Your free scan measures your
+            own listing, website and reviews, and on a paid plan GravyBlock reports the work it has verified.{" "}
+            <Link href="/proof" className="underline">
+              See the verified work
+            </Link>
+            .
           </p>
         </section>
 
         <section className="mt-12 rounded-2xl border border-red-200 bg-red-50/60 p-8 text-center">
           <h2 className="text-2xl font-semibold text-zinc-900">See your own local SEO score</h2>
-          <p className="mt-2 text-sm text-zinc-600 max-w-md mx-auto">
-            Free 60-second scan across the exact factors these stats describe. No account, no credit card.
+          <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">
+            A free scan of your own listing, website, reviews and AI search presence. About a minute, no credit card.
           </p>
           <Link href="/scan" className="mt-5 inline-block rounded-full bg-red-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-red-500">
             Get my free score →

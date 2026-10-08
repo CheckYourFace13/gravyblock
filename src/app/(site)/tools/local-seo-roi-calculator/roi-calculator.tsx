@@ -112,7 +112,7 @@ export function RoiCalculator() {
           ≈ {money(yearlyRevenue)}/year · {monthlyCustomers} new customer{monthlyCustomers !== 1 ? "s" : ""}/month from {monthlyLeads} search leads
         </p>
         <p className="mt-4 text-xs text-red-200/80 max-w-md mx-auto">
-          Conservative estimate: assumes one top-3 spot converts ~8% of monthly searches into contacts at your close rate, first transaction only.
+          An illustration, not a forecast: it assumes one top-3 spot turns about 8% of monthly searches into contacts at your close rate, first transaction only. Real results vary and are not guaranteed.
         </p>
         <Link
           href="/scan"

@@ -36,8 +36,8 @@ export default function RoiCalculatorPage() {
           Local SEO ROI Calculator
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-zinc-600">
-          The top 3 results in Google Maps capture over 70% of local search clicks.
-          See what that&apos;s worth for your business — and what staying invisible costs you every month.
+          The top results in Google Maps get most of the attention on a local search.
+          Plug in your own numbers to see what a strong position could be worth, and what staying invisible might cost you each month.
         </p>
 
         <div className="mt-8">
@@ -49,15 +49,15 @@ export default function RoiCalculatorPage() {
           <ul className="mt-4 space-y-3 text-sm text-zinc-600 leading-relaxed">
             <li className="flex gap-2">
               <span className="shrink-0 font-bold text-red-600">1.</span>
-              <span><strong>Local searches</strong> — how many times people in your area search for your service each month. For most service categories in a mid-size city this is 500–3,000 searches.</span>
+              <span><strong>Local searches</strong> — how many times people in your area search for your service each month. Use a keyword tool or your own records to estimate it.</span>
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 font-bold text-red-600">2.</span>
-              <span><strong>70% to the top 3</strong> — multiple click studies show the Google Maps 3-pack plus top organic results capture 68–75% of all clicks. Businesses below the fold split the remainder.</span>
+              <span><strong>A share to the top 3</strong> — the calculator assumes the top three map results get most of the clicks and that those are split roughly evenly. This is a simplifying assumption, not a measured figure, and real click shares vary.</span>
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 font-bold text-red-600">3.</span>
-              <span><strong>Your close rate</strong> — local search leads have high intent. Most service businesses close 20–40% of inbound calls from Google.</span>
+              <span><strong>Your close rate</strong> — use your own close rate: the share of inbound calls and inquiries that become paying customers.</span>
             </li>
             <li className="flex gap-2">
               <span className="shrink-0 font-bold text-red-600">4.</span>

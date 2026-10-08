@@ -177,8 +177,8 @@ export default function LocalCitationSitesUSAPage() {
           large cities, 100+ citations from quality sources is a baseline.
         </p>
         <p>
-          More important than volume: <strong>quality and consistency</strong>. 30 consistent, high-authority
-          citations outperform 200 citations with mismatched data across low-authority directories.
+          More important than volume: <strong>quality and consistency</strong>. a smaller set of consistent, high-authority
+          citations is generally worth more than a long list with mismatched data across low-authority directories.
         </p>
 
         <h2>Automating citation building</h2>
@@ -187,7 +187,7 @@ export default function LocalCitationSitesUSAPage() {
           automate this in different ways:
         </p>
         <ul>
-          <li><strong>Yext / Uberall</strong> — sync your data to their publisher network; pricing has generally started around $199/year. Check current plans.</li>
+          <li><strong>Yext / Uberall</strong> — sync your data to their publisher network. Check current plans.</li>
           <li><strong>BrightLocal / Whitespark</strong> — citation building and management services and tools. Check current pricing.</li>
           <li><strong>GravyBlock</strong> — checks that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook, and alerts you when they drift. It does not submit or fix listings on directories.</li>
         </ul>

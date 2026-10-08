@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/for-chiropractors" },
   title: "Local SEO for chiropractors & chiropractic practices — get discovered on Google",
   description: "GravyBlock automates local SEO for chiropractors: publishes patient content, gathers reviews, keeps your profile fresh, audits citations. Help patients find you. Free scan.",
 };

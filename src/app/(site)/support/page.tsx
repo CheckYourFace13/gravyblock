@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CtaLeadForm } from "@/components/cta-lead-form";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/support" },
   title: "Support",
   description:
     "Get help with your GravyBlock account. Billing, access, content questions, and product support — we reply by email.",

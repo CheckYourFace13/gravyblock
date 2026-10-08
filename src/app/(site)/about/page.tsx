@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SUPPORT_EMAIL } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "About",
   description:
-    "GravyBlock is an automated local SEO platform: website content, Google Business Profile posts, citation consistency checks, and visibility tracking — built and personally operated by one team, committed to truthful measurement.",
-  alternates: { canonical: "https://gravyblock.com/about" },
+    "GravyBlock is software that learns a local business, decides what will help it get found on Google, and does the work automatically, with every result verified before it is reported.",
+  alternates: { canonical: "/about" },
 };
 
 const schema = {
@@ -47,8 +48,8 @@ export default function AboutPage() {
           <p className="text-zinc-600 leading-relaxed">
             Local visibility comes from doing a lot of small things consistently: publishing content, keeping your
             Google Business Profile active, staying consistent across directories, responding to reviews, tracking
-            where you actually rank. Most small business owners don't have the hours for it, and most SEO agencies
-            charge $1,000+/month to do it manually with a person, not a system.
+            where you actually rank. Most small business owners don't have the hours for it, and agencies that do it by hand are
+            expensive. GravyBlock does the repeatable part as software.
           </p>
         </div>
 
@@ -58,19 +59,30 @@ export default function AboutPage() {
             You run a free scan, which pulls your real Google listing and scores it across measurable ranking
             factors. On a paid plan, GravyBlock keeps working on that score: publishing content written from your
             own website's facts to your connected site, posting to your Google Business Profile once it's connected,
-            checking your citations for mismatches, and tracking your visibility over time. Some of it runs on a
-            schedule after a one-time setup; some of it — connecting your website, Google account and Facebook Page,
-            adding missing information — needs a quick action from you. Your workspace always shows which is which, not a vague "everything is
+            checking your citations for mismatches, and tracking your visibility over time. Some work needs a one-time
+            connection first (your website, Google account or Facebook Page). Your workspace always shows what is working for
+            you, what has been verified, and which single connection would unlock more, rather than a vague "everything is
             automatic" claim.
           </p>
         </div>
 
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900 mb-3">Who operates it</h2>
+          <h2 className="text-lg font-semibold text-zinc-900 mb-3">Support</h2>
           <p className="text-zinc-600 leading-relaxed">
-            GravyBlock is built and personally operated by Chris. There's no account-management layer between you
-            and the person running the product — if something's wrong with your setup, you can reach the person who
-            can actually fix it.
+            Questions about billing, access, setup or what GravyBlock is doing for your business go to our support team
+            at{" "}
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold text-red-700 underline">
+              {SUPPORT_EMAIL}
+            </a>
+            . We reply by email, usually within one business day. See also our{" "}
+            <Link href="/privacy" className="font-semibold text-red-700 underline">
+              Privacy Policy
+            </Link>{" "}
+            and{" "}
+            <Link href="/terms" className="font-semibold text-red-700 underline">
+              Terms of Service
+            </Link>
+            .
           </p>
         </div>
 

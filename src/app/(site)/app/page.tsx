@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { requireCustomerSession } from "@/lib/auth/customer-guards";
 import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
@@ -5,6 +6,11 @@ import { resolveAccessibleBusinesses } from "@/lib/auth/customer-auth";
 import { LogoutButton } from "./logout-button";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Your account",
+  robots: { index: false, follow: false },
+};
 
 export default async function CustomerDashboardPage() {
   const session = await requireCustomerSession("/app");

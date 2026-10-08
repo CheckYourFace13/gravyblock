@@ -65,22 +65,6 @@ const steps = [
   },
 ];
 
-const orgSchema = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "GravyBlock",
-  url: "https://gravyblock.com",
-  logo: "https://gravyblock.com/brand/favicon.png",
-  description: "GravyBlock is an automated local SEO platform for small businesses. It publishes website content written from your own site's facts, posts to your Google Business Profile, sends personalized local outreach, monitors reviews, and tracks Google rankings.",
-  contactPoint: {
-    "@type": "ContactPoint",
-    contactType: "customer support",
-    email: "hello@gravyblock.com",
-    url: "https://gravyblock.com/support",
-  },
-  sameAs: [],
-};
-
 const productSchema = {
   "@context": "https://schema.org",
   "@graph": [
@@ -137,10 +121,6 @@ export default function HomePage() {
     <div className="bg-white">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
-      />
-      <script
-        type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
       />
 
@@ -151,10 +131,10 @@ export default function HomePage() {
             Autopilot: $74.99/mo, locked while subscribed
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl leading-[1.08]">
-            More customers find you.<br className="hidden sm:block" />{" "}You don&apos;t lift a finger.
+            Local SEO that does<br className="hidden sm:block" />{" "}the work for you.
           </h1>
           <p className="mx-auto max-w-xl text-lg text-zinc-600">
-            GravyBlock reads your real website and Google profile, figures out what will actually help you get found, and does that work automatically — then checks that it happened and keeps going. No SEO tactics to learn, no tasks to manage.
+            GravyBlock reads your real website and Google profile, figures out what will actually help you get found, and does that work automatically — then checks that it happened and keeps going. Connect once; there are no SEO tactics to learn and no task list to manage.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Link href="/scan" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-semibold text-white hover:bg-red-500 shadow-sm">
@@ -217,7 +197,7 @@ export default function HomePage() {
             One engine. It never stops working.
           </h2>
           <p className="mx-auto mt-2 max-w-xl text-center text-sm text-zinc-600">
-            This is what makes GravyBlock different from a checklist tool: it decides what to do next, not just what to complain about.
+            GravyBlock is built to decide what to do next and then do it, so you are not left with a to-do list.
           </p>
           <div className="mt-8 grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
             {[
@@ -266,23 +246,17 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── SOCIAL PROOF STATS ─────────────────────────────── */}
+      {/* ── EXPLAINER LINKS ────────────────────────────────── */}
       <section className="px-4 py-10 sm:px-6">
-        <div className="mx-auto max-w-4xl space-y-6">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {[
-              { stat: "76%", label: "of nearby searchers visit a business within 24 hours" },
-              { stat: "90%+", label: "of customers read reviews before choosing a local business" },
-              { stat: "46%", label: "of all Google searches have local intent" },
-              { stat: "3×", label: "more calls from a complete, active Google Business Profile" },
-            ].map((s) => (
-              <div key={s.stat} className="rounded-2xl border border-zinc-100 bg-zinc-50 p-5 text-center">
-                <p className="text-3xl font-bold text-red-700">{s.stat}</p>
-                <p className="mt-1 text-xs text-zinc-500 leading-relaxed">{s.label}</p>
-              </div>
-            ))}
-          </div>
-          <p className="text-center text-xs text-zinc-400">Sources: Google Local Services Research, BrightLocal, HubSpot, Google Trends. Statistics reflect industry research, not guarantees of results for your specific business.</p>
+        <div className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-2">
+          <Link href="/how-it-works" className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:border-red-200 hover:shadow-md">
+            <p className="text-base font-semibold text-zinc-900">How it works</p>
+            <p className="mt-1 text-sm text-zinc-500 leading-relaxed">The seven-step loop, and why connecting once is all it takes. →</p>
+          </Link>
+          <Link href="/features" className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition hover:border-red-200 hover:shadow-md">
+            <p className="text-base font-semibold text-zinc-900">Exactly what it does</p>
+            <p className="mt-1 text-sm text-zinc-500 leading-relaxed">What is automatic, what needs a connection, and what is not offered. →</p>
+          </Link>
         </div>
       </section>
 
@@ -301,7 +275,7 @@ export default function HomePage() {
             {[
               { href: "/examples/sample-local-growth-report", icon: "📄", title: "A real sample report", desc: "The exact visibility score, prioritized fix list, and competitor breakdown you get — no email required." },
               { href: "/scan", icon: "🔍", title: "Your own free scan", desc: "Score your business across 6 ranking factors in 60 seconds. No account, no credit card." },
-              { href: "/support", icon: "🤝", title: "Personal setup help", desc: "A real person reviews your scan and helps you get connected — not a support ticket queue." },
+              { href: "/proof", icon: "✅", title: "Verified work", desc: "Work GravyBlock has completed and confirmed live on businesses we operate ourselves. Only verified work is shown." },
             ].map((c) => (
               <Link
                 key={c.href}
@@ -343,11 +317,10 @@ export default function HomePage() {
           <div className="mt-10 rounded-2xl border border-zinc-200 bg-white p-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="flex-1">
-                <p className="text-sm font-semibold text-zinc-900">Personal setup, not a support ticket queue</p>
+                <p className="text-sm font-semibold text-zinc-900">Connect once. GravyBlock takes it from there.</p>
                 <p className="mt-1 text-sm text-zinc-500">
-                  Local SEO agencies charge $1,000+/month for work that should be automated. When you sign up, I personally review your scan and make sure everything is connected and running correctly — you can reach me directly.
+                  Some work needs permission to act on your website, Google account or Facebook Page. You grant each one time, and a missing connection never stops the unrelated work. Questions along the way go to our support team.
                 </p>
-                <p className="mt-2 text-xs text-zinc-400">— Chris · <a href="mailto:chris@gravyblock.com" className="underline hover:text-zinc-700">chris@gravyblock.com</a></p>
               </div>
               <Link href="/scan" className="shrink-0 rounded-full bg-red-600 px-6 py-3 text-sm font-bold text-white hover:bg-red-500 text-center">
                 Start free

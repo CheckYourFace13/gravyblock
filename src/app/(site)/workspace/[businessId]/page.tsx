@@ -60,6 +60,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: "Workspace",
     description: "Customer workspace for visibility, reports, and automation status.",
+    robots: { index: false, follow: false },
   };
 }
 

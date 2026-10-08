@@ -51,7 +51,7 @@ export default function AiVisibilityTestPage() {
         AI Visibility Test for Local Businesses
       </h1>
       <p className="mt-4 max-w-2xl text-lg text-zinc-600">
-        30% of local search queries now go through AI assistants. Find out if your business shows up
+        More people now ask AI assistants where to go and who to hire. Find out if your business shows up
         when customers ask ChatGPT, Perplexity, or Google AI Overview for businesses in your category.
       </p>
 

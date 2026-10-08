@@ -7,9 +7,10 @@ import { AdminShellNav } from "@/components/admin-shell-nav";
 import { adminLogoutAction } from "@/app/actions/admin-login";
 
 const links = [
+  { href: "/how-it-works", label: "How it works" },
+  { href: "/features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
   { href: "/compare", label: "Compare" },
-  { href: "/industries", label: "Industries" },
   { href: "/guides", label: "Guides" },
 ];
 

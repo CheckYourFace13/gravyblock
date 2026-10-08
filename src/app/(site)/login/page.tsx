@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
+import type { Metadata } from "next";
 import { CustomerLoginForm } from "./login-form";
+
+export const metadata: Metadata = {
+  title: "Log in",
+  robots: { index: false, follow: false },
+};
 
 export default async function CustomerLoginPage({
   searchParams,

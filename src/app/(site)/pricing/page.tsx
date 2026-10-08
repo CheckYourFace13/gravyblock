@@ -111,7 +111,7 @@ const faqs = [
   },
   {
     q: "How is GravyBlock different from BrightLocal or Yext?",
-    a: "BrightLocal and Yext are established tools that today offer listing management, review tools and reporting, generally priced for agencies and larger businesses. GravyBlock is a lower-cost option focused on publishing content from your own website's facts, weekly Google Business Profile posts, Google review replies, local outreach, and rank tracking, without an agency.",
+    a: "BrightLocal and Yext are established platforms for listing management, reviews and reporting. BrightLocal is popular with agencies and Yext with larger or multi-location brands. GravyBlock is a lower-cost option for owner-operated businesses that does a defined set of work automatically: content from your own website's facts, Google Business Profile posts, Google review replies, local outreach and rank tracking.",
   },
   {
     q: "Is the free scan really free?",
@@ -254,7 +254,7 @@ export default function PricingPage() {
             </Link>
           </div>
 
-          {/* Market alternatives comparison */}
+          {/* Market alternatives comparison: qualitative, no invented hours or prices */}
           <div className="mt-12">
             <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">Your options for local SEO</p>
             <h2 className="mb-6 text-center text-2xl font-bold text-zinc-900">How GravyBlock compares to the alternatives</h2>
@@ -263,41 +263,49 @@ export default function PricingPage() {
                 <thead>
                   <tr className="bg-zinc-50">
                     <th className="px-4 py-3 text-left font-semibold text-zinc-700">Option</th>
-                    <th className="px-4 py-3 text-left font-semibold text-zinc-700">Monthly cost</th>
-                    <th className="px-4 py-3 text-left font-semibold text-zinc-700">Your time</th>
+                    <th className="px-4 py-3 text-left font-semibold text-zinc-700">Cost</th>
                     <th className="px-4 py-3 text-left font-semibold text-zinc-700">Who does the work</th>
+                    <th className="px-4 py-3 text-left font-semibold text-zinc-700">A good fit when</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-t border-zinc-100">
+                  <tr>
                     <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-zinc-100">Do it yourself</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">$0</td>
-                    <td className="px-4 py-3.5 text-red-600 font-medium border-t border-zinc-100">10+ hrs/week</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">You — content, citations, reviews, GBP, all of it</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Your time</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">You: content, listings, reviews and your Google profile</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">You have the time and know-how</td>
                   </tr>
                   <tr>
                     <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-zinc-100">Local SEO agency</td>
-                    <td className="px-4 py-3.5 text-red-600 font-medium border-t border-zinc-100">$1,000–$3,000+</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Meetings + email</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">The agency — usually with contracts and slow turnaround</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Varies widely; usually a monthly retainer</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">A person or team, including custom strategy and creative work</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">You want a dedicated human and custom campaigns</td>
                   </tr>
                   <tr>
-                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-zinc-100">Reporting tools <span className="text-zinc-400 font-normal">(BrightLocal, Semrush and similar)</span></td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Varies (plans start from roughly $30–$50)</td>
-                    <td className="px-4 py-3.5 text-red-600 font-medium border-t border-zinc-100">5+ hrs/week</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Varies by tool and plan; typically you or an agency configure and run the work</td>
+                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-zinc-100">SEO software <span className="text-zinc-400 font-normal">(BrightLocal, Semrush and similar)</span></td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Varies by tool and plan</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Usually you or an agency, though some tools now automate parts of the work</td>
+                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">You or your agency want detailed reporting and control</td>
                   </tr>
                   <tr className="bg-red-50/60">
                     <td className="px-4 py-3.5 font-bold text-zinc-900 border-t border-red-100">GravyBlock</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">$59.99–$299.99</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">~0 hrs/week</td>
-                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-red-100">GravyBlock — website content, Google posts and Google review replies handled automatically</td>
+                    <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">$59.99–$299.99 per month</td>
+                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-red-100">GravyBlock does a defined set of work automatically; some of it needs a one-time connection</td>
+                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-red-100">You want ongoing work done for you at a lower price, without operating an SEO toolbox</td>
                   </tr>
                 </tbody>
               </table>
             </div>
-            <p className="mt-3 text-center text-xs text-zinc-400">
-              Agency pricing from industry surveys of US local SEO retainers. Reporting-tool pricing from public rate cards, June 2026.
+            <p className="mt-3 text-center text-xs text-zinc-500">
+              Other providers change their plans and features often, so check each one. See{" "}
+              <Link href="/compare" className="underline">
+                our comparisons
+              </Link>{" "}
+              and{" "}
+              <Link href="/features" className="underline">
+                exactly what GravyBlock does
+              </Link>
+              .
             </p>
           </div>
         </div>
@@ -359,7 +367,7 @@ export default function PricingPage() {
             <p className="mt-1 text-sm text-zinc-500">Each GravyBlock plan covers one business location. Talk to us about how we can handle more than one.</p>
           </div>
           <a
-            href="mailto:chris@gravyblock.com?subject=Agency%20plan%20inquiry"
+            href="mailto:support@gravyblock.com?subject=Agency%20plan%20inquiry"
             className="mt-4 inline-block shrink-0 rounded-full border border-zinc-300 bg-white px-6 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-100 sm:mt-0"
           >
             Contact us about Agency →

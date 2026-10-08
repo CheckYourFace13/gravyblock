@@ -11,6 +11,8 @@ export type BlogPost = {
   title: string;
   metaDescription: string;
   publishedAt: string; // ISO date string
+  /** ISO date of the last substantive revision. Set when a post is materially updated. */
+  updatedAt?: string;
   body: string;        // Markdown
 };
 
@@ -20,6 +22,7 @@ export const BLOG_POSTS: BlogPost[] = [
     title: "Google Business Profile Not Showing Up? Here's How to Fix It",
     metaDescription: "If your Google Business Profile isn't appearing in Maps or local search, these are the most common reasons and exactly how to fix each one.",
     publishedAt: "2026-05-01",
+    updatedAt: "2026-10-07",
     body: `Your Google Business Profile isn't showing up in search, and you're losing customers to competitors who rank above you. Here's exactly why it happens and how to fix it.
 
 ## Why Is My Google Business Profile Not Showing Up?
@@ -33,7 +36,7 @@ The most common reasons a GBP listing disappears or doesn't rank are: the listin
 3. **Incomplete profile** — Missing business hours, categories, photos, or description signals low quality to Google's algorithm.
 4. **NAP inconsistency** — If your name, address, or phone number is different on Yelp, Facebook, YellowPages, or your own website, Google loses confidence in your listing.
 5. **Low review count** — Profiles with under 10 reviews rarely appear in the competitive top-3 Map Pack.
-6. **No recent activity** — Google rewards active profiles. Listings with no posts, no new photos, and no Q&As in 90+ days get deprioritized.
+6. **No recent activity** — An active profile gives searchers current information. Listings with no posts, no new photos and no Q&As for a long time can look abandoned.
 
 ## How to Fix a GBP That Isn't Ranking
 
@@ -48,7 +51,7 @@ The most common reasons a GBP listing disappears or doesn't rank are: the listin
 5. Audit your listings on Yelp, Bing Places, Facebook, and Apple Maps — name, address, and phone must be identical everywhere.
 6. Ask your last 10 customers to leave a Google review.
 
-**Bottom line:** Most GBP visibility problems come down to three things — incomplete profiles, inconsistent citations, and low review velocity. Fix those three and your listing will start appearing within 30–60 days.
+**Bottom line:** Most GBP visibility problems come down to three things — incomplete profiles, inconsistent citations, and low review velocity. Fixing those three gives your listing its best chance of appearing; how long that takes varies by market and competition.
 
 [Run a free GravyBlock scan to see exactly what's holding your listing back →](/scan)`,
   },
@@ -57,13 +60,14 @@ The most common reasons a GBP listing disappears or doesn't rank are: the listin
     title: "How to Get More Google Reviews (Without Asking Awkwardly)",
     metaDescription: "More Google reviews directly improve your local search rankings. Here are 7 proven methods to get more reviews from real customers — without begging.",
     publishedAt: "2026-05-03",
+    updatedAt: "2026-10-07",
     body: `More Google reviews aren't just social proof — they're one of the top three factors Google uses to rank local businesses. Here's how to get them consistently.
 
 ## Why Google Reviews Matter for Local Rankings
 
 Google's local algorithm uses review count, review velocity (how often new reviews come in), and average rating together. A business with 50 reviews and 4.4 stars almost always outranks one with 200 reviews and 4.1 stars, because recency matters more than raw count.
 
-> According to BrightLocal, 87% of consumers read online reviews for local businesses, and businesses in the Google top 3 have an average of 47+ reviews.
+> Reviews matter twice: customers read them before choosing a business, and review quantity, quality and recency are among the factors Google considers for local results. BrightLocal publishes an annual Local Consumer Review Survey if you want current figures.
 
 ## 7 Ways to Get More Reviews
 
@@ -72,7 +76,7 @@ Google's local algorithm uses review count, review velocity (how often new revie
 3. **Add a QR code to receipts and invoices** — A QR code linking to your review page turns every transaction into a review opportunity.
 4. **Send a follow-up email** — A simple "How did we do?" email 24 hours after service, with one button linking to your Google review page.
 5. **Train your staff to ask** — If your team doesn't mention reviews, most customers who would leave one won't think to. One sentence at checkout makes a significant difference.
-6. **Respond to every existing review** — Businesses that respond to reviews get 12% more reviews on average. It signals that reviews are read and valued.
+6. **Respond to every existing review** — Replying shows customers and Google that reviews are read and valued, and it can encourage other customers to leave one.
 7. **Put the link on your website** — Add a "Leave us a review" button to your homepage footer and contact page.
 
 ## What NOT to Do
@@ -90,11 +94,12 @@ Google's local algorithm uses review count, review velocity (how often new revie
     title: "Local SEO Checklist 2026: Everything a Small Business Needs to Rank",
     metaDescription: "A complete local SEO checklist for small businesses in 2026. Covers Google Business Profile, citations, reviews, content, and technical SEO — in priority order.",
     publishedAt: "2026-05-05",
+    updatedAt: "2026-10-07",
     body: `Local SEO in 2026 is more competitive than ever, but most small businesses are still missing the basics. This checklist covers everything — in the order that matters most.
 
 ## What Is Local SEO and Why Does It Matter?
 
-Local SEO is the practice of optimizing your online presence so your business appears when people search for services near them. The top 3 results in Google Maps (the "Local Pack") capture over 70% of all clicks for local searches.
+Local SEO is the practice of optimizing your online presence so your business appears when people search for services near them. The few businesses shown in Google Maps' "Local Pack" get most of the visibility for local searches.
 
 ## The Complete Local SEO Checklist
 
@@ -133,7 +138,7 @@ Local SEO is the practice of optimizing your online presence so your business ap
 
 > The businesses that consistently dominate local search aren't doing anything magical — they're doing the basics better and more consistently than everyone else.
 
-**Bottom line:** A complete GBP profile + consistent NAP + 20+ reviews + regular content will put you in the top 3 for most local markets. Most businesses are missing at least half of this list.
+**Bottom line:** A complete GBP profile, consistent NAP, a healthy flow of reviews and regular content give your business its best chance at strong local visibility. Most businesses are missing some of this list. Results vary by market and are not guaranteed.
 
 [See exactly which items you're missing with a free GravyBlock scan →](/scan)`,
   },
@@ -142,13 +147,14 @@ Local SEO is the practice of optimizing your online presence so your business ap
     title: "AI Search Optimization for Local Businesses: How to Show Up in ChatGPT and Perplexity",
     metaDescription: "ChatGPT and Perplexity are now answering 'best plumber near me' queries. Here's how local businesses can show up in AI search results.",
     publishedAt: "2026-05-07",
+    updatedAt: "2026-10-07",
     body: `When someone asks ChatGPT "What's the best dentist in Austin?" your business might be the answer — or it might not be mentioned at all. Here's how to fix that.
 
 ## How AI Search Engines Find Local Businesses
 
 ChatGPT, Perplexity, Google AI Overviews, and Microsoft Copilot all pull local business recommendations from the same sources: Google Business Profile data, review sites, local news, and structured data on your website. If you're not present and well-reviewed on those sources, AI search engines won't mention you.
 
-> A BrightLocal study found that 58% of consumers have used AI to find a local business in the past year, and that number is growing by 40% annually.
+> Consumers increasingly ask AI assistants such as ChatGPT and Perplexity where to go and who to hire. Published survey figures vary widely by source and year, so treat any single percentage with caution.
 
 ## What AI Search Engines Look For
 
@@ -163,7 +169,7 @@ ChatGPT, Perplexity, Google AI Overviews, and Microsoft Copilot all pull local b
 1. Make your first website paragraph answer "What does [Business Name] do in [City]?" directly.
 2. Add LocalBusiness schema markup to every page.
 3. Write blog posts in Q&A format — each H2 heading as a question, each section as a direct answer.
-4. Get to 25+ Google reviews with recent text that mentions your specific services.
+4. Build a steady flow of recent Google reviews that mention your specific services.
 5. Keep your GBP updated weekly with posts about current services, offers, and news.
 
 **Bottom line:** AI search optimization isn't a new discipline — it's local SEO done properly. Businesses that rank in Google's top 3 today will be mentioned in AI search results tomorrow.
@@ -173,8 +179,9 @@ ChatGPT, Perplexity, Google AI Overviews, and Microsoft Copilot all pull local b
   {
     slug: "google-maps-top-3-ranking",
     title: "How to Rank in the Google Maps Top 3 (The Local Pack)",
-    metaDescription: "The Google Maps top 3 gets 70%+ of all local search clicks. Here's exactly how the ranking algorithm works and what you need to do to get there.",
+    metaDescription: "Why the Google Maps top 3 matters, how local ranking works in general terms, and what you can do to improve your position.",
     publishedAt: "2026-05-09",
+    updatedAt: "2026-10-07",
     body: `The three businesses that appear in Google Maps when someone searches "plumber near me" capture most of the calls. Here's the algorithm behind those rankings and how to earn your spot.
 
 ## How Google Decides Who Gets in the Top 3
@@ -187,19 +194,19 @@ Google's local ranking algorithm uses three main factors:
 
 **Prominence** — How well-known and trusted your business is. This is the factor you can most directly influence through reviews, citations, links, and content.
 
-> According to Moz's Local Search Ranking Factors survey, GBP signals (completeness, category, review count) account for over 36% of the local pack ranking algorithm.
+> Industry surveys of local SEO professionals, such as Whitespark's annual Local Search Ranking Factors study, have generally ranked Google Business Profile signals (completeness, category, reviews) among the most influential factors for local pack rankings.
 
 ## The 5 Highest-Impact Things You Can Do
 
 1. **Complete your GBP to 100%** — Every empty field is a missed ranking signal. Add photos, services, products, description, and Q&As.
-2. **Get to 25+ reviews with a 4.3+ average** — This is the threshold where businesses start appearing consistently in the top 3 for competitive keywords.
-3. **Post to GBP every week** — Weekly posts signal to Google that your business is active. Businesses that post weekly rank 15% higher on average.
+2. **Build a steady flow of recent reviews with a strong average** — Review quantity, quality and recency all influence both rankings and which business a customer chooses.
+3. **Post to GBP every week** — Regular posts show your profile is active and give searchers current information.
 4. **Clean up citation inconsistencies** — Check your name, address, and phone on Yelp, Bing, Apple Maps, and Facebook. Any inconsistency reduces your prominence score.
 5. **Build local content** — Create one article per month targeting "[your service] in [your city]". Internal links and local keyword signals help Google connect your website to your GBP.
 
 ## How Long Does It Take?
 
-Most businesses see meaningful movement (moving from position 7–15 to position 3–6) within 60–90 days of consistent effort. Breaking into the top 3 for competitive keywords typically takes 3–6 months.
+Timelines vary widely by market, competition and starting point. A business with a thin profile often sees movement sooner than one in a crowded market, and no one can honestly promise a position or a date.
 
 **Bottom line:** The businesses in the Google Maps top 3 aren't there by accident — they have complete profiles, strong review velocity, consistent citations, and regular content. Fix all four and you'll get there.
 
@@ -210,13 +217,14 @@ Most businesses see meaningful movement (moving from position 7–15 to position
     title: "Local SEO vs Google Ads for Small Businesses: Which One Wins?",
     metaDescription: "Should a local business invest in local SEO or Google Ads? Here's a data-backed comparison with a clear answer for most small businesses.",
     publishedAt: "2026-05-11",
+    updatedAt: "2026-10-07",
     body: `If you're trying to get more local customers, you're probably choosing between local SEO and Google Ads. Here's the honest comparison.
 
 ## The Core Difference
 
 **Google Ads** gives you instant visibility — but only while you're paying. The moment you stop, you disappear. Cost per click for local service keywords averages $6–$50 depending on industry.
 
-**Local SEO** takes 3–6 months to build, but the traffic is free and compounds over time. A top-3 Maps ranking keeps generating leads whether you're spending money or not.
+**Local SEO** builds over time, but the visibility compounds. A strong Maps position keeps generating leads whether or not you are spending on ads.
 
 ## When Google Ads Makes Sense
 
@@ -232,7 +240,7 @@ Most businesses see meaningful movement (moving from position 7–15 to position
 3. Your competitors aren't investing in SEO (most small businesses still aren't)
 4. You want to appear in AI search results (Ads don't show in ChatGPT/Perplexity)
 
-> WordStream data shows the average small business pays $9,000/year in Google Ads for local keywords. That same $9,000 invested in local SEO typically produces 3–5x more organic traffic by year two.
+> Ads and local SEO work differently: ads stop when the budget stops, while visibility built through a complete profile, reviews and content can keep working. Compare your own cost per lead from ads against what you spend on SEO rather than relying on industry averages.
 
 ## The Answer for Most Small Businesses
 
@@ -249,11 +257,12 @@ The businesses that win long-term do both — SEO for sustainable baseline traff
     title: "The Complete Google Business Profile Optimization Guide (2026)",
     metaDescription: "Everything you need to know to fully optimize your Google Business Profile and rank in the local pack in 2026.",
     publishedAt: "2026-05-13",
+    updatedAt: "2026-10-07",
     body: `Google Business Profile is the single most important thing you control for local search. This guide covers every optimization in the order that produces results.
 
 ## Why GBP Optimization Matters More Than Ever
 
-Google's local search results now show the GBP card before the website in most searches. For mobile users, 60% never scroll past the Local Pack. Your GBP is often the only chance you get to make an impression.
+Google's local search results often show the Business Profile card before the website. On mobile especially, many people never scroll past the Local Pack. Your profile is often the first impression you get.
 
 ## The Complete Optimization Checklist
 
@@ -274,7 +283,7 @@ Your description (750 character limit) should:
 Use the Services section to list every service you offer with a description. These become searchable keywords and help Google match you to more queries.
 
 ### Step 5: Upload at Least 10 Photos
-Google's data shows listings with 10+ photos receive 35% more clicks. Include:
+Google recommends adding real photos to your profile, and a profile with plenty of them looks more active and trustworthy. Include:
 - Exterior (front and parking)
 - Interior (reception, waiting area, workspace)
 - Team photos
@@ -282,14 +291,14 @@ Google's data shows listings with 10+ photos receive 35% more clicks. Include:
 - Any signage or branding
 
 ### Step 6: Post Every Week
-> Businesses that post to GBP weekly rank an average of 15% higher than those that don't post at all.
+> Posting regularly shows searchers that your business is open and active. It is one of the easiest signals within your control.
 
 Posts can be updates, offers, events, or product announcements. Even a simple "What we're working on this week" post counts.
 
 ### Step 7: Manage Your Q&A Section
 Post 10 questions and answers yourself — common customer questions about pricing, hours, services, and parking. This content is indexed by Google and appears in AI search results.
 
-**Bottom line:** A fully optimized GBP takes about 2 hours to set up and 15 minutes per week to maintain. That investment puts you ahead of 80% of your local competitors.
+**Bottom line:** A fully optimized profile takes a few hours to set up and a few minutes per week to maintain. That is a small investment for the visibility it supports.
 
 [GravyBlock publishes weekly Google Business Profile posts and adds your own images once Google is connected →](/scan)`,
   },
@@ -298,6 +307,7 @@ Post 10 questions and answers yourself — common customer questions about prici
     title: "What Is NAP Consistency and Why Does It Matter for Local SEO?",
     metaDescription: "NAP stands for Name, Address, Phone. Inconsistent NAP data across the web is one of the most common reasons local businesses don't rank. Here's how to fix it.",
     publishedAt: "2026-05-15",
+    updatedAt: "2026-10-07",
     body: `NAP consistency is one of the most overlooked local SEO factors — and one of the easiest to fix once you know what to look for.
 
 ## What Is NAP?
@@ -308,7 +318,7 @@ NAP stands for Name, Address, Phone. It refers to how your business is listed ac
 
 When Google finds your business listed as "Mike's Plumbing" in one place and "Mike's Plumbing Co." in another, with the phone number listed as "(555) 123-4567" in one directory and "555.123.4567" in another — it loses confidence in your data.
 
-> A Moz study found that NAP inconsistencies are the second most common reason businesses fail to rank in the local pack, affecting an estimated 68% of small business listings.
+> NAP inconsistencies are widely cited by local SEO practitioners as a common cause of weaker local rankings, and they are among the most common issues found when auditing small business listings.
 
 ## The Most Common NAP Mistakes
 
@@ -324,7 +334,7 @@ When Google finds your business listed as "Mike's Plumbing" in one place and "Mi
 3. Update any listing that doesn't match your canonical exactly
 4. Check your own website — your footer, contact page, and About page must all match
 
-**Bottom line:** NAP consistency is tedious to fix but permanently valuable once done. A single afternoon of auditing and updating your 10 most important directories can move your local ranking within 30 days.
+**Bottom line:** NAP consistency is tedious to fix but permanently valuable once done. A single afternoon of auditing and updating your most important directories removes a common source of confusion for Google and customers.
 
 [GravyBlock checks your name, phone and address across your website, Google, and where connected Yelp and Facebook →](/scan)`,
   },
@@ -333,6 +343,7 @@ When Google finds your business listed as "Mike's Plumbing" in one place and "Mi
     title: "Local SEO for Service Area Businesses: How to Rank Without a Storefront",
     metaDescription: "Plumbers, HVAC contractors, electricians, and other service area businesses face unique local SEO challenges. Here's how to rank when you don't have a customer-facing location.",
     publishedAt: "2026-05-17",
+    updatedAt: "2026-10-07",
     body: `If you serve customers at their location instead of yours, local SEO works differently for you. Here's how to rank in every city you serve.
 
 ## What Makes Service Area Businesses Different
@@ -361,7 +372,7 @@ Ask customers in each city to mention the neighborhood or city in their review. 
 **Strategy 4: Build citations in each city**
 Get listed in local chambers of commerce, city business directories, and local news sites for each city you target.
 
-> Businesses with location pages for each service area rank in the local pack for those cities 3x more often than those without dedicated pages.
+> Dedicated pages for each area you serve give Google and customers a clear, specific page to match to a local search, which one generic page cannot do.
 
 **Bottom line:** Service area businesses can absolutely rank in multiple cities — it just requires more deliberate content and citation building than single-location businesses.
 
@@ -372,13 +383,14 @@ Get listed in local chambers of commerce, city business directories, and local n
     title: "How to Respond to Negative Google Reviews (and Actually Win Back Trust)",
     metaDescription: "A negative Google review isn't a crisis — it's an opportunity. Here's how to respond in a way that turns bad reviews into trust signals for future customers.",
     publishedAt: "2026-05-19",
+    updatedAt: "2026-10-07",
     body: `A negative review sits on your Google Business Profile forever — unless you respond correctly. Here's the template that turns bad reviews into proof of great customer service.
 
 ## Why Your Response Matters More Than the Review
 
 When a potential customer sees a negative review, they're not just reading the complaint — they're watching how you handle it. A professional, empathetic response signals that you're a business that takes problems seriously. A defensive or dismissive response confirms the original complaint.
 
-> BrightLocal found that 89% of consumers read business responses to reviews, and 41% say a good response to a negative review makes them more likely to use the business.
+> Many consumers read how businesses respond to reviews, and a thoughtful reply to a negative review shows prospective customers how you handle problems.
 
 ## The 4-Part Response Framework
 
@@ -416,12 +428,13 @@ Report it to Google (three dots → Flag as inappropriate) and do not respond pu
     title: "Local SEO for Restaurants: How to Show Up When People Search 'Best Restaurants Near Me'",
     metaDescription: "Restaurant local SEO is different from other industries. Here's exactly what drives rankings for restaurants in Google Maps and AI search.",
     publishedAt: "2026-05-21",
+    updatedAt: "2026-10-07",
     body: `"Best restaurants near me" is searched millions of times per day. If your restaurant doesn't appear in the top 3 results, you're invisible to most of those searches. Here's how to fix that.
 
 ## How Restaurant Local SEO Works
 
 Restaurants compete in one of the most competitive local SEO environments. The top-3 Maps Pack for restaurant searches is dominated by businesses with:
-- 100+ Google reviews (with 4.4+ average)
+- A strong, steady flow of recent Google reviews with a high average rating
 - Weekly GBP posts with food photos
 - Complete menu in GBP
 - Multiple categories (e.g., "Italian Restaurant," "Pizza Restaurant," "Family Restaurant")
@@ -431,12 +444,12 @@ Restaurants compete in one of the most competitive local SEO environments. The t
 
 1. **Add your full menu to Google Business Profile** — Google shows menu items directly in search results. Missing this means competitors show up with more content.
 2. **Upload 25+ photos** — Restaurants need more photos than other business types. Include food, ambiance, exterior, staff, and seasonal specials.
-3. **Post weekly with food photos** — Restaurant GBP posts with food images get 3x more engagement than text-only posts.
+3. **Post weekly with food photos** — Real photos of your food make posts more engaging and give searchers a reason to choose you.
 4. **Get listed on OpenTable, Yelp, TripAdvisor** — These platforms feed data to Google and AI search engines. Consistent presence across all three amplifies your local authority.
 5. **Add "reservations" and "ordering" links** — GBP supports direct integration with OpenTable and ordering platforms. Adding these increases conversion and signals to Google that you're an active business.
 6. **Enable messaging** — Customers increasingly message before visiting. Responding quickly improves your GBP engagement score.
 
-> According to Google, restaurants with full menus listed in GBP appear 45% more often in local searches compared to those without menus.
+> Keeping your full menu, hours and photos current on your Google profile helps searchers decide, and gives Google accurate information to match to searches.
 
 ## The Review Strategy for Restaurants
 
@@ -449,8 +462,9 @@ Restaurants have an advantage: you interact with dozens of customers per day. A 
   {
     slug: "local-seo-for-dentists",
     title: "Local SEO for Dentists: How to Fill Your Chair with Patients from Google",
-    metaDescription: "Dental practices that rank in the Google Maps top 3 get 70% of new patient inquiries. Here's how to get there and stay there.",
+    metaDescription: "Why the Google Maps top 3 matters for dental practices, and how a complete profile, reviews and service pages help new patients find you.",
     publishedAt: "2026-05-23",
+    updatedAt: "2026-10-07",
     body: `A dental practice that ranks in Google's top 3 for "dentist near me" in its city can generate 20–40 new patient inquiries per month from search alone. Here's the system that gets you there.
 
 ## Why Dental Local SEO Is Different
@@ -480,15 +494,16 @@ Visual results are the highest-converting content for dental practices. A weekly
 
 > Dental practices in the Google Maps top 3 for "dentist near me" in cities of 100K+ people generate an estimated $200K–$400K in annual recurring revenue from search alone.
 
-**Bottom line:** Dental local SEO is a long-term investment with extremely high returns. The combination of complete GBP, health directory citations, service pages, and a consistent review system puts most practices in the top 3 within 6 months.
+**Bottom line:** Dental local SEO is a long-term investment. A complete profile, health directory citations, service pages and a consistent review system give a practice its best chance at strong local visibility. Timelines vary and results are not guaranteed.
 
-[GravyBlock runs scheduled website content, Google posts and review replies for dental practices →](/scan)`,
+[GravyBlock decides and does website content, Google posts and review replies for dental practices →](/scan)`,
   },
   {
     slug: "local-seo-for-plumbers",
     title: "Local SEO for Plumbers: How to Get More Calls from Google Maps",
     metaDescription: "Plumbing is one of the most lucrative local SEO categories. Here's the exact system plumbers use to dominate Google Maps in their market.",
     publishedAt: "2026-05-25",
+    updatedAt: "2026-10-07",
     body: `Plumbing leads from Google are among the most valuable in any local category — emergency searches have near-100% intent and average job values of $500+. Here's how to capture them.
 
 ## The Plumbing SEO Landscape
@@ -516,9 +531,9 @@ Document every job with before-and-after photos. Post one per week to GBP with a
 **5. Response time emphasis in reviews**
 Encourage customers to mention your response time in reviews: "They arrived in 45 minutes on a Sunday night." Response time is the #1 differentiator in emergency plumbing searches.
 
-> Emergency plumbing searches convert at 30–50% higher rates than non-emergency searches. A top-3 Maps ranking for "emergency plumber [city]" is worth $10K–$30K/month in jobs for most markets.
+> People searching for an emergency plumber usually want to call right away, so a clear phone number, emergency availability stated on your profile and a strong map position all matter.
 
-**Bottom line:** Plumbing local SEO is won by speed and trust signals. Emergency availability in your GBP, service-specific pages, fast response testimonials, and weekly photo content will put you in the top 3 in most markets within 90 days.
+**Bottom line:** Plumbing local SEO is won by speed and trust signals: emergency availability on your profile, service-specific pages, fast response, and a steady flow of recent photos and reviews. Timelines vary by market and results are not guaranteed.
 
 [GravyBlock runs weekly Google posts and website content for plumbing businesses →](/scan)`,
   },
@@ -527,6 +542,7 @@ Encourage customers to mention your response time in reviews: "They arrived in 4
     title: "What Are Local Citations and How Do You Build Them?",
     metaDescription: "Local citations are online mentions of your business name, address, and phone number. Here's why they matter for SEO and the exact directories to get listed on.",
     publishedAt: "2026-05-27",
+    updatedAt: "2026-10-07",
     body: `Local citations are one of the oldest SEO tactics that still works — and most small businesses have messy, incomplete citation profiles. Here's how to fix yours.
 
 ## What Is a Local Citation?
@@ -560,7 +576,7 @@ Beyond the core directories, add citations to the platforms your customers use:
 - **Legal**: Avvo, Justia, FindLaw
 - **Home Services**: Angi, HomeAdvisor, Thumbtack, Houzz
 
-> According to Whitespark's annual citation survey, building 20+ high-quality citations moves most local businesses up 2–5 positions in Maps rankings within 60 days.
+> Consistent listings on the directories that matter for your industry build trust signals, but more citations is not always better. Prioritize accuracy and relevance over volume.
 
 ## The Citation Building Process
 
@@ -570,7 +586,7 @@ Beyond the core directories, add citations to the platforms your customers use:
 4. Add industry-specific directories relevant to your category
 5. Audit every 6 months for inconsistencies as your business information changes
 
-**Bottom line:** Citation building is a one-time investment with lasting returns. Getting fully listed on 15–20 high-authority directories puts most businesses in the top 3 for their target keywords.
+**Bottom line:** Citation building is a one-time investment with lasting value. Getting listed accurately on the high-authority directories that matter for your industry gives Google and customers consistent information about your business.
 
 [GravyBlock checks that your listings agree across your website, Google, and where connected Yelp and Facebook →](/scan)`,
   },
@@ -579,6 +595,7 @@ Beyond the core directories, add citations to the platforms your customers use:
     title: "Content Marketing for Local Businesses: What Actually Works in 2026",
     metaDescription: "Most local business content marketing advice is wrong. Here's what actually drives local search rankings and customer acquisition in 2026.",
     publishedAt: "2026-05-29",
+    updatedAt: "2026-10-07",
     body: `"Start a blog" is the most common content marketing advice given to local businesses. Most of them do it for three months and give up because it doesn't work. Here's why — and what does work.
 
 ## Why Most Local Business Content Fails
@@ -590,18 +607,18 @@ Content that ranks locally has to pass a test: **would a potential customer sear
 ## What Content Actually Works for Local Businesses
 
 ### 1. Service + City combination pages
-"[Service] in [City]" pages are the highest-converting local content because they match exactly how customers search. "HVAC repair in Phoenix" has 1,200+ searches per month. A dedicated page targeting that exact phrase will rank and convert.
+"[Service] in [City]" pages are among the most useful local content because they match exactly how customers search. For example, a dedicated "HVAC repair in Phoenix" page gives you something specific to match that search. Check search volumes with a keyword tool before you pick topics.
 
 ### 2. Problem-solution articles
 Customers search when they have a problem: "water heater making noise," "hair falling out after bleaching," "tooth hurts when eating." Content that describes the problem in the customer's words, explains causes, and mentions your business as the solution captures this traffic.
 
 ### 3. Q&A content
-Write articles that answer the top 10 questions your customers ask in the first phone call. "How much does it cost to replace a water heater in Houston?" is searched 500+ times per month. An article that answers it directly — and mentions your business at the end — converts.
+Write articles that answer the questions your customers ask in the first phone call. "How much does it cost to replace a water heater in Houston?" is the kind of question people search for. An article that answers it directly, and mentions your business at the end, can turn a search into a call.
 
 ### 4. Local comparison content
 "[Your city] vs. [Nearby city]" or "[Type A service] vs. [Type B service] in [City]" captures consideration-phase searches and positions your business as the expert.
 
-> Businesses that publish 2+ locally-targeted articles per month see 3.5x more organic leads than those that publish irregularly, according to HubSpot's local business data.
+> Regular, locally relevant articles give you more pages that can match local searches. Consistency matters more than volume.
 
 ## The Right Publishing Frequency
 
@@ -668,11 +685,12 @@ GravyBlock is a lower-cost option that automatically decides and does a defined 
     title: "Google Business Profile Posts: What to Post and How Often",
     metaDescription: "GBP posts are one of the most underused local SEO tools. Businesses that post weekly rank higher and get more clicks. Here's exactly what to post.",
     publishedAt: "2026-06-02",
-    body: `Google Business Profile Posts are the closest thing local businesses have to a social media feed inside Google Search. Most businesses never use them. The ones that do consistently outrank those that don't.
+    updatedAt: "2026-10-07",
+    body: `Google Business Profile Posts are the closest thing local businesses have to a social media feed inside Google Search. Many businesses never use them, which makes consistent posting an easy way to look more active.
 
 ## Do GBP Posts Actually Help Rankings?
 
-Yes — according to a Whitespark study, businesses that post to GBP weekly rank on average 15% higher than those that don't post at all. Google interprets activity as a signal that a business is open, active, and engaged with customers.
+Yes. Regular posts show searchers that your business is open and active, and give them current information.
 
 Posts also appear in the knowledge panel when someone searches your business name, and sometimes appear in the Local Pack results for competitive searches.
 
@@ -696,7 +714,7 @@ Posts also appear in the knowledge panel when someone searches your business nam
 6. A reminder about an upcoming seasonal service need
 7. A new service or product you've added
 
-> Businesses that post with a photo get 3x more views than text-only GBP posts. Always include an image.
+> Posts with a real photo are usually more eye-catching than text-only posts. Always include an image.
 
 ## The Best Time to Post
 
@@ -704,7 +722,7 @@ Post Tuesday through Thursday between 9am–11am local time. These windows show 
 
 ## How Long Posts Last
 
-GBP posts expire after 7 days unless they're Event or Offer posts (which run until their end date). This is why weekly posting is the minimum — old posts are replaced and your profile looks current.
+Posts can age out of prominent display, and event and offer posts run until their end date. Regular posting keeps your profile looking current.
 
 **Bottom line:** GBP posts take 5 minutes per week and directly improve your search rankings. There is almost no other 5-minute weekly action with comparable ROI for local SEO.
 
@@ -715,6 +733,7 @@ GBP posts expire after 7 days unless they're Event or Offer posts (which run unt
     title: "10 Local SEO Mistakes Small Businesses Make (And How to Fix Them)",
     metaDescription: "Most small businesses make the same 10 local SEO mistakes. Here's each mistake, why it hurts your rankings, and exactly how to fix it.",
     publishedAt: "2026-06-04",
+    updatedAt: "2026-10-07",
     body: `After analyzing thousands of local business profiles, the same mistakes come up over and over. Here are the top 10 — and how to fix each one.
 
 ## The 10 Most Common Local SEO Mistakes
@@ -729,10 +748,10 @@ Google can detect virtual office addresses and will suspend listings that use th
 Your phone number must be identical on Google, Yelp, Facebook, your website, and every other directory. Even formatting differences (555-123-4567 vs (555) 123-4567) can create inconsistency signals.
 
 **Mistake 4: Not responding to reviews**
-Businesses that respond to all reviews get 12% more reviews on average. Not responding signals low engagement to Google and potential customers.
+Replying to reviews shows customers and Google that you pay attention. Not responding can signal low engagement to potential customers.
 
 **Mistake 5: Single category on GBP**
-Most businesses offer services that qualify for multiple GBP categories. A dental practice can add "Cosmetic Dentist," "Pediatric Dentist," and "Emergency Dental Service" as secondary categories — each one unlocks additional search queries.
+Many businesses offer services that qualify for multiple GBP categories. A dental practice can add "Cosmetic Dentist," "Pediatric Dentist," and "Emergency Dental Service" as secondary categories where they genuinely apply, which helps Google match you to more relevant searches.
 
 **Mistake 6: No photos or outdated photos**
 GBP profiles with fewer than 10 photos receive significantly fewer clicks. Upload photos that show your actual work, team, and location — not stock photos.
@@ -746,10 +765,10 @@ The Q&A section is publicly visible and indexed by Google. Post 10 questions and
 **Mistake 9: No content strategy**
 A GBP listing with zero linked website content misses the trust and keyword signals that content provides. Publishing even one article per month significantly improves GBP rankings.
 
-**Mistake 10: Giving up after 60 days**
-Local SEO takes 3–6 months to show significant results. Most businesses that try it and quit do so right before their efforts would have started to pay off.
+**Mistake 10: Giving up too early**
+Local SEO takes time to show significant results, and timelines vary by market. Many businesses quit before their efforts have had a chance to pay off.
 
-**Bottom line:** Most of these mistakes are fixable in a single afternoon. Fixing all 10 consistently moves most local businesses from page 2 into the top 3 within 90 days.
+**Bottom line:** Most of these mistakes are fixable in a single afternoon. Fixing them consistently gives your business the best chance of improving its local visibility; timelines vary and results are not guaranteed.
 
 [GravyBlock's free scan checks many of these items →](/scan)`,
   },
@@ -758,6 +777,7 @@ Local SEO takes 3–6 months to show significant results. Most businesses that t
     title: "Schema Markup for Local Businesses: The Complete Guide",
     metaDescription: "Schema markup tells Google and AI search engines exactly what your business does. Here's what local business schema is, why it matters, and how to add it.",
     publishedAt: "2026-06-06",
+    updatedAt: "2026-10-07",
     body: `Schema markup is the structured data language Google, Bing, and AI search engines use to understand your website. For local businesses, implementing it correctly is a significant ranking advantage.
 
 ## What Is Schema Markup?
@@ -825,7 +845,7 @@ Rank Math and Yoast SEO both generate LocalBusiness schema automatically from yo
 }
 \`\`\`
 
-> A Searchmetrics study found that pages with schema markup rank on average 4 positions higher than equivalent pages without it.
+> Structured data helps search engines understand what a page is about. Google documents which schema types it supports for rich results; it does not guarantee a ranking boost from adding markup.
 
 **Bottom line:** Schema markup takes about an hour to implement correctly and provides lasting ranking benefits. For AI search optimization specifically, LocalBusiness and Article schema are non-negotiable.
 
@@ -836,13 +856,14 @@ Rank Math and Yoast SEO both generate LocalBusiness schema automatically from yo
     title: "Can You Rank on Google Maps Without Reviews?",
     metaDescription: "New businesses with zero reviews can still rank in local search. Here's what else matters — and how to build review velocity fast when you're starting from scratch.",
     publishedAt: "2026-06-08",
+    updatedAt: "2026-10-07",
     body: `Starting a new business with zero Google reviews feels like a catch-22 — you need rankings to get customers, and you need customers to get reviews. Here's how to break the cycle.
 
 ## Can a Business Rank Without Reviews?
 
 Yes — especially in low-competition markets, for specific service-area searches, or with a complete, well-optimized GBP. Reviews are one of three ranking factors (relevance, distance, prominence), and prominence includes more than just reviews.
 
-However, in most competitive urban markets, 20+ reviews with a 4.3+ average is effectively the floor for consistent top-3 appearances.
+However, in competitive urban markets, a business with few or weak reviews will usually struggle against competitors that have many strong ones.
 
 ## What You Can Compete On Without Reviews
 
@@ -861,9 +882,9 @@ However, in most competitive urban markets, 20+ reviews with a 4.3+ average is e
 3. **Ask your professional network first** — Former colleagues, vendors, and business associates who know your work can leave honest reviews based on your professional reputation.
 4. **Run a 30-day "launch" review campaign** — Set a goal of 15 reviews in your first month. Tell your network you're launching and need community support.
 
-> Businesses that reach 25 reviews within their first 6 months rank in the top 5 for their primary category 80% of the time, according to a Moz longitudinal study.
+> Reviews build over time. A steady, consistent flow of real customer reviews matters more than a one-time push.
 
-**Bottom line:** You can rank without reviews by maximizing every other factor. But 25+ reviews remains the fastest path to consistent top-3 appearances. Make review generation your primary activity in months 1–3.
+**Bottom line:** You can improve visibility without many reviews by maximizing every other factor. But a steady flow of real reviews remains one of the most reliable ways to compete. Make review generation a priority from the start.
 
 [GravyBlock monitors your reviews, replies to Google reviews automatically, and automatically asks your real completed customers for a review once connected →](/scan)`,
   },

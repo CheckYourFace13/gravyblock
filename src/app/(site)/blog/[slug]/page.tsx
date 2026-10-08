@@ -6,6 +6,10 @@ import { getBlogPostBySlug, getAllBlogPosts } from "@/lib/blog/posts";
 
 type Props = { params: Promise<{ slug: string }> };
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
+
 export async function generateStaticParams() {
   return getAllBlogPosts().map((p) => ({ slug: p.slug }));
 }
@@ -25,6 +29,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: `${siteUrl}/blog/${slug}`,
       type: "article",
       publishedTime: new Date(post.publishedAt).toISOString(),
+      ...(post.updatedAt ? { modifiedTime: new Date(post.updatedAt).toISOString() } : {}),
+      authors: ["GravyBlock"],
       siteName: "GravyBlock",
     },
   };
@@ -44,6 +50,8 @@ export default async function BlogPostPage({ params }: Props) {
     headline: post.title,
     description: post.metaDescription,
     datePublished: new Date(post.publishedAt).toISOString(),
+    dateModified: new Date(post.updatedAt ?? post.publishedAt).toISOString(),
+    mainEntityOfPage: { "@type": "WebPage", "@id": `${siteUrl}/blog/${slug}` },
     url: `${siteUrl}/blog/${slug}`,
     publisher: {
       "@type": "Organization",
@@ -73,19 +81,44 @@ export default async function BlogPostPage({ params }: Props) {
         </nav>
 
         <header className="mb-10">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-red-700">
-            {new Date(post.publishedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-          </p>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-red-700">Local SEO guide</p>
           <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl leading-snug">
             {post.title}
           </h1>
           <p className="mt-3 text-lg text-zinc-500 leading-relaxed">{post.metaDescription}</p>
+          <p className="mt-4 text-sm text-zinc-500">
+            Published by{" "}
+            <Link href="/about" className="font-medium text-zinc-700 hover:underline">
+              GravyBlock
+            </Link>
+            {" · "}
+            <time dateTime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
+            {post.updatedAt && post.updatedAt !== post.publishedAt && (
+              <>
+                {" · Updated "}
+                <time dateTime={post.updatedAt}>{formatDate(post.updatedAt)}</time>
+              </>
+            )}
+          </p>
         </header>
 
         <article
           className="article-body"
           dangerouslySetInnerHTML={{ __html: htmlBody }}
         />
+
+        <aside className="mt-10 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs leading-relaxed text-zinc-600">
+          <p className="font-semibold text-zinc-800">About this article</p>
+          <p className="mt-1">
+            This is general guidance, not a guarantee of results; timelines and outcomes vary by market. Where an article cites
+            a study, the source is named. Statements about GravyBlock describe what the product does today; the current list is
+            on the{" "}
+            <Link href="/features" className="underline">
+              features
+            </Link>{" "}
+            page.
+          </p>
+        </aside>
 
         {/* CTA */}
         <section className="mt-12 rounded-2xl border border-red-200 bg-red-50/60 p-7 text-center">

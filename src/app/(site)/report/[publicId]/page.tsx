@@ -19,11 +19,13 @@ const normalizePromoCodeIntent = normalizePromoCode;
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { publicId } = await params;
   const record = await getReportWithContext(publicId);
-  if (!record) return { title: "Report not found" };
+  if (!record) return { title: "Report not found", robots: { index: false, follow: false } };
   const title = record.payload.summary.title;
   return {
     title: `${title}`,
     description: record.payload.summary.verdict,
+    // Reports are private links sent to a specific business, not pages to index.
+    robots: { index: false, follow: false },
   };
 }
 

@@ -5,8 +5,8 @@ import { CtaLeadForm } from "@/components/cta-lead-form";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Questions about GravyBlock, pricing, or getting started? Reach us directly at chris@gravyblock.com or send a message below.",
-  alternates: { canonical: "https://gravyblock.com/contact" },
+    "Questions about GravyBlock, pricing, or getting started? Reach our team at support@gravyblock.com or send a message below.",
+  alternates: { canonical: "/contact" },
 };
 
 const schema = {
@@ -26,8 +26,7 @@ export default function ContactPage() {
           <p className="text-xs font-bold uppercase tracking-widest text-red-700 mb-2">Get in touch</p>
           <h1 className="text-3xl font-bold text-zinc-900 sm:text-4xl">Contact GravyBlock</h1>
           <p className="mt-3 text-zinc-500 text-sm">
-            Questions about pricing, what the product does, or getting started — send a message and you'll hear
-            back from the person actually running GravyBlock.
+            Questions about pricing, what the product does, or getting started — send a message and our team will reply by email.
           </p>
         </div>
       </section>
@@ -49,9 +48,9 @@ export default function ContactPage() {
           <div className="space-y-6">
             <div>
               <h2 className="text-lg font-bold text-zinc-900 mb-1">Direct email</h2>
-              <p className="text-sm text-zinc-500 mb-2">Prefer email? Reach us directly.</p>
-              <a href="mailto:chris@gravyblock.com" className="font-semibold text-red-700 hover:underline">
-                chris@gravyblock.com
+              <p className="text-sm text-zinc-500 mb-2">Prefer email? Write to our team.</p>
+              <a href="mailto:support@gravyblock.com" className="font-semibold text-red-700 hover:underline">
+                support@gravyblock.com
               </a>
             </div>
 

@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: page.metaTitle,
     description: page.metaDescription,
-    alternates: { canonical: `https://gravyblock.com/guides/${slug}` },
+    alternates: { canonical: `/guides/${slug}` },
   };
 }
 
@@ -32,8 +32,6 @@ export default async function QuestionGuidePage({ params }: Props) {
     headline: page.model.title,
     description: page.metaDescription,
     url: `https://gravyblock.com/guides/${slug}`,
-    datePublished: "2026-01-01",
-    dateModified: "2026-05-09",
     publisher: {
       "@type": "Organization",
       name: "GravyBlock",
@@ -41,9 +39,9 @@ export default async function QuestionGuidePage({ params }: Props) {
       logo: "https://gravyblock.com/brand/favicon.png",
     },
     author: {
-      "@type": "Person",
-      name: "Chris",
-      jobTitle: "Founder",
+      "@type": "Organization",
+      name: "GravyBlock",
+      url: "https://gravyblock.com",
     },
     breadcrumb: {
       "@type": "BreadcrumbList",

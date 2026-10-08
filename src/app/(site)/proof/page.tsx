@@ -11,10 +11,16 @@ export const metadata: Metadata = {
   title: "Proof: we run GravyBlock on our own businesses",
   description:
     "Verified activity from businesses we operate ourselves on the same automation paying customers get. Only work confirmed to have happened is shown, not testimonials and not queued or drafted work.",
-  alternates: { canonical: "https://gravyblock.com/proof" },
+  alternates: { canonical: "/proof" },
 };
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+
+/** Turn stored enum-like labels ("online_brand") into readable text. */
+const readable = (v: string) => {
+  const t = v.replace(/_/g, " ").trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
 
 function ProofActivityList({ activity }: { activity: ProofActivity }) {
   const rows: Array<{ label: string; detail?: ReactNode }> = [];
@@ -88,15 +94,21 @@ export default async function ProofPage() {
         We run GravyBlock on our own businesses.
       </h1>
       <p className="mt-4 max-w-2xl text-lg text-zinc-600">
-        These are real businesses operated by GravyBlock&apos;s founder, running the same automation paying customers get.
+        These are real businesses operated by GravyBlock, running the same automation paying customers get.
         The numbers below are pulled live from the same database that powers customer workspaces, and a category appears
         only when there is external evidence for it.
+      </p>
+
+      <p className="mt-4 max-w-2xl rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+        What this page shows: work GravyBlock completed and confirmed on a live site or profile. Confirmed work is not by itself
+        evidence of more traffic, rankings, leads or revenue, and is labeled that way below. The visibility number is
+        GravyBlock&apos;s own score, not a measure of traffic or revenue.
       </p>
 
       {showcased.length === 0 ? (
         <div className="mt-10 rounded-2xl border border-zinc-200 bg-zinc-50 p-8 text-center">
           <p className="text-sm text-zinc-600">
-            We&apos;re assembling this page right now. Live business data appears here as each house business is connected. In
+            We&apos;re assembling this page right now. Live business data appears here as each business is connected. In
             the meantime, the{" "}
             <Link href="/examples/sample-local-growth-report" className="font-semibold text-red-800 underline">
               sample report
@@ -112,7 +124,7 @@ export default async function ProofPage() {
                 <div>
                   <h2 className="text-lg font-semibold text-zinc-900">{b.name}</h2>
                   <p className="mt-0.5 text-xs text-zinc-500">
-                    {[b.vertical, b.city].filter(Boolean).join(" · ") || "Local business"}
+                    {[b.vertical ? readable(b.vertical) : null, b.city].filter(Boolean).join(" · ") || "Local business"}
                   </p>
                 </div>
                 {b.score !== null ? (
@@ -139,7 +151,7 @@ export default async function ProofPage() {
 
       {caseStudies.length > 0 ? (
         <section className="mt-12">
-          <h2 className="text-xl font-semibold text-zinc-900">Case studies</h2>
+          <h2 className="text-xl font-semibold text-zinc-900">Verified before and after</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {caseStudies.map((c) => (
               <article key={c.title} className="rounded-xl border border-zinc-200 bg-white p-5 text-sm text-zinc-700">
@@ -164,7 +176,7 @@ export default async function ProofPage() {
                 <div className="flex items-center gap-2">
                   <p className="font-medium text-zinc-900">{p.businessName}</p>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${p.proofLevel >= 3 ? "bg-emerald-100 text-emerald-800" : p.proofLevel === 2 ? "bg-sky-100 text-sky-800" : "bg-zinc-100 text-zinc-600"}`}>
-                    {p.proofLevel >= 3 ? "Business result" : p.proofLevel === 2 ? "Search/visibility result" : "Execution"}
+                    {p.proofLevel >= 3 ? "Business result" : p.proofLevel === 2 ? "Search/visibility result" : "Verified work (not an outcome)"}
                   </span>
                 </div>
                 <p className="mt-1">{p.summary}</p>
@@ -180,13 +192,24 @@ export default async function ProofPage() {
 
       <div className="mt-12 rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
         <p className="font-semibold text-zinc-900">Want the same thing running for your business?</p>
-        <p className="mt-1 text-sm text-zinc-600">Start with the free 60-second scan. No account, no credit card.</p>
-        <Link
-          href="/scan"
-          className="mt-4 inline-block rounded-full bg-red-600 px-7 py-3 text-sm font-semibold text-white hover:bg-red-500"
-        >
-          Get my free visibility score →
-        </Link>
+        <p className="mt-1 text-sm text-zinc-600">
+          Start with the free scan: your visibility score and what GravyBlock would do about each finding. About a minute, no
+          credit card.
+        </p>
+        <div className="mt-4 flex flex-wrap justify-center gap-3">
+          <Link
+            href="/scan"
+            className="inline-block rounded-full bg-red-600 px-7 py-3 text-sm font-semibold text-white hover:bg-red-500"
+          >
+            Get my free visibility score →
+          </Link>
+          <Link
+            href="/how-it-works"
+            className="inline-block rounded-full border border-zinc-300 bg-white px-7 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+          >
+            How it works
+          </Link>
+        </div>
       </div>
     </div>
   );

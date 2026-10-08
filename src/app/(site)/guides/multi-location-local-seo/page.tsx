@@ -3,6 +3,7 @@ import Link from "next/link";
 import { GuideShell } from "@/components/guide-shell";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/guides/multi-location-local-seo" },
   title: "Multi-location local SEO guide",
   description:
     "How multi-location brands keep listings, sites, and trust signals aligned so Google, Maps, and AI summaries stay consistent.",

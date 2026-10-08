@@ -119,7 +119,7 @@ export const CAPABILITIES: Capability[] = [
     status: "partial",
     plans: ["growth", "pro"],
     publicLine: "Finds relevant local organizations, pitches one useful page from your website to a real published contact, follows up once, and only counts a link once it is verified on their site.",
-    limits: "No guaranteed links, no purchased or automated link creation, and replies go to you. Unlinked-mention discovery and reply tracking are not automated.",
+    limits: "No guaranteed links and no purchased or automated link creation. Replies from recipients go to you.",
     engine: "src/lib/authority/engine.ts",
   },
   {

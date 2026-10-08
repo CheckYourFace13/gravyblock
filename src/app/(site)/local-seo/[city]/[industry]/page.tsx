@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { findCity, findIndustry, getStaticCombos, CITIES, INDUSTRIES } from "@/lib/local-seo/markets";
 import { localPageCapabilityBullets } from "@/lib/capabilities";
+import { isCityIndustryIndexable, robotsFor } from "@/lib/seo/indexing";
 
 export const dynamicParams = true;
 
@@ -12,18 +13,28 @@ export async function generateStaticParams() {
   return getStaticCombos();
 }
 
+/** Lower-case an industry name for running text while keeping acronyms ("HVAC company"). */
+function inText(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => (w === w.toUpperCase() && w.length > 1 ? w : w.toLowerCase()))
+    .join(" ");
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { city: citySlug, industry: industrySlug } = await params;
   const city = findCity(citySlug);
   const industry = findIndustry(industrySlug);
-  if (!city || !industry) return { title: "Not found" };
+  if (!city || !industry) return { title: "Not found", robots: robotsFor(false) };
 
   return {
     title: `Local SEO for ${industry.plural} in ${city.name}, ${city.state}`,
-    description: `GravyBlock automatically decides and does website content, Google Business Profile posts, Google review replies, and AI visibility checks for ${industry.plural} in ${city.name}. Free scan — no credit card.`,
+    description: `GravyBlock decides and does ongoing website content, Google Business Profile posts, Google review replies and AI visibility checks for ${industry.plural} in ${city.name}. Free scan, no credit card.`,
     alternates: {
       canonical: `/local-seo/${citySlug}/${industrySlug}`,
     },
+    // Generated page: indexable only if it carries unique local content (see lib/seo/indexing.ts).
+    robots: robotsFor(isCityIndustryIndexable(citySlug, industrySlug)),
     openGraph: {
       title: `Local SEO for ${industry.plural} in ${city.name}`,
       description: `Automated local SEO work for ${industry.plural} in ${city.name}, ${city.state}.`,
@@ -40,58 +51,30 @@ export default async function LocalSeoPage({ params }: Props) {
   const relatedCities = CITIES.filter((c) => c.slug !== citySlug).slice(0, 6);
   const relatedIndustries = INDUSTRIES.filter((i) => i.slug !== industrySlug).slice(0, 8);
 
-  const ind = industry.name.toLowerCase();
-  const indPlural = industry.plural.toLowerCase();
-  // Vowel-SOUND, not vowel-letter — "HVAC" is pronounced "aitch-vee-ay-see"
-  // and needs "an", despite starting with the consonant letter H.
-  const article = /^(hvac)\b/i.test(ind) || /^[aeiou]/i.test(ind) ? "an" : "a";
+  const ind = inText(industry.name);
+  const indPlural = inText(industry.plural);
+  // Vowel-SOUND, not vowel-letter: "HVAC" is pronounced "aitch-vee-ay-see" and needs "an".
+  const article = /^hvac\b/i.test(ind) || /^[aeiou]/i.test(ind) ? "an" : "a";
+  const scanHref = `/scan?vertical=${encodeURIComponent(industry.name)}&location=${encodeURIComponent(city.name + " " + city.state)}`;
 
-  // FAQ content — also emitted as FAQPage schema for Google rich results
   const faqs = [
     {
-      q: `How do ${indPlural} in ${city.name} rank higher on Google Maps?`,
-      a: `${industry.plural} rank in the ${city.name} map pack by combining a complete Google Business Profile, a steady flow of recent reviews, consistent name/address/phone across directories, and regular local content. GravyBlock automatically works on all of that — website content, Google Business Profile posts, Google review replies, review requests to your real customers, citation checks, and legitimate outreach for other sites to mention or link to you — based on what it finds will actually help, not a fixed schedule. Rankings are never guaranteed.`,
+      q: `What does GravyBlock do for ${indPlural} in ${city.name}?`,
+      a: `It learns your business from your own website and Google profile, decides what will help most, and does that work automatically: website content, Google Business Profile posts, Google review replies, review requests to your real customers, citation consistency checks and local outreach. Some of this needs a one-time connection, such as your website or Google account. Rankings and results are never guaranteed.`,
     },
     {
-      q: `How much does local SEO cost for ${article} ${ind} in ${city.name}?`,
-      a: `A ${city.name} SEO agency typically charges $1,000–$3,000/month and you still attend meetings. GravyBlock is a lower-cost option that automatically decides and does that work for you — website content, Google Business Profile posts, Google review replies and requests, citation checks, and outreach. Scale is $149.99/month, or $74.99/month with code GROWTH50, locked for as long as you stay subscribed. You can start with a free scan, no credit card.`,
+      q: `How much does it cost for ${article} ${ind} in ${city.name}?`,
+      a: `Scale is $149.99/month, or $74.99/month with code GROWTH50, locked for as long as you stay subscribed. Plans are the same in every city. You can start with a free scan, no credit card.`,
     },
     {
-      q: `How long until my ${ind} shows up in ${city.name} search results?`,
-      a: `Most ${indPlural} see movement within 30–60 days of consistent optimization, with top-3 map pack rankings typically taking 3–6 months in competitive ${city.name} markets. GravyBlock automatically decides what content and Google posts will help, so work continues over time rather than stopping after a one-time audit. Results are not guaranteed.`,
+      q: `How long until my ${ind} shows up higher in ${city.name}?`,
+      a: `There is no fixed timeline, and no one can honestly promise one. It depends on your market, your competitors and where you start. GravyBlock keeps working over time and reports only work it has verified.`,
     },
     {
       q: `Will my ${ind} show up when people ask ChatGPT for recommendations in ${city.name}?`,
-      a: `Increasingly, customers ask ChatGPT and Perplexity "who's the best ${ind} in ${city.name}?" AI assistants pull from your Google profile, reviews, and web content. GravyBlock checks monthly whether AI assistants mention your business and reports the result; it does not yet act on those results automatically.`,
+      a: `GravyBlock checks monthly whether AI assistants such as ChatGPT and Perplexity mention your business and reports the result. It does not yet act on those results automatically, and it cannot promise a mention.`,
     },
   ];
-
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "WebPage",
-        name: `Local SEO for ${industry.plural} in ${city.name}, ${city.state}`,
-        description: `Automated local SEO work for ${industry.plural} in ${city.name}.`,
-        url: `${baseUrl}/local-seo/${citySlug}/${industrySlug}`,
-        mainEntity: {
-          "@type": "Service",
-          name: "GravyBlock Local Growth Autopilot",
-          areaServed: { "@type": "City", name: city.name, containedInPlace: { "@type": "State", name: city.state } },
-          audience: { "@type": "Audience", audienceType: industry.plural },
-        },
-      },
-      {
-        "@type": "FAQPage",
-        mainEntity: faqs.map((f) => ({
-          "@type": "Question",
-          name: f.q,
-          acceptedAnswer: { "@type": "Answer", text: f.a },
-        })),
-      },
-    ],
-  };
 
   return (
     <div>
@@ -104,149 +87,109 @@ export default async function LocalSeoPage({ params }: Props) {
             Local SEO for {industry.plural} in {city.name}
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-zinc-600">
-            GravyBlock automatically decides what will help and does it — website content, Google posts, Google review replies, and local outreach for {industry.plural.toLowerCase()} in{" "}
-            {city.name}, {city.state}, to help you show up when customers search.
+            GravyBlock decides what will help {indPlural} in {city.name}, {city.state} get found on Google and does the
+            work automatically: website content, Google posts, Google review replies and local outreach.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
-              href={`/scan?city=${encodeURIComponent(city.name + ", " + city.state)}`}
+              href={scanHref}
               className="inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500"
             >
-              Free scan for my {industry.name.toLowerCase()}
+              Free scan for my {ind} →
             </Link>
             <Link
-              href="/#plans"
-              className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
+              href="/how-it-works"
+              className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
             >
-              See plans
+              How it works
             </Link>
           </div>
+          <p className="mt-3 text-xs text-zinc-500">Scale is $74.99/mo, locked while subscribed. Cancel anytime.</p>
         </div>
       </section>
 
       <section className="mx-auto max-w-4xl space-y-6 px-4 py-14 sm:px-6">
-        <h2 className="text-2xl font-semibold text-zinc-900">
-          Why local SEO matters for {industry.plural.toLowerCase()} in {city.name}
-        </h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          {[
-            {
-              title: "Customers search locally first",
-              body: `When someone needs ${article} ${ind} in ${city.name}, they search Google. The top 3 results capture most of the calls. Visibility in local search and map pack results is not optional.`,
-            },
-            {
-              title: "AI assistants are the new word-of-mouth",
-              body: `ChatGPT, Perplexity, and Google AI Overviews now recommend specific businesses. ${industry.plural} with consistent local signals and content show up there. Those that don't are invisible to an entire generation of searchers.`,
-            },
-            {
-              title: "Reviews convert after discovery",
-              body: `Ranking is step one. ${industry.plural} in ${city.name} with 50+ recent reviews and consistent star ratings convert dramatically better than competitors with fewer or older reviews.`,
-            },
-            {
-              title: "Consistent citations build trust signals",
-              body: `Google cross-references business name, address, and phone across hundreds of directories. ${industry.plural} with mismatched or missing listings rank lower. GravyBlock checks that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook, and alerts you when they drift. It does not build or fix listings on hundreds of directories.`,
-            },
-          ].map((card) => (
-            <article key={card.title} className="rounded-2xl border border-zinc-200 bg-white p-5">
-              <h3 className="font-semibold text-zinc-900">{card.title}</h3>
-              <p className="mt-2 text-sm text-zinc-600">{card.body}</p>
-            </article>
+        <h2 className="text-2xl font-semibold text-zinc-900">What GravyBlock does for {indPlural} in {city.name}</h2>
+        <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {localPageCapabilityBullets().map((step, idx) => (
+            <li key={idx} className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-700">
+              <p className="text-xs font-semibold text-red-700">0{idx + 1}</p>
+              <p className="mt-2">{step}</p>
+            </li>
           ))}
-        </div>
+        </ol>
+        <p className="text-sm text-zinc-600">
+          Some work needs a one-time connection.{" "}
+          <Link href="/features" className="underline">
+            See what is automatic and what needs a connection
+          </Link>
+          .
+        </p>
       </section>
 
       <section className="border-y border-zinc-200 bg-zinc-50">
-        <div className="mx-auto max-w-4xl space-y-6 px-4 py-14 sm:px-6">
-          <h2 className="text-2xl font-semibold text-zinc-900">
-            What GravyBlock does for {industry.plural.toLowerCase()} in {city.name}
-          </h2>
-          <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              ...localPageCapabilityBullets(),
-            ].map((step, idx) => (
-              <li key={idx} className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-700">
-                <p className="text-xs font-semibold text-red-700">0{idx + 1}</p>
-                <p className="mt-2">{step}</p>
-              </li>
-            ))}
-          </ol>
+        <div className="mx-auto max-w-4xl space-y-8 px-4 py-14 sm:px-6">
+          <div>
+            <h2 className="text-2xl font-semibold text-zinc-900">Common questions</h2>
+            <div className="mt-5 space-y-3">
+              {faqs.map((f) => (
+                <details key={f.q} className="group rounded-2xl border border-zinc-200 bg-white p-5">
+                  <summary className="flex cursor-pointer list-none items-start justify-between gap-3 font-semibold text-zinc-900 marker:hidden">
+                    <span>{f.q}</span>
+                    <span className="shrink-0 text-zinc-400 transition group-open:rotate-45">+</span>
+                  </summary>
+                  <p className="mt-3 text-sm leading-relaxed text-zinc-600">{f.a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900">{industry.name} local SEO in other cities</h3>
+              <ul className="mt-3 space-y-1">
+                {relatedCities.map((c) => (
+                  <li key={c.slug}>
+                    <Link href={`/local-seo/${c.slug}/${industrySlug}`} className="text-sm text-red-800 hover:underline">
+                      {industry.plural} in {c.name}, {c.state}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900">Other industries in {city.name}</h3>
+              <ul className="mt-3 space-y-1">
+                {relatedIndustries.map((i) => (
+                  <li key={i.slug}>
+                    <Link href={`/local-seo/${citySlug}/${i.slug}`} className="text-sm text-red-800 hover:underline">
+                      {i.plural} in {city.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-4xl space-y-8 px-4 py-14 sm:px-6">
+      <section className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
         <div className="rounded-2xl border border-red-200 bg-red-50/60 p-6">
           <h2 className="text-xl font-semibold text-zinc-900">
-            Get a free local SEO scan for your {industry.name.toLowerCase()} in {city.name}
+            Get a free scan for your {ind} in {city.name}
           </h2>
           <p className="mt-2 text-sm text-zinc-600">
-            Find your business on Google, get a score and top findings in under two minutes. No credit card.
-            Unlock the full report to see your top findings.
+            Find your business on Google, get a visibility score, and see what GravyBlock would do about each finding.
+            About a minute, no credit card.
           </p>
           <Link
-            href={`/scan?vertical=${encodeURIComponent(industry.name)}&location=${encodeURIComponent(city.name + " " + city.state)}`}
+            href={scanHref}
             className="mt-4 inline-flex items-center justify-center rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500"
           >
-            Scan my {industry.name.toLowerCase()} free →
+            Scan my business free →
           </Link>
         </div>
-
-        {/* FAQ — matches FAQPage schema above for Google rich results */}
-        <div>
-          <h2 className="text-2xl font-semibold text-zinc-900">
-            {industry.plural} in {city.name}: local SEO FAQ
-          </h2>
-          <div className="mt-5 space-y-3">
-            {faqs.map((f) => (
-              <details key={f.q} className="group rounded-2xl border border-zinc-200 bg-white p-5">
-                <summary className="cursor-pointer list-none font-semibold text-zinc-900 marker:hidden flex items-start justify-between gap-3">
-                  <span>{f.q}</span>
-                  <span className="shrink-0 text-zinc-400 transition group-open:rotate-45">+</span>
-                </summary>
-                <p className="mt-3 text-sm text-zinc-600 leading-relaxed">{f.a}</p>
-              </details>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-900">
-              {industry.name} local SEO in other cities
-            </h3>
-            <ul className="mt-3 space-y-1">
-              {relatedCities.map((c) => (
-                <li key={c.slug}>
-                  <Link
-                    href={`/local-seo/${c.slug}/${industrySlug}`}
-                    className="text-sm text-red-800 hover:underline"
-                  >
-                    {industry.plural} in {c.name}, {c.state}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-zinc-900">
-              Other industries in {city.name}
-            </h3>
-            <ul className="mt-3 space-y-1">
-              {relatedIndustries.map((i) => (
-                <li key={i.slug}>
-                  <Link
-                    href={`/local-seo/${citySlug}/${i.slug}`}
-                    className="text-sm text-red-800 hover:underline"
-                  >
-                    {i.plural} in {city.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
       </section>
-
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     </div>
   );
 }

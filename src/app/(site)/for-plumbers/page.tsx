@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { VerticalLanding } from "@/components/vertical-landing";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/for-plumbers" },
   title: "Local SEO for plumbers — get found on Google Maps & Search",
   description: "GravyBlock automates local SEO for plumbers: publishes content, gathers reviews, keeps your profile fresh, audits citations. Help homeowners find you fast. Free scan.",
 };

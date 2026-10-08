@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/examples/sample-local-growth-report" },
 };
 
-// Boating Chicago — a real business the GravyBlock founder personally owns and
+// Boating Chicago — a real business GravyBlock operates and
 // runs on the same automation paying customers get (same one shown on /proof).
 // Using a real, currently-live account instead of a mockup so nothing here is
 // invented — see the honest gaps called out inline where this specific
@@ -123,7 +123,7 @@ export default async function SampleLocalGrowthReportPage() {
             <Link href="/proof" className="font-semibold underline">
               /proof
             </Link>
-            , owned and operated by the founder, running the exact automation paying customers get. Some sections below
+            , operated by GravyBlock and running the exact automation paying customers get. Some sections below
             are honestly empty where this specific business hasn&apos;t generated that data point yet (e.g. no
             competitor ranking checks have run for it) — we show that plainly instead of filling it in.
           </div>

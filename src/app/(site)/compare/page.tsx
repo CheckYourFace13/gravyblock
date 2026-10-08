@@ -5,25 +5,26 @@ import { COMPARE_PAGES, COMPARE_SLUGS } from "@/lib/content/compare-pages";
 export const metadata: Metadata = {
   title: "GravyBlock vs BrightLocal, Yext, Semrush, Whitespark, GMB Everywhere & More — 2026",
   description:
-    "Compare GravyBlock to BrightLocal, Yext, Semrush, Whitespark, GMB Everywhere, Search Atlas, Reputation.com, Soro, RankScore, Adaptify, SimilarWeb, and more. See how their approach and pricing differ.",
-  alternates: { canonical: "https://gravyblock.com/compare" },
+    "Compare GravyBlock to BrightLocal, Yext, Semrush, Whitespark, GMB Everywhere, Search Atlas, Reputation.com, Soro, RankScore, Adaptify, SimilarWeb, and more. See how their approaches differ and when each is the better fit.",
+  alternates: { canonical: "/compare" },
 };
 
 const featuredComps = [
-  { slug: "gravyblock-vs-brightlocal", name: "BrightLocal", price: "From ~$39/mo", note: "Established listing, review and rank-tracking suite, popular with agencies. GravyBlock is a lower-cost option focused on content, Google posts and outreach." },
-  { slug: "gravyblock-vs-whitespark", name: "Whitespark", price: "From ~$33/mo", note: "Citation and local rank tools long used by local SEO specialists. GravyBlock is aimed at owners who want that work decided and done for them automatically." },
-  { slug: "gravyblock-vs-gmb-everywhere", name: "GMB Everywhere", price: "From ~$14/mo", note: "Chrome extension for viewing Google Business Profile data. GravyBlock is a different kind of product: it automatically decides what to publish and post." },
-  { slug: "gravyblock-vs-yext", name: "Yext", price: "From ~$199/yr", note: "Listing sync and reputation platform. GravyBlock is a lower-cost option focused on content, Google posts and outreach." },
-  { slug: "gravyblock-vs-semrush-local", name: "Semrush Local", price: "From ~$140/mo", note: "Broad SEO suite with a local toolkit. GravyBlock is narrower and priced for single-location owners." },
-  { slug: "gravyblock-vs-searchatlas", name: "Search Atlas", price: "From ~$99/mo", note: "Large SEO toolset. GravyBlock is a narrower, lower-cost option for local businesses." },
-  { slug: "gravyblock-vs-reputation", name: "Reputation.com", price: "Enterprise / demo only", note: "Reputation management platform for larger and multi-location brands. GravyBlock is a lower-cost option for smaller businesses." },
-  { slug: "gravyblock-vs-soro", name: "Soro", price: "From ~$49/mo", note: "Automated content publishing. GravyBlock adds local work such as Google Business Profile posts and review replies." },
-  { slug: "gravyblock-vs-rankscore", name: "RankScore", price: "Lifetime deal pricing", note: "Content-focused product. GravyBlock also handles Google Business Profile posts and review replies." },
-  { slug: "gravyblock-vs-adaptify", name: "Adaptify", price: "Agency pricing / demo", note: "White-label tool aimed at agencies. GravyBlock is built for business owners." },
-  { slug: "gravyblock-vs-similarweb", name: "SimilarWeb", price: "From ~$300/mo", note: "Traffic and market analytics platform. GravyBlock is a different kind of product focused on local publishing and posting." },
-  { slug: "gravyblock-vs-babylovegrowth", name: "BabyLoveGrowth.ai", price: "From ~$99/mo", note: "Content and link-building service. GravyBlock focuses on local business work such as Google Business Profile posts and review replies." },
-  { slug: "gravyblock-vs-outreachfrog", name: "OutreachFrog", price: "Per-link pricing", note: "Link placement service. GravyBlock does personalized outreach and only counts a link once verified live; links are never guaranteed." },
-  { slug: "gravyblock-vs-bulletproof", name: "BulletProof", price: "Premium / unlisted", note: "Real-estate-focused, coaching-style program." },
+  { slug: "gravyblock-vs-local-seo-agencies", name: "Local SEO agencies", note: "People and custom strategy versus software that does a defined set of the work automatically. Where each is better, and what to ask before you decide." },
+  { slug: "gravyblock-vs-brightlocal", name: "BrightLocal", note: "Established listing, review and rank-tracking suite, popular with agencies. GravyBlock is a lower-cost option focused on content, Google posts and outreach." },
+  { slug: "gravyblock-vs-whitespark", name: "Whitespark", note: "Citation and local rank tools long used by local SEO specialists. GravyBlock is aimed at owners who want that work decided and done for them automatically." },
+  { slug: "gravyblock-vs-gmb-everywhere", name: "GMB Everywhere", note: "Chrome extension for viewing Google Business Profile data. GravyBlock is a different kind of product: it automatically decides what to publish and post." },
+  { slug: "gravyblock-vs-yext", name: "Yext", note: "Listing sync and reputation platform. GravyBlock is a lower-cost option focused on content, Google posts and outreach." },
+  { slug: "gravyblock-vs-semrush-local", name: "Semrush Local", note: "Broad SEO suite with a local toolkit. GravyBlock is narrower and priced for single-location owners." },
+  { slug: "gravyblock-vs-searchatlas", name: "Search Atlas", note: "Large SEO toolset. GravyBlock is a narrower, lower-cost option for local businesses." },
+  { slug: "gravyblock-vs-reputation", name: "Reputation.com", note: "Reputation management platform for larger and multi-location brands. GravyBlock is a lower-cost option for smaller businesses." },
+  { slug: "gravyblock-vs-soro", name: "Soro", note: "Automated content publishing. GravyBlock adds local work such as Google Business Profile posts and review replies." },
+  { slug: "gravyblock-vs-rankscore", name: "RankScore", note: "Content-focused product. GravyBlock also handles Google Business Profile posts and review replies." },
+  { slug: "gravyblock-vs-adaptify", name: "Adaptify", note: "White-label tool aimed at agencies. GravyBlock is built for business owners." },
+  { slug: "gravyblock-vs-similarweb", name: "SimilarWeb", note: "Traffic and market analytics platform. GravyBlock is a different kind of product focused on local publishing and posting." },
+  { slug: "gravyblock-vs-babylovegrowth", name: "BabyLoveGrowth.ai", note: "Content and link-building service. GravyBlock focuses on local business work such as Google Business Profile posts and review replies." },
+  { slug: "gravyblock-vs-outreachfrog", name: "OutreachFrog", note: "Link placement service. GravyBlock does personalized outreach and only counts a link once verified live; links are never guaranteed." },
+  { slug: "gravyblock-vs-bulletproof", name: "BulletProof", note: "Real-estate-focused, coaching-style program." },
 ];
 
 export default function CompareIndexPage() {
@@ -36,7 +37,7 @@ export default function CompareIndexPage() {
           GravyBlock vs. BrightLocal, Whitespark, GMB Everywhere, Yext &amp; more
         </h1>
         <p className="max-w-2xl text-lg text-zinc-600">
-          Local SEO tools take different approaches and sit at different price points. Here's how GravyBlock compares with the tools you're probably already evaluating.
+          Local SEO tools and services take different approaches. GravyBlock is a simple, autonomous system for business owners: it decides which worthwhile, eligible local marketing work to do and then does it, so you are not operating an SEO toolbox. Here is how it compares, fairly, with the options you are probably already evaluating.
         </p>
       </div>
 
@@ -49,7 +50,7 @@ export default function CompareIndexPage() {
             "Articles and service pages published to your connected website",
             "Weekly Google Business Profile posts and your own images",
             "Personalized outreach to relevant local organizations; a link is counted only once verified live",
-            "Google review replies posted automatically (Yelp and TripAdvisor drafted for you)",
+            "Google review replies posted automatically (Yelp and TripAdvisor reviews are monitored and flagged)",
             "AI search visibility (ChatGPT, Perplexity, Gemini)",
             "Competitor comparison in your free scan",
             "Free visibility scan. Results in 60 seconds.",
@@ -75,7 +76,7 @@ export default function CompareIndexPage() {
       {/* Featured competitor comparisons */}
       <div className="mt-12 space-y-3">
         <h2 className="text-2xl font-semibold text-zinc-900">Head-to-head comparisons</h2>
-        <p className="text-sm text-zinc-500">Click any tool to see a full feature and price breakdown.</p>
+        <p className="text-sm text-zinc-500">Open any comparison to see what each tool is known for and when each may be the better fit. Check each vendor's own site for current features and pricing.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {featuredComps.map((c) => (
             <Link
@@ -85,7 +86,6 @@ export default function CompareIndexPage() {
             >
               <div className="flex items-start justify-between gap-2">
                 <h3 className="font-semibold text-zinc-900">GravyBlock vs. {c.name}</h3>
-                <span className="shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">{c.price}</span>
               </div>
               <p className="mt-1 text-sm text-zinc-500">{c.note}</p>
               <p className="mt-3 text-sm font-semibold text-red-800">See full comparison →</p>
