@@ -196,7 +196,7 @@ export default async function StartPage({ searchParams }: Props) {
             <h1 className="text-xl font-semibold text-zinc-900 mb-1">{prefill ? "Confirm your email to start" : "Create your account"}</h1>
             <p className="text-sm text-zinc-500 mb-6">{info.tagline}</p>
 
-            <SignupForm plan={plan} promoCode={promoCode} isAnnual={isAnnual} priceLabel={`${displayPrice}/mo`} prefill={prefill} />
+            <SignupForm plan={plan} promoCode={promoCode} isAnnual={isAnnual} priceLabel={'$' + displayPrice + '/mo'} prefill={prefill} />
           </div>
         </div>
 

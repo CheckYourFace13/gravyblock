@@ -405,21 +405,6 @@ export function ScanForm({
               ? `Continue (${selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)})`
               : "Get free score preview"}
         </button>
-        <div className="flex flex-wrap gap-2 text-xs font-semibold">
-          {PLAN_SWITCHER_OPTIONS.filter((opt) => opt.value !== selectedPlan).map((opt) => (
-            <Link
-              key={opt.value}
-              href={promoCode ? `/scan?plan=${opt.value}&promo=${encodeURIComponent(promoCode)}` : `/scan?plan=${opt.value}`}
-              className={
-                opt.value === "growth"
-                  ? "rounded-full bg-red-600 px-3 py-2 text-white hover:bg-red-500"
-                  : "rounded-full border border-zinc-300 bg-white px-3 py-2 text-zinc-900 hover:border-zinc-400"
-              }
-            >
-              {selectedPlan ? `Switch to ${opt.label}` : `Start ${opt.label}`}
-            </Link>
-          ))}
-        </div>
       </div>
 
       <p className="text-xs text-zinc-500">
