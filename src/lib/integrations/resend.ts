@@ -14,6 +14,8 @@ type ReportDeliveryPayload = {
   verdict: string;
   topFindings: string[];
   unlockUrl: string;
+  /** Opens the same report with Scale preselected, so the CTA never sends them to a blank scan. */
+  scaleUrl?: string;
 };
 
 type AutomationSummaryPayload = {
@@ -128,6 +130,7 @@ export async function sendReportDeliveryEmail(payload: ReportDeliveryPayload) {
            <p>Top findings:</p>
            <ul>${payload.topFindings.map((f) => `<li>${f}</li>`).join("")}</ul>
            <p><a href="${payload.unlockUrl}">Open full report</a></p>
+           ${payload.scaleUrl ? `<p style="margin-top:20px">GravyBlock can do the work behind these findings for you automatically and check that it happened. Scale is $74.99/mo (regular $149.99), locked for as long as you stay subscribed, with a 30-day money-back guarantee. <a href="${payload.scaleUrl}">See Scale for ${payload.businessName}</a></p>` : ""}
            <p>- GravyBlock</p>`,
   });
 }

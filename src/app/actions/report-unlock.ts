@@ -81,6 +81,7 @@ export async function unlockReportAction(
       verdict: report.payload.summary.verdict,
       topFindings: report.payload.prioritizedFixes.slice(0, 3).map((f) => f.title),
       unlockUrl,
+      scaleUrl: `${unlockUrl}&plan=growth&promo=GROWTH50`,
     });
     revalidatePath("/admin/leads");
 

@@ -45,7 +45,7 @@ const sections: { title: string; intro: string; ids: string[] }[] = [
   {
     title: "Website and SEO",
     intro: "Content and technical upkeep on your own website.",
-    ids: ["website_content", "sitemap_submission", "site_watchdog", "existing_page_optimization"],
+    ids: ["website_content", "page_basics", "sitemap_submission", "site_watchdog", "existing_page_optimization"],
   },
   {
     title: "Google presence",

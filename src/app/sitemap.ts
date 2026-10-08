@@ -60,7 +60,7 @@ const staticRoutes: MetadataRoute.Sitemap = [
   entry("/faq", 0.6),
   entry("/privacy", 0.3, "yearly"),
   entry("/terms", 0.3, "yearly"),
-  entry("/local-seo-statistics", 0.8),
+  entry("/local-seo-statistics", 0.4),
   entry("/tools", 0.8),
   entry("/tools/google-business-profile-checker", 0.8),
   entry("/tools/ai-visibility-test", 0.8),

@@ -15,36 +15,34 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
 function resendConfig() {
   return {
     apiKey: process.env.RESEND_API_KEY ?? "",
-    from: process.env.RESEND_FROM_EMAIL ?? "Chris at GravyBlock <chris@gravyblock.com>",
+    from: process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>",
   };
 }
 
 function buildEmail(businessName: string, feedbackUrl: string): { html: string; text: string } {
   const text = `Hi,
 
-It's Chris, the founder of GravyBlock. You've been with us a few weeks now, and I'd genuinely love to hear how it's going for ${businessName}.
+You've been with GravyBlock for a few weeks now, and we'd genuinely love to hear how it's going for ${businessName}.
 
-If GravyBlock has been useful, would you share a sentence or two? It takes 30 seconds and it honestly helps a small team more than you'd think:
+If GravyBlock has been useful, would you share a sentence or two? It takes 30 seconds and it helps us a great deal:
 
 ${feedbackUrl}
 
-And if something's NOT working, I want to hear that even more — just reply to this email and it comes straight to me.
+And if something's NOT working, we want to hear that even more. Just reply to this email.
 
-Thanks for being one of our early customers.
-
-Chris
-GravyBlock`;
+Thank you,
+The GravyBlock team`;
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;color:#1a1a1a;max-width:540px;margin:0 auto;padding:32px 20px;background:#fff">
   <p style="margin:0 0 18px">Hi,</p>
-  <p style="margin:0 0 18px">It's Chris, the founder of GravyBlock. You've been with us a few weeks now, and I'd genuinely love to hear how it's going for <strong>${businessName}</strong>.</p>
-  <p style="margin:0 0 18px">If GravyBlock has been useful, would you share a sentence or two? It takes 30 seconds and it honestly helps a small team more than you'd think:</p>
+  <p style="margin:0 0 18px">You've been with GravyBlock for a few weeks now, and we'd genuinely love to hear how it's going for <strong>${businessName}</strong>.</p>
+  <p style="margin:0 0 18px">If GravyBlock has been useful, would you share a sentence or two? It takes 30 seconds and it helps us a great deal:</p>
   <p style="margin:0 0 24px;text-align:center">
     <a href="${feedbackUrl}" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 28px;border-radius:999px">Share my experience →</a>
   </p>
-  <p style="margin:0 0 18px;font-size:14px;color:#555">And if something's <strong>not</strong> working, I want to hear that even more — just reply to this email and it comes straight to me.</p>
-  <p style="margin:0 0 6px;font-size:14px">Thanks for being one of our early customers.<br/>Chris<br/><a href="${SITE_URL}" style="color:#dc2626;text-decoration:none">GravyBlock</a></p>
+  <p style="margin:0 0 18px;font-size:14px;color:#555">And if something's <strong>not</strong> working, we want to hear that even more. Just reply to this email.</p>
+  <p style="margin:0 0 6px;font-size:14px">Thank you,<br/>The GravyBlock team<br/><a href="${SITE_URL}" style="color:#dc2626;text-decoration:none">GravyBlock</a></p>
 </body></html>`;
 
   return { html, text };

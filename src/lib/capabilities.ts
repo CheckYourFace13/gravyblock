@@ -52,6 +52,16 @@ export const CAPABILITIES: Capability[] = [
     engine: "not built",
   },
   {
+    id: "page_basics",
+    label: "Fixing missing page basics on your website",
+    status: "partial",
+    plans: ["growth", "pro"],
+    oneTime: "Connect your website once",
+    publicLine: "Adds missing social preview images to pages on your connected website, then checks the live page.",
+    limits: "Verified in production for missing social preview images. Other basics, such as titles, descriptions and structured data, are checked and reported; GravyBlock does not rewrite your page copy.",
+    engine: "src/lib/seo/basic-autopilot.ts",
+  },
+  {
     id: "gbp_posts",
     label: "Google Business Profile posts",
     status: "automatic",
