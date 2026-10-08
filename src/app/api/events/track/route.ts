@@ -16,6 +16,8 @@ const VALID_TYPES = new Set<FunnelEventType>([
   "checkout_started",
   "checkout_completed",
   "lead_form_submitted",
+  "scale_cta_clicked",
+  "start_page_viewed",
 ]);
 
 /**

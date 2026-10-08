@@ -65,6 +65,7 @@ export default async function ReportPage({ params, searchParams }: Props) {
         publicId={publicId}
         businessId={record.businessId}
         initiallyUnlocked={initiallyUnlocked}
+        unlockToken={initiallyUnlocked ? (query.unlock ?? null) : null}
         selectedPlan={selectedPlan}
         promoCode={promoCode}
       />

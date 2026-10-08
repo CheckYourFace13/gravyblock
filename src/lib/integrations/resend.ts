@@ -123,16 +123,18 @@ export async function sendLeadEmails(payload: LeadEmailPayload, isNewLead: boole
 }
 
 export async function sendReportDeliveryEmail(payload: ReportDeliveryPayload) {
+  const cta = payload.scaleUrl ?? payload.unlockUrl;
   return sendEmail({
     to: payload.leadEmail,
-    subject: `${payload.businessName} report unlocked — score ${payload.score}`,
+    subject: `${payload.businessName}: your report is ready (score ${payload.score})`,
     html: `<p>Hi ${payload.leadName},</p>
-           <p>Your full GravyBlock report is unlocked.</p>
-           <p><strong>${payload.businessName}</strong><br/>Score: <strong>${payload.score}</strong><br/>Verdict: ${payload.verdict}</p>
+           <p>We found issues that are costing <strong>${payload.businessName}</strong> visibility. Your report shows the biggest opportunities, and GravyBlock can start working on them automatically.</p>
+           <p>Score: <strong>${payload.score}</strong><br/>${payload.verdict}</p>
            <p>Top findings:</p>
            <ul>${payload.topFindings.map((f) => `<li>${f}</li>`).join("")}</ul>
-           <p><a href="${payload.unlockUrl}">Open full report</a></p>
-           ${payload.scaleUrl ? `<p style="margin-top:20px">GravyBlock can do the work behind these findings for you automatically and check that it happened. Scale is $74.99/mo (regular $149.99), locked for as long as you stay subscribed, with a 30-day money-back guarantee. <a href="${payload.scaleUrl}">See Scale for ${payload.businessName}</a></p>` : ""}
+           <p style="margin:24px 0 6px"><a href="${cta}" style="display:inline-block;background:#dc2626;color:#fff;font-weight:700;font-size:15px;padding:13px 28px;border-radius:100px;text-decoration:none">Have GravyBlock work on this — $74.99/mo</a></p>
+           <p style="margin:0 0 18px;font-size:12px;color:#52525b">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
+           <p><a href="${payload.unlockUrl}">View my full report</a></p>
            <p>- GravyBlock</p>
            ${unsubscribeFooter(payload.leadEmail)}`,
   });

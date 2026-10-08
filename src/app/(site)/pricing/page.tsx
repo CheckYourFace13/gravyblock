@@ -135,34 +135,31 @@ export default function PricingPage() {
       <FunnelBeacon eventType="pricing_viewed" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
 
-      {/* ── HERO ─────────────────────────────────────────── */}
+      {/* ── HERO: one dominant offer ─────────────────────── */}
       <section className="bg-gradient-to-b from-red-50 to-white px-4 pt-14 pb-10 sm:px-6 text-center">
         <div className="mx-auto max-w-2xl space-y-4">
-          <div className="inline-block rounded-full border border-red-200 bg-red-50 px-4 py-1 text-xs font-bold uppercase tracking-widest text-red-700">
-            Scale: $74.99/mo, locked while subscribed
-          </div>
-          <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3">
-            <p className="text-sm font-semibold text-amber-900">
-              Special rate on Scale: $74.99/month — keep this rate for as long as your subscription stays active.
-            </p>
-            <p className="mt-0.5 text-xs text-amber-700">
-              Regular price is $149.99/mo. This isn&apos;t a first-month discount — it applies to every renewal, not just the first.
-            </p>
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
-            Simple, transparent pricing
-          </h1>
-          <p className="text-lg text-zinc-600">
-            No contracts. No setup fees. Cancel from your dashboard any time.
+          <p className="text-xs font-bold uppercase tracking-widest text-red-700">The easiest option: let GravyBlock handle it</p>
+          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">Scale — $74.99/month</h1>
+          <p className="text-sm font-semibold text-emerald-700">Locked while subscribed (regular $149.99). Not a first-month discount.</p>
+          <p className="mx-auto max-w-xl text-lg text-zinc-600">
+            GravyBlock finds what is hurting your visibility, decides what is worth fixing, does the eligible work automatically, verifies it, and
+            keeps going, without you managing SEO.
           </p>
-          <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 pt-2 text-xs text-zinc-500">
-            <span>✓ Free scan to start</span>
-            <span>✓ No credit card for scan</span>
-            <span>✓ 30-day money-back on paid plans</span>
-            <span>✓ Cancel anytime</span>
+          <div className="flex flex-wrap justify-center gap-3 pt-2">
+            <Link href="/start?plan=growth&promo=GROWTH50" className="rounded-full bg-red-600 px-9 py-4 text-base font-bold text-white hover:bg-red-500 shadow-md">
+              Start Scale — $74.99/mo
+            </Link>
+            <Link href="/scan" className="rounded-full border border-zinc-300 bg-white px-8 py-4 text-base font-semibold text-zinc-800 hover:border-zinc-400">
+              Scan my business free first
+            </Link>
           </div>
+          <p className="text-xs font-medium text-zinc-600">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
         </div>
       </section>
+
+      <div className="px-4 pt-2 sm:px-6">
+        <h2 className="mx-auto max-w-5xl text-center text-sm font-bold uppercase tracking-widest text-zinc-400">Compare all plans</h2>
+      </div>
 
       {/* ── PLANS ────────────────────────────────────────── */}
       <section className="px-4 py-10 sm:px-6">

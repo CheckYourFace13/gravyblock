@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AutopilotRoadmap } from "@/components/autopilot-roadmap";
 import { ReportUnlockCard } from "@/components/report-unlock-card";
+import { ScaleOffer, StickyScaleBar } from "@/components/scale-cta";
 import { buildRoadmapRows } from "@/lib/growth/roadmap";
 import { describeAutopilotAction } from "@/lib/growth/autopilot-actions";
 import type { DataSourceAttribution, ReportPayload } from "@/lib/report/types";
@@ -52,6 +53,7 @@ export function ReportView({
   publicId,
   businessId,
   initiallyUnlocked,
+  unlockToken,
   selectedPlan,
   promoCode,
 }: {
@@ -59,6 +61,7 @@ export function ReportView({
   publicId: string;
   businessId?: string;
   initiallyUnlocked: boolean;
+  unlockToken?: string | null;
   selectedPlan?: "starter" | "growth" | "pro" | "agency" | null;
   promoCode?: PromoCode | null;
 }) {
@@ -100,27 +103,8 @@ export function ReportView({
   }, [payload]);
   const chosenPlan = (["starter", "growth", "pro", "agency"] as string[]).includes(selectedPlan ?? "") ? selectedPlan : null;
   const promoQuery = promoCode ? `promo=${encodeURIComponent(promoCode)}` : "";
-  // Route checkout CTAs through /start (no login required) rather than
-  // /workspace, which redirects anonymous report visitors to a magic-link
-  // login wall. directSignupAction on /start matches this business by
-  // website automatically, so the scan data isn't lost.
-  const workspacePlanHref = (plan: string) => {
-    // Growth's locked-forever rate needs GROWTH50 specifically — don't fall
-    // through to no promo (or a caller-supplied one meant for another plan)
-    // when a visitor lands here without an explicit code in the URL.
-    const effectivePromo = promoQuery || (plan === "growth" ? "promo=GROWTH50" : "");
-    return `/start?plan=${plan}${effectivePromo ? `&${effectivePromo}` : ""}`;
-  };
-  const workspaceHref = businessId
-    ? chosenPlan
-      ? workspacePlanHref(chosenPlan)
-      : `/start${promoQuery ? `?${promoQuery}` : ""}`
-    : null;
-  const planLabel = chosenPlan ? (chosenPlan.charAt(0).toUpperCase() + chosenPlan.slice(1)) : null;
-  const primaryLabel = planLabel ? `Continue to ${planLabel} checkout` : "Continue to billing";
-
   return (
-    <div className="mx-auto max-w-5xl space-y-10 px-4 py-12 sm:px-6">
+    <div className="mx-auto max-w-5xl space-y-10 px-4 py-12 pb-28 sm:px-6 md:pb-12">
       <div className="flex flex-col gap-6 rounded-3xl border border-zinc-200 bg-gradient-to-br from-white via-white to-red-50 p-8 shadow-sm sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-700">{payload.brand} report</p>
@@ -146,132 +130,42 @@ export function ReportView({
           <p className="text-sm font-medium text-zinc-700">Overall readiness score</p>
           <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badge.className}`}>{badge.label}</span>
           <p className="text-xs text-zinc-500">Generated {new Date(payload.generatedAt).toLocaleString()}</p>
-          {businessId ? (
-            <Link
-              href={
-                chosenPlan
-                  ? `/workspace/${businessId}?plan=${chosenPlan}${promoQuery ? `&${promoQuery}` : ""}`
-                  : `/workspace/${businessId}${promoQuery ? `?${promoQuery}` : ""}`
-              }
-              className="inline-flex w-full items-center justify-center rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
-            >
-              Open workspace
-            </Link>
-          ) : null}
         </div>
       </div>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-900">Top findings (free preview)</h2>
-        <p className="mt-1 text-sm text-zinc-600">
-          You can view score, verdict, and top findings for free. Unlock sends the full report to your inbox and reveals
-          all sections in this session.
-        </p>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {freeEvidence.map((item) => (
-            <div key={item.label} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{item.label}</p>
-              <p className="text-sm font-semibold text-zinc-900">{item.value}</p>
-            </div>
-          ))}
-        </div>
+        <h2 className="text-lg font-semibold text-zinc-900">What we found</h2>
+        <p className="mt-1 text-sm text-zinc-600">Your biggest opportunities, and what GravyBlock will do about each one.</p>
         <ol className="mt-4 space-y-3">
-          {topFindings.map((fix, idx) => (
-            <li key={fix.id} className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
-                  {idx + 1}
-                </span>
-                <div>
-                  <p className="font-semibold text-zinc-900">{fix.title}</p>
-                  <p className="mt-1 text-sm text-zinc-600">{fix.detail}</p>
+          {topFindings.map((fix, idx) => {
+            const action = describeAutopilotAction(roadmapRows.find((r) => r.title === fix.title && r.category !== "priority")?.category ?? "priority");
+            return (
+              <li key={fix.id} className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
+                    {idx + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">We found</p>
+                    <p className="font-semibold text-zinc-900">{fix.title}</p>
+                    <p className="mt-1 text-sm text-zinc-600">{fix.detail}</p>
+                    <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-red-700">GravyBlock will</p>
+                    <p className="text-sm text-zinc-800">{action.whatWeDo}</p>
+                  </div>
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ol>
-        {topFindings.length > 0 ? (
-          <div className="mt-4 rounded-xl border border-red-100 bg-red-50/60 p-4 text-sm text-zinc-700">
-            <p>
-              <span className="font-semibold text-red-700">GravyBlock would: </span>
-              {describeAutopilotAction("priority").whatWeDo}
-            </p>
-            <p className="mt-2 font-medium text-zinc-900">
-              Why do this yourself? Turn on Autopilot and GravyBlock does it — then shows you what actually changed.
-            </p>
-          </div>
-        ) : null}
       </section>
+
+      <ScaleOffer publicId={publicId} businessId={businessId} unlockToken={unlockToken} placement="top" />
 
       {unlocked ? (
         <>
-          {businessId ? (
-            <section className="rounded-2xl border border-red-200 bg-red-50/50 p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-zinc-900">
-                {planLabel ? `You chose ${planLabel}. Continue to checkout.` : `Here's what's holding ${payload.business.name} back.`}
-              </h2>
-              {!chosenPlan && topFindings.length > 0 ? (
-                <p className="mt-1 text-sm text-zinc-700">
-                  {topFindings[0]!.title}
-                  {topFindings.length > 1 ? ` and ${topFindings.length - 1} other${topFindings.length > 2 ? "s" : ""} above` : ""} —
-                  let GravyBlock start working on these.
-                </p>
-              ) : (
-                <p className="mt-1 text-sm text-zinc-700">
-                  Start with your business, then activate the plan. We&apos;ll connect this plan to this business and keep
-                  it monitored automatically.
-                </p>
-              )}
-
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                {chosenPlan ? (
-                  <Link
-                    href={workspaceHref!}
-                    className="inline-flex items-center justify-center rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500"
-                  >
-                    {primaryLabel}
-                  </Link>
-                ) : (
-                  <Link
-                    href={workspacePlanHref("growth")}
-                    className="inline-flex items-center justify-center rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500"
-                  >
-                    Start Autopilot — $74.99/mo, locked while subscribed
-                  </Link>
-                )}
-                {!chosenPlan ? (
-                  <Link href="/pricing" className="text-sm font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-900">
-                    See all plans (Starter, Pro)
-                  </Link>
-                ) : null}
-              </div>
-              {promoCode ? <p className="mt-3 text-xs font-medium text-zinc-700">Promo code ready: {promoCode}</p> : null}
-            </section>
-          ) : (
-            /* No businessId — cold visitor viewing a shared report */
-            <section className="rounded-2xl border border-red-200 bg-red-50/50 p-5 shadow-sm">
-              <h2 className="text-lg font-semibold text-zinc-900">Here&apos;s what&apos;s holding {payload.business.name} back.</h2>
-              <p className="mt-1 text-sm text-zinc-700">
-                Let GravyBlock start working on these — website content, Google posts, citation consistency checks, review monitoring, and local outreach. Scan your own business to get started free.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link
-                  href="/scan"
-                  className="inline-flex items-center justify-center rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500"
-                >
-                  Scan my business free →
-                </Link>
-                <Link
-                  href="/pricing"
-                  className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-700 hover:border-zinc-400"
-                >
-                  See pricing
-                </Link>
-              </div>
-            </section>
-          )}
-
           <AutopilotRoadmap rows={roadmapRows} />
+
+          <ScaleOffer publicId={publicId} businessId={businessId} unlockToken={unlockToken} placement="mid" heading="Ready for GravyBlock to handle this?" />
 
           <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-zinc-900">Data sources used</h2>
@@ -443,6 +337,7 @@ export function ReportView({
               ))}
             </div>
           </section>
+          <ScaleOffer publicId={publicId} businessId={businessId} unlockToken={unlockToken} placement="bottom" heading="Have GravyBlock work on this" />
         </>
       ) : (
         <section className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
@@ -461,63 +356,11 @@ export function ReportView({
               businessId={businessId}
               promoCode={promoCode}
             />
-            {businessId ? (
-              <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4 text-sm">
-                <p className="font-semibold text-zinc-900">
-                  {chosenPlan
-                    ? `${chosenPlan.charAt(0).toUpperCase() + chosenPlan.slice(1)} selected`
-                    : "Plan selection"}
-                </p>
-                <p className="mt-1 text-zinc-600">
-                  Start with your business, then activate the plan. We&apos;ll connect this plan to this business when you
-                  continue to checkout.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {workspaceHref ? (
-                    <Link
-                      href={workspaceHref}
-                      className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
-                    >
-                      {primaryLabel}
-                    </Link>
-                  ) : null}
-                  {chosenPlan !== "growth" ? (
-                    <Link
-                      href={workspacePlanHref("growth")}
-                      className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
-                    >
-                      Scale: $74.99/mo locked
-                    </Link>
-                  ) : null}
-                </div>
-                {promoCode ? <p className="mt-2 text-xs font-medium text-zinc-700">Promo code ready: {promoCode}</p> : null}
-                {chosenPlan === "starter" ? (
-                  <div className="mt-3 rounded-lg border border-red-200 bg-white p-3">
-                    <p className="text-sm font-semibold text-zinc-900">Are you sure you want to skip Growth?</p>
-                    <p className="mt-1 text-xs text-zinc-600">
-                      Scale adds the automatic work: website content, weekly Google Business Profile posts, automatic Google review replies, Facebook and Instagram posting, and personalized local outreach.
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Link
-                        href={workspacePlanHref("growth")}
-                        className="inline-flex items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
-                      >
-                        Upgrade to Scale instead
-                      </Link>
-                      <Link
-                        href={workspacePlanHref("starter")}
-                        className="inline-flex items-center justify-center rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
-                      >
-                        No, continue with Starter
-                      </Link>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
           </div>
         </section>
       )}
+
+      <StickyScaleBar publicId={publicId} businessId={businessId} unlockToken={unlockToken} />
     </div>
   );
 }

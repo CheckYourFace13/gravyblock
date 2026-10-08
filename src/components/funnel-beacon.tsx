@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 type Props = {
-  eventType: "scan_started" | "pricing_viewed" | "report_landed";
+  eventType: "scan_started" | "pricing_viewed" | "report_landed" | "start_page_viewed";
   businessId?: string | null;
   reportPublicId?: string | null;
   /** Proof category shown on this page ("none" when no proof was shown). */

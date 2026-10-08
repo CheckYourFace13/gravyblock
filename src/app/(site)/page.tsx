@@ -11,42 +11,6 @@ export const metadata: Metadata = {
 
 const siteUrl = "https://gravyblock.com";
 
-const plans = [
-  {
-    tier: "starter",
-    label: "Starter",
-    monthly: 59.99,
-    intro: 29.99,
-    highlight: false,
-    bullets: ["Monthly visibility score + trend history", "4 AI content ideas/mo", "Citation consistency checks + review alerts", "AI search check (ChatGPT, Perplexity, Google AI)", "Monthly progress email"],
-    cta: "Start Starter",
-    href: "/scan?plan=starter",
-    ctaStyle: "bg-zinc-900 hover:bg-zinc-800 text-white",
-  },
-  {
-    tier: "growth",
-    label: "Scale",
-    monthly: 149.99,
-    intro: 74.99,
-    highlight: true,
-    bullets: ["Weekly AI articles published to your site", "Weekly Google Business Profile posts & photos", "Up to 8 local outreach pitches/mo", "Facebook + Instagram auto-posting", "Google review replies posted automatically"],
-    cta: "Start Scale",
-    href: "/start?plan=growth&promo=GROWTH50",
-    ctaStyle: "bg-red-600 hover:bg-red-500 text-white",
-  },
-  {
-    tier: "pro",
-    label: "Pro",
-    monthly: 299.99,
-    intro: 149.99,
-    highlight: false,
-    bullets: ["Everything in Scale, twice as often", "12 articles + 8 local SEO pages/mo", "Priority support"],
-    cta: "Start Pro",
-    href: "/scan?plan=pro",
-    ctaStyle: "bg-zinc-900 hover:bg-zinc-800 text-white",
-  },
-] as const;
-
 const steps = [
   {
     n: "1",
@@ -134,59 +98,19 @@ export default function HomePage() {
             Local SEO that does<br className="hidden sm:block" />{" "}the work for you.
           </h1>
           <p className="mx-auto max-w-xl text-lg text-zinc-600">
-            GravyBlock reads your real website and Google profile, figures out what will actually help you get found, and does that work automatically — then checks that it happened and keeps going. Connect once; there are no SEO tactics to learn and no task list to manage.
+            GravyBlock finds what is stopping customers from finding your business, then automatically works on fixing it, checks that it happened, and keeps going. Connect once; there are no SEO tactics to learn and no task list to manage.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
-            <Link href="/scan" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-semibold text-white hover:bg-red-500 shadow-sm">
-              Get my free visibility score →
+            <Link href="/scan" className="rounded-full bg-red-600 px-9 py-4 text-base font-bold text-white hover:bg-red-500 shadow-md">
+              Scan my business free →
             </Link>
-            <Link href="/start?plan=growth&promo=GROWTH50" className="rounded-full border border-zinc-300 bg-white px-7 py-3.5 text-sm font-semibold text-zinc-700 hover:border-zinc-400 shadow-sm">
-              Start Autopilot — $74.99/mo
-            </Link>
-            <Link href="/pricing" className="rounded-full px-7 py-3.5 text-sm font-semibold text-zinc-500 hover:text-zinc-800 underline underline-offset-2">
-              See all plans →
+            <Link href="/start?plan=growth&promo=GROWTH50" className="rounded-full border border-zinc-300 bg-white px-8 py-4 text-base font-semibold text-zinc-800 hover:border-zinc-400 shadow-sm">
+              Start GravyBlock — $74.99/mo
             </Link>
           </div>
-          <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 pt-1 text-xs text-zinc-500">
-            <span>✓ Free scan, no credit card</span>
-            <span>✓ 60-second results</span>
-            <span>✓ Cancel anytime</span>
-            <span>✓ 30-day money-back on paid plans</span>
-          </div>
-          <p className="pt-1 text-sm text-zinc-500">
-            Want to see what you get first?{" "}
-            <Link href="/examples/sample-local-growth-report" className="font-semibold text-zinc-700 underline underline-offset-2 hover:text-zinc-900">
-              View a sample report →
-            </Link>
+          <p className="pt-1 text-xs font-medium text-zinc-600">
+            Free scan, no credit card · $74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee
           </p>
-        </div>
-      </section>
-
-      {/* ── FREE TOOLS STRIP ───────────────────────────────── */}
-      <section className="px-4 py-8 sm:px-6">
-        <div className="mx-auto max-w-5xl">
-          <p className="mb-4 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">
-            Free tools — no account needed
-          </p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              { href: "/tools/review-link-generator", icon: "⭐", title: "Review Link Generator", desc: "Your direct Google review link + QR code in 10 seconds" },
-              { href: "/tools/local-seo-roi-calculator", icon: "💰", title: "Local SEO ROI Calculator", desc: "What's a top-3 ranking worth for your business?" },
-              { href: "/tools/google-business-profile-checker", icon: "📍", title: "GBP Checker", desc: "Grade your Google Business Profile in 30 seconds" },
-            ].map((tool) => (
-              <Link
-                key={tool.href}
-                href={tool.href}
-                className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-red-200 hover:shadow-md"
-              >
-                <span className="text-2xl">{tool.icon}</span>
-                <span>
-                  <span className="block text-sm font-semibold text-zinc-900">{tool.title}</span>
-                  <span className="block text-xs text-zinc-500 mt-0.5">{tool.desc}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -330,60 +254,43 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── PRICING ────────────────────────────────────────── */}
+      {/* ── PRICING: one dominant offer ────────────────────── */}
       <section id="plans" className="px-4 py-14 sm:px-6">
-        <div className="mx-auto max-w-5xl">
-          <div className="mb-8 text-center space-y-2">
-            <div className="inline-block rounded-full bg-red-100 px-4 py-1 text-xs font-bold uppercase tracking-widest text-red-700">
-              Autopilot (Scale): $74.99/mo, locked while subscribed
-            </div>
-            <h2 className="text-3xl font-bold text-zinc-900">Simple, transparent pricing.</h2>
-            <p className="text-sm text-zinc-500">No contracts. Cancel anytime. 30-day money-back guarantee.</p>
-          </div>
-
-          <div className="grid gap-5 lg:grid-cols-3">
-            {plans.map((plan) => (
-              <article key={plan.tier} className={`relative flex flex-col rounded-2xl border p-6 ${plan.highlight ? "border-red-300 ring-2 ring-red-200 bg-white shadow-lg" : "border-zinc-200 bg-white shadow-sm"}`}>
-                {plan.highlight && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-red-600 px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow">
-                    Most popular
-                  </span>
-                )}
-                <p className="text-xs font-bold uppercase tracking-widest text-red-700">{plan.label}</p>
-                <div className="mt-3">
-                  <p className="text-xs text-zinc-400 line-through">${plan.monthly}/mo</p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-zinc-900">${plan.intro}</span>
-                    <span className="text-sm text-zinc-500">/mo</span>
-                  </div>
-                  <p className="text-[11px] font-semibold text-emerald-600 mt-0.5">
-                    {plan.tier === "growth" ? "Locked while subscribed" : `Save $${(plan.monthly - plan.intro).toFixed(2)} first month`}
-                  </p>
-                </div>
-                <ul className="mt-5 flex-1 space-y-2">
-                  {plan.bullets.map((b) => (
-                    <li key={b} className="flex items-start gap-2 text-sm text-zinc-600">
-                      <span className="mt-0.5 shrink-0 text-red-500 font-bold text-xs">✓</span>
-                      {b}
-                    </li>
-                  ))}
-                </ul>
-                <Link href={plan.href} className={`mt-6 flex justify-center rounded-full px-4 py-2.5 text-sm font-bold transition ${plan.ctaStyle}`}>
-                  {plan.cta} — ${plan.intro}/mo
-                </Link>
-              </article>
+        <div className="mx-auto max-w-3xl rounded-3xl border-2 border-red-200 bg-gradient-to-br from-red-50 via-white to-white p-8 text-center shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-widest text-red-700">The easiest option: let GravyBlock handle it</p>
+          <h2 className="mt-2 text-3xl font-bold text-zinc-900">Scale: $74.99/month</h2>
+          <p className="mt-1 text-sm font-semibold text-emerald-700">Locked while subscribed (regular $149.99)</p>
+          <ul className="mx-auto mt-5 grid max-w-xl gap-1.5 text-left text-sm text-zinc-700 sm:grid-cols-2">
+            {[
+              "Finds what is hurting your visibility",
+              "Chooses what is worth fixing next",
+              "Does the eligible work automatically",
+              "Verifies what it completed",
+              "Works on Google, reviews and social once connected",
+              "Keeps monitoring and working automatically",
+            ].map((v) => (
+              <li key={v} className="flex gap-2">
+                <span className="font-bold text-emerald-600">✓</span>
+                {v}
+              </li>
             ))}
-          </div>
-
-          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
-            <div>
-              <p className="font-semibold text-zinc-900">Not ready to commit? Start free.</p>
-              <p className="text-sm text-zinc-500">Full visibility score, prioritized fix list, no credit card.</p>
-            </div>
-            <Link href="/scan" className="shrink-0 rounded-full border border-zinc-300 bg-white px-6 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-100">
-              Get my score — free →
+          </ul>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link href="/scan" className="rounded-full bg-red-600 px-8 py-3.5 text-base font-bold text-white hover:bg-red-500 shadow-md">
+              Scan my business free →
+            </Link>
+            <Link href="/start?plan=growth&promo=GROWTH50" className="rounded-full border border-zinc-300 bg-white px-7 py-3.5 text-base font-semibold text-zinc-800 hover:border-zinc-400">
+              Start GravyBlock — $74.99/mo
             </Link>
           </div>
+          <p className="mt-3 text-xs font-medium text-zinc-600">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
+          <p className="mt-2 text-xs text-zinc-500">
+            Other plans are on the{" "}
+            <Link href="/pricing" className="underline">
+              pricing page
+            </Link>
+            .
+          </p>
         </div>
       </section>
 

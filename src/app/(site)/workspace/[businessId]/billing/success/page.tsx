@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HomeSummary } from "../../home-summary";
 import { syncCheckoutSession } from "@/lib/billing/stripe-events";
 import { requireBusinessAccess } from "@/lib/auth/customer-guards";
 
@@ -30,20 +31,19 @@ export default async function BillingSuccessPage({ params, searchParams }: Props
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-14 sm:px-6">
-      <h1 className="text-3xl font-semibold text-zinc-900">Billing checkout complete</h1>
-      <p className="text-zinc-700">{syncMessage}</p>
+      <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
+        <p className="text-xs font-bold uppercase tracking-widest text-emerald-700">Payment received</p>
+        <h1 className="mt-1 text-3xl font-semibold text-zinc-900">GravyBlock is working on your business.</h1>
+        <p className="mt-2 text-zinc-700">Learning your website and identifying the first opportunities…</p>
+        <p className="mt-1 text-xs text-zinc-500">{syncMessage}</p>
+      </div>
+      <HomeSummary businessId={businessId} />
       <div className="flex flex-wrap gap-3">
         <Link
           href={`/workspace/${businessId}`}
-          className="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-500"
+          className="rounded-full bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500"
         >
-          Back to workspace
-        </Link>
-        <Link
-          href={`/workspace/${businessId}#billing`}
-          className="rounded-full border border-zinc-300 px-5 py-2 text-sm font-semibold text-zinc-900"
-        >
-          Open billing section
+          Open my workspace
         </Link>
       </div>
     </div>

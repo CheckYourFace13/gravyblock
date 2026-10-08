@@ -3,6 +3,8 @@ import { SignupForm } from "./signup-form";
 import { ProofTeaser } from "./proof-teaser";
 import { normalizePromoCode } from "@/lib/stripe/promo-codes";
 import { ANNUAL_SAVINGS } from "@/lib/stripe/server";
+import { FunnelBeacon } from "@/components/funnel-beacon";
+import { getReportWithContext } from "@/lib/report/repository";
 
 export const metadata: Metadata = {
   title: "Get started",
@@ -10,7 +12,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false }, // don't index the signup funnel
 };
 
-type Props = { searchParams: Promise<{ plan?: string; promo?: string; interval?: string }> };
+type Props = { searchParams: Promise<{ plan?: string; promo?: string; interval?: string; report?: string }> };
 
 const PLAN_INFO = {
   starter: {
@@ -86,12 +88,23 @@ export default async function StartPage({ searchParams }: Props) {
   const promoCode = query.promo === undefined ? defaultPromoForPlan : normalizePromoCode(query.promo);
   const priceLocked = promoCode === "GROWTH50";
   const isAnnual = query.interval === "annual";
+  // Arriving from a completed report: the business is already known, so only the email is missing.
+  const reportRecord = query.report ? await getReportWithContext(query.report).catch(() => null) : null;
+  const prefill = reportRecord?.businessId
+    ? {
+        reportPublicId: query.report as string,
+        businessName: reportRecord.payload.business.name,
+        website: reportRecord.payload.business.website ?? "",
+        city: reportRecord.payload.business.address ?? "",
+      }
+    : null;
   const annualSavings = ANNUAL_SAVINGS[plan === "growth" ? "growth" : plan];
   const displayPrice = isAnnual ? annualSavings.monthlyEquiv : promoCode ? info.intro : info.monthly;
   const billingLabel = isAnnual ? `/mo billed annually` : promoCode ? `/mo${priceLocked ? "" : " · first month"}` : `/mo`;
 
   return (
     <div className="min-h-dvh bg-gradient-to-b from-zinc-50 to-white px-4 py-12 sm:px-6">
+      <FunnelBeacon eventType="start_page_viewed" reportPublicId={prefill?.reportPublicId ?? null} businessId={reportRecord?.businessId ?? null} />
       <div className="mx-auto max-w-lg">
 
         {/* Back link */}
@@ -107,10 +120,10 @@ export default async function StartPage({ searchParams }: Props) {
           </div>
         )}
 
-        <ProofTeaser />
+        {prefill ? null : <ProofTeaser />}
 
         {/* Plan switcher — pick a different plan without leaving checkout */}
-        <div className="mb-3 flex justify-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-100 p-1">
+        <div className={`mb-3 flex justify-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-100 p-1 ${prefill ? "hidden" : ""}`}>
           {PUBLIC_PLANS.map((key) => (
             <a
               key={key}
@@ -125,7 +138,7 @@ export default async function StartPage({ searchParams }: Props) {
         </div>
 
         {/* Billing interval toggle */}
-        <div className="mb-8 flex justify-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-100 p-1 text-xs font-semibold">
+        <div className={`mb-8 flex justify-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-100 p-1 text-xs font-semibold ${prefill ? "hidden" : ""}`}>
           <a
             href={buildStartUrl({ plan, promo: query.promo, annual: false })}
             className={`rounded-full px-4 py-1.5 transition ${!isAnnual ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"}`}
@@ -180,30 +193,35 @@ export default async function StartPage({ searchParams }: Props) {
 
           {/* Form */}
           <div className="px-8 py-8">
-            <h1 className="text-xl font-semibold text-zinc-900 mb-1">Create your account</h1>
+            <h1 className="text-xl font-semibold text-zinc-900 mb-1">{prefill ? "Confirm your email to start" : "Create your account"}</h1>
             <p className="text-sm text-zinc-500 mb-6">{info.tagline}</p>
 
-            <SignupForm plan={plan} promoCode={promoCode} isAnnual={isAnnual} />
+            <SignupForm plan={plan} promoCode={promoCode} isAnnual={isAnnual} priceLabel={`${displayPrice}/mo`} prefill={prefill} />
           </div>
         </div>
 
-        {/* Alternative */}
-        <p className="mt-5 text-center text-sm text-zinc-500">
-          Not sure yet?{" "}
-          <a href="/scan" className="font-semibold text-zinc-700 hover:text-zinc-900 underline underline-offset-2">
-            Run a free scan first
-          </a>{" "}
-          — no account needed. Or{" "}
-          <a href="/pricing#comparison" className="font-semibold text-zinc-700 hover:text-zinc-900 underline underline-offset-2">
-            compare full plan features
-          </a>.
-        </p>
+        {prefill ? null : (
+          <>
+          {/* Alternative */}
+          <p className="mt-5 text-center text-sm text-zinc-500">
+            Not sure yet?{" "}
+            <a href="/scan" className="font-semibold text-zinc-700 hover:text-zinc-900 underline underline-offset-2">
+              Run a free scan first
+            </a>{" "}
+            — no account needed. Or{" "}
+            <a href="/pricing#comparison" className="font-semibold text-zinc-700 hover:text-zinc-900 underline underline-offset-2">
+              compare full plan features
+            </a>.
+          </p>
+  
+            </>
+        )}
 
         {/* Trust signals */}
         <div className="mt-4 flex justify-center gap-x-6 text-xs text-zinc-400">
           <span>✓ No setup fees</span>
           <span>✓ Cancel anytime</span>
-          <span>✓ 30-day money-back</span>
+          <span>✓ 30-day money-back guarantee</span>
         </div>
       </div>
     </div>

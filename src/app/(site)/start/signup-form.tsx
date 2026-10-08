@@ -7,11 +7,14 @@ type Props = {
   plan: string;
   promoCode: string | null;
   isAnnual: boolean;
+  priceLabel: string;
+  /** Set when the visitor comes from their own report: only the email is still needed. */
+  prefill?: { reportPublicId: string; businessName: string; website: string; city: string } | null;
 };
 
 const initialState: DirectSignupResult | null = null;
 
-export function SignupForm({ plan, promoCode, isAnnual }: Props) {
+export function SignupForm({ plan, promoCode, isAnnual, priceLabel, prefill }: Props) {
   const [state, formAction, pending] = useActionState(directSignupAction, initialState);
   const redirected = useRef(false);
   const [code, setCode] = useState(promoCode ?? "");
@@ -30,6 +33,18 @@ export function SignupForm({ plan, promoCode, isAnnual }: Props) {
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="plan" value={plan} />
       <input type="hidden" name="interval" value={isAnnual ? "annual" : "monthly"} />
+      {prefill ? (
+        <>
+          <input type="hidden" name="reportPublicId" value={prefill.reportPublicId} />
+          <input type="hidden" name="businessName" value={prefill.businessName} />
+          <input type="hidden" name="website" value={prefill.website} />
+          <input type="hidden" name="city" value={prefill.city} />
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
+            Setting up GravyBlock for <span className="font-semibold text-zinc-900">{prefill.businessName}</span>
+            {prefill.website ? <span className="text-zinc-500"> · {prefill.website.replace(/^https?:\/\//, "")}</span> : null}
+          </div>
+        </>
+      ) : null}
 
       {/* Promo code — editable and removable, not forced */}
       <div>
@@ -80,14 +95,14 @@ export function SignupForm({ plan, promoCode, isAnnual }: Props) {
       </div>
 
       {/* Business name */}
-      <div>
+      <div className={prefill ? "hidden" : undefined}>
         <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-1.5">
           Business name <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
-          name="businessName"
-          required
+          name={prefill ? undefined : "businessName"}
+          required={!prefill}
           placeholder="e.g. Houston Plumbing Pros"
           autoComplete="organization"
           className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/10 transition"
@@ -111,14 +126,14 @@ export function SignupForm({ plan, promoCode, isAnnual }: Props) {
       </div>
 
       {/* Website + City in a row */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className={prefill ? "hidden" : "grid grid-cols-2 gap-3"}>
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-1.5">
             Website
           </label>
           <input
             type="text"
-            name="website"
+            name={prefill ? undefined : "website"}
             placeholder="yourbusiness.com"
             autoComplete="url"
             className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/10 transition"
@@ -130,7 +145,7 @@ export function SignupForm({ plan, promoCode, isAnnual }: Props) {
           </label>
           <input
             type="text"
-            name="city"
+            name={prefill ? undefined : "city"}
             placeholder="Houston, TX"
             autoComplete="address-level2"
             className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-500/10 transition"
@@ -159,12 +174,15 @@ export function SignupForm({ plan, promoCode, isAnnual }: Props) {
               </svg>
               Taking you to checkout…
             </span>
-          : `Start ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan →`
+          : `Continue to secure checkout — ${priceLabel}`
         }
       </button>
 
       <p className="text-center text-xs text-zinc-400">
         Secured by Stripe · No charge until you complete checkout
+      </p>
+      <p className="text-center text-xs font-medium text-zinc-600">
+        Cancel anytime · 30-day money-back guarantee{promoCode === "GROWTH50" ? " · $74.99/month locked while subscribed" : ""}
       </p>
     </form>
   );
