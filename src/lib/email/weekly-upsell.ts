@@ -1,4 +1,5 @@
 import { desc, eq, gte, and, ne, sql } from "drizzle-orm";
+import { isOptedOut } from "@/lib/email/optout";
 import { getDb, businesses, leads, visibilitySnapshots, jobs, contentQueue, operatorTasks, publishedContent, aiVisibilityChecks, auditFindings } from "@/lib/db";
 import { normalizePlanTierFromDb, planFeatures, type PlanTier } from "@/lib/plans";
 import { computeAeoScore } from "@/lib/scoring/aeo-score";
@@ -222,6 +223,7 @@ export async function sendWeeklyUpsellEmails(): Promise<{ sent: number; skipped:
 
   for (const biz of paidBusinesses) {
     if (!biz.billingEmail) { skipped++; continue; }
+    if (await isOptedOut(biz.billingEmail)) { skipped++; continue; }
     const tier = normalizePlanTierFromDb(biz.planTier);
     if (!NEXT_TIER[tier]) { skipped++; continue; } // agency has no upsell
 

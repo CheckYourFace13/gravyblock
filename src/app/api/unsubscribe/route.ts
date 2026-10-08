@@ -25,7 +25,8 @@ function decodeEmail(encoded: string): string | null {
   }
 }
 
-function confirmationPage(email: string) {
+function confirmationPage(rawEmail: string) {
+  const email = rawEmail.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
   return new NextResponse(
     `<!DOCTYPE html>
 <html>

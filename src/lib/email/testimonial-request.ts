@@ -5,6 +5,7 @@
  * testimonial_request_<businessId>). Runs once/day from the worker.
  */
 
+import { isOptedOut, unsubscribeFooter } from "@/lib/email/optout";
 import { randomUUID } from "node:crypto";
 import { and, eq, gte, inArray, lte, ne } from "drizzle-orm";
 import { getDb, businesses, jobs } from "@/lib/db";
@@ -77,6 +78,7 @@ export async function runTestimonialRequestBatch(batchSize = 10): Promise<{ sent
   for (const biz of candidates) {
     if (sent >= batchSize) break;
     if (!biz.email) continue;
+    if (await isOptedOut(biz.email)) continue;
 
     // Dedup: one request per business, ever.
     const jobType = `testimonial_request_${biz.id}`;
@@ -84,7 +86,9 @@ export async function runTestimonialRequestBatch(batchSize = 10): Promise<{ sent
     if (already) continue;
 
     const feedbackUrl = `${SITE_URL}/feedback?b=${biz.id}`;
-    const { html, text } = buildEmail(biz.name, feedbackUrl);
+    const built = buildEmail(biz.name, feedbackUrl);
+    const html = built.html.replace("</body></html>", `${unsubscribeFooter(biz.email)}</body></html>`);
+    const text = built.text;
 
     try {
       const res = await fetch("https://api.resend.com/emails", {

@@ -1,3 +1,5 @@
+import { unsubscribeFooter } from "@/lib/email/optout";
+
 type LeadEmailPayload = {
   leadName: string;
   leadEmail: string;
@@ -131,7 +133,8 @@ export async function sendReportDeliveryEmail(payload: ReportDeliveryPayload) {
            <ul>${payload.topFindings.map((f) => `<li>${f}</li>`).join("")}</ul>
            <p><a href="${payload.unlockUrl}">Open full report</a></p>
            ${payload.scaleUrl ? `<p style="margin-top:20px">GravyBlock can do the work behind these findings for you automatically and check that it happened. Scale is $74.99/mo (regular $149.99), locked for as long as you stay subscribed, with a 30-day money-back guarantee. <a href="${payload.scaleUrl}">See Scale for ${payload.businessName}</a></p>` : ""}
-           <p>- GravyBlock</p>`,
+           <p>- GravyBlock</p>
+           ${unsubscribeFooter(payload.leadEmail)}`,
   });
 }
 

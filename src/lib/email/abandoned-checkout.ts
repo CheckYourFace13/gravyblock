@@ -11,6 +11,7 @@
 import { and, eq, isNotNull, isNull, gte, sql } from "drizzle-orm";
 import { getDb, businesses, jobs } from "@/lib/db";
 import { assertOutreachSendingAllowed } from "@/lib/outreach/pause-guard";
+import { isOptedOut, unsubscribeFooter } from "@/lib/email/optout";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
 
@@ -120,7 +121,8 @@ function buildFollowUpEmail(businessName: string, plan: string): { subject: stri
   return { subject, html };
 }
 
-async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+async function sendEmail(to: string, subject: string, htmlIn: string): Promise<boolean> {
+  let html = htmlIn;
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
   if (!apiKey) return false;
@@ -131,6 +133,8 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
   // is meant to cover. See pause-guard.ts.
   const pauseCheck = await assertOutreachSendingAllowed(to);
   if (!pauseCheck.allowed) return false;
+  if (await isOptedOut(to)) return false;
+  html = html.replace("</div></body></html>", `${unsubscribeFooter(to)}</div></body></html>`);
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
