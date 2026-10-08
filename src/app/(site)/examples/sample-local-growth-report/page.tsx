@@ -114,7 +114,7 @@ export default async function SampleLocalGrowthReportPage() {
             {bundle.business.name}
           </h1>
           <p className="mt-2 text-sm text-zinc-500">
-            {bundle.business.vertical && bundle.business.vertical.toLowerCase() !== "other" ? bundle.business.vertical : "Local business"}
+            {bundle.business.vertical && bundle.business.vertical.toLowerCase() !== "other" ? bundle.business.vertical.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()) : "Local business"}
             {" "}· Automation running since account creation · Snapshot as of{" "}
             {new Date(bundle.business.updatedAt).toLocaleDateString()}
           </p>
