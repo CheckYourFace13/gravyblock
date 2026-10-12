@@ -12,7 +12,7 @@ const START_HREF = "/start?plan=growth&promo=GROWTH50&utm_source=tool&utm_medium
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   match: { text: "Matches", cls: "bg-emerald-50 text-emerald-800 border-emerald-200" },
   different: { text: "Different", cls: "bg-red-50 text-red-800 border-red-200" },
-  not_on_website: { text: "Not found on your website", cls: "bg-amber-50 text-amber-800 border-amber-200" },
+  not_on_website: { text: "Not found on your homepage", cls: "bg-amber-50 text-amber-800 border-amber-200" },
   not_on_google: { text: "Missing on Google", cls: "bg-amber-50 text-amber-800 border-amber-200" },
 };
 
