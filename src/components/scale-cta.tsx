@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { startScaleFromReportAction } from "@/app/(site)/start/actions";
 
+const BUY_FLAG = "gb_buy_after_unlock";
 const RISK_LINE = "$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee";
 
 /** Where a report visitor lands when we cannot send them straight to checkout. */
@@ -51,11 +52,51 @@ export function ScaleCta({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  function goToCheckout(token: string) {
+    startTransition(async () => {
+      const res = await startScaleFromReportAction({ publicId, unlockToken: token });
+      if (res.ok) {
+        window.location.href = res.checkoutUrl;
+      } else if (res.fallbackToStart) {
+        window.location.href = startHref(publicId);
+      } else {
+        setError(res.error);
+      }
+    });
+  }
+
+  // The visitor pressed the button before unlocking, entered their email inline, and is now unlocked:
+  // carry on to checkout without asking for anything again.
+  useEffect(() => {
+    if (!unlockToken) return;
+    try {
+      if (sessionStorage.getItem(BUY_FLAG) !== publicId) return;
+      sessionStorage.removeItem(BUY_FLAG);
+    } catch {
+      return;
+    }
+    goToCheckout(unlockToken);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unlockToken, publicId]);
+
   function onClick() {
     setError(null);
     track("scale_cta_clicked", publicId, businessId ?? null, placement);
     if (!unlockToken) {
-      window.location.href = startHref(publicId);
+      // Not unlocked yet: ask for the email once, right here on the report, then continue to checkout.
+      const input = document.getElementById("unlock-email") as HTMLInputElement | null;
+      if (!input) {
+        window.location.href = startHref(publicId);
+        return;
+      }
+      try {
+        sessionStorage.setItem(BUY_FLAG, publicId);
+      } catch {
+        /* falls back to the visitor pressing the button again after unlocking */
+      }
+      setError("Enter your email above and we'll take you straight to secure checkout.");
+      input.scrollIntoView({ behavior: "smooth", block: "center" });
+      input.focus();
       return;
     }
     startTransition(async () => {

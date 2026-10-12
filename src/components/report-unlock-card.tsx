@@ -42,12 +42,13 @@ export function ReportUnlockCard({
   }, [onUnlocked, promoCode, router, selectedPlan, state]);
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <div id="unlock" className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
       <h2 className="text-xl font-semibold text-zinc-900">Want the complete report?</h2>
       <p className="mt-1 text-sm text-zinc-600">Enter your email to see every finding. We&apos;ll also email you a copy. No account or password.</p>
       <form ref={formRef} action={formAction} className="mt-4 flex flex-col gap-3 sm:flex-row">
         <input type="hidden" name="publicId" value={publicId} />
         <input
+          id="unlock-email"
           name="email"
           type="email"
           required
