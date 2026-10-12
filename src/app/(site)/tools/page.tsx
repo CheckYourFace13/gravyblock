@@ -9,6 +9,20 @@ export const metadata: Metadata = {
 
 const tools = [
   {
+    href: "/tools/nap-consistency-checker",
+    title: "NAP Consistency Checker",
+    description: "Check whether your business name, address and phone match between your Google listing and your own website.",
+    cta: "Check my NAP",
+    tag: "Free",
+  },
+  {
+    href: "/tools/review-reply-generator",
+    title: "Google Review Reply Generator",
+    description: "Paste a customer review and get a professional, ready-to-post reply. No account needed.",
+    cta: "Write a reply",
+    tag: "Free",
+  },
+  {
     href: "/tools/review-link-generator",
     title: "Google Review Link Generator",
     description: "Get your direct 'leave us a review' link and a print-ready QR code in 10 seconds. Text it, print it, put it on receipts.",

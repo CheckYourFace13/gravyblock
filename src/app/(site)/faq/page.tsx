@@ -50,8 +50,8 @@ const faqs = [
         a: "INTRO50 gives you 50% off your first month on Starter ($29.99) or Pro ($149.99) — after that, billing reverts to the regular price. Scale works differently: code GROWTH50 gives you 50% off every month for as long as your subscription stays active — $74.99/mo, not just the first one. Apply the relevant code at checkout.",
       },
       {
-        q: "Is there a free plan?",
-        a: "Yes. The free tier gives you a full visibility score, a prioritized fix list, and one-time competitor snapshot. No credit card needed. To get GravyBlock actually publishing, posting and reaching out for you, you'll need a paid plan.",
+        q: "Is there a free version?",
+        a: "The scan and report are free, with no credit card: a full visibility score, a prioritized list of what we found, and a one-time competitor snapshot. There is no ongoing free subscription. The ongoing, automatic work (publishing, posting, review replies, outreach and monitoring) requires a paid plan.",
       },
       {
         q: "Can I change plans later?",

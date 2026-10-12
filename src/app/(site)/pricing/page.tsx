@@ -4,7 +4,7 @@ import { FunnelBeacon } from "@/components/funnel-beacon";
 
 export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/pricing" },
-  title: "Pricing — GravyBlock Local SEO Automation",
+  title: "Local SEO Pricing",
   description:
     "GravyBlock pricing: Starter $59.99/mo (INTRO50: $29.99 for the first month), Scale $149.99/mo (GROWTH50: $74.99/mo, locked for as long as you stay subscribed), Pro $299.99/mo (INTRO50: $149.99 for the first month). No contracts, cancel anytime.",
 };

@@ -315,19 +315,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        name: "GravyBlock",
-        applicationCategory: "BusinessApplication",
-        operatingSystem: "Web",
-        url: siteUrl,
-        offers: [
-          { "@type": "Offer", name: "Starter", price: "29.99", priceCurrency: "USD" },
-          { "@type": "Offer", name: "Scale", price: "74.99", priceCurrency: "USD" },
-          { "@type": "Offer", name: "Pro", price: "149.99", priceCurrency: "USD" },
-        ],
-      }) }} />
     </div>
   );
 }

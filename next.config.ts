@@ -17,6 +17,9 @@ function resolveGitSha(): string {
 }
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [{ source: "/privacy-policy", destination: "/privacy", permanent: true }];
+  },
   env: {
     GIT_SHA: resolveGitSha(),
     DEPLOYED_AT: new Date().toISOString(),

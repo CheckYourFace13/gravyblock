@@ -63,6 +63,8 @@ const staticRoutes: MetadataRoute.Sitemap = [
   entry("/local-seo-statistics", 0.4),
   entry("/tools", 0.8),
   entry("/tools/google-business-profile-checker", 0.8),
+  entry("/tools/nap-consistency-checker", 0.7),
+  entry("/tools/review-reply-generator", 0.7),
   entry("/tools/ai-visibility-test", 0.8),
   entry("/tools/review-link-generator", 0.9),
   entry("/tools/local-seo-roi-calculator", 0.8),

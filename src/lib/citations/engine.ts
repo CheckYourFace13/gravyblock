@@ -25,10 +25,10 @@ import { recordOpportunity } from "@/lib/opportunities/queue";
 
 type Db = NonNullable<ReturnType<typeof getDb>>;
 
-const digits = (s: string) => s.replace(/\D/g, "").slice(-10);
+export const digits = (s: string) => s.replace(/\D/g, "").slice(-10);
 const alnum = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-const nameKey = (s: string) => alnum(s).replace(/\b(llc|inc|co|corp|ltd|the)\b/g, "").replace(/\s+/g, " ").trim();
-const addrKey = (s: string) => alnum(s).split(" ").slice(0, 3).join(" "); // street number + first street words
+export const nameKey = (s: string) => alnum(s).replace(/\b(llc|inc|co|corp|ltd|the)\b/g, "").replace(/\s+/g, " ").trim();
+export const addrKey = (s: string) => alnum(s).split(" ").slice(0, 3).join(" "); // street number + first street words
 
 function distinct(values: string[], norm: (s: string) => string): string[] {
   return [...new Set(values.map(norm).filter(Boolean))];
