@@ -129,3 +129,41 @@ site-specific engine code on GravyBlock's side:
 Nothing here requires GravyBlock credentials on the site, a build-time secret, or a webhook back
 to GravyBlock — it is a public, signed, read-only fetch. `autoConnectManagedSites` finds and
 attaches the site automatically on its next run once step 2 is live.
+
+## Declared capabilities (v1.1)
+
+A connector announces what it can really do, and GravyBlock enforces exactly that:
+
+```
+GET /.well-known/gravyblock.json
+-> { "connector": "gravyblock-managed", "version": 1, "businessId": "<uuid>",
+     "capabilities": ["pageMetadata", "socialImage", "structuredData"] }
+```
+
+Allowed values: `articles`, `pageMetadata`, `socialImage`, `structuredData`, `existingPageBody`. The stored target
+is the intersection of the adapter ceiling and the declared list (`capabilitiesFor` in `site-publish/adapters.ts`).
+A site that declares nothing keeps the adapter default. Engines only propose what the result allows (for example,
+articles are never published to a metadata-only connector). The house cycle re-reads the declaration each run.
+
+## Self connector
+
+GravyBlock's own marketing pages apply their overrides in process (`site-publish/self-managed.ts`) from the same
+desired-state builder the signed feed uses (`site-publish/managed-feed.ts`): no HTTP call, no signature, no loop.
+Capabilities: `pageMetadata`, `socialImage`.
+
+## Static / PHP sites (`connectors/static-php`)
+
+For plain HTML sites on a PHP host. One `.htaccess` rule routes directory pages that have an `index.html` through
+`gravyblock-connector.php`, which serves the original file untouched unless a signed override exists for that path,
+then patches only head metadata (title, description, social image, JSON-LD). Fail-open on every error. The business
+id and capabilities are read from `/.well-known/gravyblock.json`. Rule to add inside `<IfModule mod_rewrite.c>`:
+
+```
+RewriteCond %{REQUEST_METHOD} ^(GET|HEAD)$
+RewriteCond %{REQUEST_URI} !^/gravyblock-connector\.php
+RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}index.html -f
+RewriteRule ^(.*/)?$ gravyblock-connector.php [L]
+```
+
+Roll out in this order: upload the two files, test `gravyblock-connector.php?gb_test=/about/` (output must equal the
+static page), then add the rule; roll back by restoring the previous `.htaccess`.

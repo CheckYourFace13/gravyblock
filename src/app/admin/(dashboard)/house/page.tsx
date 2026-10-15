@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { getDb, growthOpportunities, jobs, proofLedger } from "@/lib/db";
+import { backlinkOpportunities, getDb, growthOpportunities, jobs, proofLedger } from "@/lib/db";
 import { listHouseAccounts, HOUSE_JOB } from "@/lib/house";
 import { allOpenRanked } from "@/lib/opportunities/queue";
 
@@ -27,6 +27,12 @@ export default async function HouseFleetDetail() {
         .from(growthOpportunities)
         .where(and(inArray(growthOpportunities.businessId, ids), sql`${growthOpportunities.status} in ('acted','verified','no_gain')`))
         .limit(200)
+    : [];
+  const sends = db && ids.length
+    ? await db.select({ businessId: jobs.businessId, createdAt: jobs.createdAt }).from(jobs).where(and(inArray(jobs.businessId, ids), eq(jobs.type, "authority_outreach_sent"))).limit(2000)
+    : [];
+  const backlinkStatus = db && ids.length
+    ? await db.select({ businessId: backlinkOpportunities.businessId, status: backlinkOpportunities.status, n: sql<number>`count(*)::int` }).from(backlinkOpportunities).where(inArray(backlinkOpportunities.businessId, ids)).groupBy(backlinkOpportunities.businessId, backlinkOpportunities.status)
     : [];
   const wd = db ? await db.select({ createdAt: jobs.createdAt, payload: jobs.payload }).from(jobs).where(eq(jobs.type, HOUSE_JOB.watchdog)).orderBy(desc(jobs.createdAt)).limit(1) : [];
   const j = (v: unknown) => JSON.stringify(v);
@@ -57,6 +63,7 @@ export default async function HouseFleetDetail() {
               {ranked.map((o) => <p key={o.id} className="font-mono">{Math.round(o.rankScore)} {o.opportunityType}:{o.subtype} {o.status} {o.eligibility} cap={o.requiredCapability ?? "-"} class={o.valueClass} mode={o.businessMode}</p>)}
               <p><b>acted / measuring ({myMeasured.length})</b></p>
               {myMeasured.map((m, i) => <p key={i} className="font-mono break-all">{m.type}:{m.subtype} {m.status} {m.verification} plan={j(m.plan)} result={j(m.result)}</p>)}
+              <p><b>authority</b> sent 24h={sends.filter((x) => x.businessId === a.id && Date.now() - x.createdAt.getTime() < 86_400_000).length} 7d={sends.filter((x) => x.businessId === a.id && Date.now() - x.createdAt.getTime() < 7 * 86_400_000).length} prospects: {backlinkStatus.filter((x) => x.businessId === a.id).map((x) => `${x.status}=${x.n}`).join(" ") || "none"}</p>
               <p><b>proof ({myProof.length})</b></p>
               {myProof.map((p) => <p key={p.id} className="font-mono">L{p.proofLevel} {p.actionType} {p.verifiedAt.toISOString()} {p.summary.slice(0, 110)}</p>)}
             </section>
