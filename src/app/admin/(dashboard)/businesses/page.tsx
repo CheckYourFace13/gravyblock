@@ -2,7 +2,7 @@ import Link from "next/link";
 import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { listBusinessSummaries } from "@/lib/report/repository";
 import { getHouseFleetStatus, type HouseHealth } from "@/lib/house";
-import { enrollHouseSite, runFleetCycleNow, runHouseCycleNow } from "./house-actions";
+import { enrollHouseSite, runFleetCycleNow, runHouseCycleNow, runSelfTestNow } from "./house-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -145,6 +145,11 @@ export default async function AdminBusinessesPage({ searchParams }: Props) {
                     <Link href={`/admin/businesses/${b.id}`} className="text-zinc-700 hover:text-zinc-900">
                       Manage
                     </Link>
+                    {b.connector !== "none" ? (
+                      <form action={runSelfTestNow.bind(null, b.id)}>
+                        <button type="submit" className="text-zinc-500 hover:text-zinc-800">Connector self-test</button>
+                      </form>
+                    ) : null}
                     <form action={runHouseCycleNow.bind(null, b.id)}>
                       <button type="submit" className="text-zinc-500 hover:text-zinc-800" disabled={b.state.cycleRequested}>{b.state.cycleRequested ? "Cycle queued…" : "Run cycle now"}</button>
                     </form>

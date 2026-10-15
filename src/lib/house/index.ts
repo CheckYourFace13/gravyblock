@@ -29,6 +29,7 @@ import { runBasicSeoForBusiness } from "@/lib/seo/basic-autopilot";
 import { discoverAndQualify, discoverBrokenLinkOpportunities, discoverUnlinkedMentions } from "@/lib/authority/engine";
 import { SITE_ADAPTERS, autoConnectManagedSites, capabilitiesFor, detectConnector, type SiteAdapterKind } from "@/lib/site-publish/adapters";
 import { evaluateMeasurementPlans } from "@/lib/opportunities/evaluate";
+import { runConnectorSelfTest } from "@/lib/site-publish/connector-selftest";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -53,6 +54,7 @@ export const HOUSE_JOB = {
   cycle: "house_cycle",
   requested: "house_cycle_requested",
   connectorCheck: "house_connector_check",
+  selftestRequested: "house_selftest_requested",
   watchdog: "house_watchdog",
 } as const;
 
@@ -340,6 +342,39 @@ async function runGuarded(businessId: string): Promise<CycleReport | null> {
     return await runHouseAccountCycle(businessId);
   } finally {
     inFlight.delete(businessId);
+  }
+}
+
+/** Queue a connector self-test (inert marker write, live verify, rollback). Runs in the worker; never sends email or records proof. */
+export async function requestConnectorSelfTest(businessId: string): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  const [open] = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.businessId, businessId), eq(jobs.type, HOUSE_JOB.selftestRequested), eq(jobs.status, "pending"))).limit(1);
+  if (open) return false;
+  await db.insert(jobs).values({ businessId, type: HOUSE_JOB.selftestRequested, status: "pending", payload: { requestedAt: new Date().toISOString() } });
+  return true;
+}
+
+let selfTestRunning = false;
+
+/** Worker poller: runs queued self-tests one at a time (each can take up to ~25 minutes of polling). */
+export async function runRequestedSelfTests(): Promise<number> {
+  const db = getDb();
+  if (!db || selfTestRunning) return 0;
+  const [next] = await db.select({ id: jobs.id, businessId: jobs.businessId }).from(jobs).where(and(eq(jobs.type, HOUSE_JOB.selftestRequested), eq(jobs.status, "pending"))).orderBy(jobs.createdAt).limit(1);
+  if (!next?.businessId) return 0;
+  selfTestRunning = true;
+  try {
+    await db.update(jobs).set({ status: "running" }).where(eq(jobs.id, next.id));
+    await runConnectorSelfTest(next.businessId);
+    await db.update(jobs).set({ status: "completed" }).where(eq(jobs.id, next.id));
+    return 1;
+  } catch (err) {
+    console.error("[house] self-test failed", { businessId: next.businessId, error: err instanceof Error ? err.message : String(err) });
+    await db.update(jobs).set({ status: "completed" }).where(eq(jobs.id, next.id));
+    return 0;
+  } finally {
+    selfTestRunning = false;
   }
 }
 

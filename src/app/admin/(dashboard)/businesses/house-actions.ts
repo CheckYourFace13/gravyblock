@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { businesses, getDb } from "@/lib/db";
 import { isAdminSession } from "@/lib/auth/admin-session";
-import { requestHouseCycle } from "@/lib/house";
+import { requestConnectorSelfTest, requestHouseCycle } from "@/lib/house";
 
 const MODES = ["local", "regional", "national", "online"] as const;
 
@@ -48,6 +48,13 @@ export async function runHouseCycleNow(businessId: string): Promise<void> {
   if (!(await isAdminSession())) throw new Error("Not authorized.");
   await requestHouseCycle(businessId);
   revalidatePath("/admin/businesses");
+  revalidatePath("/admin/house");
+}
+
+/** Queues a connector self-test (inert marker write, live verify, rollback). */
+export async function runSelfTestNow(businessId: string): Promise<void> {
+  if (!(await isAdminSession())) throw new Error("Not authorized.");
+  await requestConnectorSelfTest(businessId);
   revalidatePath("/admin/house");
 }
 

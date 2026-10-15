@@ -71,7 +71,7 @@ import { ensureResendWebhookRegistered } from "@/lib/integrations/resend-setup";
 import { runGbpPhotoUploadBatch } from "@/lib/gbp/photo-uploader";
 import { runListingWatchdogBatch } from "@/lib/gbp/listing-watchdog";
 import { runReviewSpotlightBatch } from "@/lib/social/review-spotlight";
-import { runHouseFleetTick, runHouseWatchdog, runRequestedHouseCycles } from "@/lib/house";
+import { runHouseFleetTick, runHouseWatchdog, runRequestedHouseCycles, runRequestedSelfTests } from "@/lib/house";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -996,6 +996,7 @@ let requestPollRunning = false;
 setInterval(() => {
   if (requestPollRunning) return;
   requestPollRunning = true;
+  void runRequestedSelfTests().catch((error) => console.error("[worker] house self-test poll failed", { error: error instanceof Error ? error.message : String(error) }));
   void runRequestedHouseCycles(2)
     .catch((error) => console.error("[worker] house request poll failed", { error: error instanceof Error ? error.message : String(error) }))
     .finally(() => {
