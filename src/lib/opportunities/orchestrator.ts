@@ -15,14 +15,14 @@ import { runBasicSeoForBusiness } from "@/lib/seo/basic-autopilot";
 import { runAeoActionForBusiness } from "@/lib/ai-visibility/aeo-actions";
 import { runCompetitorGapForBusiness } from "@/lib/competitors/gap-engine";
 import { runCitationEngineForBusiness } from "@/lib/citations/engine";
-import { actOnBestAuthorityOpportunity } from "@/lib/authority/engine";
+import { actOnBestAuthorityOpportunity, AUTHORITY_SENT_JOB } from "@/lib/authority/engine";
 import { postGbpForBusiness } from "@/lib/gbp/post-publisher";
 import { planTruthGroundedSocial } from "@/lib/social/truth-social";
 import { runReviewRequestSendBatch } from "@/lib/reviews/review-request-engine";
 import { planTruthGroundedContent, hasExternalPublishingTarget } from "@/lib/autopilot/content-planner";
 import { executeContentPublishPath } from "@/lib/autopilot/executor";
-import { getDb, businesses } from "@/lib/db";
-import { and, inArray, ne } from "drizzle-orm";
+import { getDb, businesses, jobs } from "@/lib/db";
+import { and, eq, gte, inArray, ne } from "drizzle-orm";
 import { allOpenRanked } from "./queue";
 import type { OpportunityType } from "./types";
 
@@ -43,6 +43,12 @@ const HANDLERS: Partial<Record<OpportunityType, (businessId: string) => Promise<
   technical: seoHandler,
   conversion: seoHandler,
   backlink: async (businessId) => {
+    // Re-running a cycle (manual, forced, or after a refresh) must never contact more prospects: at most one outreach run per business per 20 hours, on top of the engine's own weekly cap.
+    const db = getDb();
+    if (db) {
+      const [recent] = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.businessId, businessId), eq(jobs.type, AUTHORITY_SENT_JOB), gte(jobs.createdAt, new Date(Date.now() - 20 * 3_600_000)))).limit(1);
+      if (recent) return { attempted: true, outcome: "not_worth_acting", detail: { reason: "outreach_sent_within_20h" } };
+    }
     const r = await actOnBestAuthorityOpportunity(businessId);
     return { attempted: true, outcome: r.sent > 0 || r.followUps > 0 ? "acted" : r.reason === "no_eligible_prospect" ? "not_worth_acting" : "blocked", detail: r };
   },
