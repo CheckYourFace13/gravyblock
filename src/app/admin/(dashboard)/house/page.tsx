@@ -58,7 +58,7 @@ export default async function HouseFleetDetail() {
               <p><b>orchestrator</b></p>
               {pick(HOUSE_JOB.orchestrator, 2).map((r, i) => <p key={i} className="font-mono break-all">{r.createdAt.toISOString()} {j(r.payload)}</p>)}
               <p><b>cycles / connector</b></p>
-              {[...pick(HOUSE_JOB.cycle, 2), ...pick(HOUSE_JOB.connectorCheck, 1), ...pick("site_connector_connected", 1)].map((r, i) => <p key={i} className="font-mono break-all">{r.createdAt.toISOString()} {r.type} {r.status} {j(r.payload)}</p>)}
+              {[...pick(HOUSE_JOB.cycle, 2), ...pick(HOUSE_JOB.connectorCheck, 1), ...pick("site_connector_connected", 1), ...pick("connector_selftest", 2)].map((r, i) => <p key={i} className="font-mono break-all">{r.createdAt.toISOString()} {r.type} {r.status} {j(r.payload)}</p>)}
               <p><b>ranked open ({ranked.length})</b></p>
               {ranked.map((o) => <p key={o.id} className="font-mono">{Math.round(o.rankScore)} {o.opportunityType}:{o.subtype} {o.status} {o.eligibility} cap={o.requiredCapability ?? "-"} class={o.valueClass} mode={o.businessMode} impact={o.expectedImpact} conf={o.confidence} i*c={o.expectedImpact * o.confidence} (need 400) auto={o.autoEligible}</p>)}
               <p><b>acted / measuring ({myMeasured.length})</b></p>
