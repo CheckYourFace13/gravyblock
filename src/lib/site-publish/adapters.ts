@@ -57,6 +57,19 @@ const CAPABILITY_KEYS = ["articles", "pageMetadata", "socialImage", "structuredD
  * at /.well-known/gravyblock.json (stored in config.capabilities). A site that announces nothing keeps
  * the adapter default. Engines only propose actions the result allows.
  */
+/**
+ * Which paths the site actually renders overrides for. A connector that wraps only some pages declares
+ * them (`paths` in /.well-known/gravyblock.json); "*" or no declaration means every page. Engines only
+ * propose changes to covered paths, so nothing is written where the site could never show it.
+ */
+export function pathCovered(config: unknown, path: string): boolean {
+  const declared = (config as { paths?: unknown } | null)?.paths;
+  if (!Array.isArray(declared)) return true;
+  const norm = (p: string) => (p.length > 1 ? p.replace(/\/+$/, "") : p);
+  const set = declared.filter((x): x is string => typeof x === "string");
+  return set.includes("*") || set.some((p) => norm(p) === norm(path));
+}
+
 export function capabilitiesFor(kind: SiteAdapterKind, config: unknown): SiteCapabilities {
   const base = SITE_ADAPTERS[kind].capabilities;
   const declared = (config as { capabilities?: unknown } | null)?.capabilities;
@@ -66,7 +79,7 @@ export function capabilitiesFor(kind: SiteAdapterKind, config: unknown): SiteCap
 }
 
 /** A connected site announces the connector at /.well-known/gravyblock.json and names the business it belongs to. */
-export async function detectConnector(website: string): Promise<{ businessId: string; version: number; capabilities: string[] | null } | null> {
+export async function detectConnector(website: string): Promise<{ businessId: string; version: number; capabilities: string[] | null; paths: string[] | null } | null> {
   let origin: string;
   try {
     origin = new URL(/^https?:\/\//i.test(website) ? website : `https://${website}`).origin;
@@ -76,10 +89,11 @@ export async function detectConnector(website: string): Promise<{ businessId: st
   const r = await safeFetchText(`${origin}/.well-known/gravyblock.json`, { timeoutMs: 6000, maxBytes: 20_000, accept: "application/json" });
   if (!r.ok || r.status !== 200) return null;
   try {
-    const j = JSON.parse(r.body) as { connector?: string; businessId?: string; version?: number; capabilities?: unknown };
+    const j = JSON.parse(r.body) as { connector?: string; businessId?: string; version?: number; capabilities?: unknown; paths?: unknown };
     if (j.connector !== "gravyblock-managed" || !j.businessId) return null;
     const caps = Array.isArray(j.capabilities) ? j.capabilities.filter((x): x is string => typeof x === "string" && (CAPABILITY_KEYS as readonly string[]).includes(x)) : null;
-    return { businessId: j.businessId, version: j.version ?? 1, capabilities: caps };
+    const paths = Array.isArray(j.paths) ? j.paths.filter((x): x is string => typeof x === "string" && (x === "*" || x.startsWith("/"))).slice(0, 500) : null;
+    return { businessId: j.businessId, version: j.version ?? 1, capabilities: caps, paths };
   } catch {
     return null;
   }
@@ -106,10 +120,11 @@ export async function autoConnectManagedSites(limit = 20, onlyBusinessId?: strin
       // Keep the declared capabilities current (a site can gain or drop operations); one cheap probe, idempotent.
       if (onlyBusinessId && b.website) {
         const again = await detectConnector(b.website);
-        if (again && again.businessId === b.id && again.capabilities) {
+        if (again && again.businessId === b.id) {
           const cfg = (existing.config ?? {}) as Record<string, unknown>;
-          if (JSON.stringify(cfg.capabilities ?? null) !== JSON.stringify(again.capabilities)) {
-            await db.update(publishingTargets).set({ config: { ...cfg, capabilities: again.capabilities } }).where(eq(publishingTargets.id, existing.id));
+          const next = { ...cfg, ...(again.capabilities ? { capabilities: again.capabilities } : {}), ...(again.paths ? { paths: again.paths } : {}) };
+          if (JSON.stringify(cfg) !== JSON.stringify(next)) {
+            await db.update(publishingTargets).set({ config: next }).where(eq(publishingTargets.id, existing.id));
           }
         }
       }
@@ -119,7 +134,7 @@ export async function autoConnectManagedSites(limit = 20, onlyBusinessId?: strin
     const found = await detectConnector(b.website);
     if (!found || found.businessId !== b.id) continue;
     const origin = new URL(/^https?:\/\//i.test(b.website) ? b.website : `https://${b.website}`).origin;
-    await db.insert(publishingTargets).values({ businessId: b.id, label: "GravyBlock connector", adapter: "managed_feed", config: { siteOrigin: origin, basePath: "/insights", connectedAt: new Date().toISOString(), ...(found.capabilities ? { capabilities: found.capabilities } : {}) }, active: "true" });
+    await db.insert(publishingTargets).values({ businessId: b.id, label: "GravyBlock connector", adapter: "managed_feed", config: { siteOrigin: origin, basePath: "/insights", connectedAt: new Date().toISOString(), ...(found.capabilities ? { capabilities: found.capabilities } : {}), ...(found.paths ? { paths: found.paths } : {}) }, active: "true" });
     await db.insert(jobs).values({ businessId: b.id, type: "site_connector_connected", status: "completed", payload: { origin, version: found.version, capabilities: found.capabilities } });
     connected++;
   }

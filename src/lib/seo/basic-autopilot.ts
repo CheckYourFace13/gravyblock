@@ -15,7 +15,7 @@ import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { businesses, getDb, jobs } from "@/lib/db";
 import { safeFetchText } from "@/lib/net/safe-fetch";
 import { recordProof } from "@/lib/proof/ledger";
-import { getSiteTarget } from "@/lib/site-publish/adapters";
+import { getSiteTarget, pathCovered } from "@/lib/site-publish/adapters";
 import { collectPages, findDefects, snapshotPage, type Defect, type DefectType, type PageSnapshot } from "./basic-audit";
 import { recordOpportunity, nextOpportunities, resolveOpportunityByDedupeKey, markActed } from "@/lib/opportunities/queue";
 import { classifyValue } from "@/lib/opportunities/classify";
@@ -126,7 +126,8 @@ export async function runBasicSeoForBusiness(businessId: string, opts: { scanOnl
   const target = await getSiteTarget(businessId);
   const pages = await collectPages(biz.website, MAX_PAGES_PER_ACTION);
   if (pages.length === 0) return { state: "site_unreachable" };
-  const defects = findDefects(pages, biz.name);
+  // Only paths the connector actually renders overrides for (a partial connector declares them); nothing is proposed where it could never show.
+  const defects = findDefects(pages, biz.name).filter((d) => !target || pathCovered(target.config, d.path));
   await recordDefectsAsOpportunities(businessId, defects);
 
   await db.insert(jobs).values({
