@@ -63,6 +63,9 @@ node scripts/setup-annual-prices.mjs 2>&1 || echo "[self-deploy] annual price wa
 # One-time Starter price drop to $59.99/mo ($29.99 intro) — idempotent, safe to leave running
 node scripts/update-starter-pricing.mjs 2>&1 || echo "[self-deploy] starter price warning (non-fatal)"
 
+# Single public offer: GravyBlock at $39.99/mo (idempotent; points STRIPE_PRICE_GROWTH_MONTHLY at the $39.99 price)
+node scripts/setup-single-price.mjs 2>&1 || echo "[self-deploy] single price warning (non-fatal)"
+
 npm run build
 
 pm2 startOrRestart ecosystem.config.js --update-env

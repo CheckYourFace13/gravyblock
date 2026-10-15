@@ -1,93 +1,28 @@
 import type { Metadata } from "next";
 import { SignupForm } from "./signup-form";
 import { ProofTeaser } from "./proof-teaser";
-import { normalizePromoCode } from "@/lib/stripe/promo-codes";
-import { ANNUAL_SAVINGS } from "@/lib/stripe/server";
 import { FunnelBeacon } from "@/components/funnel-beacon";
 import { getReportWithContext } from "@/lib/report/repository";
+import { OFFER } from "@/lib/offer";
 
 export const metadata: Metadata = {
-  title: "Get started",
-  description: "Start your GravyBlock plan.",
+  title: "Start GravyBlock",
+  description: "Start GravyBlock for $39.99 a month. Cancel anytime, 30-day money-back guarantee.",
   robots: { index: false, follow: false }, // don't index the signup funnel
 };
 
-type Props = { searchParams: Promise<{ plan?: string; promo?: string; interval?: string; report?: string }> };
+type Props = { searchParams: Promise<{ report?: string }> };
 
-const PLAN_INFO = {
-  starter: {
-    label: "Starter",
-    monthly: 59.99,
-    intro: 29.99,
-    tagline: "Monthly visibility monitoring, citation consistency checks, and a prioritized fix list.",
-    bullets: ["Monthly visibility score", "Citation consistency checks and drift alerts", "AI search check", "Full workspace dashboard"],
-    highlight: false,
-  },
-  growth: {
-    label: "Scale",
-    monthly: 149.99,
-    intro: 74.99,
-    tagline: "GravyBlock decides what will help and does it — content, Google Business Profile, reviews, and social.",
-    bullets: ["Articles published to your connected site", "Google Business Profile posts", "Google review replies posted automatically", "Facebook + Instagram posting (no per-post approval)", "Automatic review requests to your real customers (once connected)"],
-    highlight: true,
-  },
-  pro: {
-    label: "Pro",
-    monthly: 299.99,
-    intro: 149.99,
-    tagline: "Double the output and more local pages for one business.",
-    bullets: ["Everything in Scale, twice as often", "12 articles + 8 local pages/month", "Priority support"],
-    highlight: false,
-  },
-  agency: {
-    label: "Agency",
-    monthly: 499.99,
-    intro: 249.99,
-    tagline: "Daily output and priority support.",
-    bullets: ["Daily content generation", "Full feature set", "Priority support"],
-    highlight: false,
-  },
-} as const;
-
-type PlanKey = keyof typeof PLAN_INFO;
-
-// Public, self-serve plans. Agency is a "contact us" upsell for Pro customers
-// needing custom or multi-business setups — not offered in the self-serve switcher.
-const PUBLIC_PLANS: PlanKey[] = ["starter", "growth", "pro"];
-
-function normalizePlan(raw: string | null | undefined): PlanKey {
-  const p = (raw ?? "").toLowerCase();
-  if (p === "entry" || p === "base") return "starter";
-  if (p in PLAN_INFO) return p as PlanKey;
-  return "growth"; // default to Scale
-}
-
-function buildStartUrl(params: { plan: PlanKey; promo: string | undefined; annual: boolean }): string {
-  const search = new URLSearchParams();
-  search.set("plan", params.plan);
-  // Preserve an explicit empty promo (opted out of the default discount) —
-  // only omit the param entirely when the visitor never had one to begin with.
-  if (params.promo !== undefined) search.set("promo", params.promo);
-  if (params.annual) search.set("interval", "annual");
-  return `/start?${search.toString()}`;
-}
+const INCLUDED = [
+  "Finds what is hurting your visibility",
+  "Chooses what is worth fixing next",
+  "Does the eligible work automatically and verifies it",
+  "Works on Google, reviews and social once connected",
+  "Keeps monitoring and working automatically",
+];
 
 export default async function StartPage({ searchParams }: Props) {
   const query = await searchParams;
-  const plan = normalizePlan(query.plan);
-  const info = PLAN_INFO[plan];
-  // No `promo` param at all → arrived via an existing marketing link that
-  // relies on the default offer for this plan. An explicit `promo` param
-  // (even an empty string, e.g. from the homepage "Sign up now" link) means
-  // the visitor opted out of the default discount — respect that exactly,
-  // don't inject one. Growth's default is GROWTH50 (locked-forever), not
-  // INTRO50 (first-month-only) — every Growth entry point must land on the
-  // same true "$74.99 for as long as you stay subscribed" price, not just
-  // the ones explicitly updated to say so.
-  const defaultPromoForPlan = plan === "growth" ? "GROWTH50" : "INTRO50";
-  const promoCode = query.promo === undefined ? defaultPromoForPlan : normalizePromoCode(query.promo);
-  const priceLocked = promoCode === "GROWTH50";
-  const isAnnual = query.interval === "annual";
   // Arriving from a completed report: the business is already known, so only the email is missing.
   const reportRecord = query.report ? await getReportWithContext(query.report).catch(() => null) : null;
   const prefill = reportRecord?.businessId
@@ -98,127 +33,41 @@ export default async function StartPage({ searchParams }: Props) {
         city: reportRecord.payload.business.address ?? "",
       }
     : null;
-  const annualSavings = ANNUAL_SAVINGS[plan === "growth" ? "growth" : plan];
-  const displayPrice = isAnnual ? annualSavings.monthlyEquiv : promoCode ? info.intro : info.monthly;
-  const billingLabel = isAnnual ? `/mo billed annually` : promoCode ? `/mo${priceLocked ? "" : " · first month"}` : `/mo`;
 
   return (
-    <div className="min-h-dvh bg-gradient-to-b from-zinc-50 to-white px-4 py-12 sm:px-6">
+    <div className="min-h-dvh bg-gradient-to-b from-zinc-50 to-white px-4 py-10 sm:px-6">
       <FunnelBeacon eventType="start_page_viewed" reportPublicId={prefill?.reportPublicId ?? null} businessId={reportRecord?.businessId ?? null} />
       <div className="mx-auto max-w-lg">
-
-        {/* Back link */}
-        <a href="/pricing" className={`${prefill ? "hidden" : "inline-flex"} mb-4 items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800`}>
-          ← Back to pricing
-        </a>
-
-        {priceLocked && (
-          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-center">
-            <p className="text-sm font-semibold text-amber-900">
-              Special rate: $74.99/month — keep this rate for as long as your subscription stays active.
-            </p>
-          </div>
-        )}
-
         {prefill ? null : <ProofTeaser />}
 
-        {/* Plan switcher — pick a different plan without leaving checkout */}
-        <div className={`mb-3 flex justify-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-100 p-1 ${prefill ? "hidden" : ""}`}>
-          {PUBLIC_PLANS.map((key) => (
-            <a
-              key={key}
-              href={buildStartUrl({ plan: key, promo: query.promo, annual: isAnnual })}
-              className={`flex-1 rounded-full py-1.5 text-center text-xs font-semibold transition ${
-                plan === key ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"
-              }`}
-            >
-              {PLAN_INFO[key].label}
-            </a>
-          ))}
-        </div>
-
-        {/* Billing interval toggle */}
-        <div className={`mb-8 flex justify-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-100 p-1 text-xs font-semibold ${prefill ? "hidden" : ""}`}>
-          <a
-            href={buildStartUrl({ plan, promo: query.promo, annual: false })}
-            className={`rounded-full px-4 py-1.5 transition ${!isAnnual ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"}`}
-          >
-            Monthly
-          </a>
-          <a
-            href={buildStartUrl({ plan, promo: query.promo, annual: true })}
-            className={`rounded-full px-4 py-1.5 transition ${isAnnual ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"}`}
-          >
-            Annual · save 25%
-          </a>
-        </div>
-
-        <div className="rounded-3xl border border-zinc-200 bg-white shadow-xl shadow-zinc-100 overflow-hidden">
-
-          {/* Plan header */}
-          <div className={`px-8 pt-8 pb-6 ${info.highlight ? "bg-gradient-to-br from-red-600 to-red-700" : "bg-zinc-900"}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-xs font-bold uppercase tracking-[0.2em] ${info.highlight ? "text-red-200" : "text-zinc-400"}`}>
-                  GravyBlock {info.label}
-                </p>
-                <div className="mt-1 flex items-baseline gap-1.5">
-                  <span className="text-4xl font-black text-white">${displayPrice}</span>
-                  <span className={`text-sm ${info.highlight ? "text-red-200" : "text-zinc-400"}`}>{billingLabel}</span>
-                </div>
-                {!isAnnual && (
-                  <p className={`mt-0.5 text-xs font-semibold ${info.highlight ? "text-red-200" : "text-zinc-500"}`}>
-                    {priceLocked
-                      ? "Locked while subscribed · cancel anytime"
-                      : promoCode
-                        ? `Then $${info.monthly}/mo · cancel anytime`
-                        : "Cancel anytime"}
-                  </p>
-                )}
-              </div>
-              <div className={`rounded-full px-3 py-1.5 text-xs font-bold ${info.highlight ? "bg-red-500/40 text-white" : "bg-zinc-700 text-zinc-300"}`}>
-                {isAnnual ? "Annual · save 25%" : promoCode ? `Code ${promoCode} applied` : "Standard pricing"}
-              </div>
+        <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-xl shadow-zinc-100">
+          <div className="bg-gradient-to-br from-red-600 to-red-700 px-8 pb-6 pt-8">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-red-200">{OFFER.name}</p>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className="text-4xl font-black text-white">$39.99</span>
+              <span className="text-sm text-red-200">/month</span>
             </div>
-
+            <p className="mt-0.5 text-xs font-semibold text-red-200">{OFFER.risk}</p>
             <ul className="mt-5 space-y-1.5">
-              {info.bullets.map((b) => (
-                <li key={b} className={`flex items-center gap-2 text-sm ${info.highlight ? "text-red-100" : "text-zinc-300"}`}>
-                  <span className={`text-xs font-bold ${info.highlight ? "text-red-300" : "text-zinc-500"}`}>✓</span>
+              {INCLUDED.map((b) => (
+                <li key={b} className="flex items-center gap-2 text-sm text-red-100">
+                  <span className="text-xs font-bold text-red-300">✓</span>
                   {b}
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Form */}
           <div className="px-8 py-8">
-            <h1 className="text-xl font-semibold text-zinc-900 mb-1">{prefill ? "Confirm your email to start" : "Create your account"}</h1>
-            <p className="text-sm text-zinc-500 mb-6">{info.tagline}</p>
-
-            <SignupForm plan={plan} promoCode={promoCode} isAnnual={isAnnual} priceLabel={'$' + displayPrice + '/mo'} prefill={prefill} />
+            <h1 className="mb-1 text-xl font-semibold text-zinc-900">{prefill ? "Confirm your email to start" : "Start GravyBlock"}</h1>
+            <p className="mb-6 text-sm text-zinc-500">
+              {prefill ? "That is the only thing we still need." : "Tell us about your business and go straight to secure checkout."}
+            </p>
+            <SignupForm priceLabel={OFFER.priceLabel} prefill={prefill} />
           </div>
         </div>
 
-        {prefill ? null : (
-          <>
-          {/* Alternative */}
-          <p className="mt-5 text-center text-sm text-zinc-500">
-            Not sure yet?{" "}
-            <a href="/scan" className="font-semibold text-zinc-700 hover:text-zinc-900 underline underline-offset-2">
-              Run a free scan first
-            </a>{" "}
-            — no account needed. Or{" "}
-            <a href="/pricing#comparison" className="font-semibold text-zinc-700 hover:text-zinc-900 underline underline-offset-2">
-              compare full plan features
-            </a>.
-          </p>
-  
-            </>
-        )}
-
-        {/* Trust signals */}
-        <div className="mt-4 flex justify-center gap-x-6 text-xs text-zinc-400">
+        <div className="mt-4 flex justify-center gap-x-6 text-xs text-zinc-500">
           <span>✓ No setup fees</span>
           <span>✓ Cancel anytime</span>
           <span>✓ 30-day money-back guarantee</span>

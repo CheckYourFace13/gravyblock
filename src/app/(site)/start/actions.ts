@@ -11,6 +11,7 @@ import { normalizePromoCode, resolveCouponId } from "@/lib/stripe/promo-codes";
 import { trackFunnelEvent } from "@/lib/events/track";
 import { getAttributionToken } from "@/lib/events/attribution";
 import { cookies } from "next/headers";
+import { OFFER } from "@/lib/offer";
 
 function normalizePlan(raw: string | null | undefined): CheckoutPlan {
   const p = (raw ?? "").toLowerCase();
@@ -75,6 +76,16 @@ async function buildCheckout(args: CheckoutArgs): Promise<DirectSignupResult> {
   });
 
   const baseUrl = getAppBaseUrl();
+  // The public offer is exactly OFFER.price. If the configured Stripe price is anything else (for example the
+  // deploy-time price script has not run yet), refuse rather than charge a different amount.
+  const priceId = getPriceIdForPlan(plan, interval);
+  if (plan === OFFER.tier && interval === "monthly") {
+    const live = await stripe.prices.retrieve(priceId);
+    if (live.unit_amount !== OFFER.priceCents) {
+      console.error("[checkout] configured price does not match the public offer", { priceId, unitAmount: live.unit_amount });
+      return { ok: false, error: "Checkout is being updated. Please try again in a few minutes." };
+    }
+  }
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
@@ -89,7 +100,7 @@ async function buildCheckout(args: CheckoutArgs): Promise<DirectSignupResult> {
       // relying on a browser cookie the webhook has no access to.
       ...(attributionToken ? { attributionToken } : {}),
     },
-    line_items: [{ price: getPriceIdForPlan(plan, interval), quantity: 1 }],
+    line_items: [{ price: priceId, quantity: 1 }],
     subscription_data: {
       metadata: { businessId, billingInterval: interval },
     },
@@ -102,7 +113,7 @@ async function buildCheckout(args: CheckoutArgs): Promise<DirectSignupResult> {
     // means an unmapped code degrades to a manual-entry field instead of a dead checkout.
     ...(couponId
       ? { discounts: [{ coupon: couponId }] }
-      : { allow_promotion_codes: true }),
+      : {}),
   });
 
   if (!session.url) return { ok: false, error: "Could not create checkout. Please try again." };
@@ -132,9 +143,11 @@ export async function directSignupAction(
     if (!businessName) return { ok: false, error: "Please enter your business name." };
     if (!email || !email.includes("@")) return { ok: false, error: "Please enter a valid email address." };
 
-    const plan = normalizePlan(rawPlan);
-    const interval: BillingInterval = rawInterval === "annual" ? "annual" : "monthly";
-    const promoIntent = normalizePromoCode(rawPromo);
+    // One public product: GravyBlock at the single monthly price, no plan, interval or promo choices.
+    void rawPlan; void rawInterval; void rawPromo;
+    const plan: CheckoutPlan = OFFER.tier;
+    const interval: BillingInterval = "monthly";
+    const promoIntent = normalizePromoCode(null);
     const couponId = resolveCouponId(promoIntent);
     const { url: website, normalized: websiteNormalized } = normalizeWebsite(rawWebsite);
 
@@ -257,7 +270,7 @@ export async function startScaleFromReportAction(input: { publicId: string; unlo
       await db.update(businesses).set({ billingEmail: email, accountEmail: biz.accountEmail ?? email }).where(eq(businesses.id, biz.id)).catch(() => {});
     }
 
-    const promoIntent = normalizePromoCode("GROWTH50");
+    const promoIntent = normalizePromoCode(null);
     return await buildCheckout({
       businessId: biz.id,
       email,

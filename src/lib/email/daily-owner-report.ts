@@ -6,7 +6,7 @@ const OWNER_EMAIL = "chris@gravyblock.com";
 
 const PLAN_PRICES: Record<string, number> = {
   starter: 59.99,
-  growth: 149.99,
+  growth: 39.99,
   pro: 299.99,
   agency: 499.99,
 };

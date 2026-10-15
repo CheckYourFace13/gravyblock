@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/" },
   title: { absolute: "GravyBlock — Automated Local SEO for Small Businesses | Free Scan" },
   description:
-    "GravyBlock automates local SEO for small businesses: publishes website content, replies to Google reviews, checks citation consistency, and tracks visibility — so you get discovered on Google Maps and Google Search. Autopilot from $74.99/mo, locked while subscribed. Free scan.",
+    "GravyBlock automates local SEO for small businesses: publishes website content, replies to Google reviews, checks citation consistency, and tracks visibility — so you get discovered on Google Maps and Google Search. Autopilot from $39.99/month. Free scan.",
 };
 
 const siteUrl = "https://gravyblock.com";
@@ -31,53 +31,19 @@ const steps = [
 
 const productSchema = {
   "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Product",
-      name: "GravyBlock Starter",
-      description: "Monthly local SEO monitoring with visibility score, content ideas, citation consistency checks, review alerts, and AI search check.",
-      url: "https://gravyblock.com/scan?plan=starter",
-      image: "https://gravyblock.com/brand/og.png",
-      brand: { "@type": "Brand", name: "GravyBlock" },
-      offers: {
-        "@type": "Offer",
-        priceCurrency: "USD",
-        price: "59.99",
-        availability: "https://schema.org/InStock",
-        url: "https://gravyblock.com/scan?plan=starter",
-      },
-    },
-    {
-      "@type": "Product",
-      name: "GravyBlock Scale",
-      description: "Weekly AI articles published to your site, Google Business Profile posts, personalized local outreach, Facebook and Instagram posting, and automatic Google review replies.",
-      url: "https://gravyblock.com/scan?plan=growth",
-      image: "https://gravyblock.com/brand/og.png",
-      brand: { "@type": "Brand", name: "GravyBlock" },
-      offers: {
-        "@type": "Offer",
-        priceCurrency: "USD",
-        price: "149.99",
-        availability: "https://schema.org/InStock",
-        url: "https://gravyblock.com/scan?plan=growth",
-      },
-    },
-    {
-      "@type": "Product",
-      name: "GravyBlock Pro",
-      description: "Everything in Scale twice as often, plus priority support.",
-      url: "https://gravyblock.com/scan?plan=pro",
-      image: "https://gravyblock.com/brand/og.png",
-      brand: { "@type": "Brand", name: "GravyBlock" },
-      offers: {
-        "@type": "Offer",
-        priceCurrency: "USD",
-        price: "299.99",
-        availability: "https://schema.org/InStock",
-        url: "https://gravyblock.com/scan?plan=pro",
-      },
-    },
-  ],
+  "@type": "Product",
+  name: "GravyBlock",
+  description: "Automated local SEO for small businesses: finds what is hurting your visibility and does the eligible work automatically.",
+  url: "https://gravyblock.com/pricing",
+  image: "https://gravyblock.com/brand/og.png",
+  brand: { "@type": "Brand", name: "GravyBlock" },
+  offers: {
+    "@type": "Offer",
+    priceCurrency: "USD",
+    price: "39.99",
+    availability: "https://schema.org/InStock",
+    url: "https://gravyblock.com/pricing",
+  },
 };
 
 export default function HomePage() {
@@ -92,7 +58,7 @@ export default function HomePage() {
       <section className="bg-gradient-to-b from-red-50 to-white px-4 pt-14 pb-12 sm:px-6 text-center">
         <div className="mx-auto max-w-3xl space-y-5">
           <div className="inline-block rounded-full border border-red-200 bg-red-50 px-4 py-1 text-xs font-bold uppercase tracking-widest text-red-700">
-            Autopilot: $74.99/mo, locked while subscribed
+            Autopilot: $39.99/month
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl leading-[1.08]">
             Local SEO that does<br className="hidden sm:block" />{" "}the work for you.
@@ -104,12 +70,12 @@ export default function HomePage() {
             <Link href="/scan" className="rounded-full bg-red-600 px-9 py-4 text-base font-bold text-white hover:bg-red-500 shadow-md">
               Scan my business free →
             </Link>
-            <Link href="/start?plan=growth&promo=GROWTH50" className="rounded-full border border-zinc-300 bg-white px-8 py-4 text-base font-semibold text-zinc-800 hover:border-zinc-400 shadow-sm">
-              Start GravyBlock — $74.99/mo
+            <Link href="/start" className="rounded-full border border-zinc-300 bg-white px-8 py-4 text-base font-semibold text-zinc-800 hover:border-zinc-400 shadow-sm">
+              Start GravyBlock — $39.99/mo
             </Link>
           </div>
           <p className="pt-1 text-xs font-medium text-zinc-600">
-            Free scan, no credit card · $74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee
+            Free scan, no credit card · $39.99/month · Cancel anytime · 30-day money-back guarantee
           </p>
         </div>
       </section>
@@ -158,7 +124,7 @@ export default function HomePage() {
               { icon: "📁", title: "Citations checked", desc: "Your name, phone and address compared across your website, Google, and where connected Yelp and Facebook, with alerts when they drift" },
               { icon: "🛡️", title: "Listing protected", desc: "Weekly watchdog catches Google's silent edits to your hours, phone, or name — and alerts you with exactly what changed" },
               { icon: "💬", title: "Reviews spotlighted", desc: "Your real 5-star reviews shared on your connected Facebook Page, with no per-post approval" },
-              { icon: "⚡", title: "Search engines notified", desc: "New pages pinged to Bing via IndexNow; Google sitemap resubmitted on Scale+ plans with Search Console connected" },
+              { icon: "⚡", title: "Search engines notified", desc: "New pages pinged to Bing via IndexNow; Google sitemap resubmitted once Search Console is connected" },
             ].map((item) => (
               <div key={item.title} className="rounded-xl border border-zinc-200 bg-white p-4">
                 <div className="text-xl mb-1">{item.icon}</div>
@@ -258,8 +224,8 @@ export default function HomePage() {
       <section id="plans" className="px-4 py-14 sm:px-6">
         <div className="mx-auto max-w-3xl rounded-3xl border-2 border-red-200 bg-gradient-to-br from-red-50 via-white to-white p-8 text-center shadow-sm">
           <p className="text-xs font-bold uppercase tracking-widest text-red-700">The easiest option: let GravyBlock handle it</p>
-          <h2 className="mt-2 text-3xl font-bold text-zinc-900">Scale: $74.99/month</h2>
-          <p className="mt-1 text-sm font-semibold text-emerald-700">Locked while subscribed (regular $149.99)</p>
+          <h2 className="mt-2 text-3xl font-bold text-zinc-900">GravyBlock: $39.99/month</h2>
+          <p className="mt-1 text-sm font-semibold text-emerald-700"> ()</p>
           <ul className="mx-auto mt-5 grid max-w-xl gap-1.5 text-left text-sm text-zinc-700 sm:grid-cols-2">
             {[
               "Finds what is hurting your visibility",
@@ -279,11 +245,11 @@ export default function HomePage() {
             <Link href="/scan" className="rounded-full bg-red-600 px-8 py-3.5 text-base font-bold text-white hover:bg-red-500 shadow-md">
               Scan my business free →
             </Link>
-            <Link href="/start?plan=growth&promo=GROWTH50" className="rounded-full border border-zinc-300 bg-white px-7 py-3.5 text-base font-semibold text-zinc-800 hover:border-zinc-400">
-              Start GravyBlock — $74.99/mo
+            <Link href="/start" className="rounded-full border border-zinc-300 bg-white px-7 py-3.5 text-base font-semibold text-zinc-800 hover:border-zinc-400">
+              Start GravyBlock — $39.99/mo
             </Link>
           </div>
-          <p className="mt-3 text-xs font-medium text-zinc-600">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
+          <p className="mt-3 text-xs font-medium text-zinc-600">$39.99/month · Cancel anytime · 30-day money-back guarantee</p>
           <p className="mt-2 text-xs text-zinc-500">
             Other plans are on the{" "}
             <Link href="/pricing" className="underline">
@@ -307,11 +273,11 @@ export default function HomePage() {
             <Link href="/scan" className="rounded-full bg-white px-7 py-3 text-sm font-bold text-zinc-900 hover:bg-zinc-100">
               Get my free score
             </Link>
-            <Link href="/start?plan=growth&promo=GROWTH50" className="rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">
-              Start Scale — $74.99/mo
+            <Link href="/start" className="rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">
+              Start GravyBlock — $39.99/mo
             </Link>
           </div>
-          <p className="text-xs text-zinc-600">No setup fee · Cancel anytime · $74.99/mo locked while subscribed</p>
+          <p className="text-xs text-zinc-600">No setup fee · Cancel anytime · $39.99/month</p>
         </div>
       </section>
 

@@ -3,8 +3,10 @@ import { getDb, leads, businesses, jobs, visibilitySnapshots } from "@/lib/db";
 import { isOptedOut, unsubscribeFooter } from "@/lib/email/optout";
 import { assertOutreachSendingAllowed } from "@/lib/outreach/pause-guard";
 import { createReportUnlockToken } from "@/lib/report/unlock-token";
+import { getReportWithContext } from "@/lib/report/repository";
 
-const DRIP_DAYS = 14;
+// After the report email sent on unlock, three follow-ups and then routine selling stops.
+const DRIP_DAYS = 10;
 
 type DripEmail = {
   day: number;
@@ -20,7 +22,8 @@ type DripContext = {
   reportUrl: string;
   /** Opens the lead's own report with the Scale plan preselected, so a CTA never sends them to re-scan. */
   scaleUrl: string;
-  starterUrl: string;
+  /** The report's strongest finding, when the lead has a report. */
+  topFinding: { title: string; detail: string } | null;
   scanUrl: string;
   email: string;
   leadId: string;
@@ -46,223 +49,44 @@ ${footer}
 
 export const DRIP_SEQUENCE: DripEmail[] = [
   {
-    day: 1,
-    subject: ({ businessName, score }) =>
-      score ? `${businessName} scored ${score}/100 — here's what to fix first` : `Your free local SEO scan for ${businessName}`,
-    html: ({ name, businessName, score, reportUrl, email, leadId }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Your Scan Results</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Hi ${name}, here's what we found</h1>
-      <p style="color:#52525b;font-size:15px;margin:16px 0">
-        ${score !== null ? `<strong>${businessName}</strong> scored <strong>${score}/100</strong> on local visibility, trust signals, and AI search coverage.` : `We completed the local SEO scan for <strong>${businessName}</strong>.`}
-        Your full report breaks down exactly where you're losing rankings and what to fix first.
-      </p>
-      ${btn(reportUrl, "Open my full report →")}
-      <p style="color:#71717a;font-size:13px;margin:20px 0 0">
-        The biggest drivers: Google Business Profile completeness, review volume and recency, consistent citations across directories, and published local content. Your report shows exactly where ${businessName} stands on each.
-      </p>
-    `, email, leadId),
-  },
-  {
     day: 2,
-    subject: ({ businessName }) => `You don't need to know SEO to fix ${businessName}'s visibility`,
-    html: ({ name, businessName, email, leadId, scaleUrl, reportUrl }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">No SEO knowledge needed</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">You don't have to learn any of this</h1>
+    subject: ({ businessName, topFinding }) => (topFinding ? `${businessName}: ${topFinding.title}` : `What GravyBlock found for ${businessName}`),
+    html: ({ name, businessName, email, leadId, scaleUrl, reportUrl, topFinding }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Your biggest finding</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">${topFinding ? topFinding.title : "Here is what stood out"}</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">Most owners we hear from say the same thing: the report is useful, but they don't know SEO and don't want to become experts.</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">You don't have to. GravyBlock already read ${businessName}'s website and Google profile, so it knows what is wrong. Turn it on and it decides what is worth fixing first and does the eligible work for you, then checks that each change actually happened.</p>
-      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
+      ${topFinding ? `<p style="color:#52525b;font-size:14px;margin:12px 0">The most important thing we found for <strong>${businessName}</strong>: ${topFinding.detail}</p>` : `<p style="color:#52525b;font-size:14px;margin:12px 0">Your report for <strong>${businessName}</strong> lists what is holding back your visibility on Google.</p>`}
+      <p style="color:#52525b;font-size:14px;margin:12px 0">You don't have to fix this yourself. GravyBlock already read your website and Google profile, so it knows what needs attention. It decides what is worth doing first, does the eligible work automatically, and checks that each change actually happened.</p>
+      ${btn(scaleUrl, "Start GravyBlock — $39.99/mo →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">$39.99/month · Cancel anytime · 30-day money-back guarantee</p>
       <p style="color:#71717a;font-size:12px;margin:12px 0"><a href="${reportUrl}" style="color:#dc2626">View my full report</a></p>
-    `, email, leadId),
-  },
-  {
-    day: 3,
-    subject: ({ businessName }) => `No time to work on ${businessName}'s visibility? You don't have to`,
-    html: ({ name, businessName, email, leadId, scaleUrl, reportUrl }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">No time needed</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">It runs without a weekly to-do list</h1>
-      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">A busy week is usually why local visibility slips. The work is steady and small: fresh pages, Google posts, review replies, checking your details agree across the web.</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">GravyBlock does that work in the background. After one-time connections (your website, your Google account), there is no task list for you to manage, and a missing connection never stops the other work.</p>
-      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
-      <p style="color:#71717a;font-size:12px;margin:12px 0"><a href="${reportUrl}" style="color:#dc2626">View my full report</a></p>
-    `, email, leadId),
-  },
-  {
-    day: 4,
-    subject: ({ businessName }) => `What the first month with GravyBlock looks like for ${businessName}`,
-    html: ({ name, businessName, email, leadId, scaleUrl }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">What to Expect</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">A typical first month</h1>
-      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
-      <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
-        <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 1</p>
-        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">GravyBlock scans ${businessName} and scores all visibility signals.</p>
-        <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 2</p>
-        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">Once your website and Google account are connected, the first article goes live on your site and Google Business Profile posts start going out.</p>
-        <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 3</p>
-        <p style="margin:6px 0 12px;font-size:13px;color:#52525b">Personalized outreach to relevant local organizations begins. Any mismatch in your business details is flagged to you.</p>
-        <p style="margin:0;font-size:13px;font-weight:700;color:#18181b">Week 4</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#52525b">Monthly visibility refresh and score update, with a summary of what ran.</p>
-      </div>
-      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
     `, email, leadId),
   },
   {
     day: 5,
-    subject: ({ businessName }) => `How GravyBlock is different from another SEO dashboard`,
+    subject: () => "How GravyBlock is different from another SEO dashboard",
     html: ({ name, businessName, email, leadId, scaleUrl, reportUrl }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">How it's different</p>
       <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">A dashboard shows you things. GravyBlock does them.</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">Many tools give you a dashboard and leave the work to you or an agency. Some now automate parts of it, and they can be a good fit if you want to run things yourself.</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">GravyBlock is built for owners who don't want to operate a toolbox: it chooses the worthwhile work for ${businessName}, does what it is connected to do, verifies the result and reports only what it confirmed. It does not guarantee rankings.</p>
-      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">Many SEO tools give you a dashboard and leave the work to you or an agency. Some now automate parts of it, and they can suit you if you want to run things yourself.</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">GravyBlock is built for owners who don't want to operate a toolbox. It chooses the worthwhile work for ${businessName}, does what you've connected it to do, verifies the result, and reports only what it confirmed. After one-time connections (your website, your Google account) there is no task list for you to manage. It does not guarantee rankings.</p>
+      ${btn(scaleUrl, "Start GravyBlock — $39.99/mo →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">$39.99/month · Cancel anytime · 30-day money-back guarantee</p>
       <p style="color:#71717a;font-size:12px;margin:12px 0"><a href="${reportUrl}" style="color:#dc2626">View my full report</a></p>
-    `, email, leadId),
-  },
-  {
-    day: 6,
-    subject: ({ businessName }) => `Scale for ${businessName} — $74.99/mo, locked while subscribed`,
-    html: ({ name, businessName, email, leadId, scaleUrl }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Pricing</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">$74.99/mo with GROWTH50, locked while subscribed.</h1>
-      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">
-        Scale is $149.99/mo regular, $74.99/mo with code <strong>GROWTH50</strong> — locked for as long as your subscription stays active, not just the first month.
-      </p>
-      <div style="margin:20px 0;padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px">
-        <p style="margin:0;font-size:14px;font-weight:700;color:#991b1b">Scale includes:</p>
-        <ul style="margin:8px 0 0;padding-left:20px;color:#3f3f46;font-size:13px;line-height:1.9">
-          <li>Weekly visibility refreshes and score tracking</li>
-          <li>Articles written from your own website's facts, published to your connected site</li>
-          <li>Weekly Google Business Profile posts and photos</li>
-          <li>Automatic replies to your Google reviews once Google is connected</li>
-          <li>Facebook and Instagram posting once your Page is connected</li>
-          <li>Up to 8 personalized outreach attempts per month (links are never guaranteed)</li>
-          <li>Monthly AI search visibility checks</li>
-        </ul>
-      </div>
-      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
-    `, email, leadId),
-  },
-  {
-    day: 7,
-    subject: ({ businessName }) => `Questions before you start GravyBlock for ${businessName}?`,
-    html: ({ name, businessName, email, leadId, scaleUrl, reportUrl }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Before you decide</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Low risk to try</h1>
-      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">If you are still deciding, here is the short version: it is $74.99/month, locked for as long as you stay subscribed, you can cancel anytime, and there is a 30-day money-back guarantee.</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">Reply to this email with any question about whether GravyBlock fits ${businessName}, and our team will give you a straight answer.</p>
-      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
-      <p style="color:#71717a;font-size:12px;margin:12px 0"><a href="${reportUrl}" style="color:#dc2626">View my full report</a></p>
-    `, email, leadId),
-  },
-  {
-    day: 8,
-    subject: ({ businessName, score }) => score ? `${businessName} scored ${score}. Here's what that means in 30 days.` : `${businessName}: before and after one month on GravyBlock`,
-    html: ({ name, businessName, score, email, leadId, scaleUrl }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Before vs. After</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">What changes in 30 days</h1>
-      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">
-        ${score !== null ? `${businessName} scored ${score}/100 when you scanned.` : `Your scan found gaps in ${businessName}'s local visibility.`}
-        Here's what GravyBlock aims to change after one month running in the background (results are not guaranteed):
-      </p>
-      <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-          <div>
-            <p style="margin:0;font-size:12px;font-weight:700;color:#71717a;text-transform:uppercase">If none of this is happening today</p>
-            <ul style="margin:8px 0 0;padding-left:18px;color:#71717a;font-size:13px;line-height:1.9">
-              <li>No new content being published</li>
-              <li>Business details not checked across sites</li>
-              <li>New reviews waiting for a reply</li>
-              <li>No one checking whether AI assistants mention you</li>
-            </ul>
-          </div>
-          <div>
-            <p style="margin:0;font-size:12px;font-weight:700;color:#16a34a;text-transform:uppercase">30 days in</p>
-            <ul style="margin:8px 0 0;padding-left:18px;color:#3f3f46;font-size:13px;line-height:1.9">
-              <li>2–4 local articles live</li>
-              <li>Citation consistency checked, with alerts if details drift</li>
-              <li>Google reviews replied to automatically</li>
-              <li>AI visibility checked monthly</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
-    `, email, leadId),
-  },
-  {
-    day: 9,
-    subject: ({ businessName }) => `3 things ${businessName} can fix on Google today — no tool needed`,
-    html: ({ name, businessName, reportUrl, email, leadId }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Free Tips</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">3 quick wins — free, right now</h1>
-      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">Whether or not you ever use GravyBlock, these three things move the needle for almost every local business:</p>
-      <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
-        <p style="margin:0;font-size:14px;font-weight:700;color:#18181b">1. Reply to every Google review — especially old ones</p>
-        <p style="margin:6px 0 16px;font-size:13px;color:#52525b">Replying to reviews (good and bad) shows customers the business is active and that you pay attention. Many owners don't bother.</p>
-        <p style="margin:0;font-size:14px;font-weight:700;color:#18181b">2. Make your name, address, and phone identical everywhere</p>
-        <p style="margin:6px 0 16px;font-size:13px;color:#52525b">Check Google, Yelp, Facebook, and your website. Even small differences (St. vs Street) can confuse customers and search engines.</p>
-        <p style="margin:0;font-size:14px;font-weight:700;color:#18181b">3. Add specific services to your Google Business Profile</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#52525b">Many profiles list little more than a category. Adding individual services (e.g. "drain cleaning," "water heater installation") helps Google match you to more specific searches.</p>
-      </div>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">GravyBlock replies to Google reviews and checks your business details for you, but adding services to your profile is something you do yourself. These are high-leverage moves either way.</p>
-      ${btn(reportUrl, "View my full report →")}
     `, email, leadId),
   },
   {
     day: 10,
-    subject: ({ businessName, vertical }) => `How ${vertical ? vertical.toLowerCase() + "s" : "local businesses"} like ${businessName} use GravyBlock`,
-    html: ({ name, businessName, vertical, email, leadId, scaleUrl }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">How It Works</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">The first 30 days, step by step</h1>
+    subject: ({ businessName }) => `Last note about ${businessName}'s scan`,
+    html: ({ name, businessName, email, leadId, scaleUrl, reportUrl }) => wrap(`
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Last note</p>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">GravyBlock is $39.99 a month, and low risk to try</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">
-        Here's what happens when ${businessName} goes live on GravyBlock — after a one-time setup connecting your website, Google account and Facebook Page:
-      </p>
-      <ol style="margin:12px 0;padding-left:22px;color:#3f3f46;font-size:14px;line-height:2.2">
-        <li>Scans your Google listing, website, and nearby competitors. Scores all visibility signals.</li>
-        <li>Writes the first ${vertical ? vertical.toLowerCase() : "local"} article targeting your city and publishes it to your site.</li>
-        <li>Checks that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook, and alerts you if they drift.</li>
-        <li>New Google reviews get a reply posted automatically. Yelp and TripAdvisor reviews are monitored and flagged, since their APIs don't allow automatic replies.</li>
-        <li>GravyBlock continually decides what worthwhile eligible work should happen next — visibility score refreshes, content publishes, and outreach goes out as it earns its place. A monthly digest summarizes what ran.</li>
-      </ol>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">You don't need to learn SEO. After setup, GravyBlock keeps deciding what to do next on its own.</p>
-      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
-    `, email, leadId),
-  },
-  {
-    day: 14,
-    subject: ({ businessName }) => `Last email about ${businessName}'s scan`,
-    html: ({ name, businessName, reportUrl, email, leadId, scaleUrl }) => wrap(`
-      <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#dc2626">Final Notice</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Last one from this sequence</h1>
-      <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">
-        This is the last time GravyBlock will email you about this — the sequence ends today. Here's where things stand if you want to start:
-      </p>
-      <div style="margin:20px 0;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px">
-        <p style="margin:0;font-size:15px;font-weight:700;color:#166534">Scale — $74.99/mo, locked while subscribed (reg. $149.99)</p>
-        <p style="margin:6px 0 0;font-size:13px;color:#3f3f46">GravyBlock finds what needs attention, does the eligible work, verifies it and keeps going. $74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee.</p>
-      </div>
-      ${btn(scaleUrl, "Start GravyBlock — $74.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:16px 0">
-        Your report stays live: <a href="${reportUrl}" style="color:#dc2626">${reportUrl}</a>
-      </p>
-      <p style="color:#71717a;font-size:13px;margin:0">After today, no more emails from GravyBlock unless you run a new scan.</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">This is the last routine email about your scan. If you'd like GravyBlock to work on ${businessName}'s visibility, it's one plan at $39.99 a month. There's no contract, you can cancel anytime, and if you're not satisfied in the first 30 days we'll refund you.</p>
+      ${btn(scaleUrl, "Start GravyBlock — $39.99/mo →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">$39.99/month · Cancel anytime · 30-day money-back guarantee</p>
+      <p style="color:#71717a;font-size:12px;margin:12px 0">Your report stays available: <a href="${reportUrl}" style="color:#dc2626">view my full report</a>. After today we won't send more sales emails unless you run a new scan.</p>
     `, email, leadId),
   },
 ];
@@ -382,16 +206,11 @@ export async function runLeadDripBatch(): Promise<{ sent: number; skipped: numbe
     const ageMs = Date.now() - new Date(lead.createdAt).getTime();
     const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
 
-    // Day 0 = same day as scan, send day 1 email
-    // Day 1 = next day, send day 2 email, etc.
-    const targetDay = Math.min(ageDays + 1, DRIP_DAYS);
-    if (targetDay < 1 || targetDay > DRIP_DAYS) {
-      skipped++;
-      continue;
-    }
-
-    const emailDef = DRIP_SEQUENCE[targetDay - 1];
+    // Day 1 is the day of the scan. Send the latest follow-up that is due and has not been sent.
+    const dayNumber = Math.min(ageDays + 1, DRIP_DAYS);
+    const emailDef = [...DRIP_SEQUENCE].reverse().find((e) => e.day <= dayNumber);
     if (!emailDef) { skipped++; continue; }
+    const targetDay = emailDef.day;
 
     if (await hasDripSent(lead.id, targetDay)) {
       skipped++;
@@ -406,8 +225,10 @@ export async function runLeadDripBatch(): Promise<{ sent: number; skipped: numbe
       ? `${siteUrl}/report/${lead.reportPublicId}?unlock=${encodeURIComponent(createReportUnlockToken(lead.reportPublicId))}`
       : null;
     const reportUrl = reportBase ? `${reportBase}&${utm}` : `${siteUrl}/scan?${utm}`;
-    const scaleUrl = reportBase ? `${reportBase}&plan=growth&promo=GROWTH50&${utm}` : `${siteUrl}/scan?plan=growth&promo=GROWTH50&${utm}`;
-    const starterUrl = reportBase ? `${reportBase}&plan=starter&promo=INTRO50&${utm}` : `${siteUrl}/scan?plan=starter&${utm}`;
+    const scaleUrl = reportBase ? `${reportBase}&${utm}` : `${siteUrl}/scan?${utm}`;
+    const topFinding = lead.reportPublicId
+      ? await getReportWithContext(lead.reportPublicId).then((r) => { const fx = r?.payload.prioritizedFixes[0]; return fx ? { title: fx.title, detail: fx.detail } : null; }).catch(() => null)
+      : null;
 
     const ctx: DripContext = {
       name: lead.name.split(" ")[0] || lead.name,
@@ -416,7 +237,7 @@ export async function runLeadDripBatch(): Promise<{ sent: number; skipped: numbe
       vertical: lead.vertical,
       reportUrl,
       scaleUrl,
-      starterUrl,
+      topFinding,
       scanUrl: `${siteUrl}/scan`,
       email: lead.email,
       leadId: lead.id,

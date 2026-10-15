@@ -39,9 +39,7 @@ export default function MultiLocationLocalSeoGuidePage() {
       </p>
       <h2>Multi-location readiness in the product</h2>
       <p>
-        The data model supports brands and locations; scans run per business today. Use Base for a single-location
-        baseline, then Pro when you want recurring automation jobs and publishing queues on a workspace that is already on
-        the Pro plan.{" "}
+        The data model supports brands and locations; scans run per business today. Each GravyBlock subscription covers one location, so start one per location.{" "}
         <Link href="/scan" className="font-medium text-red-800 hover:underline">
           Start with a scan
         </Link>

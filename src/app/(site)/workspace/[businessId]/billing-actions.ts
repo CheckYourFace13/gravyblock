@@ -1,6 +1,7 @@
 "use server";
 
 import { getBusinessById, persistStripeCustomerId, persistPendingPlan } from "@/lib/billing/repository";
+import { OFFER } from "@/lib/offer";
 import { getAppBaseUrl, getPriceIdForPlan, getStripeServerClient, type CheckoutPlan, type BillingInterval } from "@/lib/stripe/server";
 import { canAccessBusiness } from "@/lib/auth/customer-auth";
 import { isAdminSession } from "@/lib/auth/admin-session";
@@ -24,10 +25,11 @@ const normalizePromoCodeIntent = (raw: string) => normalizePromoCode(raw);
 export async function createCheckoutSessionAction(formData: FormData) {
   try {
     const businessId = requiredField(formData, "businessId");
-    const plan = normalizeCheckoutPlan(requiredField(formData, "plan"));
-    const rawInterval = String(formData.get("interval") ?? "monthly");
-    const interval: BillingInterval = rawInterval === "annual" ? "annual" : "monthly";
-    const promoIntent = normalizePromoCodeIntent(String(formData.get("promoCode") ?? ""));
+    // One public product at one price: plan, interval and promo inputs are ignored.
+    void normalizeCheckoutPlan;
+    const plan: CheckoutPlan = OFFER.tier;
+    const interval: BillingInterval = "monthly";
+    const promoIntent = normalizePromoCodeIntent("");
     const couponId = resolveCouponId(promoIntent);
     const authorized = (await isAdminSession()) || (await canAccessBusiness(businessId));
     if (!authorized) throw new Error("Unauthorized business access");
@@ -53,6 +55,12 @@ export async function createCheckoutSessionAction(formData: FormData) {
     await persistPendingPlan(businessId, plan);
 
     const baseUrl = getAppBaseUrl();
+    const priceId = getPriceIdForPlan(plan, interval);
+    const live = await stripe.prices.retrieve(priceId);
+    if (live.unit_amount !== OFFER.priceCents) {
+      console.error("[billing] configured price does not match the public offer", { priceId, unitAmount: live.unit_amount });
+      throw new Error("Checkout is being updated. Please try again in a few minutes.");
+    }
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
@@ -64,7 +72,7 @@ export async function createCheckoutSessionAction(formData: FormData) {
       },
       line_items: [
         {
-          price: getPriceIdForPlan(plan, interval),
+          price: priceId,
           quantity: 1,
         },
       ],
@@ -78,7 +86,7 @@ export async function createCheckoutSessionAction(formData: FormData) {
       // do not match their Stripe coupon ID and would throw the whole checkout.
       ...(couponId
         ? { discounts: [{ coupon: couponId }] }
-        : { allow_promotion_codes: true }),
+        : {}),
     });
 
     if (!session.url) {

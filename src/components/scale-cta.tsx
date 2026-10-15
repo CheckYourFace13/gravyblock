@@ -4,11 +4,11 @@ import { useEffect, useState, useTransition } from "react";
 import { startScaleFromReportAction } from "@/app/(site)/start/actions";
 
 const BUY_FLAG = "gb_buy_after_unlock";
-const RISK_LINE = "$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee";
+const RISK_LINE = "$39.99/month · Cancel anytime · 30-day money-back guarantee";
 
 /** Where a report visitor lands when we cannot send them straight to checkout. */
 function startHref(publicId: string): string {
-  return `/start?plan=growth&promo=GROWTH50&report=${encodeURIComponent(publicId)}`;
+  return `/start?report=${encodeURIComponent(publicId)}`;
 }
 
 function track(eventType: string, publicId: string, businessId: string | null, placement: string) {
@@ -27,7 +27,7 @@ function track(eventType: string, publicId: string, businessId: string | null, p
 /**
  * Primary purchase button for a completed scan. If the visitor has unlocked the report
  * (so we hold their email and business), one click goes straight to secure checkout with
- * Scale and GROWTH50 applied. Otherwise it opens the start page with the business already
+ * the single GravyBlock price applied. Otherwise it opens the start page with the business already
  * filled in, needing only an email address.
  */
 export function ScaleCta({
@@ -35,7 +35,7 @@ export function ScaleCta({
   businessId,
   unlockToken,
   placement,
-  label = "Start GravyBlock — $74.99/mo",
+  label = "Start GravyBlock — $39.99/mo",
   showRisk = true,
   compact = false,
   className = "",
@@ -160,7 +160,7 @@ export function ScaleOffer({
         and keep working automatically.
       </p>
       <p className="mt-4 text-sm font-semibold text-zinc-900">
-        For $74.99/month, GravyBlock keeps working on your visibility without you managing SEO.
+        For $39.99/month, GravyBlock keeps working on your visibility without you managing SEO.
       </p>
       <ul className="mt-3 grid gap-1.5 text-sm text-zinc-700 sm:grid-cols-2">
         {VALUE_STACK.map((v) => (
@@ -192,7 +192,7 @@ export function StickyScaleBar({
         businessId={businessId}
         unlockToken={unlockToken}
         placement="sticky"
-        label="Start GravyBlock — $74.99/mo"
+        label="Start GravyBlock — $39.99/mo"
         showRisk={false}
         compact
       />

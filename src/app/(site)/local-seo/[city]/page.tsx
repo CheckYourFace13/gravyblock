@@ -70,7 +70,7 @@ export default async function CityHubPage({ params }: Props) {
             </Link>
           </div>
           <p className="mt-3 text-xs text-zinc-500">
-            Scale is $74.99/mo, locked while subscribed. 30-day money-back guarantee. Cancel anytime.
+            GravyBlock is $39.99/month. 30-day money-back guarantee. Cancel anytime.
           </p>
         </div>
       </section>
@@ -120,7 +120,7 @@ export default async function CityHubPage({ params }: Props) {
           <div>
             <h3 className="font-semibold text-zinc-900">How much does GravyBlock cost for a {city.name} business?</h3>
             <p className="mt-2 text-sm text-zinc-600">
-              Scale is $149.99/month, or $74.99/month with code GROWTH50, locked for as long as you stay subscribed.
+              GravyBlock is $39.99/month.
               Plans are the same in every city. You can start with a free scan, no credit card.
             </p>
           </div>

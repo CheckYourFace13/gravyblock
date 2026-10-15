@@ -57,8 +57,8 @@ export default function GoPage() {
                 <span className="font-bold text-zinc-900">$140/mo + 10 hrs/mo</span>
               </div>
               <div className="border-t border-zinc-200 pt-2 flex justify-between text-sm">
-                <span className="font-semibold text-red-700">GravyBlock Scale</span>
-                <span className="font-bold text-emerald-700">$74.99/mo with GROWTH50, locked while subscribed</span>
+                <span className="font-semibold text-red-700">GravyBlock</span>
+                <span className="font-bold text-emerald-700">$39.99/mo</span>
               </div>
             </div>
           </div>
@@ -80,10 +80,10 @@ export default function GoPage() {
                   Get my free visibility score
                 </Link>
                 <Link
-                  href="/start?plan=growth&promo=GOOGLE50"
+                  href="/start"
                   className="flex w-full items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3.5 text-sm font-bold text-zinc-900 hover:bg-zinc-50 transition"
                 >
-                  Start Scale — $74.99/mo
+                  Start GravyBlock — $39.99/mo
                 </Link>
               </div>
 

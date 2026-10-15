@@ -28,9 +28,8 @@ function kindFor(c: Capability): Kind {
 }
 
 function planText(c: Capability): string {
-  const names = c.plans.map((p) => (p === "growth" ? "Scale" : p === "pro" ? "Pro" : "Starter"));
-  if (names.length === 3) return "All plans";
-  return names.length ? `${names.join(" and ")}` : "";
+  void c;
+  return "";
 }
 
 /** Owner-language notes for things that are NOT offered, so nobody assumes parity with other tools. */
@@ -184,7 +183,7 @@ export default function FeaturesPage() {
           <h2 className="text-2xl font-semibold text-zinc-900">See what it would do for your business</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-600">
             Run the free scan to get your visibility score and see which of these GravyBlock would do for you. No credit
-            card. Scale is $74.99/mo, locked while subscribed.
+            card. GravyBlock is $39.99/month.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
             <Link

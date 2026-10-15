@@ -210,7 +210,7 @@ Timelines vary widely by market, competition and starting point. A business with
 
 **Bottom line:** The businesses in the Google Maps top 3 aren't there by accident — they have complete profiles, strong review velocity, consistent citations, and regular content. Fix all four and you'll get there.
 
-[GravyBlock automatically decides and does this work for you, starting at $74.99/month with code GROWTH50 →](/scan)`,
+[GravyBlock automatically decides and does this work for you, starting at $39.99/month →](/scan)`,
   },
   {
     slug: "local-seo-vs-google-ads",
@@ -492,7 +492,7 @@ These health-specific directories are crawled by Google and AI search engines. Y
 **5. Post before/after photos (with consent) to GBP**
 Visual results are the highest-converting content for dental practices. A weekly post with a smile transformation drives more GBP engagement than any other content type.
 
-> Dental practices in the Google Maps top 3 for "dentist near me" in cities of 100K+ people generate an estimated $200K–$400K in annual recurring revenue from search alone.
+> For many practices, new patients start with a local search, so a strong, accurate Google presence is worth the effort. Results vary by market.
 
 **Bottom line:** Dental local SEO is a long-term investment. A complete profile, health directory citations, service pages and a consistent review system give a practice its best chance at strong local visibility. Timelines vary and results are not guaranteed.
 
@@ -662,7 +662,7 @@ Yext syncs your business data to a large publisher network and also offers revie
 
 Semrush is a broad SEO suite with a local toolkit that includes listing management. It is a good fit for people who already use Semrush for keyword research and rank tracking.
 
-### GravyBlock (Starter $59.99, Scale $149.99, Pro $299.99 per month; promo codes are available)
+### GravyBlock ($39.99 per month)
 **Best for:** Owner-operated local businesses that want the work decided and done for them automatically
 
 GravyBlock is a lower-cost option that automatically decides and does a defined set of work: articles and service pages written from your own website's information and published to your connected WordPress, Webflow or Shopify site, Google Business Profile posts, automatic replies to Google reviews (Yelp and TripAdvisor reviews are monitored and flagged, since their APIs don't allow automatic replies), automatic review requests to your real customers, personalized local outreach, and citation consistency checks with drift alerts. It does not build or fix listings on hundreds of directories.

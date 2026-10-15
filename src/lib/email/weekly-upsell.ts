@@ -205,6 +205,8 @@ async function sendUpsellEmail(
 }
 
 export async function sendWeeklyUpsellEmails(): Promise<{ sent: number; skipped: number }> {
+  // One public plan: there is nothing to upsell to, so no upsell emails are sent.
+  if (process.env.ENABLE_WEEKLY_UPSELL !== "true") return { sent: 0, skipped: 0 };
   const db = getDb();
   if (!db) return { sent: 0, skipped: 0 };
 

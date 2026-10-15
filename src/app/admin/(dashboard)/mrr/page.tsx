@@ -110,7 +110,7 @@ export default async function MrrPage() {
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Introductory MRR</p>
           <p className="mt-2 text-3xl font-semibold text-zinc-900">${data.totalIntro.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-          <p className="mt-1 text-xs text-zinc-500">At INTRO50 discounted rate</p>
+          <p className="mt-1 text-xs text-zinc-500">Estimated from active subscriptions</p>
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">New subscriptions (30d)</p>

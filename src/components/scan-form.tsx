@@ -21,11 +21,6 @@ type PlaceCandidate = {
 
 type ScanMode = "places" | "website";
 
-const PLAN_SWITCHER_OPTIONS: { value: "starter" | "growth" | "pro"; label: string }[] = [
-  { value: "starter", label: "Starter — $29.99/mo" },
-  { value: "growth", label: "Scale — $74.99/mo" },
-  { value: "pro", label: "Pro — $149.99/mo" },
-];
 
 const FOCUS_AREA_OPTIONS: { value: FocusArea; label: string; sublabel: string }[] = [
   { value: "local", label: "Local", sublabel: "My city or area" },

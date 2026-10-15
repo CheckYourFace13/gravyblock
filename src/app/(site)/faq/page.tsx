@@ -42,24 +42,16 @@ const faqs = [
     section: "Plans and pricing",
     items: [
       {
-        q: "What's the difference between Starter, Scale, and Pro?",
-        a: "Starter monitors your visibility each month: a prioritized fix list, citation consistency checks, review alerts, and AI search checks. Scale adds the automatic work: articles and service pages published to your connected website, Google Business Profile posts, automatic Google review replies and requests, Facebook and Instagram posting, and personalized local outreach. Pro increases the volume.",
-      },
-      {
-        q: "What is the INTRO50 discount?",
-        a: "INTRO50 gives you 50% off your first month on Starter ($29.99) or Pro ($149.99) — after that, billing reverts to the regular price. Scale works differently: code GROWTH50 gives you 50% off every month for as long as your subscription stays active — $74.99/mo, not just the first one. Apply the relevant code at checkout.",
+        q: "How much does GravyBlock cost?",
+        a: "GravyBlock is $39.99 a month: one plan, no setup fee, no contract. Cancel anytime, with a 30-day money-back guarantee. The scan and report are free.",
       },
       {
         q: "Is there a free version?",
         a: "The scan and report are free, with no credit card: a full visibility score, a prioritized list of what we found, and a one-time competitor snapshot. There is no ongoing free subscription. The ongoing, automatic work (publishing, posting, review replies, outreach and monitoring) requires a paid plan.",
       },
       {
-        q: "Can I change plans later?",
-        a: "Absolutely. You can upgrade, downgrade, or cancel at any time from your dashboard. Upgrades take effect immediately; downgrades apply at the next billing cycle.",
-      },
-      {
-        q: "Does the Pro plan support multiple locations?",
-        a: "Not yet. Each GravyBlock subscription covers one business and one location. If you run several locations, you can start a separate subscription for each one. For custom or white-label setups, contact us.",
+        q: "Does GravyBlock cover multiple locations?",
+        a: "Each subscription covers one business and one location. If you run several locations, you can start a separate subscription for each one.",
       },
     ],
   },
@@ -101,7 +93,7 @@ const faqs = [
       },
       {
         q: "What does 'local outreach' mean?",
-        a: "GravyBlock finds relevant local organizations, pitches one useful page from your website to a real published contact, follows up once, and only counts a link once it is verified live on their site. Links are never guaranteed, and replies go to you. Scale includes up to 8 outreach attempts per month; Pro includes up to 16.",
+        a: "GravyBlock finds relevant local organizations, pitches one useful page from your website to a real published contact, follows up once, and only counts a link once it is verified live on their site. Links are never guaranteed, and replies go to you. Outreach is limited to a small number of relevant, real contacts per month, and links are never guaranteed.",
       },
       {
         q: "What is the AI search check?",
@@ -114,7 +106,7 @@ const faqs = [
     items: [
       {
         q: "How does the review inbox work?",
-        a: "GravyBlock monitors your Google, Yelp and TripAdvisor reviews and alerts you when a new one arrives. On Scale and Pro, replies to Google reviews are posted automatically once your Google account is connected. Yelp and TripAdvisor do not allow replies through their API, so those are monitored and flagged for you instead — not a task added to your plate. Negative reviews are flagged.",
+        a: "GravyBlock monitors your Google, Yelp and TripAdvisor reviews and alerts you when a new one arrives. Replies to Google reviews are posted automatically once your Google account is connected. Yelp and TripAdvisor do not allow replies through their API, so those are monitored and flagged for you instead — not a task added to your plate. Negative reviews are flagged.",
       },
       {
         q: "Does GravyBlock fake reviews?",
@@ -183,11 +175,11 @@ export default function FaqPage() {
             <Link href="/scan" className="rounded-full bg-white px-7 py-3 text-sm font-bold text-zinc-900 hover:bg-zinc-100">
               Get my free score
             </Link>
-            <Link href="/start?plan=growth&promo=GROWTH50" className="rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">
-              Start Scale — $74.99/mo
+            <Link href="/start" className="rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">
+              Start GravyBlock — $39.99/mo
             </Link>
           </div>
-          <p className="text-xs text-zinc-600">$74.99/mo locked while subscribed · Cancel anytime</p>
+          <p className="text-xs text-zinc-600">$39.99/month · Cancel anytime</p>
         </div>
       </section>
     </div>

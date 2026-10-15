@@ -24,7 +24,7 @@ export function GET() {
     `- [Home](${SITE}/): what GravyBlock is`,
     `- [How it works](${SITE}/how-it-works): the learn, decide, do, verify, measure loop and one-time connections`,
     `- [Features](${SITE}/features): every capability, sorted into automatic, automatic after a connection, monitoring only, and not offered`,
-    `- [Pricing](${SITE}/pricing): plans and prices`,
+    `- [Pricing](${SITE}/pricing): the single GravyBlock plan and its price`,
     `- [Free scan](${SITE}/scan): free local visibility score and report, no credit card`,
     `- [Proof](${SITE}/proof): verified work on businesses GravyBlock operates itself`,
     `- [FAQ](${SITE}/faq)`,

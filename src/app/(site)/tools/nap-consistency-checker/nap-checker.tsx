@@ -7,7 +7,7 @@ import { checkNapAction, type NapResult } from "./actions";
 type Candidate = { placeId: string; displayName: string; formattedAddress?: string };
 
 const SCAN_HREF = "/scan?utm_source=tool&utm_medium=nap_checker&utm_campaign=free_tool";
-const START_HREF = "/start?plan=growth&promo=GROWTH50&utm_source=tool&utm_medium=nap_checker&utm_campaign=free_tool";
+const START_HREF = "/start?utm_source=tool&utm_medium=nap_checker&utm_campaign=free_tool";
 
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   match: { text: "Matches", cls: "bg-emerald-50 text-emerald-800 border-emerald-200" },
@@ -111,10 +111,10 @@ export function NapChecker() {
                 Scan my business free
               </Link>
               <Link href={START_HREF} className="text-sm font-semibold text-zinc-700 underline">
-                Start GravyBlock — $74.99/mo
+                Start GravyBlock — $39.99/mo
               </Link>
             </div>
-            <p className="mt-2 text-xs text-zinc-600">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
+            <p className="mt-2 text-xs text-zinc-600">$39.99/month · Cancel anytime · 30-day money-back guarantee</p>
           </div>
         </div>
       ) : null}

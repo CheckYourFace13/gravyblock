@@ -342,9 +342,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             <span className="rounded-full bg-red-100 px-3 py-1 text-red-950">
               Plan: {features.label}{" "}
               {features.monthlyPrice > 0
-                ? tier === "growth"
-                  ? `($${features.introPrice}/mo locked)`
-                  : `($${features.introPrice}/mo introductory)`
+                ? `(${features.monthlyPrice}/mo)`
                 : ""}
             </span>
             <span className="rounded-full bg-zinc-100 border border-zinc-300 px-3 py-1">Refresh: {features.refreshCadenceLabel}</span>
@@ -361,17 +359,9 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 <CheckoutButton
                   businessId={businessId}
                   plan="growth"
-                  label={selectedPlan === "growth" ? "Continue to Scale checkout" : "Start Scale — $74.99/mo"}
+                  label="Start GravyBlock — $39.99/mo"
                   promoCode={promoCode}
                   className="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-500"
-                />
-                <CheckoutButton
-                  businessId={businessId}
-                  plan="starter"
-                  requireGrowthUpsell
-                  label="or Starter — $29.99/mo"
-                  promoCode={promoCode}
-                  className="rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
                 />
               </>
             ) : (
@@ -1490,8 +1480,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 ? ` · renews ${new Date(bundle.business.currentPeriodEnd).toLocaleDateString()}`
                 : ""}
             </p>
-            <p className="mt-1 text-xs text-zinc-500">Scale is locked at $74.99/mo while subscribed (code GROWTH50). Starter and Pro get 50% off the first month with code INTRO50.</p>
-            {promoCode ? <p className="mt-1 text-xs font-medium text-zinc-700">Promo ready: {promoCode}</p> : null}
+            <p className="mt-1 text-xs text-zinc-500">GravyBlock is $39.99/mo. Cancel anytime, with a 30-day money-back guarantee.</p>
           </div>
           {hasBillingCustomer ? (
             <PortalButton
@@ -1501,71 +1490,23 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
             />
           ) : null}
         </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-          {tier !== "starter" && tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Starter</p>
-              <p className="text-xs text-zinc-600">$59.99/mo · intro $29.99/mo with INTRO50</p>
-              <div className="mt-3">
-                <CheckoutButton
-                  businessId={businessId}
-                  plan="starter"
-                  requireGrowthUpsell
-                  label={selectedPlan === "starter" ? "Continue to Starter checkout" : "Start Starter"}
-                  promoCode={promoCode}
-                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                />
-              </div>
+        {tier === "free" ? (
+          <div className="mt-5 rounded-xl border border-red-200 bg-red-50/50 p-4">
+            <p className="text-sm font-semibold text-zinc-900">GravyBlock</p>
+            <p className="text-xs text-zinc-600">$39.99/mo · Cancel anytime · 30-day money-back guarantee</p>
+            <div className="mt-3">
+              <CheckoutButton
+                businessId={businessId}
+                plan="growth"
+                label="Start GravyBlock — $39.99/mo"
+                promoCode={promoCode}
+                className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+              />
             </div>
-          ) : null}
-          {tier !== "growth" && tier !== "pro" && tier !== "agency" ? (
-            <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Scale</p>
-              <p className="text-xs text-zinc-600">$149.99/mo · $74.99/mo locked while subscribed</p>
-              <div className="mt-3">
-                <CheckoutButton
-                  businessId={businessId}
-                  plan="growth"
-                  label={selectedPlan === "growth" ? "Continue to Scale checkout" : "Start Scale"}
-                  promoCode={promoCode}
-                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
-                />
-              </div>
-            </div>
-          ) : null}
-          {tier !== "pro" && tier !== "agency" ? (
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Pro</p>
-              <p className="text-xs text-zinc-600">$299.99/mo · intro $149.99/mo with INTRO50</p>
-              <div className="mt-3">
-                <CheckoutButton
-                  businessId={businessId}
-                  plan="pro"
-                  label={selectedPlan === "pro" ? "Continue to Pro checkout" : "Start Pro"}
-                  promoCode={promoCode}
-                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                />
-              </div>
-            </div>
-          ) : null}
-          {tier !== "agency" ? (
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <p className="text-sm font-semibold text-zinc-900">Agency</p>
-              <p className="text-xs text-zinc-600">$499.99/mo · intro $249.99/mo with INTRO50</p>
-              <div className="mt-3">
-                <CheckoutButton
-                  businessId={businessId}
-                  plan="agency"
-                  label={selectedPlan === "agency" ? "Continue to Agency checkout" : "Start Agency"}
-                  promoCode={promoCode}
-                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                />
-              </div>
-            </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
         <p className="mt-4 text-xs text-zinc-500">
-          Downgrades and cancellations are self-serve via the Stripe billing portal.
+          Cancellations are self-serve via the Stripe billing portal.
         </p>
       </section>
 

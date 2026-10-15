@@ -68,7 +68,7 @@ export function ReplyGenerator() {
       <div className="mt-8 rounded-2xl border border-red-200 bg-red-50/60 p-6">
         <p className="text-lg font-semibold text-zinc-900">Don&apos;t want to do this for every review?</p>
         <p className="mt-1 text-sm text-zinc-700">
-          On Scale, GravyBlock can monitor your Google reviews and automatically post replies after you connect Google once.
+          GravyBlock can monitor your Google reviews and automatically post replies after you connect Google once.
         </p>
         <div className="mt-4">
           <Link href={SCAN_HREF} className="inline-block rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">

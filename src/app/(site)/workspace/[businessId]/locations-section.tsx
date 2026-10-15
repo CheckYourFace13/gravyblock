@@ -97,7 +97,7 @@ export function LocationsSection({ businessId, initialLocations, maxLocations, p
                 This is an add-on location. <span className="font-semibold text-zinc-700">$99.99/mo</span> will be added to your subscription immediately (prorated for the current period).
               </p>
             ) : (
-              <p className="mt-0.5 text-xs text-zinc-500">First location is included free with your Pro plan.</p>
+              <p className="mt-0.5 text-xs text-zinc-500">Each location needs its own GravyBlock subscription.</p>
             )}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">

@@ -50,10 +50,9 @@ const BASE_PAGES: Record<string, ComparePage> = {
         },
         {
           title: "Where GravyBlock fits",
-          body: "GravyBlock's free scan is an audit: a visibility score and the top findings, with what GravyBlock would do about each. On Scale, GravyBlock then does the eligible work automatically and verifies it.",
+          body: "GravyBlock's free scan is an audit: a visibility score and the top findings, with what GravyBlock would do about each. With a GravyBlock subscription, it then does the eligible work automatically and verifies it.",
           bullets: [
             "Built for owner-operated local businesses, not enterprise teams.",
-            "Starter is monitoring only; automatic work is on Scale and Pro.",
             "It does not promise guaranteed rankings.",
           ],
         },
@@ -177,7 +176,7 @@ const GRAVYBLOCK_BULLETS = [
   "Posts Google review replies automatically once Google is connected, and once your booking or invoicing system is connected, asks real completed customers for a review.",
   "Pitches relevant local organizations for links and only counts a link once it is verified live. Links are never guaranteed.",
   "Checks that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook, and alerts you when they drift. It does not build or fix listings on hundreds of directories.",
-  "Scale is $149.99/month, or $74.99/month with code GROWTH50, locked for as long as you stay subscribed.",
+  "GravyBlock is $39.99/month.",
 ];
 
 function buildVsPages(): Record<string, ComparePage> {
@@ -592,7 +591,7 @@ function buildVsPages(): Record<string, ComparePage> {
           title: "Where GravyBlock may be better",
           body: "GravyBlock is built for owner-operated businesses that want steady execution without managing a vendor.",
           bullets: [
-            "Lower cost. Scale is $149.99/month, or $74.99/month with code GROWTH50, locked for as long as you stay subscribed. Agency retainers vary widely, so compare real quotes.",
+            "Lower cost. GravyBlock is $39.99/month. Agency retainers vary widely, so compare real quotes.",
             "Continuous operation. The work does not wait for a meeting or a monthly report cycle.",
             "Little workload for you. You connect your website, Google account and Facebook Page once, and GravyBlock takes it from there.",
             "Automatic prioritization. It decides which work is worth doing for your business and skips what is not.",

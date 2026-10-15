@@ -96,10 +96,10 @@ export default function LaunchPage() {
               Get my free visibility score
             </Link>
             <Link
-              href="/start?plan=growth&promo=PRODUCTHUNT"
+              href="/start"
               className="rounded-full bg-zinc-900 px-8 py-3.5 text-sm font-bold text-white hover:bg-zinc-800 shadow-sm"
             >
-              Start Scale — $74.99/mo
+              Start GravyBlock — $39.99/mo
             </Link>
           </div>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 pt-1 text-xs text-zinc-500">
@@ -143,63 +143,14 @@ export default function LaunchPage() {
       {/* Pricing */}
       <section className="border-y border-zinc-100 bg-zinc-50 px-4 py-14 sm:px-6">
         <div className="mx-auto max-w-4xl">
-          <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">Product Hunt pricing</p>
-          <p className="mb-8 text-center text-2xl font-bold text-zinc-900">50% off your first 2 months</p>
-          <div className="grid gap-5 sm:grid-cols-3">
-            {[
-              {
-                label: "Starter",
-                regular: "$59.99",
-                ph: "$29.99",
-                desc: "Monthly visibility score, fix list, AI search check, citation consistency checks.",
-                href: "/scan?plan=starter&promo=PRODUCTHUNT",
-                highlight: false,
-              },
-              {
-                label: "Scale",
-                regular: "$149.99",
-                ph: "$74.99",
-                desc: "Scheduled content, Google Business Profile posts, local outreach, automatic Google review replies, Facebook and Instagram posting.",
-                href: "/scan?plan=growth&promo=PRODUCTHUNT",
-                highlight: true,
-              },
-              {
-                label: "Pro",
-                regular: "$299.99",
-                ph: "$149.99",
-                desc: "Everything in Scale twice as often, plus priority support.",
-                href: "/scan?plan=pro&promo=PRODUCTHUNT",
-                highlight: false,
-              },
-            ].map((plan) => (
-              <div
-                key={plan.label}
-                className={`relative flex flex-col rounded-2xl border p-6 ${plan.highlight ? "border-red-300 ring-2 ring-red-200 bg-white shadow-lg" : "border-zinc-200 bg-white shadow-sm"}`}
-              >
-                {plan.highlight && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-orange-500 px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-white">
-                    Most popular
-                  </span>
-                )}
-                <p className="text-xs font-bold uppercase tracking-widest text-red-700">{plan.label}</p>
-                <div className="mt-3">
-                  <p className="text-xs text-zinc-400 line-through">{plan.regular}/mo</p>
-                  <p className="text-3xl font-black text-zinc-900">{plan.ph}<span className="text-base font-normal text-zinc-500">/mo</span></p>
-                  <p className="text-xs font-semibold text-emerald-600 mt-0.5">First 2 months · code PRODUCTHUNT</p>
-                </div>
-                <p className="mt-4 flex-1 text-sm text-zinc-500">{plan.desc}</p>
-                <Link
-                  href={plan.href}
-                  className={`mt-5 flex justify-center rounded-full px-4 py-2.5 text-sm font-bold transition ${plan.highlight ? "bg-red-600 text-white hover:bg-red-500" : "bg-zinc-900 text-white hover:bg-zinc-800"}`}
-                >
-                  Start {plan.label}
-                </Link>
-              </div>
-            ))}
+          <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">Pricing</p>
+          <p className="mb-2 text-center text-2xl font-bold text-zinc-900">GravyBlock — $39.99/month</p>
+          <p className="mb-6 text-center text-sm text-zinc-600">One plan. Free scan first. Cancel anytime · 30-day money-back guarantee.</p>
+          <div className="text-center">
+            <a href="/scan" className="inline-block rounded-full bg-red-600 px-8 py-3.5 text-sm font-bold text-white hover:bg-red-500">
+              Scan my business free →
+            </a>
           </div>
-          <p className="mt-6 text-center text-xs text-zinc-400">
-            Start with the free scan. No credit card. Enter code <strong className="text-zinc-600">PRODUCTHUNT</strong> at checkout for 50% off months 1 and 2.
-          </p>
         </div>
       </section>
 
@@ -232,8 +183,8 @@ export default function LaunchPage() {
             <Link href="/scan?promo=PRODUCTHUNT" className="rounded-full bg-white px-8 py-3.5 text-sm font-bold text-zinc-900 hover:bg-zinc-100">
               Get my free score
             </Link>
-            <Link href="/start?plan=growth&promo=PRODUCTHUNT" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-bold text-white hover:bg-red-500">
-              Start Scale — $74.99/mo
+            <Link href="/start" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-bold text-white hover:bg-red-500">
+              Start GravyBlock — $39.99/mo
             </Link>
           </div>
         </div>

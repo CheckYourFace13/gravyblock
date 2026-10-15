@@ -1,408 +1,181 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { publicBullets } from "@/lib/capabilities";
+import { OFFER } from "@/lib/offer";
 import { FunnelBeacon } from "@/components/funnel-beacon";
 
 export const metadata: Metadata = {
-  alternates: { canonical: "https://gravyblock.com/pricing" },
   title: "Local SEO Pricing",
-  description:
-    "GravyBlock pricing: Starter $59.99/mo (INTRO50: $29.99 for the first month), Scale $149.99/mo (GROWTH50: $74.99/mo, locked for as long as you stay subscribed), Pro $299.99/mo (INTRO50: $149.99 for the first month). No contracts, cancel anytime.",
+  description: "GravyBlock is $39.99 a month: one plan that finds what is hurting your local visibility and does the eligible work automatically. Free scan, cancel anytime, 30-day money-back guarantee.",
+  alternates: { canonical: "/pricing" },
 };
 
-const plans = [
-  {
-    tier: "starter",
-    label: "Starter",
-    monthly: 59.99,
-    intro: 29.99,
-    highlight: false,
-    tagline: "Visibility monitoring with a fix list every month.",
-    bullets: [
-      "Monthly visibility score + trend history",
-      "4 AI content ideas/mo with outlines",
-      "Citation consistency checks — your name, phone and address compared across your website, Google, and (where connected) Yelp and Facebook, with drift alerts",
-      "Listing watchdog — weekly alerts when Google silently edits your hours, phone, or name",
-      "Review monitoring with alerts for new and negative reviews",
-      "AI search check (ChatGPT, Perplexity, Google AI)",
-      "Monthly progress email with score delta",
-      "Full workspace dashboard",
-    ],
-    notIncluded: [
-      "Auto-publishing content to your site",
-      "Local outreach pitches",
-      "Social media posting",
-    ],
-    cta: "Start Starter",
-    href: "/start?plan=starter",
-    ctaStyle: "bg-zinc-900 hover:bg-zinc-800 text-white",
-    priceLocked: false,
-  },
-  {
-    tier: "growth",
-    label: "Scale",
-    monthly: 149.99,
-    intro: 74.99,
-    highlight: true,
-    // GROWTH50 is a Stripe "forever"-duration coupon — the $74.99 rate
-    // applies to every renewal, not just month one (unlike INTRO50 on the
-    // other two plans). priceLocked drives the true copy below.
-    priceLocked: true,
-    tagline: "GravyBlock decides what will help and does it automatically — content, Google posts, review replies, outreach, and social.",
-    bullets: [
-      "Everything in Starter",
-      "Weekly AI articles written and published to your site",
-      "Weekly Google Business Profile posts and your own website images added to your profile — with Google connected",
-      "Review replies posted to Google automatically (Yelp & TripAdvisor reviews are monitored and flagged — their APIs don't allow automatic replies)",
-      "Automatic review requests to your real completed customers, once your booking/invoicing system is connected",
-      "Real Google Maps ranking checks every week",
-      "Review spotlights — your real 5-star reviews shared on your connected Facebook Page",
-      "Up to 8 personalized outreach attempts/month to relevant local organizations — only to a real published contact, never a guessed address. Links are never guaranteed and only counted once verified live",
-      "Facebook + Instagram posting with no per-post approval — once your Facebook Page is connected",
-      "Weekly visibility refreshes (vs. monthly on Starter)",
-      "AEO, GEO, and Entity scores alongside your SEO score",
-      "Schema markup injected into every published article",
-      "AI visibility checks — monthly check of whether AI assistants mention your business",
-    ],
-    notIncluded: [],
-    cta: "Start Scale",
-    href: "/start?plan=growth&promo=GROWTH50",
-    ctaStyle: "bg-red-600 hover:bg-red-500 text-white",
-  },
-  {
-    tier: "pro",
-    label: "Pro",
-    monthly: 299.99,
-    intro: 149.99,
-    highlight: false,
-    priceLocked: false,
-    tagline: "Double the output and more local pages for one business.",
-    bullets: [
-      "Everything in Scale, twice as often",
-      "12 articles + 8 local SEO pages/month",
-      "Priority support",
-    ],
-    notIncluded: [],
-    cta: "Start Pro",
-    href: "/start?plan=pro",
-    ctaStyle: "bg-zinc-900 hover:bg-zinc-800 text-white",
-  },
-] as const;
+const START_HREF = "/start";
 
 const faqs = [
   {
-    q: "What does 'automated' actually mean?",
-    a: "GravyBlock decides what will help your business and does it automatically — you do not have to log in each week. Articles are written from your own website's facts and published to your connected site automatically. Google Business Profile posts go out. Google review replies are posted automatically. Outreach goes to real, published contacts of relevant local organizations when one can be found, and a link is only counted once it is verified live. Review alerts surface in your inbox. Your visibility score refreshes. All without you initiating anything.",
+    q: "What do I get for $39.99 a month?",
+    a: "GravyBlock learns your business from your own website and Google profile, decides what is worth doing, and does the eligible work automatically: website content, Google Business Profile posts, Google review replies, outreach to relevant local organizations, citation consistency checks and AI-search visibility checks. It verifies each action and reports only what it confirmed. Some work needs a one-time connection, such as your website or Google account.",
   },
   {
-    q: "Do I need to know anything about SEO?",
-    a: "No. The scan explains your gaps in plain language. The workspace shows exactly what is running and what to do next. Nothing requires SEO knowledge to act on.",
+    q: "Is there a contract? Can I cancel?",
+    a: "No contract. Cancel anytime from the billing portal in your workspace. You keep access until the end of the period you have paid for.",
   },
   {
-    q: "What happens after the first month?",
-    a: "On Scale, the $74.99/mo rate is locked for as long as your subscription stays active — it does not go up after month one. On Starter and Pro, the intro discount (code INTRO50) applies to your first month only; after that you're billed the regular price ($59.99 or $299.99). You can cancel or downgrade any time from the billing portal — no phone call required.",
-  },
-  {
-    q: "Can I cancel anytime?",
-    a: "Yes. Cancel from the billing portal in your workspace. No notice period, no cancellation fee. You keep access until the end of your current billing period.",
-  },
-  {
-    q: "What do I need to connect for content to publish automatically?",
-    a: "You connect your WordPress, Webflow or Shopify website once in your workspace, and GravyBlock publishes to it automatically from then on. Squarespace, Wix and a few other platforms aren't supported for automatic publishing yet — on those, content publishing waits for a supported connection, but everything else (Google Business Profile posts, review replies and requests, citations, outreach, AI-visibility checks) keeps running automatically.",
-  },
-  {
-    q: "How is GravyBlock different from BrightLocal or Yext?",
-    a: "BrightLocal and Yext are established platforms for listing management, reviews and reporting. BrightLocal is popular with agencies and Yext with larger or multi-location brands. GravyBlock is a lower-cost option for owner-operated businesses that does a defined set of work automatically: content from your own website's facts, Google Business Profile posts, Google review replies, local outreach and rank tracking.",
+    q: "What is the money-back guarantee?",
+    a: "If you are not satisfied within 30 days of your first payment, email support@gravyblock.com and we will refund that payment.",
   },
   {
     q: "Is the free scan really free?",
-    a: "Yes. No credit card, no account required. You get your full visibility score, top findings, and a prioritized fix list. Upgrade only if you want GravyBlock to handle the fixes automatically.",
+    a: "Yes. No credit card and no account. You get your visibility score and what we found. The ongoing, automatic work is the paid subscription.",
+  },
+  {
+    q: "What do I need to connect?",
+    a: "Connect your WordPress, Webflow or Shopify website once so GravyBlock can publish content. Connect Google once for Business Profile posts and review replies, and a booking or invoicing system if you want automatic review requests. A missing connection pauses only the work that depends on it.",
+  },
+  {
+    q: "Does it cover more than one location?",
+    a: "Each subscription covers one business location. If you run several, start a subscription for each one.",
   },
 ];
 
 const schema = {
   "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: faqs.map((f) => ({
-    "@type": "Question",
-    name: f.q,
-    acceptedAnswer: { "@type": "Answer", text: f.a },
-  })),
+  "@graph": [
+    {
+      "@type": "Product",
+      name: "GravyBlock",
+      description: "Automated local SEO for small businesses: finds what is hurting your visibility and does the eligible work automatically.",
+      brand: { "@type": "Brand", name: "GravyBlock" },
+      offers: {
+        "@type": "Offer",
+        price: "39.99",
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+        url: "https://gravyblock.com/pricing",
+        priceSpecification: { "@type": "UnitPriceSpecification", price: "39.99", priceCurrency: "USD", billingDuration: 1, unitCode: "MON" },
+      },
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: faqs.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+    },
+  ],
 };
 
 export default function PricingPage() {
+  const included = publicBullets("growth");
   return (
     <div className="bg-white">
       <FunnelBeacon eventType="pricing_viewed" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
 
-      {/* ── HERO: one dominant offer ─────────────────────── */}
-      <section className="bg-gradient-to-b from-red-50 to-white px-4 pt-14 pb-10 sm:px-6 text-center">
+      <section className="bg-gradient-to-b from-red-50 to-white px-4 pb-10 pt-14 text-center sm:px-6">
         <div className="mx-auto max-w-2xl space-y-4">
-          <p className="text-xs font-bold uppercase tracking-widest text-red-700">The easiest option: let GravyBlock handle it</p>
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">Scale — $74.99/month</h1>
-          <p className="text-sm font-semibold text-emerald-700">Locked while subscribed (regular $149.99). Not a first-month discount.</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-red-700">One plan. No tiers to decode.</p>
+          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">GravyBlock — $39.99/month</h1>
           <p className="mx-auto max-w-xl text-lg text-zinc-600">
-            GravyBlock finds what is hurting your visibility, decides what is worth fixing, does the eligible work automatically, verifies it, and
-            keeps going, without you managing SEO.
+            You should not need to buy SEO software and then learn how to use it. GravyBlock figures out what is worth doing for your business and handles the
+            eligible work automatically.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
-            <Link href="/start?plan=growth&promo=GROWTH50" className="rounded-full bg-red-600 px-9 py-4 text-base font-bold text-white hover:bg-red-500 shadow-md">
-              Start Scale — $74.99/mo
+            <Link href="/scan" className="rounded-full bg-red-600 px-9 py-4 text-base font-bold text-white shadow-md hover:bg-red-500">
+              Scan my business free →
             </Link>
-            <Link href="/scan" className="rounded-full border border-zinc-300 bg-white px-8 py-4 text-base font-semibold text-zinc-800 hover:border-zinc-400">
-              Scan my business free first
+            <Link href={START_HREF} className="rounded-full border border-zinc-300 bg-white px-8 py-4 text-base font-semibold text-zinc-800 hover:border-zinc-400">
+              {OFFER.cta}
             </Link>
           </div>
-          <p className="text-xs font-medium text-zinc-600">$74.99/month locked while subscribed · Cancel anytime · 30-day money-back guarantee</p>
+          <p className="text-xs font-medium text-zinc-600">{OFFER.risk} · No setup fee</p>
         </div>
       </section>
 
-      <div className="px-4 pt-2 sm:px-6">
-        <h2 className="mx-auto max-w-5xl text-center text-sm font-bold uppercase tracking-widest text-zinc-400">Compare all plans</h2>
-      </div>
-
-      {/* ── PLANS ────────────────────────────────────────── */}
       <section className="px-4 py-10 sm:px-6">
-        <div className="mx-auto max-w-5xl">
-          <div className="grid gap-6 lg:grid-cols-3">
-            {plans.map((plan) => (
-              <article
-                key={plan.tier}
-                className={`relative flex flex-col rounded-2xl border p-6 ${
-                  plan.highlight
-                    ? "border-red-300 ring-2 ring-red-200 bg-white shadow-lg"
-                    : "border-zinc-200 bg-white shadow-sm"
-                }`}
-              >
-                {plan.highlight && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-red-600 px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow">
-                    Most popular
-                  </span>
-                )}
-                <p className="text-xs font-bold uppercase tracking-widest text-red-700">{plan.label}</p>
-                <p className="mt-1 text-xs text-zinc-500">{plan.tagline}</p>
-                <div className="mt-4">
-                  <p className="text-xs text-zinc-400 line-through">${plan.monthly}/mo regular</p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black text-zinc-900">${plan.intro}</span>
-                    <span className="text-sm text-zinc-500">{plan.priceLocked ? "/mo" : " first month"}</span>
-                  </div>
-                  <p className="text-[11px] font-semibold text-emerald-600 mt-0.5">
-                    {plan.priceLocked
-                      ? "Locked while subscribed — not just your first month"
-                      : `Save $${(plan.monthly - plan.intro).toFixed(2)} first month`}
-                  </p>
-                </div>
-
-                <div className="mt-5 flex-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">Included</p>
-                  <ul className="space-y-2">
-                    {plan.bullets.map((b) => (
-                      <li key={b} className="flex items-start gap-2 text-sm text-zinc-600">
-                        <span className="mt-0.5 shrink-0 text-red-500 font-bold text-xs">✓</span>
-                        {b}
-                      </li>
-                    ))}
-                  </ul>
-                  {plan.notIncluded.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-2">Not included</p>
-                      <ul className="space-y-1.5">
-                        {plan.notIncluded.map((b) => (
-                          <li key={b} className="flex items-start gap-2 text-sm text-zinc-400">
-                            <span className="mt-0.5 shrink-0 text-xs">—</span>
-                            {b}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-
-                <Link
-                  href={plan.href}
-                  className={`mt-6 flex justify-center rounded-full px-4 py-2.5 text-sm font-bold transition ${plan.ctaStyle}`}
-                >
-                  {plan.cta} — ${plan.intro}{plan.priceLocked ? "/mo" : " first month"}
-                </Link>
-                <Link
-                  href={`${plan.href}&interval=annual`}
-                  className="mt-2 text-center text-xs font-semibold text-emerald-700 hover:text-emerald-800 underline underline-offset-2"
-                >
-                  or pay annually — save 25% (3 months free)
-                </Link>
-              </article>
+        <div className="mx-auto max-w-3xl rounded-3xl border-2 border-red-200 bg-white p-8 shadow-sm">
+          <h2 className="text-2xl font-semibold text-zinc-900">What GravyBlock does for you</h2>
+          <p className="mt-1 text-sm text-zinc-600">
+            Everything below is included. <Link href="/features" className="underline">See what is automatic, what needs a connection, and what is not offered.</Link>
+          </p>
+          <ul className="mt-5 grid gap-2 text-sm text-zinc-700 sm:grid-cols-2">
+            {included.map((b) => (
+              <li key={b} className="flex gap-2">
+                <span className="font-bold text-emerald-600">✓</span>
+                {b}
+              </li>
             ))}
-          </div>
-
-          {/* Free scan nudge */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
-            <div>
-              <p className="font-semibold text-zinc-900">Not sure which plan? Start with the free scan.</p>
-              <p className="text-sm text-zinc-500">
-                See your score and top gaps in 60 seconds. Pick a plan after — or don&apos;t. No pressure.
-              </p>
-            </div>
-            <Link
-              href="/scan"
-              className="shrink-0 rounded-full border border-zinc-300 bg-white px-6 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-100"
-            >
-              Get my free score →
-            </Link>
-          </div>
-
-          {/* Market alternatives comparison: qualitative, no invented hours or prices */}
-          <div className="mt-12">
-            <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">Your options for local SEO</p>
-            <h2 className="mb-6 text-center text-2xl font-bold text-zinc-900">How GravyBlock compares to the alternatives</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border-separate border-spacing-0 rounded-2xl border border-zinc-200 overflow-hidden">
-                <thead>
-                  <tr className="bg-zinc-50">
-                    <th className="px-4 py-3 text-left font-semibold text-zinc-700">Option</th>
-                    <th className="px-4 py-3 text-left font-semibold text-zinc-700">Cost</th>
-                    <th className="px-4 py-3 text-left font-semibold text-zinc-700">Who does the work</th>
-                    <th className="px-4 py-3 text-left font-semibold text-zinc-700">A good fit when</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-zinc-100">Do it yourself</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Your time</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">You: content, listings, reviews and your Google profile</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">You have the time and know-how</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-zinc-100">Local SEO agency</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Varies widely; usually a monthly retainer</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">A person or team, including custom strategy and creative work</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">You want a dedicated human and custom campaigns</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-zinc-100">SEO software <span className="text-zinc-400 font-normal">(BrightLocal, Semrush and similar)</span></td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Varies by tool and plan</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">Usually you or an agency, though some tools now automate parts of the work</td>
-                    <td className="px-4 py-3.5 text-zinc-600 border-t border-zinc-100">You or your agency want detailed reporting and control</td>
-                  </tr>
-                  <tr className="bg-red-50/60">
-                    <td className="px-4 py-3.5 font-bold text-zinc-900 border-t border-red-100">GravyBlock</td>
-                    <td className="px-4 py-3.5 font-bold text-emerald-700 border-t border-red-100">$59.99–$299.99 per month</td>
-                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-red-100">GravyBlock does a defined set of work automatically; some of it needs a one-time connection</td>
-                    <td className="px-4 py-3.5 font-medium text-zinc-800 border-t border-red-100">You want ongoing work done for you at a lower price, without operating an SEO toolbox</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <p className="mt-3 text-center text-xs text-zinc-500">
-              Other providers change their plans and features often, so check each one. See{" "}
-              <Link href="/compare" className="underline">
-                our comparisons
-              </Link>{" "}
-              and{" "}
-              <Link href="/features" className="underline">
-                exactly what GravyBlock does
-              </Link>
-              .
-            </p>
-          </div>
+          </ul>
         </div>
       </section>
 
-      {/* ── COMPARISON TABLE ─────────────────────────────── */}
-      <section id="comparison" className="border-t border-zinc-100 bg-zinc-50 px-4 py-12 sm:px-6 scroll-mt-20">
-        <div className="mx-auto max-w-4xl">
-          <p className="mb-6 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">Plan comparison</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+      <section className="px-4 pb-10 sm:px-6">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="text-xl font-semibold text-zinc-900">How it compares</h2>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-2xl border border-zinc-200 text-sm">
               <thead>
-                <tr className="border-b border-zinc-200">
-                  <th className="pb-3 text-left font-semibold text-zinc-700 w-1/2">Feature</th>
-                  <th className="pb-3 text-center font-semibold text-zinc-700">Starter</th>
-                  <th className="pb-3 text-center font-semibold text-red-700">Scale</th>
-                  <th className="pb-3 text-center font-semibold text-zinc-700">Pro</th>
+                <tr className="bg-zinc-50 text-left text-zinc-700">
+                  <th className="px-4 py-3 font-semibold">Option</th>
+                  <th className="px-4 py-3 font-semibold">Cost</th>
+                  <th className="px-4 py-3 font-semibold">Who does the work</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {[
-                  ["Visibility score + history", "Monthly", "Weekly", "Weekly"],
-                  ["Content ideas/mo", "4", "Unlimited", "Unlimited"],
-                  ["AI articles published to your site", "—", "Weekly", "2× weekly"],
-                  ["Google Business Profile posts and photos", "—", "Weekly", "Weekly"],
-                  ["Google review replies posted automatically", "—", "✓", "✓"],
-                  ["Real Google Maps ranking checks", "—", "Weekly", "Weekly"],
-                  ["Listing watchdog (Google edit alerts)", "Weekly", "Weekly", "Weekly"],
-                  ["Review spotlight posts to your Facebook Page", "—", "✓", "✓"],
-                  ["Local outreach attempts/mo (real contacts only, links not guaranteed)", "—", "up to 8", "up to 16"],
-                  ["Facebook + Instagram posting (no per-post approval)", "—", "✓", "✓"],
-                  ["Review monitoring (Google, Yelp, TripAdvisor)", "✓", "✓", "✓"],
-                  ["Automatic review requests to your real customers (once connected)", "—", "✓", "✓"],
-                  ["Citation consistency checks + drift alerts", "✓", "✓", "✓"],
-                  ["AI visibility checks (monthly)", "✓", "✓", "✓"],
-                  ["AEO / GEO / Entity scores", "—", "✓", "✓"],
-                  ["Schema markup generator", "—", "✓", "✓"],
-                  ["Business / location covered", "1", "1", "1"],
-                  ["Price with promo code", "$29.99 first month (INTRO50)", "$74.99/mo, locked while subscribed (GROWTH50)", "$149.99 first month (INTRO50)"],
-                ].map(([feature, starter, scale, pro]) => (
-                  <tr key={feature} className="hover:bg-white/60">
-                    <td className="py-3 pr-4 text-zinc-700">{feature}</td>
-                    <td className="py-3 text-center text-zinc-500">{starter}</td>
-                    <td className="py-3 text-center font-medium text-zinc-800">{scale}</td>
-                    <td className="py-3 text-center text-zinc-500">{pro}</td>
-                  </tr>
-                ))}
+              <tbody>
+                <tr>
+                  <td className="border-t border-zinc-100 px-4 py-3 font-medium text-zinc-800">Do it yourself</td>
+                  <td className="border-t border-zinc-100 px-4 py-3 text-zinc-600">Your time</td>
+                  <td className="border-t border-zinc-100 px-4 py-3 text-zinc-600">You</td>
+                </tr>
+                <tr>
+                  <td className="border-t border-zinc-100 px-4 py-3 font-medium text-zinc-800">SEO software</td>
+                  <td className="border-t border-zinc-100 px-4 py-3 text-zinc-600">Varies by tool and plan</td>
+                  <td className="border-t border-zinc-100 px-4 py-3 text-zinc-600">Usually you or an agency; some tools now automate parts</td>
+                </tr>
+                <tr>
+                  <td className="border-t border-zinc-100 px-4 py-3 font-medium text-zinc-800">Local SEO agency</td>
+                  <td className="border-t border-zinc-100 px-4 py-3 text-zinc-600">Varies widely; usually a monthly retainer</td>
+                  <td className="border-t border-zinc-100 px-4 py-3 text-zinc-600">A person or team, including custom strategy</td>
+                </tr>
+                <tr className="bg-red-50/60">
+                  <td className="border-t border-red-100 px-4 py-3 font-bold text-zinc-900">GravyBlock</td>
+                  <td className="border-t border-red-100 px-4 py-3 font-bold text-emerald-700">$39.99 per month</td>
+                  <td className="border-t border-red-100 px-4 py-3 font-medium text-zinc-800">GravyBlock, automatically, for the work on the features page</td>
+                </tr>
               </tbody>
             </table>
           </div>
+          <p className="mt-3 text-xs text-zinc-500">
+            Other providers change plans often, so check each one. See <Link href="/compare" className="underline">our comparisons</Link>.
+          </p>
         </div>
       </section>
 
-      {/* ── AGENCY / MULTI-LOCATION ─────────────────────── */}
-      <section className="px-4 pb-4 sm:px-6">
-        <div className="mx-auto max-w-4xl rounded-2xl border border-zinc-200 bg-zinc-50 p-6 text-center sm:text-left sm:flex sm:items-center sm:justify-between sm:gap-4">
-          <div>
-            <p className="font-semibold text-zinc-900">Managing several locations, or need a white-label option?</p>
-            <p className="mt-1 text-sm text-zinc-500">Each GravyBlock plan covers one business location. Talk to us about how we can handle more than one.</p>
-          </div>
-          <a
-            href="mailto:support@gravyblock.com?subject=Agency%20plan%20inquiry"
-            className="mt-4 inline-block shrink-0 rounded-full border border-zinc-300 bg-white px-6 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-100 sm:mt-0"
-          >
-            Contact us about Agency →
-          </a>
-        </div>
-      </section>
-
-      {/* ── FAQ ──────────────────────────────────────────── */}
-      <section className="px-4 py-14 sm:px-6">
+      <section className="px-4 pb-14 sm:px-6">
         <div className="mx-auto max-w-3xl">
-          <p className="mb-8 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">Common questions</p>
-          <dl className="space-y-6">
-            {faqs.map((faq) => (
-              <div key={faq.q} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
-                <dt className="text-sm font-semibold text-zinc-900">{faq.q}</dt>
-                <dd className="mt-2 text-sm text-zinc-600 leading-relaxed">{faq.a}</dd>
+          <h2 className="text-xl font-semibold text-zinc-900">Common questions</h2>
+          <div className="mt-4 space-y-4">
+            {faqs.map((f) => (
+              <div key={f.q} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
+                <p className="font-semibold text-zinc-900">{f.q}</p>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">{f.a}</p>
               </div>
             ))}
-          </dl>
+          </div>
         </div>
       </section>
 
-      {/* ── FINAL CTA ────────────────────────────────────── */}
-      <section className="border-t border-zinc-200 bg-zinc-900 px-4 py-16 sm:px-6 text-center">
-        <div className="mx-auto max-w-xl space-y-5">
-          <h2 className="text-3xl font-bold text-white">Start with a free scan.</h2>
-          <p className="text-zinc-400">
-            See your score and gaps in 60 seconds. Pick a plan when you&apos;re ready. No credit card for the scan.
-          </p>
+      <section className="border-t border-zinc-200 bg-zinc-900 px-4 py-14 text-center sm:px-6">
+        <div className="mx-auto max-w-xl space-y-4">
+          <h2 className="text-2xl font-bold text-white">See what GravyBlock would do for your business</h2>
+          <p className="text-sm text-zinc-400">A free scan takes about a minute. No credit card.</p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
-            <Link href="/scan" className="rounded-full bg-white px-7 py-3 text-sm font-bold text-zinc-900 hover:bg-zinc-100">
-              Get my free score
+            <Link href="/scan" className="rounded-full bg-red-600 px-8 py-3.5 text-base font-bold text-white hover:bg-red-500">
+              Scan my business free →
             </Link>
-            <Link href="/start?plan=growth&promo=GROWTH50" className="rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">
-              Start Scale — $74.99/mo
+            <Link href={START_HREF} className="rounded-full bg-white px-7 py-3.5 text-base font-semibold text-zinc-900 hover:bg-zinc-100">
+              {OFFER.cta}
             </Link>
           </div>
-          <p className="text-xs text-zinc-600">$74.99/mo locked while subscribed · No contracts · Cancel anytime</p>
+          <p className="text-xs text-zinc-400">{OFFER.risk}</p>
         </div>
       </section>
     </div>

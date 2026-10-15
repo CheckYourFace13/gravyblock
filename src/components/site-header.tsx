@@ -45,7 +45,7 @@ export function SiteHeader({ isAdmin = false }: { isAdmin?: boolean }) {
       ) : (
         <div className="bg-zinc-900 px-4 py-2 text-center text-xs font-semibold text-white">
           <span className="text-red-400">GravyBlock:</span>{" "}
-          <span className="font-bold text-white">$74.99/mo</span>, locked while subscribed.{" "}
+          <span className="font-bold text-white">$39.99/mo</span>{" "}
           <Link href="/scan" className="underline underline-offset-2 hover:text-red-300">
             Scan free →
           </Link>

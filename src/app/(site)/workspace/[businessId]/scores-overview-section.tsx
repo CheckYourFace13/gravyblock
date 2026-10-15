@@ -262,7 +262,7 @@ export function ScoresOverviewSection({
             <span className={`mt-0.5 shrink-0 ${hasContentPublishing ? "text-red-500" : "text-zinc-300"}`}>✓</span>
             {hasContentPublishing
               ? `Publishing AI-citation articles (${publishedCount} published so far — AI typically starts citing after 4+)`
-              : <span>Weekly article publishing — <a href="/pricing" className="text-red-600 underline">upgrade to Scale</a> to unlock</span>}
+              : <span>Weekly article publishing — <a href="/pricing" className="text-red-600 underline">start GravyBlock</a> to unlock</span>}
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-0.5 shrink-0 text-red-500">✓</span>

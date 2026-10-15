@@ -5,7 +5,7 @@
  *   - Have not opted out
  *
  * Links back to the same personalized report as the initial email and
- * introduces the offer: Autopilot $74.99/mo, locked while subscribed.
+ * introduces the offer: Autopilot $39.99/month.
  * Runs once per day via the worker.
  */
 

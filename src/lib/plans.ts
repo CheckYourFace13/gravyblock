@@ -19,7 +19,7 @@ export const stripePlanMapping: Record<PlanTier, { stripeLookupKey: string | nul
 };
 
 export type PlanFeatures = {
-  label: "Free" | "Starter" | "Scale" | "Pro" | "Agency";
+  label: "Free" | "Starter" | "GravyBlock" | "Pro" | "Agency";
   monthlyPrice: number;
   introPrice: number;
   refreshCadenceLabel: "On-demand" | "Monthly" | "Weekly" | "Twice weekly" | "Daily";
@@ -82,15 +82,15 @@ export function planFeatures(tier: PlanTier): PlanFeatures {
       };
     case "growth":
       return {
-        label: "Scale",
-        monthlyPrice: 149.99,
-        introPrice: 74.99,
+        label: "GravyBlock",
+        monthlyPrice: 39.99,
+        introPrice: 39.99,
         refreshCadenceLabel: "Weekly",
         refreshIntervalDays: 7,
         recurringRefresh: true,
         workspaceHistory: true,
         monthlySummaryEmail: true,
-        weeklyUpsellEmail: true,
+        weeklyUpsellEmail: false,
         contentIdeasPerMonth: 12,
         contentDraftsPerMonth: 4,
         publishingJobsPerMonth: 4,

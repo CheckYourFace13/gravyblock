@@ -82,9 +82,7 @@ export default function TermsPage() {
 
       <Section title="Billing, cancellation and the 30-day guarantee">
         <p>
-          Subscriptions are billed monthly (or annually if you choose an annual plan) and renew until cancelled. Prices and any promo
-          rate you signed up with are shown at checkout; a promo marked as locked applies for as long as your subscription stays
-          active. You can cancel at any time from the billing portal in your workspace, with no cancellation fee. You keep access
+          Subscriptions are billed monthly (or annually if you choose an annual plan) and renew until cancelled. The price is shown at checkout. You can cancel at any time from the billing portal in your workspace, with no cancellation fee. You keep access
           until the end of the period you have paid for.
         </p>
         <p>

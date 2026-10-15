@@ -58,7 +58,7 @@ const ONBOARD_SEQUENCE: OnboardEmail[] = [
       <div style="margin:16px 0;padding:16px;background:#f4f4f5;border-radius:12px">
         <ul style="margin:0;padding-left:20px;color:#3f3f46;font-size:13px;line-height:2">
           <li>Content ideas and consistency checks appear in your workspace</li>
-          <li>On Scale and Pro, once your website is connected, articles publish to your site automatically</li>
+          <li>Once your website is connected, articles publish to your site automatically</li>
           <li>A monthly summary email arrives with what ran</li>
         </ul>
       </div>
