@@ -11,7 +11,7 @@
  *
  * The queue decides which of these are actually worthwhile — this module only proposes.
  */
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { businesses, businessFacts, contentQueue, getDb, growthOpportunities, publishedContent } from "@/lib/db";
 import { getBusinessTruth, promotableContent } from "@/lib/truth";
 import { recordOpportunity } from "./queue";
@@ -162,6 +162,6 @@ const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "en
 export async function runTruthOpportunitiesBatch(limit = 15): Promise<{ businesses: number; recorded: number }> {
   const db = getDb();
   if (!db) return { businesses: 0, recorded: 0 };
-  const rows = await db.select({ id: businesses.id }).from(businesses).where(inArray(businesses.planTier, PAID_TIERS)).limit(limit);
+  const rows = await db.select({ id: businesses.id }).from(businesses).where(and(inArray(businesses.planTier, PAID_TIERS), ne(businesses.accountType, "house"))).limit(limit); // house accounts: src/lib/house
   return createOpportunitiesFromTruthBatch(rows.map((r) => r.id));
 }

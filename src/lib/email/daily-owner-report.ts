@@ -1,5 +1,6 @@
 import { and, count, gte, inArray } from "drizzle-orm";
 import { getDb, publishedContent, contentQueue, operatorTasks } from "@/lib/db";
+import { getHouseFleetStatus } from "@/lib/house";
 import { getInternalBusinesses } from "@/lib/reporting/classification";
 import {
   getOutreachFunnel,
@@ -75,6 +76,11 @@ export async function buildDailyOwnerReport(): Promise<{ subject: string; html: 
   const [customerWorkM, operatedWorkM] = await Promise.all([measure("customer work", () => work(customerIds)), measure("operated work", () => work(operatedIds))]);
   const workText = (m: Metric<{ published: number; queued: number; tasks: number }>) => (m.ok ? `${m.value.published} / ${m.value.queued} / ${m.value.tasks}` : "Unavailable");
 
+  const houseM = await measure("house accounts", getHouseFleetStatus);
+  const houseLine = houseM.ok
+    ? `${houseM.value.filter((h) => h.health === "GREEN").length} green, ${houseM.value.filter((h) => h.health === "YELLOW").length} yellow, ${houseM.value.filter((h) => h.health === "RED").length} red of ${houseM.value.length}${houseM.value.some((h) => h.health === "RED") ? `. Needs attention: ${houseM.value.filter((h) => h.health === "RED").map((h) => `${h.name} (${h.reasons.join(", ")})`).join("; ")}` : ""}`
+    : "Unavailable";
+
   const dateStr = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
   const pf = (k: keyof PublicFunnel) => publicFunnels.map((f) => f[k]);
   const of = (k: keyof OutreachFunnel) => outreachFunnels.map((f) => f[k]);
@@ -145,6 +151,7 @@ export async function buildDailyOwnerReport(): Promise<{ subject: string; html: 
     <tr><td style="${tdl}">Customer work: articles published / content queued / tasks</td><td style="${td}">${workText(customerWorkM)}</td></tr>
     <tr><td style="${tdl}">Owner-operated businesses (not customers): published / queued / tasks</td><td style="${td}">${workText(operatedWorkM)}</td></tr>
   </table>
+  <p style="margin:8px 0 0;font-size:12px;color:#52525b">House account health: ${houseLine}</p>
 </div>
 </body></html>`;
 

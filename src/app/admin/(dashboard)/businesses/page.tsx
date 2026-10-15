@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { listBusinessSummaries } from "@/lib/report/repository";
+import { getHouseFleetStatus, type HouseHealth } from "@/lib/house";
+import { enrollHouseSite, runHouseCycleNow } from "./house-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +40,17 @@ function PlanBadge({ planTier }: { planTier: string | null | undefined }) {
   );
 }
 
+const ago = (d: Date | null) => {
+  if (!d) return "never";
+  const h = (Date.now() - d.getTime()) / 3_600_000;
+  return h < 1 ? "under 1h ago" : h < 48 ? `${Math.round(h)}h ago` : `${Math.round(h / 24)}d ago`;
+};
+
+function HealthDot({ h }: { h: HouseHealth }) {
+  const c = h === "GREEN" ? "bg-green-100 text-green-800" : h === "YELLOW" ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800";
+  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${c}`}>{h}</span>;
+}
+
 type Props = { searchParams: Promise<{ q?: string }> };
 
 export default async function AdminBusinessesPage({ searchParams }: Props) {
@@ -47,7 +60,9 @@ export default async function AdminBusinessesPage({ searchParams }: Props) {
   const paidCount = businesses.filter((b) =>
     b.accountType !== "house" && (b.subscriptionStatus === "active" || b.subscriptionStatus === "trialing")
   ).length;
-  const houseAccounts = businesses.filter((b) => b.accountType === "house");
+  // House accounts come straight from the database, not from the 200 most recently updated rows above
+  // (that window silently dropped older house accounts as prospect records piled up).
+  const houseAccounts = await getHouseFleetStatus().catch(() => []);
   const houseCount = houseAccounts.length;
   const pastDueCount = businesses.filter((b) => b.subscriptionStatus === "past_due").length;
   const freeCount = businesses.filter((b) => !b.subscriptionStatus || b.subscriptionStatus === "none").length;
@@ -110,19 +125,38 @@ export default async function AdminBusinessesPage({ searchParams }: Props) {
         {houseCount > 0 ? (
           <ul className="mt-3 divide-y divide-amber-100">
             {houseAccounts.map((b) => (
-              <li key={b.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5 text-sm">
-                <div>
-                  <span className="font-medium text-zinc-900">{b.name}</span>
-                  <span className="ml-2 text-xs text-zinc-500">{b.vertical ?? ""}</span>
+              <li key={b.id} className="space-y-1.5 py-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span className="mr-2 inline-block"><HealthDot h={b.health} /></span>
+                    <span className="font-medium text-zinc-900">{b.name}</span>
+                    <span className="ml-2 text-xs text-zinc-500">{b.domain ?? "no website"} · {b.mode}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs font-semibold">
+                    <Link href={`/workspace/${b.id}`} className="text-red-700 hover:text-red-800">
+                      Open workspace
+                    </Link>
+                    <Link href={`/admin/businesses/${b.id}`} className="text-zinc-700 hover:text-zinc-900">
+                      Manage
+                    </Link>
+                    <form action={runHouseCycleNow.bind(null, b.id)}>
+                      <button type="submit" className="text-zinc-500 hover:text-zinc-800">Run cycle now</button>
+                    </form>
+                  </div>
                 </div>
-                <div className="flex gap-3 text-xs font-semibold">
-                  <Link href={`/workspace/${b.id}`} className="text-red-700 hover:text-red-800">
-                    Open workspace
-                  </Link>
-                  <Link href={`/admin/businesses/${b.id}`} className="text-zinc-700 hover:text-zinc-900">
-                    Manage
-                  </Link>
+                <div className="grid gap-x-6 gap-y-0.5 text-xs text-zinc-600 sm:grid-cols-2">
+                  <span>Last light check: {ago(b.state.lastLight)}</span>
+                  <span>Last deep refresh: {ago(b.state.lastDeep)} (next due {b.nextDeepDue ? b.nextDeepDue.toISOString().slice(0, 10) : "now"})</span>
+                  <span>Last opportunity discovery: {ago(b.state.lastDiscovery)}</span>
+                  <span>Last orchestrator run: {ago(b.state.lastOrchestrator)}</span>
+                  <span>Connector: {b.connector}</span>
+                  <span>Last verified action: {b.lastAction ? `${ago(b.lastAction.at)}: ${b.lastAction.summary.slice(0, 80)}` : "none yet"}</span>
+                  <span>Top opportunity: {b.topOpportunity ?? "none open"}</span>
+                  <span>Open {b.openOpportunities} · measuring {b.measuring}</span>
+                  <span>Proof: L1 {b.proof.level1} · L2 {b.proof.level2} · L3 {b.proof.level3}</span>
+                  <span>Blocked one-time capabilities: {b.blocked.length ? b.blocked.join(", ") : "none"}</span>
                 </div>
+                {b.reasons.length ? <p className={`text-xs ${b.health === "RED" ? "text-red-700" : "text-amber-800"}`}>{b.reasons.join("; ")}</p> : null}
               </li>
             ))}
           </ul>
@@ -131,6 +165,18 @@ export default async function AdminBusinessesPage({ searchParams }: Props) {
             None yet. Convert a business below or from its detail page, or from the Reports list.
           </p>
         )}
+        <form action={enrollHouseSite} className="mt-4 flex flex-wrap items-end gap-2 border-t border-amber-200 pt-4 text-xs">
+          <label className="flex flex-col gap-1 font-semibold text-zinc-700">Add an owned site (enrolls once, then fully automatic)
+            <span className="flex flex-wrap gap-2">
+              <input name="name" required placeholder="Site name" className="w-40 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm font-normal" />
+              <input name="website" required placeholder="example.com" className="w-48 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm font-normal" />
+              <select name="focusArea" defaultValue="online" className="rounded-lg border border-zinc-300 px-2 py-1.5 text-sm font-normal">
+                <option value="online">online</option><option value="national">national</option><option value="regional">regional</option><option value="local">local</option>
+              </select>
+              <button type="submit" className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-zinc-800">Enroll</button>
+            </span>
+          </label>
+        </form>
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm">

@@ -22,7 +22,7 @@ import { runReviewRequestSendBatch } from "@/lib/reviews/review-request-engine";
 import { planTruthGroundedContent, hasExternalPublishingTarget } from "@/lib/autopilot/content-planner";
 import { executeContentPublishPath } from "@/lib/autopilot/executor";
 import { getDb, businesses } from "@/lib/db";
-import { inArray } from "drizzle-orm";
+import { and, inArray, ne } from "drizzle-orm";
 import { allOpenRanked } from "./queue";
 import type { OpportunityType } from "./types";
 
@@ -96,7 +96,7 @@ export type OrchestratorStep = {
 export async function runOrchestratorBatch(limit = 10): Promise<{ businesses: number; acted: number; steps: number }> {
   const db = getDb();
   if (!db) return { businesses: 0, acted: 0, steps: 0 };
-  const rows = await db.select({ id: businesses.id }).from(businesses).where(inArray(businesses.planTier, PAID_TIERS)).limit(limit);
+  const rows = await db.select({ id: businesses.id }).from(businesses).where(and(inArray(businesses.planTier, PAID_TIERS), ne(businesses.accountType, "house"))).limit(limit); // house accounts run through src/lib/house (per-account schedule)
   let acted = 0;
   let steps = 0;
   for (const b of rows) {
