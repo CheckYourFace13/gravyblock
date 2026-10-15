@@ -12,6 +12,7 @@
  * Called by the worker once per tick. Max 3 posts per run.
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { randomUUID } from "crypto";
 import { and, eq, inArray, or } from "drizzle-orm";
 import { getDb, businesses, businessConfigs, contentQueue, publishedContent } from "@/lib/db";
@@ -66,7 +67,7 @@ export async function runFacebookPostingBatch(): Promise<FacebookPostBatchResult
           eq(contentQueue.kind, "instagram_caption"),
         ),
         eq(contentQueue.status, "queued"),
-        inArray(businesses.planTier, PAID_TIERS),
+        fullAccessWhere(),
       ),
     )
     .limit(MAX_PER_RUN);

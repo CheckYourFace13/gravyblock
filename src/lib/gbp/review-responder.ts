@@ -10,7 +10,8 @@
  * that have no reply yet.
  */
 
-import { inArray } from "drizzle-orm";
+import { effectivePlanTier } from "@/lib/entitlement";
+import { eq, inArray, or } from "drizzle-orm";
 import { getDb, businesses, jobs } from "@/lib/db";
 import { containsPlaceholderArtifact } from "@/lib/content-gen/quality-guard";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
@@ -62,9 +63,9 @@ export async function runGbpReviewReplyBatch(
   if (!db) return { processed: 0, replied: 0, errors: 0 };
 
   const eligibleBizRows = await db
-    .select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier })
+    .select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier, accountType: businesses.accountType })
     .from(businesses)
-    .where(inArray(businesses.planTier, ELIGIBLE_TIERS))
+    .where(or(eq(businesses.accountType, "house"), inArray(businesses.planTier, ELIGIBLE_TIERS)))
     .limit(batchSize * 3);
 
   let processed = 0;
@@ -74,7 +75,7 @@ export async function runGbpReviewReplyBatch(
   for (const biz of eligibleBizRows) {
     if (processed >= batchSize) break;
 
-    const tier = normalizePlanTierFromDb(biz.planTier);
+    const tier = effectivePlanTier(biz);
     if (!ELIGIBLE_TIERS.includes(tier)) continue;
 
     const connected = await isGbpConnected(biz.id);

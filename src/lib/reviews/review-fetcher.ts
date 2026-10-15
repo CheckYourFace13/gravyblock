@@ -4,6 +4,7 @@
  * Tracked via jobs table: type = "review_fetch_run", payload = { businessId }.
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb, businesses, businessReviews, jobs } from "@/lib/db";
 import { sendNewReviewsEmail } from "@/lib/integrations/resend";
@@ -183,7 +184,7 @@ export async function runReviewSyncBatch(batchSize = 5): Promise<{ synced: numbe
   const paid = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(inArray(businesses.planTier, PAID_TIERS))
+    .where(fullAccessWhere())
     .limit(50);
 
   let synced = 0;

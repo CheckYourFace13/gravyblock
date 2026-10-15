@@ -7,6 +7,7 @@
  * Worker calls this once per day.
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { and, eq, gte, inArray } from "drizzle-orm";
 import { getDb, businesses, googleOauthConnections, keywordRankings } from "@/lib/db";
 import { fetchKeywordRankings } from "@/lib/integrations/search-console";
@@ -32,7 +33,7 @@ export async function runRankTrackingBatch(limit = 10): Promise<RankSyncResult> 
     .innerJoin(businesses, eq(businesses.id, googleOauthConnections.businessId))
     .where(
       and(
-        inArray(businesses.planTier, PAID_TIERS),
+        fullAccessWhere(),
         // Only fetch if they have a search console property set
       ),
     )

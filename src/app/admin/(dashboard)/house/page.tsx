@@ -1,0 +1,68 @@
+import type { Metadata } from "next";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { getDb, growthOpportunities, jobs, proofLedger } from "@/lib/db";
+import { listHouseAccounts, HOUSE_JOB } from "@/lib/house";
+import { allOpenRanked } from "@/lib/opportunities/queue";
+
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "House fleet detail" };
+
+/** Read-only evidence for every house account: the actual job rows, opportunity rows and proof rows the engines wrote. */
+export default async function HouseFleetDetail() {
+  const db = getDb();
+  const accounts = db ? await listHouseAccounts() : [];
+  const ids = accounts.map((a) => a.id);
+  const rows = db && ids.length
+    ? await db
+        .select({ businessId: jobs.businessId, type: jobs.type, status: jobs.status, createdAt: jobs.createdAt, payload: jobs.payload })
+        .from(jobs)
+        .where(and(inArray(jobs.businessId, ids), inArray(jobs.type, ["truth_refresh", HOUSE_JOB.discovery, HOUSE_JOB.orchestrator, HOUSE_JOB.cycle, HOUSE_JOB.connectorCheck, "site_connector_connected"])))
+        .orderBy(desc(jobs.createdAt))
+        .limit(3000)
+    : [];
+  const proofs = db && ids.length ? await db.select().from(proofLedger).where(inArray(proofLedger.businessId, ids)).orderBy(desc(proofLedger.verifiedAt)).limit(200) : [];
+  const measured = db && ids.length
+    ? await db
+        .select({ businessId: growthOpportunities.businessId, type: growthOpportunities.opportunityType, subtype: growthOpportunities.subtype, status: growthOpportunities.status, verification: growthOpportunities.verificationStatus, plan: growthOpportunities.measurementPlan, result: growthOpportunities.measuredResult, actedAt: growthOpportunities.actedAt })
+        .from(growthOpportunities)
+        .where(and(inArray(growthOpportunities.businessId, ids), sql`${growthOpportunities.status} in ('acted','verified','no_gain')`))
+        .limit(200)
+    : [];
+  const wd = db ? await db.select({ createdAt: jobs.createdAt, payload: jobs.payload }).from(jobs).where(eq(jobs.type, HOUSE_JOB.watchdog)).orderBy(desc(jobs.createdAt)).limit(1) : [];
+  const j = (v: unknown) => JSON.stringify(v);
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 text-xs">
+      <h1 className="text-xl font-semibold text-zinc-900">House fleet detail</h1>
+      <p className="text-zinc-600">Last watchdog: {wd[0] ? `${wd[0].createdAt.toISOString()} ${j(wd[0].payload)}` : "never"}</p>
+      {await Promise.all(
+        accounts.map(async (a) => {
+          const mine = rows.filter((r) => r.businessId === a.id);
+          const pick = (t: string, n: number) => mine.filter((r) => r.type === t).slice(0, n);
+          const ranked = await allOpenRanked(a.id, 12);
+          const myProof = proofs.filter((p) => p.businessId === a.id);
+          const myMeasured = measured.filter((m) => m.businessId === a.id);
+          return (
+            <section key={a.id} className="space-y-1.5 rounded-xl border border-zinc-200 bg-white p-4">
+              <h2 className="text-sm font-semibold text-zinc-900">{a.name} <span className="font-normal text-zinc-500">{a.website} · plan {a.planTier} · {a.subscriptionStatus ?? "no subscription"}</span></h2>
+              <p><b>truth_refresh</b></p>
+              {pick("truth_refresh", 3).map((r, i) => <p key={i} className="font-mono">{r.createdAt.toISOString()} {r.status} {j(r.payload)}</p>)}
+              <p><b>discovery</b></p>
+              {pick(HOUSE_JOB.discovery, 2).map((r, i) => <p key={i} className="font-mono">{r.createdAt.toISOString()} {j(r.payload)}</p>)}
+              <p><b>orchestrator</b></p>
+              {pick(HOUSE_JOB.orchestrator, 2).map((r, i) => <p key={i} className="font-mono break-all">{r.createdAt.toISOString()} {j(r.payload)}</p>)}
+              <p><b>cycles / connector</b></p>
+              {[...pick(HOUSE_JOB.cycle, 2), ...pick(HOUSE_JOB.connectorCheck, 1), ...pick("site_connector_connected", 1)].map((r, i) => <p key={i} className="font-mono break-all">{r.createdAt.toISOString()} {r.type} {r.status} {j(r.payload)}</p>)}
+              <p><b>ranked open ({ranked.length})</b></p>
+              {ranked.map((o) => <p key={o.id} className="font-mono">{Math.round(o.rankScore)} {o.opportunityType}:{o.subtype} {o.status} {o.eligibility} cap={o.requiredCapability ?? "-"} class={o.valueClass} mode={o.businessMode}</p>)}
+              <p><b>acted / measuring ({myMeasured.length})</b></p>
+              {myMeasured.map((m, i) => <p key={i} className="font-mono break-all">{m.type}:{m.subtype} {m.status} {m.verification} plan={j(m.plan)} result={j(m.result)}</p>)}
+              <p><b>proof ({myProof.length})</b></p>
+              {myProof.map((p) => <p key={p.id} className="font-mono">L{p.proofLevel} {p.actionType} {p.verifiedAt.toISOString()} {p.summary.slice(0, 110)}</p>)}
+            </section>
+          );
+        }),
+      )}
+    </div>
+  );
+}

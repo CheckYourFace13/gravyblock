@@ -3,6 +3,7 @@
  * Runs via the worker for every paid business without a config row.
  */
 
+import { hasFullAccess } from "@/lib/entitlement";
 import { eq, inArray } from "drizzle-orm";
 import { getDb, businesses, businessConfigs, jobs, auditFindings, placeProfiles } from "@/lib/db";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
@@ -228,12 +229,12 @@ export async function runAutoConfigBatch(batchSize = 5): Promise<{ configured: n
   const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
 
   const allPaid = await db
-    .select({ id: businesses.id, planTier: businesses.planTier })
+    .select({ id: businesses.id, planTier: businesses.planTier, accountType: businesses.accountType })
     .from(businesses)
     .limit(200);
 
   const paidBizIds = allPaid
-    .filter((b) => PAID_TIERS.includes(b.planTier ?? ""))
+    .filter((b) => hasFullAccess(b))
     .map((b) => b.id);
 
   if (paidBizIds.length === 0) return { configured: 0, skipped: 0 };

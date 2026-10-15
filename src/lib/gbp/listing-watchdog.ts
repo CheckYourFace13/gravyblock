@@ -14,6 +14,7 @@
  * app already pays for.
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { getDb, businesses, jobs, operatorTasks, placeProfiles } from "@/lib/db";
@@ -167,7 +168,7 @@ export async function runListingWatchdogBatch(batchSize = 5): Promise<ListingWat
       accountType: businesses.accountType,
     })
     .from(businesses)
-    .where(inArray(businesses.planTier, PAID_TIERS))
+    .where(fullAccessWhere())
     .limit(batchSize * 4);
 
   const result: ListingWatchdogResult = { checked: 0, changed: 0, alerted: 0 };

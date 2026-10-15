@@ -11,6 +11,7 @@
  * facts only when a Facebook Page is connected.
  */
 
+import { effectivePlanTier } from "@/lib/entitlement";
 import { getDb, businesses } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { normalizePlanTierFromDb } from "@/lib/plans";
@@ -21,9 +22,9 @@ export async function queueContentForBusiness(businessId: string): Promise<{ que
   const db = getDb();
   if (!db) return { queued: 0, skipped: "no_database" };
 
-  const [biz] = await db.select({ planTier: businesses.planTier }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
+  const [biz] = await db.select({ planTier: businesses.planTier, accountType: businesses.accountType }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
   if (!biz) return { queued: 0, skipped: "business_not_found" };
-  const tier = normalizePlanTierFromDb(biz.planTier);
+  const tier = effectivePlanTier(biz);
   if (tier === "free") return { queued: 0, skipped: "not_a_paid_plan" };
 
   const isTop = tier === "pro" || tier === "agency";

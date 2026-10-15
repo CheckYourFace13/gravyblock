@@ -12,6 +12,7 @@
  * Called by the worker monthly. Tracked via jobs table.
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb, businesses, operatorTasks, jobs } from "@/lib/db";
 
@@ -106,7 +107,7 @@ export async function runCitationAuditBatch(batchSize = 5): Promise<{ audited: n
       planTier: businesses.planTier,
     })
     .from(businesses)
-    .where(inArray(businesses.planTier, PAID_TIERS))
+    .where(fullAccessWhere())
     .limit(50);
 
   let audited = 0;

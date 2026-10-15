@@ -15,6 +15,7 @@
  * from here and refuse to state anything about the business that is not present.
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { createHash } from "node:crypto";
 import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { businessConfigs, businessFacts, businesses, getDb, jobs, keywordRankings, scans, truthPages } from "@/lib/db";
@@ -615,7 +616,7 @@ export async function ensureFreshTruth(businessId: string, maxAgeHours = 24): Pr
 export async function runTruthRefreshBatch(batchSize = 12): Promise<{ light: number; deep: number; modelCalls: 0 }> {
   const db = getDb();
   if (!db) return { light: 0, deep: 0, modelCalls: 0 };
-  const paid = await db.select({ id: businesses.id }).from(businesses).where(notInArray(businesses.planTier, ["free"])).limit(500);
+  const paid = await db.select({ id: businesses.id }).from(businesses).where(fullAccessWhere()).limit(500);
   const due: { id: string; deep: boolean; last: number }[] = [];
   for (const b of paid) {
     const last = await lastRefresh(db, b.id);

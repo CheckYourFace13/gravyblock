@@ -20,11 +20,11 @@ import { businesses, getDb, jobs, proofLedger, publishingTargets } from "@/lib/d
 import { refreshBusinessTruth } from "@/lib/truth";
 import { createOpportunitiesFromTruth, invalidateStaleTruthOpportunities } from "@/lib/opportunities/truth-opportunities";
 import { scanCrossEngineOpportunities } from "@/lib/opportunities/scan";
-import { allOpenRanked } from "@/lib/opportunities/queue";
+import { allOpenRanked, blockedByCapability } from "@/lib/opportunities/queue";
 import { runOrchestrator } from "@/lib/opportunities/orchestrator";
 import { getOperatingMode } from "@/lib/business-mode";
-import { getCapabilityProfile } from "@/lib/capability-profile";
-import { SITE_ADAPTERS } from "@/lib/site-publish/adapters";
+import { SITE_ADAPTERS, detectConnector } from "@/lib/site-publish/adapters";
+import { evaluateMeasurementPlans } from "@/lib/opportunities/evaluate";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -47,6 +47,8 @@ export const HOUSE_JOB = {
   discovery: "house_discovery",
   orchestrator: "house_orchestrator",
   cycle: "house_cycle",
+  requested: "house_cycle_requested",
+  connectorCheck: "house_connector_check",
   watchdog: "house_watchdog",
 } as const;
 
@@ -63,19 +65,36 @@ export async function listHouseAccounts(): Promise<HouseAccount[]> {
 }
 
 /**
- * A house account is full-featured by definition (setHouseAccount grants a paid tier). Older rows
- * were left on 'free', which silently excluded them from every paid-tier batch. Idempotent; never
- * touches billing fields, and house accounts are excluded from MRR and customer emails.
+ * Entitlement no longer depends on plan_tier (see lib/entitlement.ts). Rows I earlier set to 'pro' as a
+ * scheduler workaround are put back exactly as they were (free + canceled), once, to prove it.
  */
-export async function normalizeHouseEntitlements(): Promise<number> {
+export async function revertWorkaroundPlans(): Promise<number> {
   const db = getDb();
   if (!db) return 0;
+  const [done] = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.type, "house_entitlement_revert_v1")).limit(1);
+  if (done) return 0;
   const rows = await db
     .update(businesses)
-    .set({ planTier: "pro" })
-    .where(and(eq(businesses.accountType, "house"), eq(businesses.planTier, "free")))
+    .set({ planTier: "free" })
+    .where(and(eq(businesses.accountType, "house"), eq(businesses.planTier, "pro"), eq(businesses.subscriptionStatus, "canceled")))
     .returning({ id: businesses.id });
+  await db.insert(jobs).values({ type: "house_entitlement_revert_v1", status: "completed", payload: { reverted: rows.length } });
   return rows.length;
+}
+
+/** Queue a forced cycle for one account (or all). The worker runs it within one tick; the admin UI never blocks on it. */
+export async function requestHouseCycle(businessId?: string): Promise<number> {
+  const db = getDb();
+  if (!db) return 0;
+  const accounts = businessId ? [{ id: businessId }] : await listHouseAccounts();
+  let n = 0;
+  for (const a of accounts) {
+    const [open] = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.businessId, a.id), eq(jobs.type, HOUSE_JOB.requested), eq(jobs.status, "pending"))).limit(1);
+    if (open) continue;
+    await db.insert(jobs).values({ businessId: a.id, type: HOUSE_JOB.requested, status: "pending", payload: { force: true, requestedAt: new Date().toISOString() } });
+    n++;
+  }
+  return n;
 }
 
 type JobRow = { businessId: string | null; type: string; status: string; createdAt: Date; payload: unknown };
@@ -85,7 +104,7 @@ async function loadJobs(ids: string[]): Promise<Map<string, JobRow[]>> {
   const db = getDb();
   const out = new Map<string, JobRow[]>();
   if (!db || ids.length === 0) return out;
-  const types = ["truth_refresh", HOUSE_JOB.discovery, HOUSE_JOB.orchestrator, HOUSE_JOB.cycle, "site_connector_connected", "basic_seo_applied", "page_improved"];
+  const types = ["truth_refresh", HOUSE_JOB.discovery, HOUSE_JOB.orchestrator, HOUSE_JOB.cycle, HOUSE_JOB.requested, HOUSE_JOB.connectorCheck, "site_connector_connected", "basic_seo_applied", "page_improved"];
   const rows = await db
     .select({ businessId: jobs.businessId, type: jobs.type, status: jobs.status, createdAt: jobs.createdAt, payload: jobs.payload })
     .from(jobs)
@@ -111,6 +130,10 @@ export type HouseState = {
   lastOrchestrator: Date | null;
   lastFailedCycle: Date | null;
   lastRefreshNote: string | null;
+  lastCycle: { at: Date; status: string; errors: string[]; acted: number } | null;
+  cycleRequested: boolean;
+  recentOrchestratorErrors: number;
+  connectorCheck: { at: Date; ok: boolean } | null;
 };
 
 export function stateFromJobs(rows: JobRow[] | undefined): HouseState {
@@ -124,6 +147,21 @@ export function stateFromJobs(rows: JobRow[] | undefined): HouseState {
     lastOrchestrator: latest(rows, (r) => r.type === HOUSE_JOB.orchestrator && r.status === "completed")?.createdAt ?? null,
     lastFailedCycle: latest(rows, (r) => r.type === HOUSE_JOB.cycle && r.status === "partial")?.createdAt ?? null,
     lastRefreshNote: ((refresh?.payload as { note?: string } | null)?.note ?? null) as string | null,
+    lastCycle: (() => {
+      const c = latest(rows, (r) => r.type === HOUSE_JOB.cycle);
+      const p = (c?.payload ?? {}) as { errors?: string[]; acted?: number };
+      return c ? { at: c.createdAt, status: c.status, errors: p.errors ?? [], acted: p.acted ?? 0 } : null;
+    })(),
+    cycleRequested: Boolean(latest(rows, (r) => r.type === HOUSE_JOB.requested && r.status === "pending")),
+    // Steps that errored in each of the last two orchestrator runs = a stuck executor, not a quiet queue.
+    recentOrchestratorErrors: (rows ?? [])
+      .filter((r) => r.type === HOUSE_JOB.orchestrator)
+      .slice(0, 2)
+      .filter((r) => ((r.payload as { steps?: Array<{ outcome: string }> } | null)?.steps ?? []).some((x) => x.outcome === "error")).length,
+    connectorCheck: (() => {
+      const c = latest(rows, (r) => r.type === HOUSE_JOB.connectorCheck);
+      return c ? { at: c.createdAt, ok: (c.payload as { ok?: boolean } | null)?.ok === true } : null;
+    })(),
   };
 }
 
@@ -132,7 +170,8 @@ const age = (d: Date | null) => (d ? Date.now() - d.getTime() : Infinity);
 export function dueSteps(s: HouseState) {
   const backoff = s.lastFailedCycle && age(s.lastFailedCycle) < HOUSE_CADENCE.retryBackoffHours * HOUR;
   return {
-    backoff: Boolean(backoff),
+    requested: s.cycleRequested,
+    backoff: Boolean(backoff) && !s.cycleRequested,
     deep: age(s.lastDeep) > HOUSE_CADENCE.deepEveryDays * DAY,
     // A failed homepage read is re-checked within hours instead of waiting a day.
     light: age(s.lastLight) > (s.lastRefreshNote === "homepage_unreachable" ? 2 : HOUSE_CADENCE.lightEveryHours) * HOUR,
@@ -168,12 +207,14 @@ export async function runHouseAccountCycle(businessId: string, opts: { force?: b
   const jobMap = await loadJobs([businessId]);
   const state = stateFromJobs(jobMap.get(businessId));
   const due = dueSteps(state);
-  if (due.backoff && !opts.force) return report;
+  const force = Boolean(opts.force) || due.requested;
+  if (due.backoff && !force) return report;
+  const startedAt = Date.now();
 
   // 1. Refresh Business Truth from first-party sources.
   let changed = false;
-  if (opts.force || due.light || due.deep) {
-    const mode = opts.force || due.deep ? "deep" : "light";
+  if (force || due.light || due.deep) {
+    const mode = force || due.deep ? "deep" : "light";
     try {
       const r = await refreshBusinessTruth(businessId, mode);
       report.refreshed = mode;
@@ -188,7 +229,7 @@ export async function runHouseAccountCycle(businessId: string, opts: { force?: b
 
   // 2. New or changed information, or stale discovery, reruns opportunity discovery.
   let discovered = false;
-  if (opts.force || changed || due.discovery) {
+  if (force || changed || due.discovery) {
     try {
       const retired = changed ? await invalidateStaleTruthOpportunities() : { expired: 0 };
       const fromTruth = await createOpportunitiesFromTruth(businessId);
@@ -204,7 +245,7 @@ export async function runHouseAccountCycle(businessId: string, opts: { force?: b
   // 3. Act on the best safe opportunities. The engines own cooldowns and measurement windows,
   //    so running here after a refresh never means "edit a page just because a week passed".
   const sinceOrch = age(state.lastOrchestrator);
-  const orchDue = opts.force || due.orchestrator || (changed && sinceOrch > HOUSE_CADENCE.orchestratorMinGapHours * HOUR);
+  const orchDue = force || due.orchestrator || (changed && sinceOrch > HOUSE_CADENCE.orchestratorMinGapHours * HOUR);
   if (orchDue) {
     try {
       const steps = await runOrchestrator(businessId, 5);
@@ -212,31 +253,71 @@ export async function runHouseAccountCycle(businessId: string, opts: { force?: b
       report.orchestrated = true;
       report.acted = acted;
       await record(businessId, HOUSE_JOB.orchestrator, "completed", {
-        trigger: changed ? "business_truth_changed" : opts.force ? "forced" : "scheduled",
+        trigger: changed ? "business_truth_changed" : force ? "forced" : "scheduled",
         acted,
-        steps: steps.map((s) => ({ type: s.opportunityType, eligibility: s.eligibility, outcome: s.result.outcome, ...("reason" in s.result ? { reason: s.result.reason } : {}) })),
+        steps: steps.map((s) => ({
+          type: s.opportunityType,
+          opportunityId: s.opportunityId,
+          rankScore: Math.round(s.rankScore),
+          eligibility: s.eligibility,
+          why: s.selectedWhy,
+          outcome: s.result.outcome,
+          ...("reason" in s.result ? { reason: s.result.reason } : {}),
+          ...("detail" in s.result && s.result.detail !== undefined ? { detail: JSON.stringify(s.result.detail).slice(0, 700) } : {}),
+        })),
       });
     } catch (err) {
       report.errors.push(`orchestrator:${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
-  await record(businessId, HOUSE_JOB.cycle, report.errors.length ? "partial" : "completed", { ...report });
+  await record(businessId, HOUSE_JOB.cycle, report.errors.length ? "partial" : "completed", { ...report, forced: force, durationMs: Date.now() - startedAt });
+  if (due.requested) await db.update(jobs).set({ status: "completed" }).where(and(eq(jobs.businessId, businessId), eq(jobs.type, HOUSE_JOB.requested), eq(jobs.status, "pending")));
   return report;
+}
+
+const inFlight = new Set<string>();
+
+/** Runs a cycle unless that account is already mid-cycle in this process (tick and request poller can overlap). */
+async function runGuarded(businessId: string): Promise<CycleReport | null> {
+  if (inFlight.has(businessId)) return null;
+  inFlight.add(businessId);
+  try {
+    return await runHouseAccountCycle(businessId);
+  } finally {
+    inFlight.delete(businessId);
+  }
+}
+
+/** Polled every minute by the worker so an admin "Run cycle now" starts within about a minute, not at the next 15-minute tick. */
+export async function runRequestedHouseCycles(max = 2): Promise<number> {
+  const db = getDb();
+  if (!db) return 0;
+  const pending = await db.select({ businessId: jobs.businessId }).from(jobs).where(and(eq(jobs.type, HOUSE_JOB.requested), eq(jobs.status, "pending"))).orderBy(jobs.createdAt).limit(max);
+  let n = 0;
+  for (const p of pending) {
+    if (!p.businessId) continue;
+    const r = await runGuarded(p.businessId).catch((err) => {
+      console.error("[house] requested cycle failed", { businessId: p.businessId, error: err instanceof Error ? err.message : String(err) });
+      return null;
+    });
+    if (r) n++;
+  }
+  return n;
 }
 
 /** Worker entry: process the most overdue house accounts first, a few per tick. */
 export async function runHouseFleetTick(maxPerTick = 3): Promise<{ accounts: number; ran: number; acted: number; errors: number }> {
   const db = getDb();
   if (!db) return { accounts: 0, ran: 0, acted: 0, errors: 0 };
-  await normalizeHouseEntitlements();
+  await revertWorkaroundPlans();
   const accounts = await listHouseAccounts();
   const jobMap = await loadJobs(accounts.map((a) => a.id));
   const queue = accounts
     .map((a) => {
       const s = stateFromJobs(jobMap.get(a.id));
       const d = dueSteps(s);
-      const anyDue = d.light || d.deep || d.discovery || d.orchestrator;
+      const anyDue = d.requested || d.light || d.deep || d.discovery || d.orchestrator;
       const oldest = Math.min(s.lastLight?.getTime() ?? 0, s.lastOrchestrator?.getTime() ?? 0, s.lastDiscovery?.getTime() ?? 0);
       return { a, anyDue: anyDue && !d.backoff, oldest };
     })
@@ -247,7 +328,8 @@ export async function runHouseFleetTick(maxPerTick = 3): Promise<{ accounts: num
   let errors = 0;
   for (const q of queue) {
     try {
-      const r = await runHouseAccountCycle(q.a.id);
+      const r = await runGuarded(q.a.id);
+      if (!r) continue;
       acted += r.acted;
       errors += r.errors.length;
     } catch (err) {
@@ -324,38 +406,48 @@ export async function getHouseFleetStatus(): Promise<HouseAccountStatus[]> {
     let mode = "unknown";
     const blocked: string[] = [];
     let topOpportunity: string | null = null;
+    let websiteWorkPending = 0;
+    let eligibleNow = 0;
     try {
       mode = (await getOperatingMode(a.id)).mode;
-      const profile = await getCapabilityProfile(a.id);
-      if (!profile.website.connected) blocked.push("website write connector");
-      if (!profile.search.gscConnected) blocked.push("Search Console");
-      if (!profile.gbp.connected) blocked.push("Google Business Profile");
-      if (!profile.social.facebook) blocked.push("social");
-      const ranked = await allOpenRanked(a.id, 5);
-      const top = ranked.find((r) => r.eligibility === "AUTO_ELIGIBLE") ?? ranked[0];
-      topOpportunity = top ? `${top.opportunityType}${top.subtype ? `: ${top.subtype}` : ""} (${top.eligibility})` : null;
+      const ranked = await allOpenRanked(a.id, 25);
+      const blockedRows = await blockedByCapability(a.id, 25);
+      // Only capabilities that relevant, auto-eligible work is actually waiting on count as blocked.
+      for (const r of blockedRows) if (r.requiredCapability && !blocked.includes(r.requiredCapability)) blocked.push(r.requiredCapability);
+      const eligible = ranked.filter((r) => r.eligibility === "AUTO_ELIGIBLE");
+      eligibleNow = eligible.length;
+      const top = eligible[0];
+      topOpportunity = top ? `${top.opportunityType}${top.subtype ? `: ${top.subtype}` : ""} (rank ${Math.round(top.rankScore)})` : ranked[0] ? `none eligible now; best open is ${ranked[0].opportunityType} (${ranked[0].eligibility})` : null;
+      websiteWorkPending = ranked.filter((r) => r.status === "open" && r.requiredCapability === "website_write").length;
     } catch (err) {
       yellow(`status read failed: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     const opps = oppRows.filter((r) => r.business_id === a.id);
-    const count = (s: string) => opps.filter((o) => o.status === s).reduce((n, o) => n + Number(o.n), 0);
+    const count = (st: string) => opps.filter((o) => o.status === st).reduce((n, o) => n + Number(o.n), 0);
     const proofs = proofRows.filter((r) => r.business_id === a.id);
     const lvl = (l: number) => proofs.filter((p) => Number(p.proof_level) === l).reduce((n, p) => n + Number(p.n), 0);
     const lp = lastProof.find((p) => p.businessId === a.id);
     // Only adapters that can actually write to the live site count as a connector (not "manual"/"internal" placeholders).
     const connectorKind = targets.find((t) => t.businessId === a.id && t.adapter in SITE_ADAPTERS)?.adapter ?? null;
 
+    // RED = the core loop is stale, broken or repeatedly failing.
     if (!a.website) red("no website on the account");
     if (age(state.lastLight) > HOUSE_CADENCE.redIfRefreshOlderThanDays * DAY) red("Business Truth refresh overdue");
     if (age(state.lastDeep) > HOUSE_CADENCE.redIfDeepOlderThanDays * DAY) red("deep refresh older than 9 days");
     if (age(state.lastDiscovery) > HOUSE_CADENCE.redIfLoopOlderThanDays * DAY) red("opportunity discovery overdue");
     if (age(state.lastOrchestrator) > HOUSE_CADENCE.redIfLoopOlderThanDays * DAY) red("orchestrator not running");
     if (state.lastRefreshNote === "homepage_unreachable") red("homepage unreachable on last refresh");
+    if (state.recentOrchestratorErrors >= 2) red("executor errored in each of the last two runs");
+    if (connectorKind && state.connectorCheck && !state.connectorCheck.ok) red("site connector failing its handshake");
+    // GREEN additionally needs the deep refresh within 7 days; slightly overdue is YELLOW, not green.
     if (health !== "RED") {
+      if (age(state.lastDeep) > 7 * DAY) yellow("deep refresh older than 7 days");
       if (state.lastFailedCycle && age(state.lastFailedCycle) < DAY) yellow("last cycle had a failing step (auto-retrying)");
-      if (!connectorKind) yellow("no website write connector: content/page edits blocked, other work continues");
+      if (!connectorKind && websiteWorkPending > 0) yellow(`no website write connector: ${websiteWorkPending} page/content opportunities waiting, other work continues`);
+      if (blocked.filter((b) => b !== "website_write").length) yellow(`relevant work waiting on: ${blocked.filter((b) => b !== "website_write").join(", ")}`);
     }
+    void eligibleNow;
 
     out.push({
       id: a.id,
@@ -386,7 +478,26 @@ export async function getHouseFleetStatus(): Promise<HouseAccountStatus[]> {
 export async function runHouseWatchdog(): Promise<{ checked: number; retried: number; stillRed: Array<{ name: string; reasons: string[] }> }> {
   const db = getDb();
   if (!db) return { checked: 0, retried: 0, stillRed: [] };
-  await normalizeHouseEntitlements();
+  await revertWorkaroundPlans();
+
+  // Connector handshake for every site that has a write connector (detectConnector reads the signed marker).
+  const accounts = await listHouseAccounts();
+  const withTarget = await db.select({ businessId: publishingTargets.businessId }).from(publishingTargets).where(and(inArray(publishingTargets.businessId, accounts.map((a) => a.id)), eq(publishingTargets.adapter, "managed_feed"), eq(publishingTargets.active, "true")));
+  for (const t of withTarget) {
+    const acct = accounts.find((a) => a.id === t.businessId);
+    if (!acct?.website) continue;
+    const found = await detectConnector(acct.website).catch(() => null);
+    await record(acct.id, HOUSE_JOB.connectorCheck, "completed", { ok: found?.businessId === acct.id });
+  }
+
+  // The measurement evaluator is global; if it has not run for 36h, run it now (idempotent).
+  const [lastEval] = await db.select({ createdAt: jobs.createdAt }).from(jobs).where(eq(jobs.type, "opportunity_measurement_eval")).orderBy(desc(jobs.createdAt)).limit(1);
+  let evaluatorRetried = false;
+  if (!lastEval || age(lastEval.createdAt) > 36 * HOUR) {
+    await evaluateMeasurementPlans(20).catch((e) => console.error("[house-watchdog] evaluator retry failed", e));
+    evaluatorRetried = true;
+  }
+
   let status = await getHouseFleetStatus();
   const red = status.filter((s) => s.health === "RED" && s.domain);
   let retried = 0;
@@ -400,6 +511,6 @@ export async function runHouseWatchdog(): Promise<{ checked: number; retried: nu
   }
   if (retried) status = await getHouseFleetStatus();
   const stillRed = status.filter((s) => s.health === "RED").map((s) => ({ name: s.name, reasons: s.reasons }));
-  await db.insert(jobs).values({ type: HOUSE_JOB.watchdog, status: "completed", payload: { checked: status.length, retried, green: status.filter((s) => s.health === "GREEN").length, yellow: status.filter((s) => s.health === "YELLOW").length, red: stillRed.length, stillRed } });
+  await db.insert(jobs).values({ type: HOUSE_JOB.watchdog, status: "completed", payload: { checked: status.length, retried, evaluatorRetried, green: status.filter((s) => s.health === "GREEN").length, yellow: status.filter((s) => s.health === "YELLOW").length, red: stillRed.length, stillRed } });
   return { checked: status.length, retried, stillRed };
 }

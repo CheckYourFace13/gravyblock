@@ -11,8 +11,9 @@
  * source page and Google's media resource name as evidence.
  */
 
+import { effectivePlanTier } from "@/lib/entitlement";
 import { createHash } from "node:crypto";
-import { and, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, or } from "drizzle-orm";
 import { getDb, businesses, jobs } from "@/lib/db";
 import { uploadGbpPhoto, isGbpConnected } from "@/lib/integrations/gbp-write";
 import { normalizePlanTierFromDb } from "@/lib/plans";
@@ -29,9 +30,9 @@ export async function runGbpPhotoUploadBatch(
   if (!db) return { processed: 0, uploaded: 0, errors: 0 };
 
   const biz = await db
-    .select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier })
+    .select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier, accountType: businesses.accountType })
     .from(businesses)
-    .where(inArray(businesses.planTier, ELIGIBLE_TIERS))
+    .where(or(eq(businesses.accountType, "house"), inArray(businesses.planTier, ELIGIBLE_TIERS)))
     .limit(50);
 
   let processed = 0;
@@ -41,7 +42,7 @@ export async function runGbpPhotoUploadBatch(
 
   for (const b of biz) {
     if (processed >= batchSize) break;
-    if (!ELIGIBLE_TIERS.includes(normalizePlanTierFromDb(b.planTier))) continue;
+    if (!ELIGIBLE_TIERS.includes(effectivePlanTier(b))) continue;
     if (!(await isGbpConnected(b.id))) continue;
 
     // One photo per business per week.

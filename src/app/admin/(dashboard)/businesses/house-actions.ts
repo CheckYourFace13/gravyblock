@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { businesses, getDb } from "@/lib/db";
 import { isAdminSession } from "@/lib/auth/admin-session";
-import { runHouseAccountCycle } from "@/lib/house";
+import { requestHouseCycle } from "@/lib/house";
 
 const MODES = ["local", "regional", "national", "online"] as const;
 
@@ -36,16 +36,25 @@ export async function enrollHouseSite(formData: FormData): Promise<void> {
   const all = await db.select({ id: businesses.id, website: businesses.website, accountType: businesses.accountType }).from(businesses);
   const existing = all.find((b) => b.website && hostOf(b.website) === host);
   if (existing) {
-    await db.update(businesses).set({ accountType: "house", planTier: "pro" }).where(eq(businesses.id, existing.id));
+    await db.update(businesses).set({ accountType: "house" }).where(eq(businesses.id, existing.id));
   } else {
-    await db.insert(businesses).values({ name, website: `https://${host}`, websiteNormalized: host, businessModel: "online", focusArea, planTier: "pro", accountType: "house" });
+    await db.insert(businesses).values({ name, website: `https://${host}`, websiteNormalized: host, businessModel: "online", focusArea, accountType: "house" });
   }
   revalidatePath("/admin/businesses");
 }
 
-/** Runs one full house-account cycle now (refresh, discovery, orchestrator). Same code the scheduler runs. */
+/** Queues a forced cycle (deep refresh, discovery, orchestrator) for one account. The worker starts it within about a minute. */
 export async function runHouseCycleNow(businessId: string): Promise<void> {
   if (!(await isAdminSession())) throw new Error("Not authorized.");
-  await runHouseAccountCycle(businessId, { force: true });
+  await requestHouseCycle(businessId);
   revalidatePath("/admin/businesses");
+  revalidatePath("/admin/house");
+}
+
+/** Queues a forced cycle for every house account. */
+export async function runFleetCycleNow(): Promise<void> {
+  if (!(await isAdminSession())) throw new Error("Not authorized.");
+  await requestHouseCycle();
+  revalidatePath("/admin/businesses");
+  revalidatePath("/admin/house");
 }

@@ -1,3 +1,5 @@
+import { effectivePlanTier } from "@/lib/entitlement";
+import { fullAccessWhere } from "@/lib/entitlement";
 import { recordProof } from "@/lib/proof/ledger";
 import { markdownToHtml, wordCount } from "@/lib/site-publish/markdown";
 import { randomUUID } from "node:crypto";
@@ -896,7 +898,7 @@ export async function runPendingRecurringSnapshotJobs(limit = 10) {
       }
 
       if (business?.planTier) {
-        const planForSchedule = normalizePlanTierFromDb(business.planTier);
+        const planForSchedule = effectivePlanTier(business);
         if (planForSchedule !== "free") {
           // Was fire-and-forget (`void ...`, never awaited) — a failure here
           // silently ended the recurring chain forever for this business,
@@ -946,9 +948,9 @@ export async function backfillMissingRecurringJobs(batchSize = 50): Promise<{ sc
 
   const PAID_TIERS = ["starter", "growth", "pro", "agency", "base", "managed", "entry"];
   const paidBusinesses = await db
-    .select({ id: businesses.id, planTier: businesses.planTier })
+    .select({ id: businesses.id, planTier: businesses.planTier, accountType: businesses.accountType })
     .from(businesses)
-    .where(inArray(businesses.planTier, PAID_TIERS))
+    .where(fullAccessWhere())
     .limit(2000);
 
   if (paidBusinesses.length === 0) return { scheduled: 0, checked: 0 };
@@ -970,7 +972,7 @@ export async function backfillMissingRecurringJobs(batchSize = 50): Promise<{ sc
 
   let scheduled = 0;
   for (const biz of missing.slice(0, batchSize)) {
-    const tier = normalizePlanTierFromDb(biz.planTier);
+    const tier = effectivePlanTier(biz);
     if (tier === "free") continue;
     try {
       const result = await scheduleRecurringSnapshotJob({

@@ -1,3 +1,4 @@
+import { effectivePlanTier } from "@/lib/entitlement";
 import { eq, and, inArray, desc, isNotNull } from "drizzle-orm";
 import { getDb, publishedContent, businesses, businessConfigs, contentQueue } from "@/lib/db";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
@@ -99,14 +100,14 @@ export async function repurposePublishedArticle(publishedContentId: string): Pro
   if (!article || !article.businessId) return { queued: 0 };
 
   const [biz] = await db
-    .select({ name: businesses.name, address: businesses.address, planTier: businesses.planTier })
+    .select({ name: businesses.name, address: businesses.address, planTier: businesses.planTier, accountType: businesses.accountType })
     .from(businesses)
     .where(eq(businesses.id, article.businessId))
     .limit(1);
 
   if (!biz) return { queued: 0 };
 
-  const tier = normalizePlanTierFromDb(biz.planTier);
+  const tier = effectivePlanTier(biz);
   const variants = VARIANTS_BY_PLAN[tier] ?? [];
   if (variants.length === 0) return { queued: 0 };
 

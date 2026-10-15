@@ -10,6 +10,7 @@
  * The worker calls runMultiPlatformReviewBatch() once per business per week.
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { and, desc, eq, inArray, gte, sql } from "drizzle-orm";
 import { getDb, businesses, businessReviews, jobs, publishedContent, contentQueue } from "@/lib/db";
 import { sendWeeklyDigestEmail } from "@/lib/integrations/resend";
@@ -326,7 +327,7 @@ export async function runMultiPlatformReviewBatch(batchSize = 5): Promise<{
   const paid = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(inArray(businesses.planTier, PAID_TIERS))
+    .where(fullAccessWhere())
     .limit(50);
 
   let synced = 0;

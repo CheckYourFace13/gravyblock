@@ -12,6 +12,7 @@
  * where a publishing integration exists (not implemented here).
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { businesses, getDb, jobs, leads } from "@/lib/db";
 import { safeFetchText } from "@/lib/net/safe-fetch";
@@ -112,7 +113,7 @@ export async function runSiteWatchdogBatch(batchSize = 5): Promise<{ checked: nu
   const paid = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(inArray(businesses.planTier, ["starter", "growth", "pro", "agency", "base", "managed", "entry"]))
+    .where(fullAccessWhere())
     .limit(300);
   const weekAgo = Date.now() - 6.5 * 86_400_000;
   const due: { id: string; last: number }[] = [];

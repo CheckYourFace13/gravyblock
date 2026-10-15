@@ -8,7 +8,8 @@
  * sweep across all businesses (see worker/index.ts) independent of per-business ranking.
  */
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
-import { businessConfigs, businesses, getDb, jobs, reviewRequests } from "@/lib/db";
+import { businessConfigs, businesses, getDb, growthOpportunities, jobs, reviewRequests } from "@/lib/db";
+import { getOperatingMode } from "@/lib/business-mode";
 import { getCapabilityProfile } from "@/lib/capability-profile";
 import { getBusinessTruth, promotableContent, currentOffers } from "@/lib/truth";
 import { recordOpportunity } from "./queue";
@@ -25,7 +26,19 @@ export async function scanCrossEngineOpportunities(businessId: string): Promise<
   // GBP: a connected profile with no post in the last 14 days is a live opportunity.
   const [lastGbpPost] = await db.select({ createdAt: jobs.createdAt }).from(jobs).where(and(eq(jobs.businessId, businessId), eq(jobs.type, "gbp_post_published"))).orderBy(desc(jobs.createdAt)).limit(1);
   const gbpStale = !lastGbpPost || Date.now() - lastGbpPost.createdAt.getTime() > 14 * DAY;
-  if (gbpStale && truth.sufficient) {
+  // A Google Business Profile only matters for a business that legitimately has one: a matched Google
+  // place, or a local/regional business that states a physical address. Online and national-only
+  // businesses never get GBP work, and any GBP opportunity recorded earlier is retired.
+  const mode = await getOperatingMode(businessId);
+  const statesAddress = truth.facts.some((f) => f.key === "address");
+  const gbpRelevant = profile.gbp.placeMatched || ((mode.mode === "local" || mode.mode === "regional") && statesAddress);
+  if (!gbpRelevant) {
+    await db
+      .update(growthOpportunities)
+      .set({ status: "expired", resolvedAt: new Date() })
+      .where(and(eq(growthOpportunities.businessId, businessId), eq(growthOpportunities.opportunityType, "gbp"), eq(growthOpportunities.status, "open")));
+  }
+  if (gbpRelevant && gbpStale && truth.sufficient) {
     const r = await recordOpportunity({
       businessId,
       opportunityType: "gbp",

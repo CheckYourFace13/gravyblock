@@ -10,6 +10,7 @@
  * Requires: REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, REDDIT_PASSWORD
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { randomUUID } from "crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { getDb, businesses, contentQueue, publishedContent } from "@/lib/db";
@@ -55,7 +56,7 @@ export async function runRedditPostingBatch(): Promise<RedditPostBatchResult> {
       and(
         eq(contentQueue.kind, "reddit_post"),
         eq(contentQueue.status, "queued"),
-        inArray(businesses.planTier, PAID_TIERS),
+        fullAccessWhere(),
       ),
     )
     .limit(MAX_PER_RUN);

@@ -12,6 +12,7 @@
  * Worker calls this weekly (not daily — more expensive than GSC).
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { and, eq, gte, inArray } from "drizzle-orm";
 import { getDb, businesses, businessConfigs, keywordRankings } from "@/lib/db";
 
@@ -128,7 +129,7 @@ export async function runLocalPackTrackingBatch(limit = 5): Promise<{ synced: nu
       primaryCategory: businesses.primaryCategory,
     })
     .from(businesses)
-    .where(inArray(businesses.planTier, PAID_TIERS))
+    .where(fullAccessWhere())
     .limit(limit * 3);
 
   let synced = 0;

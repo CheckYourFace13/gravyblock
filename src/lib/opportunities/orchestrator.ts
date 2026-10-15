@@ -114,18 +114,27 @@ export async function runOrchestratorBatch(limit = 10): Promise<{ businesses: nu
 export async function runOrchestrator(businessId: string, maxTypes = 5): Promise<OrchestratorStep[]> {
   const ranked = await allOpenRanked(businessId, 50);
   const steps: OrchestratorStep[] = [];
-  const seenTypes = new Set<OpportunityType>();
+  const seenTypes = new Set<OpportunityType>(); // channels already worked this run
+  const reportedSkips = new Set<OpportunityType>();
+  let attempted = 0;
   for (const opp of ranked) {
-    if (seenTypes.size >= maxTypes) break;
+    // The cap counts channels actually worked, so blocked/measuring rows never crowd out eligible ones,
+    // and a blocked top row never hides a lower-ranked eligible row of the same channel.
+    if (attempted >= maxTypes) break;
     const type = opp.opportunityType as OpportunityType;
     if (seenTypes.has(type)) continue; // one action per channel per run — diversity, not monopoly
-    seenTypes.add(type);
     if (opp.eligibility !== "AUTO_ELIGIBLE") {
-      steps.push({ opportunityType: type, opportunityId: opp.id, rankScore: opp.rankScore, eligibility: opp.eligibility, selectedWhy: `highest-ranked open ${type} opportunity, but ${opp.eligibility.toLowerCase()}`, result: { attempted: false, outcome: "skipped", reason: opp.eligibility } });
+      if (!reportedSkips.has(type)) {
+        reportedSkips.add(type);
+        steps.push({ opportunityType: type, opportunityId: opp.id, rankScore: opp.rankScore, eligibility: opp.eligibility, selectedWhy: `highest-ranked open ${type} opportunity, but ${opp.eligibility.toLowerCase()}`, result: { attempted: false, outcome: "skipped", reason: opp.eligibility } });
+      }
       continue;
     }
+    seenTypes.add(type);
+    attempted++;
     const handler = HANDLERS[type];
     if (!handler) {
+      attempted--; // nothing was worked, so it must not use up a slot
       steps.push({ opportunityType: type, opportunityId: opp.id, rankScore: opp.rankScore, eligibility: opp.eligibility, selectedWhy: `highest-ranked open ${type} opportunity`, result: { attempted: false, outcome: "skipped", reason: "no_orchestrated_handler_yet" } });
       continue;
     }

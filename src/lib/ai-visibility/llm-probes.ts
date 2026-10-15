@@ -12,6 +12,7 @@
  * Tracked via jobs: type = "llm_probe_run", payload = { businessId }.
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { getDb, businesses, businessConfigs, aiVisibilityChecks, jobs } from "@/lib/db";
 import { getBusinessTruth } from "@/lib/truth";
@@ -258,7 +259,7 @@ export async function runLlmProbeBatch(batchSize = 3): Promise<{ ran: number; to
   const paid = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(inArray(businesses.planTier, PAID_TIERS))
+    .where(fullAccessWhere())
     .limit(50);
 
   let ran = 0;

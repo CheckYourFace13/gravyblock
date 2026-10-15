@@ -19,6 +19,7 @@
  * (evidence trail: when, what, exact URLs).
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { recordProof } from "@/lib/proof/ledger";
 import { recordOpportunity, markActed, recordMeasurementByDedupeKey, getMeasurementPlanByDedupeKey } from "@/lib/opportunities/queue";
 import { buildMeasurementPlan } from "@/lib/opportunities/measurement";
@@ -1041,7 +1042,7 @@ export async function runAuthorityBatch(opts: { maxBusinesses?: number; sendEnab
   const biz = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(inArray(businesses.planTier, PAID_TIERS))
+    .where(fullAccessWhere())
     .limit(200);
   const stats = await getSourceTypeStats(db);
 

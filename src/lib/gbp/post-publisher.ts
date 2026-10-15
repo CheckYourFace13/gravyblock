@@ -10,6 +10,7 @@
  * Runs once per week per business — gated by hasJobRunThisWeek per businessId.
  */
 
+import { effectivePlanTier } from "@/lib/entitlement";
 import { eq, and, inArray, desc, gte, ne } from "drizzle-orm";
 import { getDb, businesses, publishedContent, jobs } from "@/lib/db";
 import { openRouterChat, MODELS } from "@/lib/integrations/openrouter";
@@ -91,9 +92,9 @@ export async function postGbpForBusiness(businessId: string): Promise<GbpPostRes
   const db = getDb();
   if (!db) return { posted: false, reason: "no_db" };
 
-  const [biz] = await db.select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier, website: businesses.website }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
+  const [biz] = await db.select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier, accountType: businesses.accountType, website: businesses.website }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
   if (!biz) return { posted: false, reason: "business_not_found" };
-  const tier = normalizePlanTierFromDb(biz.planTier);
+  const tier = effectivePlanTier(biz);
   if (!ELIGIBLE_TIERS.includes(tier)) return { posted: false, reason: "plan_not_eligible" };
   if (await hasGbpPostThisWeek(biz.id)) return { posted: false, reason: "already_posted_this_week" };
   if (!(await isGbpConnected(biz.id))) return { posted: false, reason: "gbp_not_connected" };

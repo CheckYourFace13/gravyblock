@@ -10,6 +10,7 @@
  * A result counts only after the LIVE page shows it; proof is written only then.
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { businesses, getDb, jobs } from "@/lib/db";
 import { safeFetchText } from "@/lib/net/safe-fetch";
@@ -337,7 +338,7 @@ export async function verifyBasicSeoActions(businessId?: string): Promise<{ chec
 export async function runBasicSeoBatch(limit = 6): Promise<{ businesses: number; applied: number; verified: number }> {
   const db = getDb();
   if (!db) return { businesses: 0, applied: 0, verified: 0 };
-  const targets = await db.select({ id: businesses.id }).from(businesses).where(inArray(businesses.planTier, ["starter", "growth", "pro", "agency", "base", "managed", "entry"])).limit(50);
+  const targets = await db.select({ id: businesses.id }).from(businesses).where(fullAccessWhere()).limit(50);
   let applied = 0;
   let n = 0;
   for (const t of targets) {

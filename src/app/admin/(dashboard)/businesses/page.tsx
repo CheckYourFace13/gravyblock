@@ -2,7 +2,7 @@ import Link from "next/link";
 import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { listBusinessSummaries } from "@/lib/report/repository";
 import { getHouseFleetStatus, type HouseHealth } from "@/lib/house";
-import { enrollHouseSite, runHouseCycleNow } from "./house-actions";
+import { enrollHouseSite, runFleetCycleNow, runHouseCycleNow } from "./house-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -122,6 +122,12 @@ export default async function AdminBusinessesPage({ searchParams }: Props) {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-800">
           House accounts — quick access ({houseCount})
         </h2>
+        <div className="mt-1 text-xs text-amber-900">
+          <Link href="/admin/house" className="font-semibold underline">Per-account engine detail</Link>
+          <form action={runFleetCycleNow} className="ml-3 inline">
+            <button type="submit" className="font-semibold underline">Queue a full cycle for all</button>
+          </form>
+        </div>
         {houseCount > 0 ? (
           <ul className="mt-3 divide-y divide-amber-100">
             {houseAccounts.map((b) => (
@@ -140,11 +146,12 @@ export default async function AdminBusinessesPage({ searchParams }: Props) {
                       Manage
                     </Link>
                     <form action={runHouseCycleNow.bind(null, b.id)}>
-                      <button type="submit" className="text-zinc-500 hover:text-zinc-800">Run cycle now</button>
+                      <button type="submit" className="text-zinc-500 hover:text-zinc-800" disabled={b.state.cycleRequested}>{b.state.cycleRequested ? "Cycle queued…" : "Run cycle now"}</button>
                     </form>
                   </div>
                 </div>
                 <div className="grid gap-x-6 gap-y-0.5 text-xs text-zinc-600 sm:grid-cols-2">
+                  <span>Last cycle: {b.state.lastCycle ? `${ago(b.state.lastCycle.at)}, ${b.state.lastCycle.status}${b.state.lastCycle.errors.length ? ` (${b.state.lastCycle.errors.join("; ").slice(0, 80)})` : ""}, acted ${b.state.lastCycle.acted}` : "never"}</span>
                   <span>Last light check: {ago(b.state.lastLight)}</span>
                   <span>Last deep refresh: {ago(b.state.lastDeep)} (next due {b.nextDeepDue ? b.nextDeepDue.toISOString().slice(0, 10) : "now"})</span>
                   <span>Last opportunity discovery: {ago(b.state.lastDiscovery)}</span>

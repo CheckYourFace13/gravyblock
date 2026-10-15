@@ -16,6 +16,7 @@
  * Statuses: consistent | drift_detected | not_found | unsupported_no_touch | needs_one_time_authorization
  */
 
+import { hasFullAccess } from "@/lib/entitlement";
 import { and, eq, inArray } from "drizzle-orm";
 import { businessConfigs, businesses, citationMonitors, getDb, jobs, operatorTasks } from "@/lib/db";
 import { ensureFreshTruth, type BusinessTruth } from "@/lib/truth";
@@ -233,8 +234,8 @@ export async function runCitationEngineBatch(batchSize = 5): Promise<{ ran: numb
   let ran = 0;
   for (const d of due.slice(0, batchSize)) {
     try {
-      const [biz] = await db.select({ planTier: businesses.planTier }).from(businesses).where(eq(businesses.id, d.id)).limit(1);
-      if (!biz || biz.planTier === "free") continue;
+      const [biz] = await db.select({ planTier: businesses.planTier, accountType: businesses.accountType }).from(businesses).where(eq(businesses.id, d.id)).limit(1);
+      if (!biz || !hasFullAccess(biz)) continue;
       await runCitationEngineForBusiness(d.id);
       ran++;
     } catch (err) {

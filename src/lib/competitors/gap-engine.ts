@@ -12,6 +12,7 @@
  *  - schema / review / cadence gaps are reported, never "fixed" by inventing anything.
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { and, desc, eq, gte, inArray, notInArray } from "drizzle-orm";
 import { businessCompetitors, businesses, competitorSnapshots, contentQueue, getDb, jobs } from "@/lib/db";
 import { isSafePublicUrl, safeFetchText } from "@/lib/net/safe-fetch";
@@ -579,7 +580,7 @@ export async function runCompetitorGapBatch(limit = 4): Promise<{ ran: number; q
   let ran = 0;
   let queued = 0;
   try {
-    const paid = await db.select({ id: businesses.id }).from(businesses).where(notInArray(businesses.planTier, ["free"])).limit(500);
+    const paid = await db.select({ id: businesses.id }).from(businesses).where(fullAccessWhere()).limit(500);
     for (const b of paid) {
       if (ran >= limit) break;
       const [last] = await db

@@ -10,6 +10,7 @@
  * publish.
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { and, desc, eq, gte, notInArray, sql } from "drizzle-orm";
 import { aiVisibilityChecks, businesses, contentQueue, getDb, jobs, publishedContent } from "@/lib/db";
 import { safeFetchText } from "@/lib/net/safe-fetch";
@@ -215,7 +216,7 @@ export async function runAeoActionBatch(limit = 4): Promise<{ businesses: number
       .selectDistinct({ businessId: aiVisibilityChecks.businessId })
       .from(aiVisibilityChecks)
       .innerJoin(businesses, eq(businesses.id, aiVisibilityChecks.businessId))
-      .where(and(gte(aiVisibilityChecks.createdAt, since), eq(aiVisibilityChecks.mentionFound, "false"), notInArray(businesses.planTier, ["free"])))
+      .where(and(gte(aiVisibilityChecks.createdAt, since), eq(aiVisibilityChecks.mentionFound, "false"), fullAccessWhere()))
       .limit(100);
     for (const r of rows) {
       if (n >= limit) break;

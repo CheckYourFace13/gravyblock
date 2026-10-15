@@ -15,6 +15,7 @@
  *   5. Every tick: processes 7-day lead nurture drip for unconverted scan leads
  */
 
+import { fullAccessWhere } from "@/lib/entitlement";
 import { eq, and, inArray, gte, lte, count } from "drizzle-orm";
 import { runPendingRecurringSnapshotJobs, executeContentPublishPath, backfillMissingRecurringJobs } from "@/lib/autopilot/executor";
 import { getDb, businesses, contentQueue, jobs } from "@/lib/db";
@@ -70,7 +71,7 @@ import { ensureResendWebhookRegistered } from "@/lib/integrations/resend-setup";
 import { runGbpPhotoUploadBatch } from "@/lib/gbp/photo-uploader";
 import { runListingWatchdogBatch } from "@/lib/gbp/listing-watchdog";
 import { runReviewSpotlightBatch } from "@/lib/social/review-spotlight";
-import { runHouseFleetTick, runHouseWatchdog } from "@/lib/house";
+import { runHouseFleetTick, runHouseWatchdog, runRequestedHouseCycles } from "@/lib/house";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -87,7 +88,7 @@ async function processContentGeneration() {
   const allPaidBizIds = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(inArray(businesses.planTier, PAID_TIERS_FOR_CONTENT))
+    .where(fullAccessWhere())
     .limit(100);
 
   if (allPaidBizIds.length === 0) return;
@@ -137,7 +138,7 @@ async function processContentQueue() {
     const [biz] = await db
       .select({ planTier: businesses.planTier })
       .from(businesses)
-      .where(and(eq(businesses.id, row.businessId), inArray(businesses.planTier, paidTiers)))
+      .where(and(eq(businesses.id, row.businessId), fullAccessWhere()))
       .limit(1);
     if (!biz) continue;
 
@@ -989,6 +990,18 @@ void ensureResendWebhookRegistered().catch(() => null);
 
 void tick();
 setInterval(() => void tick(), WORKER_INTERVAL_MS);
+
+// Admin-requested house cycles start within about a minute instead of waiting for the next tick.
+let requestPollRunning = false;
+setInterval(() => {
+  if (requestPollRunning) return;
+  requestPollRunning = true;
+  void runRequestedHouseCycles(2)
+    .catch((error) => console.error("[worker] house request poll failed", { error: error instanceof Error ? error.message : String(error) }))
+    .finally(() => {
+      requestPollRunning = false;
+    });
+}, 60_000);
 
 console.info("[worker] started", {
   intervalMs: WORKER_INTERVAL_MS,
