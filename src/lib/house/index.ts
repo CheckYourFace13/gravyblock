@@ -23,6 +23,10 @@ import { scanCrossEngineOpportunities } from "@/lib/opportunities/scan";
 import { allOpenRanked, blockedByCapability } from "@/lib/opportunities/queue";
 import { runOrchestrator } from "@/lib/opportunities/orchestrator";
 import { getOperatingMode } from "@/lib/business-mode";
+import { runCompetitorGapForBusiness } from "@/lib/competitors/gap-engine";
+import { runAeoActionForBusiness } from "@/lib/ai-visibility/aeo-actions";
+import { runBasicSeoForBusiness } from "@/lib/seo/basic-autopilot";
+import { discoverAndQualify, discoverBrokenLinkOpportunities, discoverUnlinkedMentions } from "@/lib/authority/engine";
 import { SITE_ADAPTERS, detectConnector } from "@/lib/site-publish/adapters";
 import { evaluateMeasurementPlans } from "@/lib/opportunities/evaluate";
 
@@ -186,6 +190,47 @@ async function record(businessId: string, type: string, status: "completed" | "p
   await db.insert(jobs).values({ businessId, type, status, payload });
 }
 
+/**
+ * Per-account opportunity DISCOVERY for every engine (scan only, nothing is sent or edited here). The
+ * generic daily batches only reach a handful of accounts each, so the house loop owns discovery for its
+ * own accounts. Each engine keeps its own cadence; a changed Business Truth shortens it.
+ */
+const ENGINE_DISCOVERY: Array<{ name: string; everyDays: number; afterChangeDays: number; run: (id: string) => Promise<unknown> }> = [
+  { name: "basic_seo", everyDays: 7, afterChangeDays: 0, run: (id) => runBasicSeoForBusiness(id, { scanOnly: true }) },
+  { name: "authority", everyDays: 7, afterChangeDays: 1, run: (id) => discoverAndQualify(id) },
+  { name: "authority_mentions", everyDays: 7, afterChangeDays: 3, run: async (id) => ({ mentions: await discoverUnlinkedMentions(id), brokenLinks: await discoverBrokenLinkOpportunities(id) }) },
+  { name: "aeo", everyDays: 7, afterChangeDays: 3, run: (id) => runAeoActionForBusiness(id, { scanOnly: true }) },
+  { name: "competitor_gap", everyDays: 30, afterChangeDays: 7, run: (id) => runCompetitorGapForBusiness(id, { scanOnly: true }) },
+];
+
+async function discoverEngineOpportunities(businessId: string, opts: { force: boolean; changed: boolean }): Promise<{ ran: string[]; errors: string[] }> {
+  const db = getDb();
+  const out = { ran: [] as string[], errors: [] as string[] };
+  if (!db) return out;
+  const rows = await db
+    .select({ type: jobs.type, createdAt: jobs.createdAt })
+    .from(jobs)
+    .where(and(eq(jobs.businessId, businessId), sql`${jobs.type} like 'house_engine:%'`))
+    .orderBy(desc(jobs.createdAt))
+    .limit(60);
+  for (const e of ENGINE_DISCOVERY) {
+    const last = rows.find((r) => r.type === `house_engine:${e.name}`)?.createdAt ?? null;
+    const gapDays = last ? (Date.now() - last.getTime()) / DAY : Infinity;
+    const needed = opts.force || gapDays >= (opts.changed ? e.afterChangeDays : e.everyDays);
+    if (!needed) continue;
+    try {
+      const r = await e.run(businessId);
+      await record(businessId, `house_engine:${e.name}`, "completed", { result: JSON.stringify(r).slice(0, 500) });
+      out.ran.push(e.name);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      await record(businessId, `house_engine:${e.name}`, "partial", { error: msg.slice(0, 300) });
+      out.errors.push(`${e.name}:${msg.slice(0, 80)}`);
+    }
+  }
+  return out;
+}
+
 export type CycleReport = {
   businessId: string;
   refreshed: "none" | "light" | "deep";
@@ -234,7 +279,9 @@ export async function runHouseAccountCycle(businessId: string, opts: { force?: b
       const retired = changed ? await invalidateStaleTruthOpportunities() : { expired: 0 };
       const fromTruth = await createOpportunitiesFromTruth(businessId);
       const fromScan = await scanCrossEngineOpportunities(businessId);
-      await record(businessId, HOUSE_JOB.discovery, "completed", { changed, expiredFromSupersededFacts: retired.expired, recorded: fromTruth.recorded + fromScan.recorded });
+      const engines = await discoverEngineOpportunities(businessId, { force, changed });
+      report.errors.push(...engines.errors.map((e) => `engine:${e}`));
+      await record(businessId, HOUSE_JOB.discovery, "completed", { changed, expiredFromSupersededFacts: retired.expired, recorded: fromTruth.recorded + fromScan.recorded, engines: engines.ran, engineErrors: engines.errors });
       discovered = true;
     } catch (err) {
       report.errors.push(`discovery:${err instanceof Error ? err.message : String(err)}`);

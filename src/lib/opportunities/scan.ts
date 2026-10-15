@@ -53,8 +53,13 @@ export async function scanCrossEngineOpportunities(businessId: string): Promise<
       requiredCapability: "gbp",
       autoEligible: true,
       ttlDays: 14,
-      dedupeKey: `gbp_stale:${businessId}:${new Date().toISOString().slice(0, 10)}`,
+      // One live row per business per last-post state (a new post changes the key). The old per-day key piled up a row a day.
+      dedupeKey: `gbp_stale:${businessId}:${lastGbpPost?.createdAt.toISOString().slice(0, 10) ?? "never"}`,
     });
+    await db
+      .update(growthOpportunities)
+      .set({ status: "expired", resolvedAt: new Date() })
+      .where(and(eq(growthOpportunities.businessId, businessId), eq(growthOpportunities.opportunityType, "gbp"), eq(growthOpportunities.subtype, "no_recent_post"), eq(growthOpportunities.status, "open"), sql`${growthOpportunities.dedupeKey} <> ${`gbp_stale:${businessId}:${lastGbpPost?.createdAt.toISOString().slice(0, 10) ?? "never"}`}`));
     if (r.recorded) recorded++;
   }
 
