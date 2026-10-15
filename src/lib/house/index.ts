@@ -24,6 +24,7 @@ import { allOpenRanked } from "@/lib/opportunities/queue";
 import { runOrchestrator } from "@/lib/opportunities/orchestrator";
 import { getOperatingMode } from "@/lib/business-mode";
 import { getCapabilityProfile } from "@/lib/capability-profile";
+import { SITE_ADAPTERS } from "@/lib/site-publish/adapters";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -341,7 +342,8 @@ export async function getHouseFleetStatus(): Promise<HouseAccountStatus[]> {
     const proofs = proofRows.filter((r) => r.business_id === a.id);
     const lvl = (l: number) => proofs.filter((p) => Number(p.proof_level) === l).reduce((n, p) => n + Number(p.n), 0);
     const lp = lastProof.find((p) => p.businessId === a.id);
-    const connectorKind = targets.find((t) => t.businessId === a.id)?.adapter ?? null;
+    // Only adapters that can actually write to the live site count as a connector (not "manual"/"internal" placeholders).
+    const connectorKind = targets.find((t) => t.businessId === a.id && t.adapter in SITE_ADAPTERS)?.adapter ?? null;
 
     if (!a.website) red("no website on the account");
     if (age(state.lastLight) > HOUSE_CADENCE.redIfRefreshOlderThanDays * DAY) red("Business Truth refresh overdue");
