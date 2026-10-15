@@ -1,11 +1,19 @@
+import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "Free Local SEO Tools",
   description: "Free tools to check your Google Business Profile, test AI search visibility, and scan your local SEO health. No account required.",
   alternates: { canonical: "https://gravyblock.com/tools" },
 };
+
+// Re-render at most every 5 minutes so an approved metadata override reaches the live page.
+export const revalidate = 300;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return applySelfManagedMetadata("/tools", baseMetadata);
+}
 
 const tools = [
   {

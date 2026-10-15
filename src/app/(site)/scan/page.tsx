@@ -1,8 +1,9 @@
+import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ScanForm } from "@/components/scan-form";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "Free local SEO scan — see your visibility score in 60 seconds",
   description:
     "Free Google visibility scan for local businesses. See your score, top ranking problems, and a prioritized fix list in under 60 seconds. No credit card required.",
@@ -10,6 +11,13 @@ export const metadata: Metadata = {
   // variants from being indexed as separate pages.
   alternates: { canonical: "https://gravyblock.com/scan" },
 };
+
+// Re-render at most every 5 minutes so an approved metadata override reaches the live page.
+export const revalidate = 300;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return applySelfManagedMetadata("/scan", baseMetadata);
+}
 
 import { trackReferralEvent } from "@/lib/referrals/referral-tracker";
 import { normalizePromoCode } from "@/lib/stripe/promo-codes";

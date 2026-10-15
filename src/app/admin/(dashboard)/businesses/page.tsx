@@ -156,7 +156,7 @@ export default async function AdminBusinessesPage({ searchParams }: Props) {
                   <span>Last deep refresh: {ago(b.state.lastDeep)} (next due {b.nextDeepDue ? b.nextDeepDue.toISOString().slice(0, 10) : "now"})</span>
                   <span>Last opportunity discovery: {ago(b.state.lastDiscovery)}</span>
                   <span>Last orchestrator run: {ago(b.state.lastOrchestrator)}</span>
-                  <span>Connector: {b.connector}</span>
+                  <span>Connector: {b.connector}{b.connectorCapabilities.length ? ` (${b.connectorCapabilities.join(", ")})` : ""}</span>
                   <span>Last verified action: {b.lastAction ? `${ago(b.lastAction.at)}: ${b.lastAction.summary.slice(0, 80)}` : "none yet"}</span>
                   <span>Top opportunity: {b.topOpportunity ?? "none open"}</span>
                   <span>Open {b.openOpportunities} · measuring {b.measuring}</span>

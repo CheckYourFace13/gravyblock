@@ -1,13 +1,21 @@
+import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TestimonialsSection } from "./testimonials-section";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/" },
   title: { absolute: "GravyBlock — Automated Local SEO for Small Businesses | Free Scan" },
   description:
     "GravyBlock automates local SEO for small businesses: publishes website content, replies to Google reviews, checks citation consistency, and tracks visibility — so you get discovered on Google Maps and Google Search. Autopilot from $39.99/month. Free scan.",
 };
+
+// Re-render at most every 5 minutes so an approved metadata override reaches the live page.
+export const revalidate = 300;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return applySelfManagedMetadata("/", baseMetadata);
+}
 
 const siteUrl = "https://gravyblock.com";
 

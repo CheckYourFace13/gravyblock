@@ -27,7 +27,7 @@ import { runCompetitorGapForBusiness } from "@/lib/competitors/gap-engine";
 import { runAeoActionForBusiness } from "@/lib/ai-visibility/aeo-actions";
 import { runBasicSeoForBusiness } from "@/lib/seo/basic-autopilot";
 import { discoverAndQualify, discoverBrokenLinkOpportunities, discoverUnlinkedMentions } from "@/lib/authority/engine";
-import { SITE_ADAPTERS, detectConnector } from "@/lib/site-publish/adapters";
+import { SITE_ADAPTERS, autoConnectManagedSites, detectConnector } from "@/lib/site-publish/adapters";
 import { evaluateMeasurementPlans } from "@/lib/opportunities/evaluate";
 
 const HOUR = 3_600_000;
@@ -256,6 +256,13 @@ export async function runHouseAccountCycle(businessId: string, opts: { force?: b
   if (due.backoff && !force) return report;
   const startedAt = Date.now();
 
+  // 0. Attach a write connector as soon as the site announces one (cheap probe; no-op when already attached).
+  try {
+    await autoConnectManagedSites(1, businessId);
+  } catch (err) {
+    report.errors.push(`connector_probe:${err instanceof Error ? err.message : String(err)}`);
+  }
+
   // 1. Refresh Business Truth from first-party sources.
   let changed = false;
   if (force || due.light || due.deep) {
@@ -395,6 +402,7 @@ export type HouseAccountStatus = {
   domain: string | null;
   mode: string;
   connector: string;
+  connectorCapabilities: string[];
   state: HouseState;
   nextDeepDue: Date | null;
   topOpportunity: string | null;
@@ -502,6 +510,7 @@ export async function getHouseFleetStatus(): Promise<HouseAccountStatus[]> {
       domain: domainOf(a.website),
       mode,
       connector: connectorKind ?? "none",
+      connectorCapabilities: connectorKind ? Object.entries(SITE_ADAPTERS[connectorKind as keyof typeof SITE_ADAPTERS].capabilities).filter(([, v]) => v).map(([k]) => k) : [],
       state,
       nextDeepDue: state.lastDeep ? new Date(state.lastDeep.getTime() + HOUSE_CADENCE.deepEveryDays * DAY) : null,
       topOpportunity,

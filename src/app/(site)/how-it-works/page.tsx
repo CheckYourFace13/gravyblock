@@ -1,12 +1,20 @@
+import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "How GravyBlock Works: Local SEO That Runs Itself",
   description:
     "GravyBlock learns your business, finds what will help you get found on Google, decides what is worth doing, does the work automatically, verifies it, and measures the result. Connect once; GravyBlock takes it from there.",
   alternates: { canonical: "/how-it-works" },
 };
+
+// Re-render at most every 5 minutes so an approved metadata override reaches the live page.
+export const revalidate = 300;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return applySelfManagedMetadata("/how-it-works", baseMetadata);
+}
 
 const steps = [
   {

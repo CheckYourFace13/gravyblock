@@ -1,13 +1,21 @@
+import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { COMPARE_PAGES, COMPARE_SLUGS } from "@/lib/content/compare-pages";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "GravyBlock vs BrightLocal, Yext, Semrush, Whitespark, GMB Everywhere & More — 2026",
   description:
     "Compare GravyBlock to BrightLocal, Yext, Semrush, Whitespark, GMB Everywhere, Search Atlas, Reputation.com, Soro, RankScore, Adaptify, SimilarWeb, and more. See how their approaches differ and when each is the better fit.",
   alternates: { canonical: "/compare" },
 };
+
+// Re-render at most every 5 minutes so an approved metadata override reaches the live page.
+export const revalidate = 300;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return applySelfManagedMetadata("/compare", baseMetadata);
+}
 
 const featuredComps = [
   { slug: "gravyblock-vs-local-seo-agencies", name: "Local SEO agencies", note: "People and custom strategy versus software that does a defined set of the work automatically. Where each is better, and what to ask before you decide." },

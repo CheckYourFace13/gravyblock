@@ -1,12 +1,20 @@
+import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   alternates: { canonical: "/faq" },
   title: "FAQ",
   description:
     "Answers to the most common questions about GravyBlock: how it works, what's included in each plan, billing, cancellation, and more.",
 };
+
+// Re-render at most every 5 minutes so an approved metadata override reaches the live page.
+export const revalidate = 300;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return applySelfManagedMetadata("/faq", baseMetadata);
+}
 
 const faqs = [
   {

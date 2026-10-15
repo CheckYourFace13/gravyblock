@@ -1,14 +1,22 @@
+import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { publicBullets } from "@/lib/capabilities";
 import { OFFER } from "@/lib/offer";
 import { FunnelBeacon } from "@/components/funnel-beacon";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "Local SEO Pricing",
   description: "GravyBlock is $39.99 a month: one plan that finds what is hurting your local visibility and does the eligible work automatically. Free scan, cancel anytime, 30-day money-back guarantee.",
   alternates: { canonical: "/pricing" },
 };
+
+// Re-render at most every 5 minutes so an approved metadata override reaches the live page.
+export const revalidate = 300;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return applySelfManagedMetadata("/pricing", baseMetadata);
+}
 
 const START_HREF = "/start";
 

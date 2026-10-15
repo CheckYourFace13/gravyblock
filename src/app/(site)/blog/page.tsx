@@ -1,8 +1,9 @@
+import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getAllBlogPosts } from "@/lib/blog/posts";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "Local SEO Blog",
   description: "Practical local SEO guides for small business owners, from GravyBlock.",
   alternates: { canonical: "https://gravyblock.com/blog" },
@@ -13,6 +14,13 @@ export const metadata: Metadata = {
     type: "website",
   },
 };
+
+// Re-render at most every 5 minutes so an approved metadata override reaches the live page.
+export const revalidate = 300;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return applySelfManagedMetadata("/blog", baseMetadata);
+}
 
 // This page used to also merge in autopilot-generated posts from the house
 // account (businessId = GRAVYBLOCK_SELF_BUSINESS_ID) at /published/[id].

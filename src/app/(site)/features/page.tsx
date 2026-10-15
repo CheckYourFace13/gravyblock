@@ -1,13 +1,21 @@
+import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CAPABILITY_BY_ID, type Capability } from "@/lib/capabilities";
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: "Features: What GravyBlock Does Automatically",
   description:
     "Every GravyBlock capability, sorted honestly: what runs automatically, what runs after a one-time connection, what only monitors and alerts, and what GravyBlock does not do.",
   alternates: { canonical: "/features" },
 };
+
+// Re-render at most every 5 minutes so an approved metadata override reaches the live page.
+export const revalidate = 300;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return applySelfManagedMetadata("/features", baseMetadata);
+}
 
 type Kind = "automatic" | "after_connection" | "monitoring" | "unsupported";
 
