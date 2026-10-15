@@ -134,7 +134,8 @@ export function dueSteps(s: HouseState) {
   return {
     backoff: Boolean(backoff),
     deep: age(s.lastDeep) > HOUSE_CADENCE.deepEveryDays * DAY,
-    light: age(s.lastLight) > HOUSE_CADENCE.lightEveryHours * HOUR,
+    // A failed homepage read is re-checked within hours instead of waiting a day.
+    light: age(s.lastLight) > (s.lastRefreshNote === "homepage_unreachable" ? 2 : HOUSE_CADENCE.lightEveryHours) * HOUR,
     discovery: age(s.lastDiscovery) > HOUSE_CADENCE.discoveryEveryHours * HOUR,
     orchestrator: age(s.lastOrchestrator) > HOUSE_CADENCE.orchestratorEveryHours * HOUR,
   };
