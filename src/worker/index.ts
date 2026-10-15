@@ -20,6 +20,7 @@ import { runPendingRecurringSnapshotJobs, executeContentPublishPath, backfillMis
 import { getDb, businesses, contentQueue, jobs } from "@/lib/db";
 import { queueContentForBusiness } from "@/lib/content-gen/queue-content";
 import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
+import { backfillScanClassification, markInternalBusinesses } from "@/lib/reporting/classification";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
 import { runLeadDripBatch } from "@/lib/email/lead-drip";
 import { runOnboardingBatch } from "@/lib/email/onboarding";
@@ -189,6 +190,19 @@ async function recordWorkerJob(jobType: string, payload?: Record<string, unknown
   const db = getDb();
   if (!db) return;
   await db.insert(jobs).values({ type: jobType, status: "completed", payload: payload ?? {} });
+}
+
+/** Daily, before the owner report: classify internal accounts and older scans. Idempotent, never deletes, and separate from rendering any report. */
+async function maybeClassifyReporting() {
+  if (new Date().getUTCHours() !== 7) return;
+  if (await hasJobRunToday("reporting_classification_batch")) return;
+  try {
+    const marked = await markInternalBusinesses();
+    const scans = await backfillScanClassification();
+    await recordWorkerJob("reporting_classification_batch", { marked, scans });
+  } catch (error) {
+    console.error("[worker] reporting classification failed", { error: error instanceof Error ? error.message : String(error) });
+  }
 }
 
 async function maybeSendDailyReport() {
@@ -536,6 +550,7 @@ async function tick() {
     console.error("[worker] content queue failed", { error: error instanceof Error ? error.message : String(error) });
   }
 
+  await maybeClassifyReporting();
   await maybeSendDailyReport();
   await maybeSendMonthlyDigest();
   await maybeSendQuarterlyUpsell();

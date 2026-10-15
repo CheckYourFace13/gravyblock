@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { backfillScanClassification, getInternalBusinesses, markInternalBusinesses } from "@/lib/reporting/classification";
-import { getOutreachFunnel, getPublicFunnel, getRealCustomers, getScanCounts, pct } from "@/lib/reporting/acquisition";
+import { getInternalBusinesses } from "@/lib/reporting/classification";
+import { getOutreachFunnel, getPublicFunnel, getRealCustomers, getScanCounts, measure, pct, show, type Metric, type OutreachFunnel, type PublicFunnel, type ScanCounts } from "@/lib/reporting/acquisition";
+import { runClassificationAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Acquisition" };
@@ -12,14 +13,17 @@ const windows = [
   { label: "30d", ms: 30 * DAY },
 ];
 
-function Table({ rows }: { rows: Array<{ label: string; values: number[] }> }) {
+/** This page only reads. A failed metric shows "Unavailable" (with the real error logged), never a fake zero. */
+function Table({ rows }: { rows: Array<{ label: string; values: Array<number | null> }> }) {
   return (
     <table className="w-full text-sm">
       <thead>
         <tr className="text-left text-xs uppercase text-zinc-500">
           <th className="py-1 pr-4" />
           {windows.map((w) => (
-            <th key={w.label} className="px-3 py-1 text-right">{w.label}</th>
+            <th key={w.label} className="px-3 py-1 text-right">
+              {w.label}
+            </th>
           ))}
         </tr>
       </thead>
@@ -28,9 +32,9 @@ function Table({ rows }: { rows: Array<{ label: string; values: number[] }> }) {
           <tr key={r.label} className="border-t border-zinc-100">
             <td className="py-1.5 pr-4 text-zinc-700">{r.label}</td>
             {r.values.map((v, k) => (
-              <td key={k} className="px-3 py-1.5 text-right font-semibold text-zinc-900">
-                {v.toLocaleString()}
-                {i > 0 ? <span className="ml-2 text-xs font-normal text-zinc-400">{pct(v, rows[i - 1].values[k])}</span> : null}
+              <td key={k} className={`px-3 py-1.5 text-right font-semibold ${v === null ? "text-amber-700" : "text-zinc-900"}`}>
+                {show(v)}
+                {i > 0 && v !== null ? <span className="ml-2 text-xs font-normal text-zinc-400">{pct(v, rows[i - 1].values[k])}</span> : null}
               </td>
             ))}
           </tr>
@@ -40,29 +44,32 @@ function Table({ rows }: { rows: Array<{ label: string; values: number[] }> }) {
   );
 }
 
+const cell = (m: Metric<ScanCounts>, k: keyof ScanCounts) => (m.ok ? m.value[k].toLocaleString() : "Unavailable");
+
 export default async function AcquisitionPage() {
-  await markInternalBusinesses().catch(() => 0);
-  await backfillScanClassification().catch(() => ({}));
-  const [real, internal, scansAll, pub, out] = await Promise.all([
-    getRealCustomers(),
-    getInternalBusinesses(),
-    getScanCounts(),
+  const [realM, internalM, scansM, pub, out] = await Promise.all([
+    measure("customers", getRealCustomers),
+    measure("internal accounts", getInternalBusinesses),
+    measure("scans", () => getScanCounts()),
     Promise.all(windows.map((w) => getPublicFunnel(new Date(Date.now() - w.ms)))),
     Promise.all(windows.map((w) => getOutreachFunnel(new Date(Date.now() - w.ms)))),
   ]);
-  const p = (k: keyof (typeof pub)[number]) => pub.map((f) => f[k]);
-  const o = (k: keyof (typeof out)[number]) => out.map((f) => f[k]);
+  const p = (k: keyof PublicFunnel) => pub.map((f) => f[k]);
+  const o = (k: keyof OutreachFunnel) => out.map((f) => f[k]);
+
   return (
     <div className="mx-auto max-w-4xl space-y-8 px-4 py-8">
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900">Acquisition</h1>
-        <p className="mt-2 text-3xl font-bold text-zinc-900">Real paying customers: {real.customers.length}</p>
-        <p className="text-3xl font-bold text-zinc-900">Customer MRR: ${real.mrr.toFixed(2)}</p>
+        <p className="mt-2 text-3xl font-bold text-zinc-900">Real paying customers: {realM.ok ? realM.value.customers.length : "Unavailable"}</p>
+        <p className="text-3xl font-bold text-zinc-900">Customer MRR: {realM.ok ? `$${realM.value.mrr.toFixed(2)}` : "Unavailable"}</p>
         <p className="mt-2 text-xs text-zinc-500">
-          Owner, staff, test and house accounts are excluded ({internal.size} classified). Excluded paid accounts:{" "}
-          {real.excluded.length ? real.excluded.map((e) => `${e.name} (${e.reason.replace(/_/g, " ")})`).join(", ") : "none"}.
+          Owner, staff, test and house accounts are excluded ({internalM.ok ? internalM.value.size : "Unavailable"} classified). Excluded paid accounts:{" "}
+          {realM.ok ? (realM.value.excluded.length ? realM.value.excluded.map((e) => `${e.name} (${e.reason.replace(/_/g, " ")})`).join(", ") : "none") : "Unavailable"}.
         </p>
+        {!realM.ok ? <p className="mt-1 text-xs text-amber-700">Customer query failed: {realM.error}</p> : null}
       </div>
+
       <section>
         <h2 className="mb-2 font-semibold text-zinc-900">Real website funnel (public visitors only)</h2>
         <Table
@@ -76,7 +83,9 @@ export default async function AcquisitionPage() {
             { label: "Paid", values: p("paid") },
           ]}
         />
+        <p className="mt-1 text-xs text-zinc-500">0 means measured zero. Unavailable means the query failed; the error is in the server log.</p>
       </section>
+
       <section>
         <h2 className="mb-2 font-semibold text-zinc-900">Outreach funnel (separate)</h2>
         <Table
@@ -89,16 +98,23 @@ export default async function AcquisitionPage() {
           ]}
         />
       </section>
+
       <section>
         <h2 className="mb-2 font-semibold text-zinc-900">Scans by origin (all time)</h2>
         <ul className="text-sm text-zinc-700">
-          <li>Public: {scansAll.public.toLocaleString()}</li>
-          <li>Outreach prospect scans: {scansAll.outreach.toLocaleString()}</li>
-          <li>Internal / QA: {scansAll.internal.toLocaleString()}</li>
-          <li>System / automated: {scansAll.system.toLocaleString()}</li>
-          <li>Unknown (historical): {scansAll.unknown.toLocaleString()}</li>
-          <li className="font-semibold">Total records: {scansAll.total.toLocaleString()}</li>
+          <li>Public: {cell(scansM, "public")}</li>
+          <li>Outreach prospect scans: {cell(scansM, "outreach")}</li>
+          <li>Internal / QA: {cell(scansM, "internal")}</li>
+          <li>System / automated: {cell(scansM, "system")}</li>
+          <li>Unknown (historical, not classifiable): {cell(scansM, "unknown")}</li>
+          <li className="font-semibold">Total records: {cell(scansM, "total")}</li>
         </ul>
+        <form action={runClassificationAction} className="mt-3">
+          <button type="submit" className="rounded-full border border-zinc-300 px-4 py-1.5 text-xs font-semibold text-zinc-800 hover:border-zinc-400">
+            Run classification now
+          </button>
+          <span className="ml-3 text-xs text-zinc-500">Classifies older scans and internal accounts. Idempotent, never deletes. Also runs daily.</span>
+        </form>
       </section>
     </div>
   );
