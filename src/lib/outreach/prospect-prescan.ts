@@ -70,6 +70,7 @@ export async function runProspectPreScan(prospect: Prospect): Promise<ProspectPr
       businessModel: "single_location",
       vertical: "other",
       focusArea: "local",
+      scanOrigin: "outreach_prescan",
     });
 
     // Re-rank by outreach-hook strength first, report impact as a tiebreaker

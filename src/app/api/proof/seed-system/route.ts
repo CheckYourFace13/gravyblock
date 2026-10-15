@@ -205,6 +205,7 @@ export async function POST() {
   const reportB = randomUUID().slice(0, 12);
 
   const runA = await recordScanRun({
+    scanOrigin: "system_scan",
     publicId: reportA,
     query: "NorthStar Denver",
     locationHint: "Denver CO",

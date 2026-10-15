@@ -1,4 +1,5 @@
 import { getDb, businesses } from "@/lib/db";
+import { getInternalBusinesses } from "@/lib/reporting/classification";
 import { planFeatures, normalizePlanTierFromDb, type PlanTier } from "@/lib/plans";
 import { eq, gte, or, and, ne } from "drizzle-orm";
 import type { Metadata } from "next";
@@ -48,9 +49,11 @@ async function getMrrData() {
 
   // House accounts (owner-run demo/marketing accounts, comped via planTier
   // directly rather than a real Stripe subscription) never counted as revenue.
+  const internalIds = await getInternalBusinesses();
   const active = allBiz.filter(b => {
     const tier = normalizePlanTierFromDb(b.planTier);
     return b.accountType !== "house"
+      && !internalIds.has(b.id)
       && PAID_TIERS.includes(tier)
       && (b.subscriptionStatus === "active" || b.subscriptionStatus === "trialing");
   });

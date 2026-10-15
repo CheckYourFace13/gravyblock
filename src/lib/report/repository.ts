@@ -388,6 +388,8 @@ export async function recordScanRun(input: {
   focusArea?: "local" | "regional" | "national" | "online";
   targetScope?: string;
   websiteUrl?: string;
+  /** How this scan came to exist (see lib/reporting/classification.ts). Defaults to the legacy unclassified value. */
+  scanOrigin?: string;
   leadCapture?: {
     name: string;
     email: string;
@@ -432,7 +434,7 @@ export async function recordScanRun(input: {
       .insert(scans)
       .values({
         businessId,
-        source: "free_scan",
+        source: input.scanOrigin ?? "free_scan",
         lookupQuery: input.query,
         lookupLocation: input.locationHint,
         selectedPlaceId: input.selectedPlaceId ?? null,

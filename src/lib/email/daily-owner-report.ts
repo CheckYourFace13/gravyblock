@@ -1,15 +1,45 @@
-import { gte, count, eq, and, ne, isNotNull } from "drizzle-orm";
-import { getDb, businesses, leads, jobs, publishedContent, operatorTasks, contentQueue, scans } from "@/lib/db";
-import { getStripeServerClient } from "@/lib/stripe/server";
+import { and, count, gte, inArray } from "drizzle-orm";
+import { getDb, publishedContent, contentQueue, operatorTasks } from "@/lib/db";
+import { backfillScanClassification, getInternalBusinesses, markInternalBusinesses } from "@/lib/reporting/classification";
+import { getOutreachFunnel, getPublicFunnel, getRealCustomers, getScanCounts, pct, type OutreachFunnel, type PublicFunnel } from "@/lib/reporting/acquisition";
 
 const OWNER_EMAIL = "chris@gravyblock.com";
 
-const PLAN_PRICES: Record<string, number> = {
-  starter: 59.99,
-  growth: 39.99,
-  pro: 299.99,
-  agency: 499.99,
-};
+const DAY = 24 * 60 * 60 * 1000;
+const windows = [
+  { label: "Today (24h)", since: () => new Date(Date.now() - DAY) },
+  { label: "7 days", since: () => new Date(Date.now() - 7 * DAY) },
+  { label: "30 days", since: () => new Date(Date.now() - 30 * DAY) },
+] as const;
+
+const th = "padding:6px 10px;text-align:right;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:0.05em";
+const td = "padding:6px 10px;text-align:right;font-weight:700;color:#18181b";
+const tdl = "padding:6px 10px 6px 0;color:#52525b;font-size:13px";
+const sub = "padding:0 10px 6px;text-align:right;font-size:11px;color:#a1a1aa";
+
+function funnelTable(stages: Array<{ label: string; values: number[] }>) {
+  const head = `<tr><th style="${th};text-align:left;padding-left:0"></th>${windows.map((w) => `<th style="${th}">${w.label}</th>`).join("")}</tr>`;
+  const rows = stages
+    .map((s, i) => {
+      const prev = i > 0 ? stages[i - 1] : null;
+      const conv = prev
+        ? `<tr><td style="${sub};text-align:left;padding-left:0">${""}</td>${s.values.map((v, k) => `<td style="${sub}">${pct(v, prev.values[k])} of previous</td>`).join("")}</tr>`
+        : "";
+      return `${conv}<tr><td style="${tdl}">${s.label}</td>${s.values.map((v) => `<td style="${td}">${v.toLocaleString()}</td>`).join("")}</tr>`;
+    })
+    .join("");
+  return `<table style="width:100%;border-collapse:collapse">${head}${rows}</table>`;
+}
+
+/** A failed query must not stop the report from sending; it falls back to an empty value and logs. */
+async function safe<T>(label: string, fn: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    console.error(`[daily-report] ${label} failed`, error);
+    return fallback;
+  }
+}
 
 export async function sendDailyOwnerReport(): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -19,201 +49,103 @@ export async function sendDailyOwnerReport(): Promise<boolean> {
   const db = getDb();
   if (!db) return false;
 
-  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  // Keep the classification current before counting anything (idempotent, never deletes).
+  await markInternalBusinesses().catch((e) => console.error("[daily-report] mark internal failed", e));
+  await backfillScanClassification().catch((e) => console.error("[daily-report] scan classification failed", e));
 
-  const [
-    newLeads24h,
-    totalLeads,
-    newScans24h,
-    totalScans,
-    newBusinesses24h,
-    allPaidBusinesses,
-    totalFreeBusinesses,
-    autopilotJobsToday,
-    contentPublishedToday,
-    tasksToday,
-    contentQueuedToday,
-    newLeads7d,
-    newScans7d,
-  ] = await Promise.all([
-    db.select({ count: count() }).from(leads).where(gte(leads.createdAt, since24h)),
-    db.select({ count: count() }).from(leads),
-    db.select({ count: count() }).from(scans).where(gte(scans.createdAt, since24h)),
-    db.select({ count: count() }).from(scans),
-    db.select({ count: count() }).from(businesses).where(gte(businesses.createdAt, since24h)),
-    db.select({
-      id: businesses.id,
-      name: businesses.name,
-      planTier: businesses.planTier,
-      billingEmail: businesses.billingEmail,
-      stripeSubscriptionId: businesses.stripeSubscriptionId,
-      createdAt: businesses.createdAt,
-    })
-      .from(businesses)
-      .where(and(ne(businesses.planTier, "free"), eq(businesses.subscriptionStatus, "active"))),
-    db.select({ count: count() }).from(businesses).where(eq(businesses.planTier, "free")),
-    db.select({ count: count() }).from(jobs).where(and(eq(jobs.status, "completed"), gte(jobs.createdAt, since24h))),
-    db.select({ count: count() }).from(publishedContent).where(gte(publishedContent.createdAt, since24h)),
-    db.select({ count: count() }).from(operatorTasks).where(gte(operatorTasks.createdAt, since24h)),
-    db.select({ count: count() }).from(contentQueue).where(gte(contentQueue.createdAt, since24h)),
-    db.select({ count: count() }).from(leads).where(gte(leads.createdAt, since7d)),
-    db.select({ count: count() }).from(scans).where(gte(scans.createdAt, since7d)),
+  const since24h = new Date(Date.now() - DAY);
+  const since7d = new Date(Date.now() - 7 * DAY);
+
+  const [real, internal, scanAll, scan7d, publicFunnels, outreachFunnels] = await Promise.all([
+    safe("customers", getRealCustomers, { customers: [], mrr: 0, excluded: [] } as Awaited<ReturnType<typeof getRealCustomers>>),
+    safe("internal", getInternalBusinesses, new Map<string, string>()),
+    safe("scans", () => getScanCounts(), { public: 0, outreach: 0, internal: 0, system: 0, unknown: 0, total: 0 }),
+    safe("scans7d", () => getScanCounts(since7d), { public: 0, outreach: 0, internal: 0, system: 0, unknown: 0, total: 0 }),
+    Promise.all(windows.map((w) => safe("public funnel", () => getPublicFunnel(w.since()), { visitors: 0, scanStarted: 0, scanCompleted: 0, unlocked: 0, startClicked: 0, checkoutStarted: 0, paid: 0 }))),
+    Promise.all(windows.map((w) => safe("outreach funnel", () => getOutreachFunnel(w.since()), { delivered: 0, reportVisits: 0, unlocked: 0, checkoutStarted: 0, paid: 0 }))),
   ]);
 
-  // Pull actual charged amounts from Stripe for each subscriber
-  const stripe = getStripeServerClient();
-  const subscriberDetails: Array<{
-    name: string;
-    email: string;
-    tier: string;
-    standardPrice: number;
-    actualMonthly: number | null;
-    discountPct: number | null;
-    memberSince: Date;
-  }> = [];
-
-  for (const biz of allPaidBusinesses) {
-    const tier = (biz.planTier ?? "free").toLowerCase();
-    const standardPrice = PLAN_PRICES[tier] ?? 0;
-    let actualMonthly: number | null = null;
-    let discountPct: number | null = null;
-
-    if (stripe && biz.stripeSubscriptionId) {
-      try {
-        const sub = await stripe.subscriptions.retrieve(biz.stripeSubscriptionId, {
-          expand: ["discount", "items.data.price"],
-        });
-        // Get unit amount from first item
-        const item = sub.items?.data?.[0];
-        const unitAmount = item?.price?.unit_amount;
-        if (unitAmount != null) {
-          actualMonthly = unitAmount / 100;
-        }
-        // Check for active discount
-        const discount = (sub as any).discount;
-        if (discount?.coupon) {
-          const coupon = discount.coupon;
-          if (coupon.percent_off) discountPct = coupon.percent_off;
-          else if (coupon.amount_off && unitAmount) {
-            discountPct = Math.round((coupon.amount_off / unitAmount) * 100);
-          }
-        }
-      } catch {
-        // Non-fatal — fall back to standard price
-      }
-    }
-
-    subscriberDetails.push({
-      name: biz.name,
-      email: biz.billingEmail ?? "—",
-      tier,
-      standardPrice,
-      actualMonthly,
-      discountPct,
-      memberSince: new Date(biz.createdAt),
-    });
-  }
-
-  const tierCounts: Record<string, number> = {};
-  for (const s of subscriberDetails) {
-    tierCounts[s.tier] = (tierCounts[s.tier] ?? 0) + 1;
-  }
-
-  const mrr = subscriberDetails.reduce((sum, s) => sum + (s.actualMonthly ?? s.standardPrice), 0);
-  const totalPaid = allPaidBusinesses.length;
-
-  const totalScansCount = totalScans[0]?.count ?? 0;
-  const totalLeadsCount = totalLeads[0]?.count ?? 0;
-  const scansToLeadRate = totalScansCount > 0 ? Math.round((totalLeadsCount / totalScansCount) * 100) : 0;
-  const leadsToSubRate = totalLeadsCount > 0 ? Math.round((totalPaid / totalLeadsCount) * 100) : 0;
+  // Customer work: only for real customers. Owner-operated businesses are shown separately so they are never mistaken for traction.
+  const customerIds = real.customers.map((c) => c.id);
+  const operatedIds = [...internal.entries()].filter(([, r]) => r === "house_account").map(([id]) => id);
+  const work = async (ids: string[]) => {
+    if (!ids.length) return { published: 0, queued: 0, tasks: 0 };
+    const [p, q, t] = await Promise.all([
+      db.select({ n: count() }).from(publishedContent).where(and(inArray(publishedContent.businessId, ids), gte(publishedContent.createdAt, since24h))),
+      db.select({ n: count() }).from(contentQueue).where(and(inArray(contentQueue.businessId, ids), gte(contentQueue.createdAt, since24h))),
+      db.select({ n: count() }).from(operatorTasks).where(and(inArray(operatorTasks.businessId, ids), gte(operatorTasks.createdAt, since24h))),
+    ]);
+    return { published: p[0]?.n ?? 0, queued: q[0]?.n ?? 0, tasks: t[0]?.n ?? 0 };
+  };
+  const none = { published: 0, queued: 0, tasks: 0 };
+  const [customerWork, operatedWork] = await Promise.all([safe("customer work", () => work(customerIds), none), safe("operated work", () => work(operatedIds), none)]);
 
   const dateStr = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const pf = (k: keyof PublicFunnel) => publicFunnels.map((f) => f[k]);
+  const of = (k: keyof OutreachFunnel) => outreachFunnels.map((f) => f[k]);
 
-  // Subscriber rows sorted by plan price descending
-  const subscriberRows = subscriberDetails
-    .sort((a, b) => (PLAN_PRICES[b.tier] ?? 0) - (PLAN_PRICES[a.tier] ?? 0))
-    .map((s) => {
-      const priceDisplay = s.actualMonthly !== null
-        ? `$${s.actualMonthly.toFixed(2)}/mo${s.discountPct ? ` <span style="color:#16a34a;font-size:11px">(${s.discountPct}% off)</span>` : ""}`
-        : `$${s.standardPrice.toFixed(2)}/mo`;
-      const since = s.memberSince.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-      return `<tr style="border-bottom:1px solid #f4f4f5">
-        <td style="padding:8px 12px 8px 0;font-weight:600;color:#18181b">${s.name}</td>
-        <td style="padding:8px 12px;color:#52525b;font-size:12px">${s.email}</td>
-        <td style="padding:8px 12px;color:#52525b;text-transform:capitalize">${s.tier}</td>
-        <td style="padding:8px 0;font-weight:600;color:#18181b">${priceDisplay}</td>
-        <td style="padding:8px 0 8px 12px;color:#a1a1aa;font-size:11px">${since}</td>
-      </tr>`;
-    })
+  const customerRows = real.customers
+    .map((c) => `<tr><td style="${tdl};font-weight:600;color:#18181b">${c.name}</td><td style="${tdl}">${c.email}</td><td style="${td}">$${c.monthly.toFixed(2)}/mo</td></tr>`)
     .join("");
+  const excludedLine = real.excluded.length
+    ? real.excluded.map((e) => `${e.name} (${e.reason.replace(/_/g, " ")})`).join(", ")
+    : "none paid";
 
-  const html = `
-<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="font-family:system-ui,sans-serif;background:#f9f9f9;margin:0;padding:24px">
 <div style="max-width:680px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e4e4e7;padding:32px">
-  <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">GravyBlock</p>
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">GravyBlock internal</p>
   <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">Daily report — ${dateStr}</h1>
 
-  <!-- MRR + top stats -->
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:20px 0">
-    ${statCard("Est. MRR", `$${mrr.toFixed(2)}`)}
-    ${statCard("Paid subscribers", String(totalPaid))}
-    ${statCard("Free accounts", String(totalFreeBusinesses[0]?.count ?? 0))}
-  </div>
+  <p style="margin:20px 0 0;font-size:22px;font-weight:800;color:#18181b">Real paying customers: ${real.customers.length}</p>
+  <p style="margin:2px 0 0;font-size:22px;font-weight:800;color:#18181b">Customer MRR: $${real.mrr.toFixed(2)}</p>
+  ${real.customers.length ? `<table style="width:100%;border-collapse:collapse;margin-top:10px">${customerRows}</table>` : ""}
+  <p style="margin:8px 0 0;font-size:11px;color:#a1a1aa">Owner, staff, test and house accounts are excluded from customers, MRR and conversion. Excluded paid/active accounts: ${excludedLine}. Internal accounts classified: ${internal.size}.</p>
 
-  <!-- Conversion funnel -->
-  <h2 style="font-size:14px;font-weight:700;color:#18181b;margin:24px 0 8px">Conversion funnel (all time)</h2>
+  <h2 style="font-size:14px;font-weight:700;color:#18181b;margin:28px 0 8px">REAL WEBSITE FUNNEL (public visitors only)</h2>
+  ${funnelTable([
+    { label: "Visitors (reached /scan, /pricing or a report)", values: pf("visitors") },
+    { label: "Scan started", values: pf("scanStarted") },
+    { label: "Scan completed", values: pf("scanCompleted") },
+    { label: "Report unlocked / email captured", values: pf("unlocked") },
+    { label: "Start GravyBlock clicked", values: pf("startClicked") },
+    { label: "Checkout started", values: pf("checkoutStarted") },
+    { label: "Paid", values: pf("paid") },
+  ])}
+  <p style="margin:6px 0 0;font-size:11px;color:#a1a1aa">Source: GravyBlock first-party events (one visitor = one browser session). Google Analytics is not read by this report. Cold-outreach and internal sessions are excluded.</p>
+
+  <h2 style="font-size:14px;font-weight:700;color:#18181b;margin:28px 0 8px">OUTREACH FUNNEL (cold prospecting, separate)</h2>
+  ${funnelTable([
+    { label: "Initial outreach delivered", values: of("delivered") },
+    { label: "Personalized report visited", values: of("reportVisits") },
+    { label: "Report unlocked", values: of("unlocked") },
+    { label: "Checkout started", values: of("checkoutStarted") },
+    { label: "Paid", values: of("paid") },
+  ])}
+
+  <h2 style="font-size:14px;font-weight:700;color:#18181b;margin:28px 0 8px">SCANS BY ORIGIN</h2>
   <table style="width:100%;border-collapse:collapse">
-    <tr>
-      <td style="padding:6px 12px 6px 0;color:#52525b;font-size:13px">🔍 Scans run</td>
-      <td style="padding:6px 0;font-weight:700;color:#18181b">${totalScansCount.toLocaleString()}</td>
-      <td style="padding:6px 0 6px 12px;color:#a1a1aa;font-size:12px">+${newScans24h[0]?.count ?? 0} today · +${newScans7d[0]?.count ?? 0} this week</td>
-    </tr>
-    <tr>
-      <td style="padding:6px 12px 6px 0;color:#52525b;font-size:13px">📧 Emails captured</td>
-      <td style="padding:6px 0;font-weight:700;color:#18181b">${totalLeadsCount.toLocaleString()}</td>
-      <td style="padding:6px 0 6px 12px;color:#a1a1aa;font-size:12px">+${newLeads24h[0]?.count ?? 0} today · +${newLeads7d[0]?.count ?? 0} this week · ${scansToLeadRate}% of scans</td>
-    </tr>
-    <tr>
-      <td style="padding:6px 12px 6px 0;color:#52525b;font-size:13px">💳 Paid subscribers</td>
-      <td style="padding:6px 0;font-weight:700;color:#18181b">${totalPaid}</td>
-      <td style="padding:6px 0 6px 12px;color:#a1a1aa;font-size:12px">${leadsToSubRate}% of emails → paid</td>
-    </tr>
-    <tr>
-      <td style="padding:6px 12px 6px 0;color:#52525b;font-size:13px">+${newBusinesses24h[0]?.count ?? 0} new accounts today</td>
-      <td colspan="2"></td>
-    </tr>
+    <tr><th style="${th};text-align:left;padding-left:0"></th><th style="${th}">All time</th><th style="${th}">7 days</th></tr>
+    ${(
+      [
+        ["Public (real visitor started /scan)", "public"],
+        ["Outreach prospect scans", "outreach"],
+        ["Internal / QA", "internal"],
+        ["System / automated", "system"],
+        ["Unknown (historical, not classifiable)", "unknown"],
+      ] as const
+    )
+      .map(([label, k]) => `<tr><td style="${tdl}">${label}</td><td style="${td}">${scanAll[k].toLocaleString()}</td><td style="${td}">${scan7d[k].toLocaleString()}</td></tr>`)
+      .join("")}
+    <tr><td style="${tdl}">Total scan records</td><td style="${td}">${scanAll.total.toLocaleString()}</td><td style="${td}">${scan7d.total.toLocaleString()}</td></tr>
   </table>
+  <p style="margin:6px 0 0;font-size:11px;color:#a1a1aa">Only public scans belong in website conversion math.</p>
 
-  <!-- Subscriber list -->
-  <h2 style="font-size:14px;font-weight:700;color:#18181b;margin:24px 0 8px">Active subscribers</h2>
-  ${totalPaid > 0 ? `
+  <h2 style="font-size:14px;font-weight:700;color:#18181b;margin:28px 0 8px">AUTOPILOT (last 24h)</h2>
   <table style="width:100%;border-collapse:collapse">
-    <thead>
-      <tr style="border-bottom:2px solid #e4e4e7">
-        <th style="padding:6px 12px 6px 0;text-align:left;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:0.05em">Business</th>
-        <th style="padding:6px 12px;text-align:left;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:0.05em">Email</th>
-        <th style="padding:6px 12px;text-align:left;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:0.05em">Plan</th>
-        <th style="padding:6px 12px;text-align:left;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:0.05em">Paying</th>
-        <th style="padding:6px 0 6px 12px;text-align:left;font-size:11px;color:#71717a;text-transform:uppercase;letter-spacing:0.05em">Since</th>
-      </tr>
-    </thead>
-    <tbody>${subscriberRows}</tbody>
-  </table>` : '<p style="color:#a1a1aa;font-size:13px">No active paid subscribers yet.</p>'}
-
-  <!-- Autopilot activity -->
-  <h2 style="font-size:14px;font-weight:700;color:#18181b;margin:24px 0 8px">Autopilot activity (last 24h)</h2>
-  <table style="width:100%;border-collapse:collapse">
-    <tr><td style="padding:3px 12px 3px 0;color:#52525b;font-size:13px">Jobs completed</td><td style="font-weight:700;color:#18181b">${autopilotJobsToday[0]?.count ?? 0}</td></tr>
-    <tr><td style="padding:3px 12px 3px 0;color:#52525b;font-size:13px">Content queued</td><td style="font-weight:700;color:#18181b">${contentQueuedToday[0]?.count ?? 0}</td></tr>
-    <tr><td style="padding:3px 12px 3px 0;color:#52525b;font-size:13px">Articles published</td><td style="font-weight:700;color:#18181b">${contentPublishedToday[0]?.count ?? 0}</td></tr>
-    <tr><td style="padding:3px 12px 3px 0;color:#52525b;font-size:13px">Tasks created (citations, reviews, outreach)</td><td style="font-weight:700;color:#18181b">${tasksToday[0]?.count ?? 0}</td></tr>
+    <tr><td style="${tdl}">Customer work: articles published / content queued / tasks</td><td style="${td}">${customerWork.published} / ${customerWork.queued} / ${customerWork.tasks}</td></tr>
+    <tr><td style="${tdl}">Owner-operated businesses (not customers): published / queued / tasks</td><td style="${td}">${operatedWork.published} / ${operatedWork.queued} / ${operatedWork.tasks}</td></tr>
   </table>
-
-  <p style="color:#a1a1aa;font-size:11px;margin:24px 0 0;border-top:1px solid #f4f4f5;padding-top:16px">
-    Sent automatically every morning by GravyBlock autopilot.
-  </p>
 </div>
 </body></html>`;
 
@@ -228,11 +160,4 @@ export async function sendDailyOwnerReport(): Promise<boolean> {
     console.error("[daily-report] send failed", err);
     return false;
   }
-}
-
-function statCard(label: string, value: string) {
-  return `<div style="background:#f4f4f5;border-radius:12px;padding:16px">
-    <p style="margin:0;font-size:11px;color:#71717a;font-weight:600;text-transform:uppercase;letter-spacing:0.1em">${label}</p>
-    <p style="margin:6px 0 0;font-size:24px;font-weight:700;color:#18181b">${value}</p>
-  </div>`;
 }

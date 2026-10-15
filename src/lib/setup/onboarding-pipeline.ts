@@ -268,6 +268,7 @@ export async function runOnboardingPipeline(
       const publicId = createPublicId();
       await recordScanRun({
         publicId,
+        scanOrigin: "system_scan",
         query: biz.name,
         locationHint: city,
         selectedPlaceId: usePlace ?? undefined,

@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { createPublicId, generateReportFromPlace, generateReportFromWebsite } from "@/lib/report/generator";
 import { recordScanRun } from "@/lib/report/repository";
 import { scanFormSchema } from "@/lib/validation/scan";
+import { isAdminSession } from "@/lib/auth/admin-session";
+import { SCAN_ORIGINS, INTERNAL_EMAIL_DOMAINS, TEST_EMAIL_DOMAINS } from "@/lib/reporting/classification";
 import { trackFunnelEvent } from "@/lib/events/track";
 
 export type ReportActionState =
@@ -94,6 +96,14 @@ export async function generateReportAction(
   }
 
   const publicId = createPublicId();
+  // Classify how this scan came to exist: a real browser visit (visitor cookie set by the page beacon) is public,
+  // an admin session or an internal/test email is internal, anything else is automated.
+  const scanOrigin = await (async () => {
+    if (await isAdminSession()) return SCAN_ORIGINS.internal;
+    const domain = (leadEmail ?? "").toLowerCase().split("@")[1] ?? "";
+    if (INTERNAL_EMAIL_DOMAINS.includes(domain) || TEST_EMAIL_DOMAINS.includes(domain)) return SCAN_ORIGINS.internal;
+    return (await cookies()).get("gb_visitor")?.value ? SCAN_ORIGINS.public : SCAN_ORIGINS.system;
+  })();
   try {
     if (parsed.data.scanMode === "website") {
       await recordScanRun({
@@ -112,6 +122,7 @@ export async function generateReportAction(
         focusArea: parsed.data.focusArea,
         targetScope: parsed.data.targetScope,
         websiteUrl: parsed.data.websiteUrl,
+        scanOrigin,
         ...(leadEmail
           ? { leadCapture: { name: parsed.data.businessName, email: leadEmail, source: "scan_form" as const } }
           : {}),
@@ -132,6 +143,7 @@ export async function generateReportAction(
         vertical: "other",
         focusArea: parsed.data.focusArea,
         targetScope: parsed.data.targetScope,
+        scanOrigin,
         ...(leadEmail
           ? { leadCapture: { name: parsed.data.query, email: leadEmail, source: "scan_form" as const } }
           : {}),
