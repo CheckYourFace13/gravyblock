@@ -27,7 +27,7 @@ import { runCompetitorGapForBusiness } from "@/lib/competitors/gap-engine";
 import { runAeoActionForBusiness } from "@/lib/ai-visibility/aeo-actions";
 import { runBasicSeoForBusiness } from "@/lib/seo/basic-autopilot";
 import { discoverAndQualify, discoverBrokenLinkOpportunities, discoverUnlinkedMentions } from "@/lib/authority/engine";
-import { SITE_ADAPTERS, autoConnectManagedSites, detectConnector } from "@/lib/site-publish/adapters";
+import { SITE_ADAPTERS, autoConnectManagedSites, capabilitiesFor, detectConnector, type SiteAdapterKind } from "@/lib/site-publish/adapters";
 import { evaluateMeasurementPlans } from "@/lib/opportunities/evaluate";
 
 const HOUR = 3_600_000;
@@ -442,7 +442,7 @@ export async function getHouseFleetStatus(): Promise<HouseAccountStatus[]> {
     .where(inArray(proofLedger.businessId, ids))
     .orderBy(desc(proofLedger.verifiedAt))
     .limit(300);
-  const targets = await db.select({ businessId: publishingTargets.businessId, adapter: publishingTargets.adapter }).from(publishingTargets).where(and(inArray(publishingTargets.businessId, ids), eq(publishingTargets.active, "true")));
+  const targets = await db.select({ businessId: publishingTargets.businessId, adapter: publishingTargets.adapter, config: publishingTargets.config }).from(publishingTargets).where(and(inArray(publishingTargets.businessId, ids), eq(publishingTargets.active, "true")));
 
   const out: HouseAccountStatus[] = [];
   for (const a of accounts) {
@@ -510,7 +510,7 @@ export async function getHouseFleetStatus(): Promise<HouseAccountStatus[]> {
       domain: domainOf(a.website),
       mode,
       connector: connectorKind ?? "none",
-      connectorCapabilities: connectorKind ? Object.entries(SITE_ADAPTERS[connectorKind as keyof typeof SITE_ADAPTERS].capabilities).filter(([, v]) => v).map(([k]) => k) : [],
+      connectorCapabilities: connectorKind ? Object.entries(capabilitiesFor(connectorKind as SiteAdapterKind, targets.find((t) => t.businessId === a.id && t.adapter === connectorKind)?.config)).filter(([, v]) => v).map(([k]) => k) : [],
       state,
       nextDeepDue: state.lastDeep ? new Date(state.lastDeep.getTime() + HOUSE_CADENCE.deepEveryDays * DAY) : null,
       topOpportunity,

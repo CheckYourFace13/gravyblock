@@ -1,3 +1,4 @@
+import { capabilitiesFor, type SiteAdapterKind } from "@/lib/site-publish/adapters";
 import { effectivePlanTier } from "@/lib/entitlement";
 import { fullAccessWhere } from "@/lib/entitlement";
 import { recordProof } from "@/lib/proof/ledger";
@@ -301,7 +302,7 @@ export async function executeContentPublishPath(businessId: string) {
   // A real external destination is required: GravyBlock publishes to the
   // customer's OWN website. (It used to fall back to a noindex page on
   // gravyblock.com and count that as "published".)
-  const [target] = await db
+  const targetRows = await db
     .select()
     .from(publishingTargets)
     .where(
@@ -311,8 +312,9 @@ export async function executeContentPublishPath(businessId: string) {
         inArray(publishingTargets.adapter, ["wordpress", "webflow", "shopify", "managed_feed"]),
       ),
     )
-    .orderBy(publishingTargets.createdAt)
-    .limit(1);
+    .orderBy(publishingTargets.createdAt);
+  // Publish only to a destination that can render articles (a metadata-only connector cannot).
+  const target = targetRows.find((t) => t.config && capabilitiesFor(t.adapter as SiteAdapterKind, t.config).articles);
 
   if (!target || !target.config) {
     await db.update(contentQueue).set({ status: "awaiting_connection" }).where(eq(contentQueue.id, queuedItem.id));

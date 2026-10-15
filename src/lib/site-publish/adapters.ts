@@ -47,11 +47,26 @@ export async function getSiteTarget(businessId: string): Promise<SiteTarget | nu
   const row = rows.find((r) => r.config);
   if (!row) return null;
   const kind = row.adapter as SiteAdapterKind;
-  return { targetId: row.id, adapter: kind, config: row.config as Record<string, unknown>, capabilities: SITE_ADAPTERS[kind].capabilities, label: SITE_ADAPTERS[kind].label };
+  return { targetId: row.id, adapter: kind, config: row.config as Record<string, unknown>, capabilities: capabilitiesFor(kind, row.config), label: SITE_ADAPTERS[kind].label };
+}
+
+const CAPABILITY_KEYS = ["articles", "pageMetadata", "socialImage", "structuredData", "existingPageBody"] as const;
+
+/**
+ * What a connected site can really do: the adapter ceiling, narrowed to what the site itself announced
+ * at /.well-known/gravyblock.json (stored in config.capabilities). A site that announces nothing keeps
+ * the adapter default. Engines only propose actions the result allows.
+ */
+export function capabilitiesFor(kind: SiteAdapterKind, config: unknown): SiteCapabilities {
+  const base = SITE_ADAPTERS[kind].capabilities;
+  const declared = (config as { capabilities?: unknown } | null)?.capabilities;
+  if (!Array.isArray(declared)) return base;
+  const set = new Set(declared.filter((x): x is string => typeof x === "string"));
+  return Object.fromEntries(CAPABILITY_KEYS.map((k) => [k, base[k] && set.has(k)])) as SiteCapabilities;
 }
 
 /** A connected site announces the connector at /.well-known/gravyblock.json and names the business it belongs to. */
-export async function detectConnector(website: string): Promise<{ businessId: string; version: number } | null> {
+export async function detectConnector(website: string): Promise<{ businessId: string; version: number; capabilities: string[] | null } | null> {
   let origin: string;
   try {
     origin = new URL(/^https?:\/\//i.test(website) ? website : `https://${website}`).origin;
@@ -61,9 +76,10 @@ export async function detectConnector(website: string): Promise<{ businessId: st
   const r = await safeFetchText(`${origin}/.well-known/gravyblock.json`, { timeoutMs: 6000, maxBytes: 20_000, accept: "application/json" });
   if (!r.ok || r.status !== 200) return null;
   try {
-    const j = JSON.parse(r.body) as { connector?: string; businessId?: string; version?: number };
+    const j = JSON.parse(r.body) as { connector?: string; businessId?: string; version?: number; capabilities?: unknown };
     if (j.connector !== "gravyblock-managed" || !j.businessId) return null;
-    return { businessId: j.businessId, version: j.version ?? 1 };
+    const caps = Array.isArray(j.capabilities) ? j.capabilities.filter((x): x is string => typeof x === "string" && (CAPABILITY_KEYS as readonly string[]).includes(x)) : null;
+    return { businessId: j.businessId, version: j.version ?? 1, capabilities: caps };
   } catch {
     return null;
   }
@@ -85,14 +101,26 @@ export async function autoConnectManagedSites(limit = 20, onlyBusinessId?: strin
   let connected = 0;
   for (const b of bizRows) {
     if (!b.website || checked >= limit) continue;
-    const [existing] = await db.select({ id: publishingTargets.id }).from(publishingTargets).where(and(eq(publishingTargets.businessId, b.id), eq(publishingTargets.adapter, "managed_feed"))).limit(1);
-    if (existing) continue;
+    const [existing] = await db.select({ id: publishingTargets.id, config: publishingTargets.config }).from(publishingTargets).where(and(eq(publishingTargets.businessId, b.id), eq(publishingTargets.adapter, "managed_feed"))).limit(1);
+    if (existing) {
+      // Keep the declared capabilities current (a site can gain or drop operations); one cheap probe, idempotent.
+      if (onlyBusinessId && b.website) {
+        const again = await detectConnector(b.website);
+        if (again && again.businessId === b.id && again.capabilities) {
+          const cfg = (existing.config ?? {}) as Record<string, unknown>;
+          if (JSON.stringify(cfg.capabilities ?? null) !== JSON.stringify(again.capabilities)) {
+            await db.update(publishingTargets).set({ config: { ...cfg, capabilities: again.capabilities } }).where(eq(publishingTargets.id, existing.id));
+          }
+        }
+      }
+      continue;
+    }
     checked++;
     const found = await detectConnector(b.website);
     if (!found || found.businessId !== b.id) continue;
     const origin = new URL(/^https?:\/\//i.test(b.website) ? b.website : `https://${b.website}`).origin;
-    await db.insert(publishingTargets).values({ businessId: b.id, label: "GravyBlock connector", adapter: "managed_feed", config: { siteOrigin: origin, basePath: "/insights", connectedAt: new Date().toISOString() }, active: "true" });
-    await db.insert(jobs).values({ businessId: b.id, type: "site_connector_connected", status: "completed", payload: { origin, version: found.version } });
+    await db.insert(publishingTargets).values({ businessId: b.id, label: "GravyBlock connector", adapter: "managed_feed", config: { siteOrigin: origin, basePath: "/insights", connectedAt: new Date().toISOString(), ...(found.capabilities ? { capabilities: found.capabilities } : {}) }, active: "true" });
+    await db.insert(jobs).values({ businessId: b.id, type: "site_connector_connected", status: "completed", payload: { origin, version: found.version, capabilities: found.capabilities } });
     connected++;
   }
   return { checked, connected };

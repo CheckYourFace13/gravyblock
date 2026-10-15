@@ -12,6 +12,7 @@
  * show a single NEEDS YOU item instead of a recurring task queue.
  */
 
+import { capabilitiesFor, type SiteAdapterKind } from "@/lib/site-publish/adapters";
 import { and, desc, eq, inArray, gte } from "drizzle-orm";
 import { contentQueue, getDb, jobs, publishingTargets } from "@/lib/db";
 import { ensureFreshTruth } from "@/lib/truth";
@@ -46,7 +47,8 @@ export async function hasExternalPublishingTarget(businessId: string): Promise<b
     .select({ adapter: publishingTargets.adapter, config: publishingTargets.config })
     .from(publishingTargets)
     .where(and(eq(publishingTargets.businessId, businessId), eq(publishingTargets.active, "true"), inArray(publishingTargets.adapter, [...EXTERNAL_ADAPTERS])));
-  return rows.some((r) => r.config);
+  // A target counts only if it can actually render articles (a metadata-only connector cannot).
+  return rows.some((r) => r.config && capabilitiesFor(r.adapter as SiteAdapterKind, r.config).articles);
 }
 
 export async function planTruthGroundedContent(input: {
