@@ -15,7 +15,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { getDb, jobs } from "@/lib/db";
 import { safeFetchText } from "@/lib/net/safe-fetch";
-import { detectConnector, getSiteTarget } from "./adapters";
+import { autoConnectManagedSites, detectConnector, getSiteTarget } from "./adapters";
 
 const PATH = "/";
 const POLL_MS = 20_000;
@@ -68,6 +68,8 @@ export async function runConnectorSelfTest(businessId: string): Promise<SelfTest
   };
   if (!db) return finish("no_db", false);
 
+  // Pick up any capability change the site has announced since the last probe (idempotent).
+  await autoConnectManagedSites(1, businessId).catch(() => undefined);
   const target = await getSiteTarget(businessId);
   if (!target || target.adapter !== "managed_feed") return finish("no_managed_feed_target", false);
   const origin = String((target.config as { siteOrigin?: string }).siteOrigin ?? "");

@@ -117,7 +117,7 @@ export async function runOrchestratorBatch(limit = 10): Promise<{ businesses: nu
   return { businesses: rows.length, acted, steps };
 }
 
-export async function runOrchestrator(businessId: string, maxTypes = 5): Promise<OrchestratorStep[]> {
+export async function runOrchestrator(businessId: string, maxTypes = 5, opts: { skipTypes?: OpportunityType[] } = {}): Promise<OrchestratorStep[]> {
   const ranked = await allOpenRanked(businessId, 50);
   const steps: OrchestratorStep[] = [];
   const seenTypes = new Set<OpportunityType>(); // channels already worked this run
@@ -129,6 +129,14 @@ export async function runOrchestrator(businessId: string, maxTypes = 5): Promise
     if (attempted >= maxTypes) break;
     const type = opp.opportunityType as OpportunityType;
     if (seenTypes.has(type)) continue; // one action per channel per run — diversity, not monopoly
+    // Manual/forced test cycles never run these channels (outreach must not be triggered just by testing).
+    if (opts.skipTypes?.includes(type)) {
+      if (!reportedSkips.has(type)) {
+        reportedSkips.add(type);
+        steps.push({ opportunityType: type, opportunityId: opp.id, rankScore: opp.rankScore, eligibility: opp.eligibility, selectedWhy: `${type} is not run by manual cycles`, result: { attempted: false, outcome: "skipped", reason: "not_run_by_manual_cycle" } });
+      }
+      continue;
+    }
     if (opp.eligibility !== "AUTO_ELIGIBLE") {
       if (!reportedSkips.has(type)) {
         reportedSkips.add(type);

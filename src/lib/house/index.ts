@@ -304,7 +304,8 @@ export async function runHouseAccountCycle(businessId: string, opts: { force?: b
   const orchDue = force || due.orchestrator || (changed && sinceOrch > HOUSE_CADENCE.orchestratorMinGapHours * HOUR);
   if (orchDue) {
     try {
-      const steps = await runOrchestrator(businessId, 5);
+      // Forced/manual cycles (admin button, watchdog retry) never run authority outreach; only the scheduled cycle does, under its own caps.
+      const steps = await runOrchestrator(businessId, 5, force ? { skipTypes: ["backlink"] } : {});
       const acted = steps.filter((s) => s.result.outcome === "acted").length;
       report.orchestrated = true;
       report.acted = acted;
