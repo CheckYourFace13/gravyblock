@@ -1,5 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { getDb, jobs, publishedContent } from "@/lib/db";
+import { isSiteWriteBlocked } from "./write-policy";
 
 export type ManagedFeedBody = {
   version: 1;
@@ -14,6 +15,8 @@ export async function buildManagedFeed(businessId: string): Promise<ManagedFeedB
   const db = getDb();
   const empty: ManagedFeedBody = { version: 1, businessId, generatedAt: new Date().toISOString(), items: [], overrides: [] };
   if (!db) return empty;
+  // House accounts are read-only: their signed feed serves nothing, so no override or article can ever reach their site.
+  if (await isSiteWriteBlocked(businessId)) return empty;
 
   const items = await db
     .select()

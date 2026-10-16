@@ -96,9 +96,11 @@ export async function nextOpportunities(businessId: string, limit = 5): Promise<
     .slice(0, limit);
 }
 
-export function classifyEligibility(r: { status: string; autoEligible: string; requiredCapability: string | null; measurementPlan: unknown; valueClass: string; expectedImpact: number; confidence: number }, profileActive: Set<string>): EligibilityLabel {
+export function classifyEligibility(r: { status: string; autoEligible: string; requiredCapability: string | null; measurementPlan: unknown; valueClass: string; expectedImpact: number; confidence: number }, profileActive: Set<string>, siteWriteBlocked = false): EligibilityLabel {
   if (r.status === "acting") return "ACTING";
   if (r.status === "acted" && r.measurementPlan) return "MEASURING";
+  // Read-only (house) sites: anything that would modify the website is observed and scored, never executed, and never becomes a chore.
+  if (siteWriteBlocked && r.requiredCapability === "website_write") return "OBSERVED_NO_SITE_WRITE";
   if (r.autoEligible !== "true") return "NOT_WORTH_ACTING";
   const need = r.requiredCapability;
   if (need) {
@@ -116,7 +118,7 @@ export async function allOpenRanked(businessId: string, limit = 20): Promise<(Ra
   const [mode, profile, maturity, learned] = await Promise.all([getOperatingMode(businessId), getCapabilityProfile(businessId), getMaturitySignals(businessId), getLearnedWeights()]);
   const rows = await db.select().from(growthOpportunities).where(and(eq(growthOpportunities.businessId, businessId), sql`${growthOpportunities.status} in ('open','acting','acted')`)).limit(300);
   return rows
-    .map((r) => ({ ...r, rankScore: rank(r, strategyWeight(mode.mode, r.opportunityType as OpportunityType) * maturityMultiplier(maturity, r.opportunityType as OpportunityType) * learnedMultiplier(learned, r.opportunityType as OpportunityType, r.businessMode)), eligibility: classifyEligibility(r, profile.active) }))
+    .map((r) => ({ ...r, rankScore: rank(r, strategyWeight(mode.mode, r.opportunityType as OpportunityType) * maturityMultiplier(maturity, r.opportunityType as OpportunityType) * learnedMultiplier(learned, r.opportunityType as OpportunityType, r.businessMode)), eligibility: classifyEligibility(r, profile.active, profile.siteWriteBlocked) }))
     .sort((a, b) => b.rankScore - a.rankScore)
     .slice(0, limit);
 }
@@ -134,6 +136,7 @@ export async function blockedByCapability(businessId: string, limit = 10): Promi
   const blocked = rows.filter((r) => {
     const need = r.requiredCapability;
     if (!need) return false;
+    if (need === "website_write" && profile.siteWriteBlocked) return false; // observed, not a connection chore
     const flag = CAPABILITY_FLAG[need];
     return flag ? !profile.active.has(flag) : false;
   });

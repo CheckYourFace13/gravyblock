@@ -79,6 +79,8 @@ export async function runConnectorSelfTest(businessId: string): Promise<SelfTest
   res.handshake = Boolean(found && found.businessId === businessId);
   res.declared = Object.entries(target.capabilities).filter(([, v]) => v).map(([k]) => k);
   if (!res.handshake) return finish("handshake_failed", false);
+  // House accounts are read-only: the self-test is a read-only handshake (no marker write).
+  if (!target.writable) return finish("house_read_only_handshake_ok_no_write_test", true);
   if (!target.capabilities.structuredData) return finish("handshake_ok_write_untestable_without_structured_data", true);
 
   const marker = `gravyblock-selftest-${Date.now().toString(36)}`;

@@ -16,6 +16,7 @@ import { businesses, getDb, jobs } from "@/lib/db";
 import { safeFetchText } from "@/lib/net/safe-fetch";
 import { recordProof } from "@/lib/proof/ledger";
 import { getSiteTarget, pathCovered } from "@/lib/site-publish/adapters";
+import { assertSiteWritable } from "@/lib/site-publish/write-policy";
 import { collectPages, findDefects, snapshotPage, type Defect, type DefectType, type PageSnapshot } from "./basic-audit";
 import { recordOpportunity, nextOpportunities, resolveOpportunityByDedupeKey, markActed } from "@/lib/opportunities/queue";
 import { classifyValue } from "@/lib/opportunities/classify";
@@ -127,7 +128,7 @@ export async function runBasicSeoForBusiness(businessId: string, opts: { scanOnl
   const pages = await collectPages(biz.website, MAX_PAGES_PER_ACTION);
   if (pages.length === 0) return { state: "site_unreachable" };
   // Only paths the connector actually renders overrides for (a partial connector declares them); nothing is proposed where it could never show.
-  const defects = findDefects(pages, biz.name).filter((d) => !target || pathCovered(target.config, d.path));
+  const defects = findDefects(pages, biz.name).filter((d) => !target || !target.writable || pathCovered(target.config, d.path));
   await recordDefectsAsOpportunities(businessId, defects);
 
   await db.insert(jobs).values({
@@ -192,6 +193,7 @@ export async function runBasicSeoForBusiness(businessId: string, opts: { scanOnl
   }
   if (applied.length === 0) return { state: "no_safe_fix_available", action: type };
 
+  await assertSiteWritable(businessId); // house accounts are read-only; this throws before anything is written
   const actionId = crypto.randomUUID();
   const metric = METRIC[type]!;
   const before = pages.filter((p) => metric.test(p)).length;

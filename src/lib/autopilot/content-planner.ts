@@ -13,6 +13,7 @@
  */
 
 import { capabilitiesFor, type SiteAdapterKind } from "@/lib/site-publish/adapters";
+import { isSiteWriteBlocked } from "@/lib/site-publish/write-policy";
 import { and, desc, eq, inArray, gte } from "drizzle-orm";
 import { contentQueue, getDb, jobs, publishingTargets } from "@/lib/db";
 import { ensureFreshTruth } from "@/lib/truth";
@@ -43,6 +44,7 @@ async function recordEngineState(businessId: string, state: EngineState, detail:
 export async function hasExternalPublishingTarget(businessId: string): Promise<boolean> {
   const db = getDb();
   if (!db) return false;
+  if (await isSiteWriteBlocked(businessId)) return false; // house accounts are read-only
   const rows = await db
     .select({ adapter: publishingTargets.adapter, config: publishingTargets.config })
     .from(publishingTargets)

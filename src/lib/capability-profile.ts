@@ -9,6 +9,7 @@
 import { getOperatingMode, type BusinessMode } from "@/lib/business-mode";
 import { getBusinessTruth } from "@/lib/truth";
 import { getSiteTarget, type SiteCapabilities } from "@/lib/site-publish/adapters";
+import { isSiteWriteBlocked } from "@/lib/site-publish/write-policy";
 import { getConnectionReadiness } from "@/lib/onboarding/connection-readiness";
 
 export type CapabilityProfile = {
@@ -41,6 +42,8 @@ export type CapabilityProfile = {
     place: string | null;
   };
   truthSufficient: boolean;
+  /** True for house accounts: the website may be read and measured but never modified. */
+  siteWriteBlocked: boolean;
   /** Capabilities present right now, as a set other modules can gate on ("website_write", "gsc", "gbp", "social", "reviews", "authority"). */
   active: Set<string>;
 };
@@ -54,7 +57,8 @@ export async function getCapabilityProfile(businessId: string): Promise<Capabili
   ]);
 
   const active = new Set<string>();
-  if (site) active.add("website_write");
+  // Read-only (house) sites never count as website_write, so site-modifying work is observed, not executed.
+  if (site?.writable) active.add("website_write");
   if (readiness?.google.hasSearchConsoleScope) active.add("gsc");
   if (readiness?.google.connected && readiness.google.hasBusinessScope) active.add("gbp");
   if (readiness?.facebookConfigured) active.add("social");
@@ -91,6 +95,7 @@ export async function getCapabilityProfile(businessId: string): Promise<Capabili
       place: mode.placeLabel,
     },
     truthSufficient: truth.sufficient,
+    siteWriteBlocked: await isSiteWriteBlocked(businessId),
     active,
   };
 }

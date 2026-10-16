@@ -13,6 +13,7 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq, gte, inArray, or } from "drizzle-orm";
 import { businesses, getDb, googleOauthConnections, jobs, pagePerformance, publishedContent, publishingTargets } from "@/lib/db";
+import { isSiteWriteBlocked } from "@/lib/site-publish/write-policy";
 import { getFreshAccessToken, getGoogleConnection } from "@/lib/integrations/google-oauth";
 import { MODELS, openRouterChat } from "@/lib/integrations/openrouter";
 import type { WordPressConfig } from "@/lib/integrations/wordpress";
@@ -140,6 +141,8 @@ function sameHost(a: string, b: string): boolean {
 export async function getWordPressTarget(businessId: string): Promise<WordPressConfig | null> {
   const db = getDb();
   if (!db) return null;
+  // House accounts are read-only: no WordPress credentials are ever handed to a writer for them.
+  if (await isSiteWriteBlocked(businessId)) return null;
   const [t] = await db
     .select({ config: publishingTargets.config })
     .from(publishingTargets)

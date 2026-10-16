@@ -35,6 +35,7 @@ export default async function HouseFleetDetail() {
     ? await db.select({ businessId: backlinkOpportunities.businessId, status: backlinkOpportunities.status, n: sql<number>`count(*)::int` }).from(backlinkOpportunities).where(inArray(backlinkOpportunities.businessId, ids)).groupBy(backlinkOpportunities.businessId, backlinkOpportunities.status)
     : [];
   const wd = db ? await db.select({ createdAt: jobs.createdAt, payload: jobs.payload }).from(jobs).where(eq(jobs.type, HOUSE_JOB.watchdog)).orderBy(desc(jobs.createdAt)).limit(1) : [];
+  const withdrawn = db ? await db.select({ createdAt: jobs.createdAt, payload: jobs.payload }).from(jobs).where(eq(jobs.type, "house_site_writes_withdrawn_v1")).orderBy(desc(jobs.createdAt)).limit(1) : [];
   const evalRun = db ? await db.select({ createdAt: jobs.createdAt, payload: jobs.payload }).from(jobs).where(eq(jobs.type, "opportunity_measurement_eval")).orderBy(desc(jobs.createdAt)).limit(1) : [];
   const dueSoon = measured.filter((m) => {
     const plan = m.plan as { earliestEvaluationAt?: string } | null;
@@ -47,6 +48,7 @@ export default async function HouseFleetDetail() {
     <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 text-xs">
       <h1 className="text-xl font-semibold text-zinc-900">House fleet detail</h1>
       <p className="text-zinc-600">Last watchdog: {wd[0] ? `${wd[0].createdAt.toISOString()} ${j(wd[0].payload)}` : "never"}</p>
+      <p className="text-zinc-600"><b>Policy: house sites are read-only.</b> GravyBlock-written overrides/articles withdrawn: {withdrawn[0] ? `${withdrawn[0].createdAt.toISOString()} ${j(withdrawn[0].payload)}` : "pending (runs on the next worker check)"}</p>
       <p className="text-zinc-600">Measurement: plans {measured.filter((m) => m.plan).length}, due now {dueSoon}, evaluated {evaluated}; evaluator last ran {evalRun[0] ? `${evalRun[0].createdAt.toISOString()} ${j(evalRun[0].payload)}` : "never"}</p>
       {await Promise.all(
         accounts.map(async (a) => {

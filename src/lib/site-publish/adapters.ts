@@ -16,6 +16,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { businesses, getDb, jobs, publishingTargets } from "@/lib/db";
 import { safeFetchText } from "@/lib/net/safe-fetch";
+import { isSiteWriteBlocked } from "./write-policy";
 
 export type SiteAdapterKind = "wordpress" | "webflow" | "shopify" | "managed_feed";
 
@@ -34,7 +35,9 @@ export const SITE_ADAPTERS: Record<SiteAdapterKind, { label: string; capabilitie
   managed_feed: { label: "GravyBlock connector (signed feed)", capabilities: { articles: true, pageMetadata: true, socialImage: true, structuredData: true, existingPageBody: false } },
 };
 
-export type SiteTarget = { targetId: string; adapter: SiteAdapterKind; config: Record<string, unknown>; capabilities: SiteCapabilities; label: string };
+export type SiteTarget = { targetId: string; adapter: SiteAdapterKind; config: Record<string, unknown>; capabilities: SiteCapabilities; label: string; /** false = read-only (house accounts): the site may be read and measured, never modified. */ writable: boolean };
+
+const NO_CAPABILITIES: SiteCapabilities = { articles: false, pageMetadata: false, socialImage: false, structuredData: false, existingPageBody: false };
 
 export async function getSiteTarget(businessId: string): Promise<SiteTarget | null> {
   const db = getDb();
@@ -47,7 +50,9 @@ export async function getSiteTarget(businessId: string): Promise<SiteTarget | nu
   const row = rows.find((r) => r.config);
   if (!row) return null;
   const kind = row.adapter as SiteAdapterKind;
-  return { targetId: row.id, adapter: kind, config: row.config as Record<string, unknown>, capabilities: capabilitiesFor(kind, row.config), label: SITE_ADAPTERS[kind].label };
+  // Central read-only rule: a house account's site is readable but never writable, whatever the connector declares.
+  const writable = !(await isSiteWriteBlocked(businessId));
+  return { targetId: row.id, adapter: kind, config: row.config as Record<string, unknown>, capabilities: writable ? capabilitiesFor(kind, row.config) : NO_CAPABILITIES, label: SITE_ADAPTERS[kind].label, writable };
 }
 
 const CAPABILITY_KEYS = ["articles", "pageMetadata", "socialImage", "structuredData", "existingPageBody"] as const;

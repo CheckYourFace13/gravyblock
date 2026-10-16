@@ -16,7 +16,7 @@
  * watchdog read. A failed step leaves the account due, retried after a short backoff.
  */
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
-import { businesses, getDb, jobs, proofLedger, publishingTargets } from "@/lib/db";
+import { businesses, getDb, jobs, proofLedger, publishedContent, publishingTargets } from "@/lib/db";
 import { refreshBusinessTruth } from "@/lib/truth";
 import { createOpportunitiesFromTruth, invalidateStaleTruthOpportunities } from "@/lib/opportunities/truth-opportunities";
 import { scanCrossEngineOpportunities } from "@/lib/opportunities/scan";
@@ -86,6 +86,46 @@ export async function revertWorkaroundPlans(): Promise<number> {
     .returning({ id: businesses.id });
   await db.insert(jobs).values({ type: "house_entitlement_revert_v1", status: "completed", payload: { reverted: rows.length } });
   return rows.length;
+}
+
+/**
+ * One-time cleanup for the read-only policy: every GravyBlock-written override or article still marked active for a
+ * house account is withdrawn (reverted rows are appended, history is never edited), so nothing GravyBlock wrote can ever
+ * be served to a house site again, even if the feed rule were removed. The audit list is stored on the marker job.
+ */
+export async function withdrawHouseSiteWrites(): Promise<{ done: boolean; accounts: Array<{ name: string; overrides: string[]; selfTestMarkers: number; articles: number }> }> {
+  const db = getDb();
+  if (!db) return { done: false, accounts: [] };
+  const [marker] = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.type, "house_site_writes_withdrawn_v1")).limit(1);
+  if (marker) return { done: false, accounts: [] };
+  const accounts = await listHouseAccounts();
+  const report: Array<{ name: string; overrides: string[]; selfTestMarkers: number; articles: number }> = [];
+  for (const a of accounts) {
+    const rows = await db.select({ payload: jobs.payload, status: jobs.status }).from(jobs).where(and(eq(jobs.businessId, a.id), eq(jobs.type, "site_override"))).orderBy(desc(jobs.createdAt)).limit(600);
+    const latest = new Map<string, { status: string; payload: Record<string, unknown> }>();
+    for (const r of rows) {
+      const p = (r.payload ?? {}) as Record<string, unknown>;
+      const path = typeof p.path === "string" ? p.path : null;
+      if (path && !latest.has(path)) latest.set(path, { status: r.status, payload: p });
+    }
+    const overrides: string[] = [];
+    let markers = 0;
+    for (const [path, v] of latest) {
+      if (v.status !== "active") continue;
+      if (typeof v.payload.selftest === "string") markers++;
+      const kinds = ["title", "description", "ogImage", "jsonLd"].filter((k) => v.payload[k]);
+      overrides.push(`${path} [${kinds.join("+") || "none"}${typeof v.payload.defectType === "string" ? `; ${v.payload.defectType}` : ""}]`);
+      await db.insert(jobs).values({ businessId: a.id, type: "site_override", status: "reverted", payload: { path, reason: "house_read_only_policy" } });
+    }
+    const withdrawn = await db
+      .update(publishedContent)
+      .set({ status: "withdrawn" })
+      .where(and(eq(publishedContent.businessId, a.id), eq(publishedContent.channel, "managed_feed"), eq(publishedContent.status, "published")))
+      .returning({ id: publishedContent.id });
+    report.push({ name: a.name, overrides, selfTestMarkers: markers, articles: withdrawn.length });
+  }
+  await db.insert(jobs).values({ type: "house_site_writes_withdrawn_v1", status: "completed", payload: { accounts: report } });
+  return { done: true, accounts: report };
 }
 
 /** Queue a forced cycle for one account (or all). The worker runs it within one tick; the admin UI never blocks on it. */
@@ -439,6 +479,7 @@ export async function runHouseFleetTick(maxPerTick = 3): Promise<{ accounts: num
   if (Date.now() < nextFleetCheckAt) return { accounts: 0, ran: 0, acted: 0, errors: 0 };
   if (!entitlementRevertChecked) {
     await revertWorkaroundPlans();
+    await withdrawHouseSiteWrites().catch((e) => console.error("[house] withdraw site writes failed", e));
     entitlementRevertChecked = true;
   }
   const accounts = await listHouseAccounts();
@@ -576,12 +617,15 @@ export async function getHouseFleetStatus(): Promise<HouseAccountStatus[]> {
     if (age(state.lastOrchestrator) > HOUSE_CADENCE.redIfLoopOlderThanDays * DAY) red("orchestrator not running");
     if (state.lastRefreshNote === "homepage_unreachable") red("homepage unreachable on last refresh");
     if (state.recentOrchestratorErrors >= 2) red("executor errored in each of the last two runs");
-    if (connectorKind && state.connectorCheck && !state.connectorCheck.ok) red("site connector failing its handshake");
+    // The connector is a read-only feed for house accounts, so a failing handshake is a degraded read path, not a broken core loop.
+    const readFeedFailing = Boolean(connectorKind && state.connectorCheck && !state.connectorCheck.ok);
     // GREEN additionally needs the deep refresh within 7 days; slightly overdue is YELLOW, not green.
     if (health !== "RED") {
       if (age(state.lastDeep) > 7 * DAY) yellow("deep refresh older than 7 days");
       if (state.lastFailedCycle && age(state.lastFailedCycle) < DAY) yellow("last cycle had a failing step (auto-retrying)");
-      if (!connectorKind && websiteWorkPending > 0) yellow(`no website write connector: ${websiteWorkPending} page/content opportunities waiting, other work continues`);
+      // House sites are read-only by policy: no connector is needed, and page-level opportunities are observed, not queued as chores.
+      if (readFeedFailing) yellow("read-only connector feed failing its handshake (site reads continue by crawl)");
+      void websiteWorkPending;
       if (blocked.filter((b) => b !== "website_write").length) yellow(`relevant work waiting on: ${blocked.filter((b) => b !== "website_write").join(", ")}`);
     }
     // Eligible work that has sat open for 10+ days while the loop kept running is a stuck queue (the watchdog retries; still stuck = visible).
@@ -593,8 +637,8 @@ export async function getHouseFleetStatus(): Promise<HouseAccountStatus[]> {
       name: a.name,
       domain: domainOf(a.website),
       mode,
-      connector: connectorKind ?? "none",
-      connectorCapabilities: connectorKind ? Object.entries(capabilitiesFor(connectorKind as SiteAdapterKind, targets.find((t) => t.businessId === a.id && t.adapter === connectorKind)?.config)).filter(([, v]) => v).map(([k]) => k) : [],
+      connector: connectorKind ? "read-only feed (writes disabled)" : "none (read by crawl)",
+      connectorCapabilities: [],
       state,
       nextDeepDue: state.lastDeep ? new Date(state.lastDeep.getTime() + HOUSE_CADENCE.deepEveryDays * DAY) : null,
       topOpportunity,

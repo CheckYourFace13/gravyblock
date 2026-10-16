@@ -1,4 +1,5 @@
 import { capabilitiesFor, type SiteAdapterKind } from "@/lib/site-publish/adapters";
+import { isSiteWriteBlocked } from "@/lib/site-publish/write-policy";
 import { effectivePlanTier } from "@/lib/entitlement";
 import { fullAccessWhere } from "@/lib/entitlement";
 import { recordProof } from "@/lib/proof/ledger";
@@ -297,6 +298,11 @@ export async function executeContentPublishPath(businessId: string) {
 
   if (!queuedItem) {
     return { ok: false, reason: "no_queued_content" as const };
+  }
+
+  // House accounts are read-only: nothing is ever published to their sites.
+  if (await isSiteWriteBlocked(businessId)) {
+    return { ok: false, reason: "site_write_blocked" as const, contentQueueId: queuedItem.id };
   }
 
   // A real external destination is required: GravyBlock publishes to the

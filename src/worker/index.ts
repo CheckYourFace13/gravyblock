@@ -16,7 +16,7 @@
  */
 
 import { fullAccessWhere } from "@/lib/entitlement";
-import { eq, and, inArray, gte, lte, count } from "drizzle-orm";
+import { eq, and, inArray, gte, lte, count, ne } from "drizzle-orm";
 import { runPendingRecurringSnapshotJobs, executeContentPublishPath, backfillMissingRecurringJobs } from "@/lib/autopilot/executor";
 import { getDb, businesses, contentQueue, jobs } from "@/lib/db";
 import { queueContentForBusiness } from "@/lib/content-gen/queue-content";
@@ -94,7 +94,7 @@ async function processContentGeneration() {
   const allPaidBizIds = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(fullAccessWhere())
+    .where(and(fullAccessWhere(), ne(businesses.accountType, "house"))) // house accounts are read-only: no content is generated for their sites
     .limit(100);
 
   if (allPaidBizIds.length === 0) return;
@@ -144,7 +144,7 @@ async function processContentQueue() {
     const [biz] = await db
       .select({ planTier: businesses.planTier })
       .from(businesses)
-      .where(and(eq(businesses.id, row.businessId), fullAccessWhere()))
+      .where(and(eq(businesses.id, row.businessId), fullAccessWhere(), ne(businesses.accountType, "house")))
       .limit(1);
     if (!biz) continue;
 
@@ -443,6 +443,9 @@ async function maybeSendReviewRequests() {
 
 async function ensureSelfBusinessQueued() {
   // If GravyBlock is registered as its own customer, make sure it always has content queued
+  // GravyBlock's own account is a house account and therefore read-only: the House engine no longer generates or
+  // publishes content for gravyblock.com (intentional development by a person is separate).
+  if (process.env.GRAVYBLOCK_SELF_CONTENT_ENGINE !== "on") return;
   const selfId = process.env.GRAVYBLOCK_SELF_BUSINESS_ID;
   if (!selfId) return;
   const db = getDb();
