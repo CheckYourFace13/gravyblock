@@ -34,10 +34,10 @@ export default async function DbUsagePage() {
       db.execute(sql`select type, count(*) filter (where created_at > now() - interval '24 hours')::int as h24, count(*) filter (where created_at > now() - interval '7 days')::int as d7 from jobs where created_at > now() - interval '7 days' group by type order by h24 desc, d7 desc limit 30`),
     ),
     q("top statements by total time", () =>
-      db.execute(sql`select calls::bigint as calls, round(total_exec_time::numeric/1000, 1) as total_s, round(mean_exec_time::numeric, 2) as mean_ms, rows::bigint as rows, left(regexp_replace(query, '\s+', ' ', 'g'), 150) as query from pg_stat_statements order by total_exec_time desc limit 20`),
+      db.execute(sql`select calls::bigint as calls, round(total_exec_time::numeric/1000, 1) as total_s, round(mean_exec_time::numeric, 2) as mean_ms, rows::bigint as rows, left(regexp_replace(query, '[[:space:]]+', ' ', 'g'), 150) as query from pg_stat_statements order by total_exec_time desc limit 20`),
     ),
     q("most frequent statements", () =>
-      db.execute(sql`select calls::bigint as calls, round(total_exec_time::numeric/1000, 1) as total_s, round(mean_exec_time::numeric, 2) as mean_ms, left(regexp_replace(query, '\s+', ' ', 'g'), 150) as query from pg_stat_statements order by calls desc limit 12`),
+      db.execute(sql`select calls::bigint as calls, round(total_exec_time::numeric/1000, 1) as total_s, round(mean_exec_time::numeric, 2) as mean_ms, left(regexp_replace(query, '[[:space:]]+', ' ', 'g'), 150) as query from pg_stat_statements order by calls desc limit 12`),
     ),
   ]);
   return (
