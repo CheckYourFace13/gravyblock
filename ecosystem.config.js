@@ -38,7 +38,7 @@ module.exports = {
       exec_mode: "fork",
       env: {
         NODE_ENV: "production",
-        WORKER_INTERVAL_MS: 900000,  // 15 minutes
+        WORKER_INTERVAL_MS: 1800000,  // 30 minutes (the worker enforces this as a floor; see src/worker/index.ts)
         JOBS_PER_TICK: 5,
         CONTENT_PER_TICK: 3,
       },

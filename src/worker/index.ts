@@ -75,7 +75,11 @@ import { runHouseFleetTick, runHouseWatchdog, runRequestedHouseCycles, runReques
 import { consumeHouseWake } from "@/lib/house/wake";
 import { isConserving, sampleDbLoad } from "@/lib/db-guard";
 
-const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
+// The serverless Postgres only sleeps after ~5 idle minutes, so a 15-minute tick that works for several minutes kept it
+// awake nearly 24/7 (about 89% of the month's compute allowance in 15 days). Every job here is hour-gated, daily or
+// weekly, so a 30-minute floor does the same work with half the wake-ups.
+const MIN_WORKER_INTERVAL_MS = 30 * 60 * 1000;
+const WORKER_INTERVAL_MS = Math.max(Number(process.env.WORKER_INTERVAL_MS ?? MIN_WORKER_INTERVAL_MS), MIN_WORKER_INTERVAL_MS);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
 const CONTENT_PER_TICK = Number(process.env.CONTENT_PER_TICK ?? 3);
 
@@ -996,8 +1000,22 @@ async function tick() {
 // One-time startup tasks
 void ensureResendWebhookRegistered().catch(() => null);
 
-void tick();
-setInterval(() => void tick(), WORKER_INTERVAL_MS);
+// Never run two ticks at once: a long tick (many house cycles) used to be overlapped by the next interval, doubling database load.
+let tickRunning = false;
+async function guardedTick() {
+  if (tickRunning) {
+    console.warn("[worker] previous tick still running, skipping this interval");
+    return;
+  }
+  tickRunning = true;
+  try {
+    await tick();
+  } finally {
+    tickRunning = false;
+  }
+}
+void guardedTick();
+setInterval(() => void guardedTick(), WORKER_INTERVAL_MS);
 
 // Admin-requested house work (cycle / self-test / watchdog): the admin action drops a wake file, and this loop only
 // stats that file (no database access). The database is queried only when the file exists, or once per worker tick.
