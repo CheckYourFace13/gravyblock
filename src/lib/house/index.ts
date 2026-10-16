@@ -356,6 +356,38 @@ export async function requestConnectorSelfTest(businessId: string): Promise<bool
   return true;
 }
 
+/** Queue an on-demand watchdog pass (same code as the daily 16:00 UTC run). Safe: retries only RED accounts, never sends outreach. */
+export async function requestWatchdog(): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  const [open] = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.type, "house_watchdog_requested"), eq(jobs.status, "pending"))).limit(1);
+  if (open) return false;
+  await db.insert(jobs).values({ type: "house_watchdog_requested", status: "pending", payload: { requestedAt: new Date().toISOString() } });
+  return true;
+}
+
+let watchdogRunning = false;
+
+/** Worker poller for requested watchdog passes. */
+export async function runRequestedWatchdog(): Promise<number> {
+  const db = getDb();
+  if (!db || watchdogRunning) return 0;
+  const [next] = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.type, "house_watchdog_requested"), eq(jobs.status, "pending"))).orderBy(jobs.createdAt).limit(1);
+  if (!next) return 0;
+  watchdogRunning = true;
+  try {
+    await db.update(jobs).set({ status: "running" }).where(eq(jobs.id, next.id));
+    await runHouseWatchdog();
+    return 1;
+  } catch (err) {
+    console.error("[house] requested watchdog failed", { error: err instanceof Error ? err.message : String(err) });
+    return 0;
+  } finally {
+    await db.update(jobs).set({ status: "completed" }).where(eq(jobs.id, next.id));
+    watchdogRunning = false;
+  }
+}
+
 let selfTestRunning = false;
 
 /** Worker poller: runs queued self-tests one at a time (each can take up to ~25 minutes of polling). */
@@ -499,6 +531,7 @@ export async function getHouseFleetStatus(): Promise<HouseAccountStatus[]> {
     let topOpportunity: string | null = null;
     let websiteWorkPending = 0;
     let eligibleNow = 0;
+    let stuckEligible = 0;
     try {
       mode = (await getOperatingMode(a.id)).mode;
       const ranked = await allOpenRanked(a.id, 25);
@@ -509,7 +542,10 @@ export async function getHouseFleetStatus(): Promise<HouseAccountStatus[]> {
       eligibleNow = eligible.length;
       const top = eligible[0];
       topOpportunity = top ? `${top.opportunityType}${top.subtype ? `: ${top.subtype}` : ""} (rank ${Math.round(top.rankScore)})` : ranked[0] ? `none eligible now; best open is ${ranked[0].opportunityType} (${ranked[0].eligibility})` : null;
-      websiteWorkPending = ranked.filter((r) => r.status === "open" && r.requiredCapability === "website_write").length;
+      // Only auto-eligible page work counts as "waiting" on a connector; rows no engine may auto-fix are not blocked by a missing connector.
+      websiteWorkPending = ranked.filter((r) => r.status === "open" && r.requiredCapability === "website_write" && r.autoEligible === "true").length;
+      eligibleNow = eligible.length;
+      stuckEligible = eligible.filter((r) => Date.now() - r.createdAt.getTime() > 10 * DAY).length;
     } catch (err) {
       yellow(`status read failed: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -538,6 +574,8 @@ export async function getHouseFleetStatus(): Promise<HouseAccountStatus[]> {
       if (!connectorKind && websiteWorkPending > 0) yellow(`no website write connector: ${websiteWorkPending} page/content opportunities waiting, other work continues`);
       if (blocked.filter((b) => b !== "website_write").length) yellow(`relevant work waiting on: ${blocked.filter((b) => b !== "website_write").join(", ")}`);
     }
+    // Eligible work that has sat open for 10+ days while the loop kept running is a stuck queue (the watchdog retries; still stuck = visible).
+    if (health !== "RED" && stuckEligible > 0 && state.lastOrchestrator && age(state.lastOrchestrator) < 3 * DAY) yellow(`${stuckEligible} auto-eligible opportunities open for over 10 days without being worked`);
     void eligibleNow;
 
     out.push({

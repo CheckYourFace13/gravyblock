@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { businesses, getDb } from "@/lib/db";
 import { isAdminSession } from "@/lib/auth/admin-session";
-import { requestConnectorSelfTest, requestHouseCycle } from "@/lib/house";
+import { requestConnectorSelfTest, requestHouseCycle, requestWatchdog } from "@/lib/house";
 
 const MODES = ["local", "regional", "national", "online"] as const;
 
@@ -55,6 +55,13 @@ export async function runHouseCycleNow(businessId: string): Promise<void> {
 export async function runSelfTestNow(businessId: string): Promise<void> {
   if (!(await isAdminSession())) throw new Error("Not authorized.");
   await requestConnectorSelfTest(businessId);
+  revalidatePath("/admin/house");
+}
+
+/** Queues one on-demand watchdog pass. */
+export async function runWatchdogNow(): Promise<void> {
+  if (!(await isAdminSession())) throw new Error("Not authorized.");
+  await requestWatchdog();
   revalidatePath("/admin/house");
 }
 

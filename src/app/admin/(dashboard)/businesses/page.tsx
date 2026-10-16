@@ -2,7 +2,7 @@ import Link from "next/link";
 import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
 import { listBusinessSummaries } from "@/lib/report/repository";
 import { getHouseFleetStatus, type HouseHealth } from "@/lib/house";
-import { enrollHouseSite, runFleetCycleNow, runHouseCycleNow, runSelfTestNow } from "./house-actions";
+import { enrollHouseSite, runFleetCycleNow, runHouseCycleNow, runSelfTestNow, runWatchdogNow } from "./house-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +126,9 @@ export default async function AdminBusinessesPage({ searchParams }: Props) {
           <Link href="/admin/house" className="font-semibold underline">Per-account engine detail</Link>
           <form action={runFleetCycleNow} className="ml-3 inline">
             <button type="submit" className="font-semibold underline">Queue a full cycle for all</button>
+          </form>
+          <form action={runWatchdogNow} className="ml-3 inline">
+            <button type="submit" className="font-semibold underline">Run watchdog now</button>
           </form>
         </div>
         {houseCount > 0 ? (
