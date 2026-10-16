@@ -30,6 +30,9 @@ export default async function DbUsagePage() {
   const sections = await Promise.all([
     q("identity", () => db.execute(sql`select current_database() as database, current_setting('neon.endpoint_id', true) as neon_endpoint_id, current_setting('neon.project_id', true) as neon_project_id, version() as version`)),
     q("connections", () => db.execute(sql`select coalesce(nullif(application_name,''),'(none)') as app, state, count(*)::int as n from pg_stat_activity where datname = current_database() group by 1,2 order by n desc`)),
+    q("current activity (what each connection is doing right now)", () =>
+      db.execute(sql`select state, coalesce(wait_event_type,'') as wait, round(extract(epoch from (now() - backend_start))::numeric / 60) as conn_age_min, round(extract(epoch from (now() - query_start))::numeric) as query_age_s, left(regexp_replace(query, '[[:space:]]+', ' ', 'g'), 140) as query from pg_stat_activity where datname = current_database() and pid <> pg_backend_pid() order by query_start desc nulls last`),
+    ),
     q("database stats", () => db.execute(sql`select numbackends, xact_commit, xact_rollback, blks_read, blks_hit, tup_returned, tup_fetched, tup_inserted, tup_updated, stats_reset from pg_stat_database where datname = current_database()`)),
     q("job rows written, by type (24h / 7d)", () =>
       db.execute(sql`select type, count(*) filter (where created_at > now() - interval '24 hours')::int as h24, count(*) filter (where created_at > now() - interval '7 days')::int as d7 from jobs where created_at > now() - interval '7 days' group by type order by h24 desc, d7 desc limit 30`),
