@@ -1029,7 +1029,14 @@ async function drainHouseRequests() {
   try {
     await runRequestedWatchdog().catch((error) => console.error("[worker] house watchdog poll failed", { error: error instanceof Error ? error.message : String(error) }));
     void runRequestedSelfTests().catch((error) => console.error("[worker] house self-test poll failed", { error: error instanceof Error ? error.message : String(error) }));
-    await runRequestedHouseCycles(2).catch((error) => console.error("[worker] house request poll failed", { error: error instanceof Error ? error.message : String(error) }));
+    // Keep draining until no request is left (bounded), so a 12-account request does not stall for a whole tick after the first batch.
+    for (let i = 0; i < 12; i++) {
+      const ran = await runRequestedHouseCycles(2).catch((error) => {
+        console.error("[worker] house request poll failed", { error: error instanceof Error ? error.message : String(error) });
+        return 0;
+      });
+      if (ran === 0) break;
+    }
   } finally {
     requestPollRunning = false;
   }
