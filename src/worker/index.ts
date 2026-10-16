@@ -72,6 +72,7 @@ import { runGbpPhotoUploadBatch } from "@/lib/gbp/photo-uploader";
 import { runListingWatchdogBatch } from "@/lib/gbp/listing-watchdog";
 import { runReviewSpotlightBatch } from "@/lib/social/review-spotlight";
 import { runHouseFleetTick, runHouseWatchdog, runRequestedHouseCycles, runRequestedSelfTests, runRequestedWatchdog } from "@/lib/house";
+import { consumeHouseWake } from "@/lib/house/wake";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -982,6 +983,9 @@ async function tick() {
     }
   }
 
+  // Requests whose wake signal was missed (different temp dir, restart) are still picked up once per tick.
+  void drainHouseRequests();
+
   console.info("[worker] tick done", { durationMs: Date.now() - new Date(startedAt).getTime() });
 }
 
@@ -991,19 +995,23 @@ void ensureResendWebhookRegistered().catch(() => null);
 void tick();
 setInterval(() => void tick(), WORKER_INTERVAL_MS);
 
-// Admin-requested house cycles start within about a minute instead of waiting for the next tick.
+// Admin-requested house work (cycle / self-test / watchdog): the admin action drops a wake file, and this loop only
+// stats that file (no database access). The database is queried only when the file exists, or once per worker tick.
 let requestPollRunning = false;
-setInterval(() => {
+async function drainHouseRequests() {
   if (requestPollRunning) return;
   requestPollRunning = true;
-  void runRequestedWatchdog().catch((error) => console.error("[worker] house watchdog poll failed", { error: error instanceof Error ? error.message : String(error) }));
-  void runRequestedSelfTests().catch((error) => console.error("[worker] house self-test poll failed", { error: error instanceof Error ? error.message : String(error) }));
-  void runRequestedHouseCycles(2)
-    .catch((error) => console.error("[worker] house request poll failed", { error: error instanceof Error ? error.message : String(error) }))
-    .finally(() => {
-      requestPollRunning = false;
-    });
-}, 60_000);
+  try {
+    await runRequestedWatchdog().catch((error) => console.error("[worker] house watchdog poll failed", { error: error instanceof Error ? error.message : String(error) }));
+    void runRequestedSelfTests().catch((error) => console.error("[worker] house self-test poll failed", { error: error instanceof Error ? error.message : String(error) }));
+    await runRequestedHouseCycles(2).catch((error) => console.error("[worker] house request poll failed", { error: error instanceof Error ? error.message : String(error) }));
+  } finally {
+    requestPollRunning = false;
+  }
+}
+setInterval(() => {
+  if (consumeHouseWake()) void drainHouseRequests();
+}, 10_000);
 
 console.info("[worker] started", {
   intervalMs: WORKER_INTERVAL_MS,

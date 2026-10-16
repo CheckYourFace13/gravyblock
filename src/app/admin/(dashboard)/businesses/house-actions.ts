@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { businesses, getDb } from "@/lib/db";
 import { isAdminSession } from "@/lib/auth/admin-session";
 import { requestConnectorSelfTest, requestHouseCycle, requestWatchdog } from "@/lib/house";
+import { signalHouseWork } from "@/lib/house/wake";
 
 const MODES = ["local", "regional", "national", "online"] as const;
 
@@ -47,6 +48,7 @@ export async function enrollHouseSite(formData: FormData): Promise<void> {
 export async function runHouseCycleNow(businessId: string): Promise<void> {
   if (!(await isAdminSession())) throw new Error("Not authorized.");
   await requestHouseCycle(businessId);
+  signalHouseWork();
   revalidatePath("/admin/businesses");
   revalidatePath("/admin/house");
 }
@@ -55,6 +57,7 @@ export async function runHouseCycleNow(businessId: string): Promise<void> {
 export async function runSelfTestNow(businessId: string): Promise<void> {
   if (!(await isAdminSession())) throw new Error("Not authorized.");
   await requestConnectorSelfTest(businessId);
+  signalHouseWork();
   revalidatePath("/admin/house");
 }
 
@@ -62,6 +65,7 @@ export async function runSelfTestNow(businessId: string): Promise<void> {
 export async function runWatchdogNow(): Promise<void> {
   if (!(await isAdminSession())) throw new Error("Not authorized.");
   await requestWatchdog();
+  signalHouseWork();
   revalidatePath("/admin/house");
 }
 
@@ -69,6 +73,7 @@ export async function runWatchdogNow(): Promise<void> {
 export async function runFleetCycleNow(): Promise<void> {
   if (!(await isAdminSession())) throw new Error("Not authorized.");
   await requestHouseCycle();
+  signalHouseWork();
   revalidatePath("/admin/businesses");
   revalidatePath("/admin/house");
 }

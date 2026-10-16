@@ -15,7 +15,7 @@
  * Every step writes a per-business `jobs` row, which is the evidence the admin panel and the
  * watchdog read. A failed step leaves the account due, retried after a short backoff.
  */
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { businesses, getDb, jobs, proofLedger, publishingTargets } from "@/lib/db";
 import { refreshBusinessTruth } from "@/lib/truth";
 import { createOpportunitiesFromTruth, invalidateStaleTruthOpportunities } from "@/lib/opportunities/truth-opportunities";
@@ -114,9 +114,9 @@ async function loadJobs(ids: string[]): Promise<Map<string, JobRow[]>> {
   const rows = await db
     .select({ businessId: jobs.businessId, type: jobs.type, status: jobs.status, createdAt: jobs.createdAt, payload: jobs.payload })
     .from(jobs)
-    .where(and(inArray(jobs.businessId, ids), inArray(jobs.type, types)))
+    .where(and(inArray(jobs.businessId, ids), inArray(jobs.type, types), gte(jobs.createdAt, new Date(Date.now() - 45 * DAY))))
     .orderBy(desc(jobs.createdAt))
-    .limit(4000);
+    .limit(1500);
   for (const r of rows) {
     if (!r.businessId) continue;
     const list = out.get(r.businessId) ?? [];
@@ -334,6 +334,8 @@ export async function runHouseAccountCycle(businessId: string, opts: { force?: b
 }
 
 const inFlight = new Set<string>();
+let nextFleetCheckAt = 0;
+let entitlementRevertChecked = false;
 
 /** Runs a cycle unless that account is already mid-cycle in this process (tick and request poller can overlap). */
 async function runGuarded(businessId: string): Promise<CycleReport | null> {
@@ -432,7 +434,13 @@ export async function runRequestedHouseCycles(max = 2): Promise<number> {
 export async function runHouseFleetTick(maxPerTick = 3): Promise<{ accounts: number; ran: number; acted: number; errors: number }> {
   const db = getDb();
   if (!db) return { accounts: 0, ran: 0, acted: 0, errors: 0 };
-  await revertWorkaroundPlans();
+  // Due-only: when nothing was due at the last check, skip the database entirely until the next check time
+  // (an hour). Requested/forced work arrives through the wake path, not this check.
+  if (Date.now() < nextFleetCheckAt) return { accounts: 0, ran: 0, acted: 0, errors: 0 };
+  if (!entitlementRevertChecked) {
+    await revertWorkaroundPlans();
+    entitlementRevertChecked = true;
+  }
   const accounts = await listHouseAccounts();
   const jobMap = await loadJobs(accounts.map((a) => a.id));
   const queue = accounts
@@ -446,6 +454,8 @@ export async function runHouseFleetTick(maxPerTick = 3): Promise<{ accounts: num
     .filter((x) => x.anyDue && x.a.website)
     .sort((x, y) => x.oldest - y.oldest)
     .slice(0, maxPerTick);
+  // Nothing due: do not touch the database again for about an hour.
+  nextFleetCheckAt = queue.length === 0 ? Date.now() + 55 * 60_000 : 0;
   let acted = 0;
   let errors = 0;
   for (const q of queue) {
