@@ -11,7 +11,8 @@ async function q(label: string, run: () => Promise<unknown>): Promise<{ label: s
   try {
     return { label, rows: (await run()) as Row[] };
   } catch (e) {
-    return { label, rows: [], error: (e as Error).message.slice(0, 200) };
+    const m = (e as Error & { cause?: { message?: string } }).cause?.message ?? (e as Error).message;
+    return { label, rows: [], error: m.slice(-220) };
   }
 }
 
@@ -36,8 +37,11 @@ export default async function DbUsagePage() {
     q("top statements by total time", () =>
       db.execute(sql`select calls::bigint as calls, round(total_exec_time::numeric/1000, 1) as total_s, round(mean_exec_time::numeric, 2) as mean_ms, rows::bigint as rows, left(regexp_replace(query, '[[:space:]]+', ' ', 'g'), 150) as query from pg_stat_statements order by total_exec_time desc limit 20`),
     ),
-    q("most frequent statements", () =>
-      db.execute(sql`select calls::bigint as calls, round(total_exec_time::numeric/1000, 1) as total_s, round(mean_exec_time::numeric, 2) as mean_ms, left(regexp_replace(query, '[[:space:]]+', ' ', 'g'), 150) as query from pg_stat_statements order by calls desc limit 12`),
+    q("tables by sequential-scan rows read (cumulative)", () =>
+      db.execute(sql`select relname as tbl, seq_scan::bigint as seq_scans, seq_tup_read::bigint as seq_rows_read, idx_scan::bigint as idx_scans, n_live_tup::bigint as live_rows, n_tup_ins::bigint as inserts, n_tup_upd::bigint as updates, pg_size_pretty(pg_total_relation_size(relid)) as size from pg_stat_user_tables order by seq_tup_read desc nulls last limit 15`),
+    ),
+    q("largest tables", () =>
+      db.execute(sql`select relname as tbl, n_live_tup::bigint as live_rows, pg_size_pretty(pg_total_relation_size(relid)) as size from pg_stat_user_tables order by pg_total_relation_size(relid) desc limit 8`),
     ),
   ]);
   return (
