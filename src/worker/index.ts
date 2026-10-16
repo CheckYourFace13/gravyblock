@@ -73,6 +73,7 @@ import { runListingWatchdogBatch } from "@/lib/gbp/listing-watchdog";
 import { runReviewSpotlightBatch } from "@/lib/social/review-spotlight";
 import { runHouseFleetTick, runHouseWatchdog, runRequestedHouseCycles, runRequestedSelfTests, runRequestedWatchdog } from "@/lib/house";
 import { consumeHouseWake } from "@/lib/house/wake";
+import { isConserving, sampleDbLoad } from "@/lib/db-guard";
 
 const WORKER_INTERVAL_MS = Number(process.env.WORKER_INTERVAL_MS ?? 15 * 60 * 1000);
 const JOBS_PER_TICK = Number(process.env.JOBS_PER_TICK ?? 5);
@@ -460,6 +461,9 @@ async function ensureSelfBusinessQueued() {
 
 async function tick() {
   const startedAt = new Date().toISOString();
+  // One cheap read of the database's own counters; trips "conserve" (optional house work paused) if load suddenly runs far above normal.
+  const load = await sampleDbLoad().catch(() => null);
+  if (load?.conserving) console.warn("[worker] db load guard: conserving optional house work", load);
   console.info("[worker] tick start", { startedAt, jobsPerTick: JOBS_PER_TICK });
 
   // One-time: retire work items from the old template engine before any new work is planned.
@@ -771,7 +775,7 @@ async function tick() {
   // House accounts: per-account light/deep Business Truth refresh, change-triggered discovery and
   // orchestration, self-scheduling so none can sit dormant. Daily watchdog retries anything RED.
   try {
-    const house = await runHouseFleetTick(3);
+    const house = isConserving() ? { accounts: 0, ran: 0, acted: 0, errors: 0 } : await runHouseFleetTick(3);
     if (house.ran > 0) console.info("[worker] house fleet", house);
   } catch (error) {
     console.error("[worker] house fleet failed", { error: error instanceof Error ? error.message : String(error) });
@@ -984,7 +988,7 @@ async function tick() {
   }
 
   // Requests whose wake signal was missed (different temp dir, restart) are still picked up once per tick.
-  void drainHouseRequests();
+  if (!isConserving()) void drainHouseRequests();
 
   console.info("[worker] tick done", { durationMs: Date.now() - new Date(startedAt).getTime() });
 }

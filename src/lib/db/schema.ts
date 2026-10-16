@@ -1,5 +1,6 @@
 import {
   doublePrecision,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -126,7 +127,11 @@ export const businesses = pgTable("businesses", {
   yelpBusinessId: text("yelp_business_id"),
   /** TripAdvisor location id — auto-discovered on first review sync */
   tripAdvisorLocationId: text("trip_advisor_location_id"),
-});
+}, (t) => [
+  // Worker and house loops filter businesses by account type and plan; without these every lookup scans the table.
+  index("businesses_account_type_idx").on(t.accountType),
+  index("businesses_plan_tier_idx").on(t.planTier),
+]);
 
 /** Each visibility run (free scan, rescan, future scheduled job). */
 export const scans = pgTable("scans", {
@@ -409,7 +414,7 @@ export const contentQueue = pgTable("content_queue", {
   status: text("status").notNull().default("queued"),
   publishAt: timestamp("publish_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => [index("content_queue_business_status_idx").on(t.businessId, t.status), index("content_queue_status_idx").on(t.status)]);
 
 export const publishingTargets = pgTable("publishing_targets", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -419,7 +424,7 @@ export const publishingTargets = pgTable("publishing_targets", {
   config: jsonb("config"),
   active: text("active").notNull().default("true"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => [index("publishing_targets_business_idx").on(t.businessId, t.adapter, t.active)]);
 
 export const publishingJobs = pgTable("publishing_jobs", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -447,7 +452,7 @@ export const publishedContent = pgTable("published_content", {
   metaTitle: text("meta_title"),
   metaDescription: text("meta_description"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => [index("published_content_business_channel_idx").on(t.businessId, t.channel, t.status)]);
 
 export const backlinkOpportunities = pgTable("backlink_opportunities", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -563,7 +568,12 @@ export const jobs = pgTable("jobs", {
   status: text("status").notNull().default("pending"),
   runAfter: timestamp("run_after", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (t) => [
+  // Almost every worker check is "has job type X run since T" or "latest job of type X for business Y".
+  // Without these, each such check scanned the whole table (about a million scans so far).
+  index("jobs_type_created_idx").on(t.type, t.createdAt),
+  index("jobs_business_type_created_idx").on(t.businessId, t.type, t.createdAt),
+]);
 
 export const leads = pgTable("leads", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -810,7 +820,7 @@ export const businessFacts = pgTable("business_facts", {
   supersededAt: timestamp("superseded_at", { withTimezone: true }),
   /** Time-sensitive facts (events, offers, news) stop being usable at this instant. */
   expiresAt: timestamp("expires_at", { withTimezone: true }),
-});
+}, (t) => [index("business_facts_business_status_idx").on(t.businessId, t.status)]);
 
 
 /** Per-URL fetch cache for the Business Truth crawler (conditional GET + content hash). */
@@ -911,7 +921,7 @@ export const growthOpportunities = pgTable("growth_opportunities", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   actedAt: timestamp("acted_at", { withTimezone: true }),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
-});
+}, (t) => [index("growth_opportunities_business_status_idx").on(t.businessId, t.status)]);
 
 /** Per-directory listing state — submitted value vs canonical Business Truth value, with real timestamps. */
 export const citationListings = pgTable("citation_listings", {
