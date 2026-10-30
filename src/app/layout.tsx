@@ -43,12 +43,9 @@ export const metadata: Metadata = {
     images: ["/brand/og.png"],
   },
   icons: {
-    icon: [
-      { url: "/favicon.ico" },
-      { url: "/brand/favicon.png", type: "image/png", sizes: "512x512" },
-    ],
-    apple: [{ url: "/brand/favicon.png", type: "image/png", sizes: "512x512" }],
-    shortcut: ["/favicon.ico"],
+    // Small icon files only: the previous 83 KB 1024px image was requested on every page view.
+    icon: [{ url: "/brand/favicon-192.png", type: "image/png", sizes: "192x192" }],
+    apple: [{ url: "/brand/favicon-192.png", type: "image/png", sizes: "192x192" }],
   },
 };
 
@@ -100,7 +97,7 @@ const schemaOrg = {
       contactPoint: {
         "@type": "ContactPoint",
         contactType: "customer support",
-        email: "support@gravyblock.com",
+        url: "https://gravyblock.com/contact",
       },
     },
     {
@@ -126,11 +123,12 @@ export default function RootLayout({
       </head>
       <body className="min-h-dvh bg-zinc-50 text-zinc-900">
         {children}
+        {/* Analytics loads after the page is interactive and idle: it ran before first paint and cost ~585 ms of main-thread blocking in Lighthouse. */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-6THEWE2M89"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
-        <Script id="ga4-init" strategy="afterInteractive">
+        <Script id="ga4-init" strategy="lazyOnload">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}

@@ -1,7 +1,6 @@
 import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SUPPORT_EMAIL } from "@/lib/company";
 
 const baseMetadata: Metadata = {
   title: "About",
@@ -78,10 +77,10 @@ export default function AboutPage() {
           <h2 className="text-lg font-semibold text-zinc-900 mb-3">Support</h2>
           <p className="text-zinc-600 leading-relaxed">
             Questions about billing, access, setup or what GravyBlock is doing for your business go to our support team
-            at{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold text-red-700 underline">
-              {SUPPORT_EMAIL}
-            </a>
+            through the{" "}
+            <Link href="/support" className="font-semibold text-red-700 underline">
+              support form
+            </Link>
             . We reply by email, usually within one business day. See also our{" "}
             <Link href="/privacy" className="font-semibold text-red-700 underline">
               Privacy Policy

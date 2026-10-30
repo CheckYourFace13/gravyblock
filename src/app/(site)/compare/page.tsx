@@ -19,13 +19,15 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const featuredComps = [
   { slug: "gravyblock-vs-local-seo-agencies", name: "Local SEO agencies", note: "People and custom strategy versus software that does a defined set of the work automatically. Where each is better, and what to ask before you decide." },
-  { slug: "gravyblock-vs-brightlocal", name: "BrightLocal", note: "Established listing, review and rank-tracking suite, popular with agencies. GravyBlock is a lower-cost option focused on content, Google posts and outreach." },
+  { slug: "gravyblock-vs-localo", name: "Localo", note: "Local SEO platform for tracking, audits, posts, reviews and reports. GravyBlock is for owners who want the work chosen and done, not a tool to operate." },
+  { slug: "gravyblock-vs-local-falcon", name: "Local Falcon", note: "Geo-grid map rankings and AI visibility tracking. GravyBlock is not a geo-grid tool; it decides and does the local growth work." },
+  { slug: "gravyblock-vs-brightlocal", name: "BrightLocal", note: "Established listing, review and rank-tracking suite, popular with agencies. GravyBlock is a single-price option focused on content, Google posts and outreach." },
   { slug: "gravyblock-vs-whitespark", name: "Whitespark", note: "Citation and local rank tools long used by local SEO specialists. GravyBlock is aimed at owners who want that work decided and done for them automatically." },
   { slug: "gravyblock-vs-gmb-everywhere", name: "GMB Everywhere", note: "Chrome extension for viewing Google Business Profile data. GravyBlock is a different kind of product: it automatically decides what to publish and post." },
-  { slug: "gravyblock-vs-yext", name: "Yext", note: "Listing sync and reputation platform. GravyBlock is a lower-cost option focused on content, Google posts and outreach." },
+  { slug: "gravyblock-vs-yext", name: "Yext", note: "Listing sync and reputation platform. GravyBlock is a single-price option focused on content, Google posts and outreach." },
   { slug: "gravyblock-vs-semrush-local", name: "Semrush Local", note: "Broad SEO suite with a local toolkit. GravyBlock is narrower and priced for single-location owners." },
-  { slug: "gravyblock-vs-searchatlas", name: "Search Atlas", note: "Large SEO toolset. GravyBlock is a narrower, lower-cost option for local businesses." },
-  { slug: "gravyblock-vs-reputation", name: "Reputation.com", note: "Reputation management platform for larger and multi-location brands. GravyBlock is a lower-cost option for smaller businesses." },
+  { slug: "gravyblock-vs-searchatlas", name: "Search Atlas", note: "Large SEO toolset. GravyBlock is a narrower, single-price option for local businesses." },
+  { slug: "gravyblock-vs-reputation", name: "Reputation.com", note: "Reputation management platform for larger and multi-location brands. GravyBlock is a single-price option for smaller businesses." },
   { slug: "gravyblock-vs-soro", name: "Soro", note: "Automated content publishing. GravyBlock adds local work such as Google Business Profile posts and review replies." },
   { slug: "gravyblock-vs-rankscore", name: "RankScore", note: "Content-focused product. GravyBlock also handles Google Business Profile posts and review replies." },
   { slug: "gravyblock-vs-adaptify", name: "Adaptify", note: "White-label tool aimed at agencies. GravyBlock is built for business owners." },
@@ -52,7 +54,7 @@ export default function CompareIndexPage() {
       {/* GravyBlock summary */}
       <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-6">
         <p className="text-xs font-bold uppercase tracking-widest text-red-700">Why GravyBlock is different</p>
-        <p className="mt-2 font-semibold text-zinc-900">A lower-cost option that decides what will help and does it for you.</p>
+        <p className="mt-2 font-semibold text-zinc-900">A single-price option that decides what will help and does it for you.</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2 text-sm text-zinc-700">
           {[
             "Articles and service pages published to your connected website",

@@ -82,7 +82,7 @@ const BASE_PAGES: Record<string, ComparePage> = {
         },
         {
           title: "How GravyBlock differs",
-          body: "GravyBlock checks your local map position weekly on paid plans as one part of its work and reports it alongside what it has done. It is not a dedicated rank-tracking suite, so if detailed geographic ranking views are your main need, a specialized tool may suit you better.",
+          body: "GravyBlock checks your local map position weekly as one part of its work and reports it alongside what it has done. It is not a dedicated rank-tracking suite, so if detailed geographic ranking views are your main need, a specialized tool may suit you better.",
         },
       ],
       relatedLinks: links,
@@ -147,6 +147,88 @@ const BASE_PAGES: Record<string, ComparePage> = {
   },
 };
 
+const EXTRA_LINKS = [
+  { href: "/compare/gravyblock-vs-localo", label: "GravyBlock vs Localo" },
+  { href: "/compare/gravyblock-vs-local-falcon", label: "GravyBlock vs Local Falcon" },
+  { href: "/compare/gravyblock-vs-brightlocal", label: "GravyBlock vs BrightLocal" },
+];
+
+BASE_PAGES["google-maps-ranking-tools"].metaTitle = "Google Maps rank tracker for small business: tools compared";
+BASE_PAGES["google-maps-ranking-tools"].model.directAnswer =
+  "Pick a geo-grid tracker such as Local Falcon if you need to see map rankings point by point. Pick a keyword tracker if you want to monitor specific searches. Pick GravyBlock if you would rather have the work that moves rankings done for you than watch the number.";
+BASE_PAGES["google-maps-ranking-tools"].model.sections.splice(
+  1,
+  0,
+  {
+    title: "Two kinds of map rank data",
+    body: "A single position answers where you rank for one search from one place. A geo-grid answers a different question: how your visibility changes as the searcher moves around your service area. Local Falcon, for example, describes geo-grid scans with map visualizations. Localo describes position tracking for chosen local keywords with comparison against competitors. Both are useful, and they are different tools.",
+    bullets: [
+      "Single-position tracking is easy to understand and good for watching a handful of important searches.",
+      "Geo-grid tracking is better when your customers are spread across an area and your ranking depends on where they stand.",
+      "Neither tells you why you rank where you do, and neither fixes it by itself.",
+    ],
+  },
+  {
+    title: "Questions to ask before paying for a rank tracker",
+    body: "Rank data only helps if it changes what you do.",
+    bullets: [
+      "How many keywords and locations are included, and how does the price change as you add more?",
+      "Can you see competitors alongside you, or only your own position?",
+      "Does the tool tell you what to do next, or leave that to you?",
+      "How often is data refreshed, and can you export it?",
+    ],
+  },
+);
+BASE_PAGES["google-maps-ranking-tools"].model.relatedLinks = [{ href: "/scan", label: "Run a free GravyBlock scan" }, ...EXTRA_LINKS, ...links];
+
+BASE_PAGES["ai-search-visibility-tools"].metaTitle = "AI visibility tracker for local business: tools compared";
+BASE_PAGES["ai-search-visibility-tools"].model.directAnswer =
+  "Use a dedicated tracker such as Local Falcon if you need to monitor several AI assistants and report on them. Use GravyBlock's free AI visibility test to see whether assistants mention your business today, and GravyBlock itself if you want the underlying facts and pages improved for you.";
+BASE_PAGES["ai-search-visibility-tools"].model.sections.splice(
+  1,
+  0,
+  {
+    title: "What AI visibility tools actually measure",
+    body: "Most of them ask an assistant a set of questions a customer might ask and record whether your business is mentioned, how it is described, and which sources are cited. Local Falcon, for example, lists ChatGPT, Gemini, Google AI Overviews, Google AI Mode and Grok among the surfaces it tracks, along with brand mentions and sentiment. Localo says its tools help businesses appear in AI answers. These are measurements of a moving target: assistants can answer differently on different days, so a single check is a sample, not a verdict.",
+  },
+  {
+    title: "What moves AI visibility for a local business",
+    body: "There is no switch to flip. The things assistants draw on are mostly the same things that help ordinary local search.",
+    bullets: [
+      "Business facts that agree everywhere: website, Google profile and other listings.",
+      "A website with clear pages for each service and place you serve.",
+      "Recent, real reviews and a profile that is complete and active.",
+      "Mentions and links from relevant local sources.",
+    ],
+  },
+);
+BASE_PAGES["ai-search-visibility-tools"].model.relatedLinks = [
+  { href: "/tools/ai-visibility-test", label: "Free AI visibility test" },
+  { href: "/scan", label: "Run a free GravyBlock scan" },
+  ...EXTRA_LINKS,
+  ...links,
+];
+
+BASE_PAGES["multi-location-seo-tools"].model.sections.splice(
+  2,
+  0,
+  {
+    title: "How the tools in this category differ",
+    body: "Going by their own sites, the products people compare are built for different jobs.",
+    bullets: [
+      "Yext is known for syncing listings across a large publisher network and is aimed at larger organizations.",
+      "Local Falcon lists scheduled campaigns across multiple locations, plus an API and integrations, alongside its map and AI tracking.",
+      "Localo lists review management across locations and automatic client reports, and names agencies and freelancers among its users.",
+      "BrightLocal is widely used by agencies for reporting and rank tracking.",
+    ],
+  },
+  {
+    title: "A simple way to decide",
+    body: "Count your locations and decide who will do the work. A franchise network with central controls and a team to run the tool needs a platform. A handful of locations run by an owner who wants the work done may be better served by a subscription per location. Compare real quotes for your location count, because per-location pricing is where these products differ most.",
+  },
+);
+BASE_PAGES["multi-location-seo-tools"].model.relatedLinks = [{ href: "/scan", label: "Run a free GravyBlock scan" }, ...EXTRA_LINKS, ...links];
+
 type VsConfig = {
   slug: string;
   name: string;
@@ -160,6 +242,10 @@ type VsConfig = {
   gravyBetter: string[];
   differenceBody: string;
   extraLinks?: { href: string; label: string }[];
+  /** Qualitative side-by-side lines. Only used where exact feature parity is uncertain. */
+  atAGlance?: string[];
+  /** Vendor-owned pages used as factual sources, with the date they were checked (YYYY-MM-DD). */
+  sources?: { url: string; checked: string }[];
 };
 
 /**
@@ -187,7 +273,7 @@ function buildVsPages(): Record<string, ComparePage> {
       metaDescription:
         "How GravyBlock compares to BrightLocal for small business local SEO: a toolkit you operate versus software that decides and does the work.",
       intro:
-        "BrightLocal is an established local SEO platform with reporting, listing and review tools that is popular with agencies. GravyBlock is a lower-cost option for small business owners who want that work decided and handled automatically without a marketing team.",
+        "BrightLocal is an established local SEO platform with reporting, listing and review tools that is popular with agencies. GravyBlock is a simpler, single-price option for small business owners who want that work decided and handled automatically without a marketing team.",
       meaningForBusiness:
         "Both can be a good fit depending on whether you want a toolkit to operate yourself or a system that decides and does the work for you. Check each vendor's current features and pricing before deciding.",
       doesWell: {
@@ -206,12 +292,101 @@ function buildVsPages(): Record<string, ComparePage> {
         "GravyBlock focuses on a narrower set of automatically chosen actions and is priced for single-location owner-operators.",
     },
     {
+      slug: "gravyblock-vs-localo",
+      name: "Localo",
+      metaDescription:
+        "Localo alternative? How GravyBlock compares with Localo for local SEO: a tool you operate for rank tracking, tasks and reports versus software that decides and does the work.",
+      intro:
+        "Localo is a local SEO platform for Google Business Profile tracking, audits, posts, reviews and reporting, and its own homepage says it is built for agencies, freelancers and local business owners. GravyBlock is aimed at one buyer: an owner who wants the work chosen and done, not another dashboard to run.",
+      meaningForBusiness:
+        "If you like working inside a toolkit and want tracking, tasks and reports for one business or many clients, Localo is built for that. If you want the work prioritized and performed for you after a one-time setup, GravyBlock is built for that. Localo offers a free trial and GravyBlock offers a free scan, so you can test the fit before paying either.",
+      doesWell: {
+        body: "Going by Localo's own homepage (checked 2026-10-30), it covers a wide range of Google Business Profile and local search work in one app.",
+        bullets: [
+          "Position tracking for chosen local keywords, with comparison against local competitors.",
+          "Profile audits that point out issues hurting a listing's visibility, with fixes made inside the app.",
+          "Profile protection against unwanted edits and false closed markings.",
+          "A content publisher for Google Post ideas and scheduled publishing.",
+          "Review management across locations, plus automatically generated weekly or monthly client reports.",
+          "Citation suggestions, weekly optimization tasks, a website builder, profile statistics and an AI chat assistant.",
+          "Free tools that need no account: a local rank checker, a review response generator, a LocalBusiness schema generator and a review poster generator.",
+        ],
+      },
+      competitorBetter: [
+        "You are an agency or freelancer who needs client reports and a workflow for several businesses.",
+        "You want to track specific keywords and see your Google Business Profile position against named local competitors.",
+        "You want profile protection, a website builder and a weekly task list in one tool that you operate yourself.",
+        "You want to try a hands-on tool first. Its homepage states a 14-day free trial with no card needed to start.",
+      ],
+      gravyBetter: [
+        "You own one local business and do not want to open a dashboard every week.",
+        "You want articles, Google posts, review replies and local outreach chosen and handled for you.",
+        "You prefer one flat monthly price with no plan to pick.",
+        "You want each completed action verified live before it is counted as done.",
+      ],
+      differenceBody:
+        "Localo describes tracking, tasks and a publisher that you drive from its app, and its homepage also talks about automating local search marketing, so the difference is not that one acts and the other does not. The difference is the operating model. GravyBlock is built so the owner does not operate a toolbox: it learns your business from your own website and profiles, decides which eligible work is worth doing, does it, then verifies it. It does not offer client or white-label reporting or a keyword-by-keyword rank tracking suite, and it never promises rankings.",
+      atAGlance: [
+        "Main user: Localo says agencies, freelancers and local business owners. GravyBlock is for owner-operators of a single location.",
+        "How you use it: with Localo you work in the app (tracking, tasks, reports). With GravyBlock you make a few one-time connections and it works on its own and reports what it did.",
+        "Rank tracking: Localo tracks keyword positions against competitors. GravyBlock checks your map position weekly as one part of its work and is not a dedicated tracking suite.",
+        "Client reports: Localo generates weekly or monthly client reports. GravyBlock does not produce client or white-label reports.",
+        "Google posts and reviews: both cover them. Localo as tools you manage, GravyBlock as work it performs once Google is connected.",
+        "Price: for Localo, see its pricing page, since we have not verified its current plans. GravyBlock is $39.99/month, cancel anytime, with a 30-day money-back guarantee.",
+        "Trying it: Localo lists a free trial and some free tools. GravyBlock has a free scan with no credit card.",
+      ],
+      sources: [{ url: "https://localo.com/", checked: "2026-10-30" }],
+    },
+    {
+      slug: "gravyblock-vs-local-falcon",
+      name: "Local Falcon",
+      metaDescription:
+        "Local Falcon alternative? How GravyBlock compares with Local Falcon: geo-grid map rankings and AI visibility tracking versus software that decides and does the local SEO work.",
+      intro:
+        "Local Falcon calls itself an agentic AI search and local SEO platform. It is best known for geo-grid scans that show where a business appears on a map across a service area, and it also tracks brand visibility in AI answers. GravyBlock is not a geo-grid tool. It is software for owners who want the growth work decided and done.",
+      meaningForBusiness:
+        "If your question is where exactly you show up, block by block, and how that is changing, Local Falcon is built to answer it. If your question is what should be done for my business and can it just be done, GravyBlock is built for that. Measuring and doing are different jobs, and the GravyBlock free scan costs nothing.",
+      doesWell: {
+        body: "Going by Local Falcon's own homepage (checked 2026-10-30), it combines map-grid rank tracking with AI visibility tracking and an AI assistant.",
+        bullets: [
+          "Geo-grid scans that show rankings across a service area with map visualizations, covering Google Maps and, per its page, Apple Maps.",
+          "AI visibility tracking across ChatGPT, Gemini, Google AI Overviews, Google AI Mode, Grok and the local map pack, including brand mentions and sentiment.",
+          "Its own metrics, such as Share of AI Voice and Share of Local Voice, plus competitor, trend and scan reports.",
+          "Falcon AI recommendations from report data, including which sources AI platforms cite, and a Falcon Agent that can answer questions and take actions such as responding to reviews or publishing posts.",
+          "Profile change monitoring and scheduled campaigns for reporting across multiple locations, with an API and integrations.",
+        ],
+      },
+      competitorBetter: [
+        "You need to see map rankings across a grid of points around your business, not a single position.",
+        "You want detailed AI-answer tracking across several assistants and a way to report on it.",
+        "You are an agency or multi-location brand that needs scheduled reports, an API or integrations.",
+        "You want a measurement platform and are comfortable deciding what to do with the data.",
+      ],
+      gravyBetter: [
+        "You run one location and want the work chosen and done, not a measurement dashboard.",
+        "You want one flat price and no plan or credit system to manage.",
+        "You want articles, Google posts, review replies and local outreach handled together.",
+        "You want a free scan that explains what GravyBlock would do about each finding.",
+      ],
+      differenceBody:
+        "Local Falcon is measurement-first, and its own page says its agent can also take some actions, so we do not claim it only reports. GravyBlock starts from the other end: it is built around deciding and doing, with measurement used to verify that the work happened. GravyBlock does not produce geo-grid maps, and its AI checks cover fewer assistants and report mentions rather than share-of-voice metrics.",
+      atAGlance: [
+        "Core strength: Local Falcon is geo-grid map rankings and AI visibility tracking. GravyBlock is deciding and performing eligible local growth work.",
+        "Map rankings: Local Falcon shows rankings across a grid of points. GravyBlock checks your map position weekly and does not draw a geo-grid.",
+        "AI visibility: Local Falcon lists several assistants and its own share metrics. GravyBlock checks whether assistants such as ChatGPT and Perplexity mention your business and reports the result, without a share-of-voice score.",
+        "Taking action: Local Falcon says its agent can take some actions. GravyBlock performs its eligible work automatically once the needed accounts are connected.",
+        "Multi-location and agencies: Local Falcon lists campaigns across locations and an API. GravyBlock covers one location per subscription.",
+        "Price: for Local Falcon, see its pricing page, since we have not verified current plans. Its homepage mentions a free account with 100 credits. GravyBlock is $39.99/month, cancel anytime, with a 30-day money-back guarantee.",
+      ],
+      sources: [{ url: "https://www.localfalcon.com/", checked: "2026-10-30" }],
+    },
+    {
       slug: "gravyblock-vs-yext",
       name: "Yext",
       metaDescription:
-        "GravyBlock vs Yext for local search visibility: Yext is a listing and reputation platform; GravyBlock is a lower-cost option focused on content, Google posts and outreach.",
+        "GravyBlock vs Yext for local search visibility: Yext is a listing and reputation platform; GravyBlock is a simpler, single-price option focused on content, Google posts and outreach.",
       intro:
-        "Yext is a well-known listings and reputation platform, historically aimed at larger brands and multi-location businesses. GravyBlock is a lower-cost option for owner-operated local businesses.",
+        "Yext is a well-known listings and reputation platform, historically aimed at larger brands and multi-location businesses. GravyBlock is a simpler, single-price option for owner-operated local businesses.",
       meaningForBusiness:
         "If you need listings pushed to a large publisher network across many locations, look closely at Yext and similar platforms. If you want content, Google Business Profile posts and local outreach chosen and handled for you automatically at a small-business price, GravyBlock may fit.",
       doesWell: {
@@ -233,11 +408,11 @@ function buildVsPages(): Record<string, ComparePage> {
       slug: "gravyblock-vs-bulletproof",
       name: "BulletProof",
       metaDescription:
-        "GravyBlock vs BulletProof for real estate agent local SEO: a coaching-style program versus a lower-cost software option for any local business.",
+        "GravyBlock vs BulletProof for real estate agent local SEO: a coaching-style program versus a simpler, single-price software option for any local business.",
       intro:
         "BulletProof is a local SEO program for real estate agents that combines services with coaching. GravyBlock is software that works for any local business, including real estate agents.",
       meaningForBusiness:
-        "If you want a hands-on, coaching-style program built for agents, BulletProof is designed for that. If you prefer a lower-cost software option that decides and does the work itself, GravyBlock may fit.",
+        "If you want a hands-on, coaching-style program built for agents, BulletProof is designed for that. If you prefer a simpler, single-price software option that decides and does the work itself, GravyBlock may fit.",
       doesWell: {
         body: "BulletProof is positioned around real estate agents and combines profile work with coaching for agents who want guided support.",
         bullets: ["Real-estate-specific focus.", "Coaching community.", "Guided, people-led support."],
@@ -248,7 +423,7 @@ function buildVsPages(): Record<string, ComparePage> {
       ],
       gravyBetter: [
         "You want software that works on its own rather than a program you participate in.",
-        "You are not a real estate agent, or you want a lower-cost option.",
+        "You are not a real estate agent, or you want a simpler, single-price option.",
       ],
       differenceBody:
         "GravyBlock has no coaching component and is not real-estate-only. After a one-time setup, it decides what will help and does it automatically.",
@@ -306,9 +481,9 @@ function buildVsPages(): Record<string, ComparePage> {
       slug: "gravyblock-vs-semrush-local",
       name: "Semrush",
       metaDescription:
-        "GravyBlock vs Semrush Local: a broad SEO suite versus a narrower, lower-cost option for local business owners.",
+        "GravyBlock vs Semrush Local: a broad SEO suite versus a narrower, single-price option for local business owners.",
       intro:
-        "Semrush is a broad SEO platform with a local toolkit, used by marketing teams and SEO professionals. GravyBlock is a narrower, lower-cost option for owners who want the work chosen and done for them automatically.",
+        "Semrush is a broad SEO platform with a local toolkit, used by marketing teams and SEO professionals. GravyBlock is a narrower, single-price option for owners who want the work chosen and done for them automatically.",
       meaningForBusiness:
         "If you have SEO expertise and want research and analysis tools, Semrush is a strong option. If you want less to configure, GravyBlock may fit.",
       doesWell: {
@@ -402,7 +577,7 @@ function buildVsPages(): Record<string, ComparePage> {
       slug: "gravyblock-vs-searchatlas",
       name: "Search Atlas",
       metaDescription:
-        "GravyBlock vs Search Atlas: a large SEO toolset versus a narrower, lower-cost option for local business owners.",
+        "GravyBlock vs Search Atlas: a large SEO toolset versus a narrower, single-price option for local business owners.",
       intro:
         "Search Atlas is a large SEO platform with many tools, including AI-assisted optimization, local rank tracking and content generation. GravyBlock is narrower by design and priced for a single local business.",
       meaningForBusiness:
@@ -450,9 +625,9 @@ function buildVsPages(): Record<string, ComparePage> {
       slug: "gravyblock-vs-reputation",
       name: "Reputation.com",
       metaDescription:
-        "GravyBlock vs Reputation.com: an enterprise reputation platform versus a lower-cost option for owner-operated local businesses.",
+        "GravyBlock vs Reputation.com: an enterprise reputation platform versus a simpler, single-price option for owner-operated local businesses.",
       intro:
-        "Reputation (Reputation.com) is an enterprise reputation management platform used by larger and multi-location brands. GravyBlock is a lower-cost option for owner-operated local businesses.",
+        "Reputation (Reputation.com) is an enterprise reputation management platform used by larger and multi-location brands. GravyBlock is a simpler, single-price option for owner-operated local businesses.",
       meaningForBusiness:
         "Reputation platforms typically offer review requests, listings, surveys and analytics at enterprise scale. GravyBlock covers a smaller set of local tasks at a small-business price.",
       doesWell: {
@@ -517,7 +692,7 @@ function buildVsPages(): Record<string, ComparePage> {
         "You want your own profile and website improved automatically.",
       ],
       differenceBody:
-        "GravyBlock's free scan covers your Google profile, reviews, citations, website and AI search, and paid plans automatically decide and run content, posting and outreach.",
+        "GravyBlock's free scan covers your Google profile, reviews, citations, website and AI search, and the paid GravyBlock subscription automatically decides and runs content, posting and outreach.",
     },
   ];
 
@@ -544,15 +719,17 @@ function buildVsPages(): Record<string, ComparePage> {
             body: "And these are the situations where GravyBlock is the more natural fit.",
             bullets: c.gravyBetter,
           },
+          ...(c.atAGlance ? [{ title: "At a glance", body: "A qualitative side by side. We do not score features we cannot verify independently.", bullets: c.atAGlance }] : []),
           { title: "How GravyBlock differs", body: c.differenceBody, bullets: GRAVYBLOCK_BULLETS },
           {
             title: "Check current details",
             body: "Features and pricing change often. Confirm " + c.name + "'s current plans and capabilities on its own website before deciding.",
+            ...(c.sources ? { bullets: c.sources.map((x) => "Source checked " + x.checked + ": " + x.url) } : {}),
           },
         ],
         relatedLinks: [
           { href: "/scan", label: "Run a free GravyBlock scan" },
-          { href: "/pricing", label: "GravyBlock plans and pricing" },
+          { href: "/pricing", label: "GravyBlock pricing" },
           ...(c.extraLinks ?? []),
           ...links,
         ],
@@ -621,7 +798,7 @@ function buildVsPages(): Record<string, ComparePage> {
       ],
       relatedLinks: [
         { href: "/scan", label: "Run a free GravyBlock scan" },
-        { href: "/pricing", label: "GravyBlock plans and pricing" },
+        { href: "/pricing", label: "GravyBlock pricing" },
         ...links,
       ],
     },

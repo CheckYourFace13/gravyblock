@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SUPPORT_EMAIL } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -81,7 +80,11 @@ const sections: { id: string; title: string; body: React.ReactNode }[] = [
         <p className="mt-3">
           We send these only to an address the recipient has published on its own website, and we do not guess addresses. Each
           message includes a working opt-out. Opted-out and suppressed addresses are never contacted again. To opt out, use the
-          link in any message or email {SUPPORT_EMAIL}.
+          link in any message, or send a privacy request through the{" "}
+          <Link href="/contact" className="underline">
+            contact form
+          </Link>
+          .
         </p>
       </>
     ),
@@ -166,11 +169,11 @@ const sections: { id: string; title: string; body: React.ReactNode }[] = [
     body: (
       <p>
         You can ask us to access, correct or delete the information we hold about you, to stop using a connection, or to stop
-        contacting you. Email{" "}
-        <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">
-          {SUPPORT_EMAIL}
-        </a>{" "}
-        and we will respond by email. Depending on where you live, you may have additional rights under local law, and we will honor
+        contacting you. Send a privacy or data request through the{" "}
+        <Link href="/contact" className="underline">
+          contact form
+        </Link>{" "}
+        (choose &quot;Privacy or data request&quot;) and we will respond by email. Depending on where you live, you may have additional rights under local law, and we will honor
         those requests to the extent they apply.
       </p>
     ),
@@ -195,10 +198,10 @@ const sections: { id: string; title: string; body: React.ReactNode }[] = [
     title: "Contact",
     body: (
       <p>
-        Privacy questions or requests:{" "}
-        <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">
-          {SUPPORT_EMAIL}
-        </a>
+        Privacy questions or requests: use the{" "}
+        <Link href="/contact" className="underline">
+          contact form
+        </Link>
         . See also our{" "}
         <Link href="/terms" className="underline">
           Terms of Service

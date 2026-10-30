@@ -57,8 +57,8 @@ export default async function SetupPage({ params }: Props) {
 
       <p className="mt-6 text-center text-xs text-zinc-500">
         This link is unique to your account and expires in 7 days. Questions?{" "}
-        <a href="mailto:support@gravyblock.com" className="text-red-800 hover:underline">
-          support@gravyblock.com
+        <a href="/support" className="text-red-800 hover:underline">
+          Contact support
         </a>
       </p>
     </div>

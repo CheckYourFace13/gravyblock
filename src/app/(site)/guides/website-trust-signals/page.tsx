@@ -17,7 +17,7 @@ export default function WebsiteTrustSignalsGuidePage() {
       related={[
         { href: "/guides/social-proof-and-local-conversion", label: "Social proof and local conversion" },
         { href: "/guides/ai-search-local-businesses", label: "AI search for local businesses" },
-        { href: "/#plans", label: "Base vs Pro" },
+        { href: "/pricing", label: "GravyBlock pricing" },
       ]}
     >
       <h2>Common checks that still fail audits</h2>

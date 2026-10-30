@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { sendLeadEmails } from "@/lib/integrations/resend";
 import { saveLeadRecord } from "@/lib/report/repository";
 import { leadFormSchema } from "@/lib/validation/lead";
+import { topicLabel } from "@/lib/lead-topics";
 
 export type LeadActionState =
   | { status: "idle" }
@@ -41,6 +42,11 @@ export async function submitLeadAction(
       status: "error",
       fieldErrors: parsed.error.flatten().fieldErrors,
     };
+  }
+
+  const topic = topicLabel(field(formData, "topic"));
+  if (topic) {
+    parsed.data.message = `[Topic: ${topic}] ${parsed.data.message ?? ""}`.trim().slice(0, 2000);
   }
 
   try {

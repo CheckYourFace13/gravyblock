@@ -17,7 +17,7 @@ export default function MultiLocationLocalSeoGuidePage() {
       related={[
         { href: "/guides/service-area-business-visibility", label: "Service-area business visibility" },
         { href: "/guides/website-trust-signals", label: "Website trust signals" },
-        { href: "/#plans", label: "GravyBlock Base vs Pro" },
+        { href: "/pricing", label: "GravyBlock pricing" },
       ]}
     >
       <h2>One entity, many surfaces</h2>

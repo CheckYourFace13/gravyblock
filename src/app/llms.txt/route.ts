@@ -50,7 +50,8 @@ export function GET() {
     "## Policies and contact",
     `- [Privacy Policy](${SITE}/privacy)`,
     `- [Terms of Service](${SITE}/terms)`,
-    `- [Support](${SITE}/support): support@gravyblock.com`,
+    `- [Support](${SITE}/support): support request form`,
+    `- [Contact](${SITE}/contact): contact form for sales, support, billing and privacy requests`,
     "",
   ];
   return new Response(lines.join("\n"), { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });

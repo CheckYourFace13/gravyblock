@@ -72,7 +72,7 @@ const faqs = [
       },
       {
         q: "What is your refund policy?",
-        a: "All paid plans include a 30-day money-back guarantee. If you're not happy in the first 30 days, email support@gravyblock.com and we'll refund you in full. No questions.",
+        a: "GravyBlock includes a 30-day money-back guarantee. If you're not happy in the first 30 days, send a billing or refund request through the contact form at gravyblock.com/contact and we'll refund you in full. No questions.",
       },
       {
         q: "What payment methods do you accept?",

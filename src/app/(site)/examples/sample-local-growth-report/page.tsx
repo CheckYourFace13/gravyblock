@@ -29,11 +29,24 @@ export const metadata: Metadata = {
 const SAMPLE_BUSINESS_ID = "9cb1c401-34d8-4f52-8dc9-b6a1e3aedecf";
 
 export default async function SampleLocalGrowthReportPage() {
-  const bundle = await getWorkspaceBundle(SAMPLE_BUSINESS_ID);
+  let bundle: Awaited<ReturnType<typeof getWorkspaceBundle>> = null;
+  try {
+    bundle = await getWorkspaceBundle(SAMPLE_BUSINESS_ID);
+  } catch (err) {
+    // Database unreachable: say so plainly, keep the page out of search, and keep the error in the logs.
+    console.error("[sample-report] data unavailable", err);
+  }
   if (!bundle) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
-        <p className="text-zinc-600">Sample report is temporarily unavailable.</p>
+        <meta name="robots" content="noindex" />
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Sample report is temporarily unavailable</h1>
+        <p className="mt-4 text-zinc-600">The report data is not reachable right now. Nothing is shown in its place.</p>
+        <p className="mt-6">
+          <Link href="/scan" className="inline-block rounded-full bg-red-600 px-7 py-3 text-sm font-semibold text-white hover:bg-red-500">
+            Get my own free visibility score →
+          </Link>
+        </p>
       </div>
     );
   }

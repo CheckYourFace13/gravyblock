@@ -31,7 +31,7 @@ const faqs = [
   },
   {
     q: "What is the money-back guarantee?",
-    a: "If you are not satisfied within 30 days of your first payment, email support@gravyblock.com and we will refund that payment.",
+    a: "If you are not satisfied within 30 days of your first payment, send a billing or refund request through the contact form and we will refund that payment.",
   },
   {
     q: "Is the free scan really free?",

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ToolNextSteps } from "@/components/tool-next-steps";
 
 export const metadata: Metadata = {
   title: "Free AI Visibility Test for Local Businesses",
@@ -138,11 +139,12 @@ export default function AiVisibilityTestPage() {
           </Link>
         </div>
         <p className="mt-4 text-sm text-zinc-400">
-          On Growth and higher plans, GravyBlock monitors AI visibility monthly and builds the content signals that improve it.{" "}
-          <Link href="/#plans" className="text-zinc-300 underline">
-            See plans.
+          GravyBlock ($39.99/month) monitors AI visibility and builds the content signals that improve it.{" "}
+          <Link href="/pricing" className="text-zinc-300 underline">
+            See pricing.
           </Link>
         </p>
+      <ToolNextSteps current="ai-visibility-test" scanCta={false} />
       </div>
     </div>
   );

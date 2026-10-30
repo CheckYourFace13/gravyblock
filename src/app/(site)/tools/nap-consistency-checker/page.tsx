@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { NapChecker } from "./nap-checker";
+import { ToolNextSteps } from "@/components/tool-next-steps";
 
 export const metadata: Metadata = {
   title: "Free NAP Consistency Checker",
@@ -35,6 +36,7 @@ export default function NapCheckerPage() {
           drift.
         </p>
       </section>
+      <ToolNextSteps current="nap-consistency-checker" scanBody="NAP is one of many signals. The free scan checks your Google profile, reviews, website and AI search together and shows what GravyBlock would do about each finding. About a minute, no credit card." />
     </div>
   );
 }

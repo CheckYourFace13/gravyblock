@@ -217,7 +217,7 @@ export async function runReviewRequestSendBatch(
     try {
       if (!r.placeId) { result.skipped++; continue; }
 
-      const replyTo = r.accountEmail ?? r.billingEmail ?? (r.accountType === "house" ? "chris@gravyblock.com" : null);
+      const replyTo = r.accountEmail ?? r.billingEmail ?? (r.accountType === "house" ? "hello@gravyblock.com" : null);
       if (!replyTo) { result.skipped++; continue; }
 
       if (await isOptedOut(r.email)) {

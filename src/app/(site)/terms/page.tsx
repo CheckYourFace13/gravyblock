@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SUPPORT_EMAIL } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -82,14 +81,14 @@ export default function TermsPage() {
 
       <Section title="Billing, cancellation and the 30-day guarantee">
         <p>
-          Subscriptions are billed monthly (or annually if you choose an annual plan) and renew until cancelled. The price is shown at checkout. You can cancel at any time from the billing portal in your workspace, with no cancellation fee. You keep access
+          Subscriptions are billed monthly and renew until cancelled. The price is shown at checkout. You can cancel at any time from the billing portal in your workspace, with no cancellation fee. You keep access
           until the end of the period you have paid for.
         </p>
         <p>
-          If you are not satisfied within 30 days of your first payment, email{" "}
-          <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">
-            {SUPPORT_EMAIL}
-          </a>{" "}
+          If you are not satisfied within 30 days of your first payment, send a billing or refund request through the{" "}
+          <Link href="/contact" className="underline">
+            contact form
+          </Link>{" "}
           and we will refund that payment.
         </p>
       </Section>
@@ -134,10 +133,10 @@ export default function TermsPage() {
 
       <Section title="Changes and contact">
         <p>
-          We may update these terms as the service changes; the date above shows the latest revision. Questions:{" "}
-          <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">
-            {SUPPORT_EMAIL}
-          </a>
+          We may update these terms as the service changes; the date above shows the latest revision. Questions? Use the{" "}
+          <Link href="/contact" className="underline">
+            contact form
+          </Link>
           .
         </p>
       </Section>

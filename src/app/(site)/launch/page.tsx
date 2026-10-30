@@ -56,7 +56,7 @@ const faqs = [
   },
   {
     q: "How is this different from BrightLocal or Semrush?",
-    a: "BrightLocal and Semrush are established platforms with broad toolsets. GravyBlock is a lower-cost option that decides what will help and does it automatically: publishing website content, posting to Google, replying to Google reviews, running local outreach, and monitoring reviews and rankings.",
+    a: "BrightLocal and Semrush are established platforms with broad toolsets. GravyBlock is a single-price option that decides what will help and does it automatically: publishing website content, posting to Google, replying to Google reviews, running local outreach, and monitoring reviews and rankings.",
   },
   {
     q: "Who is this for?",
@@ -69,7 +69,7 @@ export default function LaunchPage() {
     <div className="bg-white">
       {/* PH Banner */}
       <div className="bg-gradient-to-r from-orange-500 to-red-600 px-4 py-3 text-center text-sm font-semibold text-white">
-        👋 Hey Product Hunt — use code <span className="rounded bg-white/20 px-2 py-0.5 font-bold tracking-wide">PRODUCTHUNT</span> for 50% off your first 2 months
+        👋 Hey Product Hunt — GravyBlock is $39.99/month, with a free scan first and a 30-day money-back guarantee
       </div>
 
       {/* Hero */}
@@ -90,7 +90,7 @@ export default function LaunchPage() {
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Link
-              href="/scan?promo=PRODUCTHUNT"
+              href="/scan"
               className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-bold text-white hover:bg-red-500 shadow-sm"
             >
               Get my free visibility score
@@ -105,7 +105,7 @@ export default function LaunchPage() {
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 pt-1 text-xs text-zinc-500">
             <span>✓ Free scan, no credit card</span>
             <span>✓ 60-second results</span>
-            <span>✓ PRODUCTHUNT = 50% off first 2 months</span>
+            <span>✓ 30-day money-back guarantee</span>
             <span>✓ Cancel anytime</span>
           </div>
         </div>
@@ -177,10 +177,10 @@ export default function LaunchPage() {
             Run your free scan. See where you stand.
           </h2>
           <p className="text-zinc-400 text-sm">
-            60 seconds. No credit card. If you decide to activate a plan, use code <strong className="text-white">PRODUCTHUNT</strong> for 50% off your first 2 months.
+            60 seconds. No credit card. If you decide to start GravyBlock, it is $39.99/month with a 30-day money-back guarantee.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
-            <Link href="/scan?promo=PRODUCTHUNT" className="rounded-full bg-white px-8 py-3.5 text-sm font-bold text-zinc-900 hover:bg-zinc-100">
+            <Link href="/scan" className="rounded-full bg-white px-8 py-3.5 text-sm font-bold text-zinc-900 hover:bg-zinc-100">
               Get my free score
             </Link>
             <Link href="/start" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-bold text-white hover:bg-red-500">

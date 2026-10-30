@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/brand-mark";
-import { SUPPORT_EMAIL } from "@/lib/company";
 
 export function SiteFooter() {
   return (
@@ -14,9 +13,9 @@ export function SiteFooter() {
           </p>
           <p className="mt-3 text-xs text-zinc-500">
             Questions?{" "}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="font-medium text-zinc-700 hover:underline">
-              {SUPPORT_EMAIL}
-            </a>
+            <Link href="/contact" className="font-medium text-zinc-700 hover:underline">
+              Contact us
+            </Link>
           </p>
         </div>
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5 lg:gap-10">

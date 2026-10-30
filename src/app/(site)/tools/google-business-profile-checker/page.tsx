@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ToolNextSteps } from "@/components/tool-next-steps";
 
 export const metadata: Metadata = {
   title: "Free Google Business Profile Checker",
@@ -117,10 +118,11 @@ export default function GbpCheckerPage() {
         </div>
         <p className="mt-4 text-sm text-zinc-400">
           Already have results?{" "}
-          <Link href="/#plans" className="text-zinc-300 underline">
+          <Link href="/pricing" className="text-zinc-300 underline">
             See what GravyBlock does automatically.
           </Link>
         </p>
+      <ToolNextSteps current="google-business-profile-checker" scanCta={false} />
       </div>
     </div>
   );

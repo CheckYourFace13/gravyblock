@@ -22,7 +22,7 @@ export default function GoPage() {
     <div className="min-h-screen bg-white">
       {/* Urgency bar */}
       <div className="bg-red-600 px-4 py-2.5 text-center text-xs font-bold text-white tracking-wide">
-        Use code <span className="bg-white/20 rounded px-1.5 py-0.5">GOOGLE50</span> at checkout — 50% off your first month
+        GravyBlock: $39.99/month. Free scan first, cancel anytime, 30-day money-back guarantee
       </div>
 
       <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
@@ -35,7 +35,7 @@ export default function GoPage() {
               Stop doing SEO.<br />GravyBlock does it for you.
             </h1>
             <p className="mt-5 text-lg text-zinc-600 leading-relaxed">
-              Local SEO agencies charge $1,000–$3,000/month. GravyBlock is a lower-cost option that decides what will help and does it automatically — publishing website content, posting to Google, replying to Google reviews, running local outreach, and tracking your Google rankings.
+              GravyBlock is $39.99/month. It decides what will help and does it automatically — publishing website content, posting to Google, replying to Google reviews, running local outreach, and tracking your Google rankings.
             </p>
 
             <ul className="mt-8 space-y-3">
@@ -49,14 +49,6 @@ export default function GoPage() {
 
             <div className="mt-8 rounded-2xl border border-zinc-200 bg-zinc-50 p-5 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-zinc-500">Local SEO agency</span>
-                <span className="font-bold text-zinc-900">$1,000–$3,000/mo</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-500">Semrush + doing it yourself</span>
-                <span className="font-bold text-zinc-900">$140/mo + 10 hrs/mo</span>
-              </div>
-              <div className="border-t border-zinc-200 pt-2 flex justify-between text-sm">
                 <span className="font-semibold text-red-700">GravyBlock</span>
                 <span className="font-bold text-emerald-700">$39.99/mo</span>
               </div>
@@ -74,7 +66,7 @@ export default function GoPage() {
 
               <div className="mt-6 space-y-3">
                 <Link
-                  href="/scan?promo=GOOGLE50"
+                  href="/scan"
                   className="flex w-full items-center justify-center rounded-full bg-red-600 px-6 py-3.5 text-sm font-bold text-white hover:bg-red-500 shadow-sm transition"
                 >
                   Get my free visibility score
@@ -94,11 +86,7 @@ export default function GoPage() {
                 </p>
                 <p className="flex items-center gap-1.5">
                   <span className="text-emerald-500 font-bold">✓</span>
-                  Code GOOGLE50 = 50% off your first month
-                </p>
-                <p className="flex items-center gap-1.5">
-                  <span className="text-emerald-500 font-bold">✓</span>
-                  30-day money-back guarantee on paid plans
+                  30-day money-back guarantee
                 </p>
                 <p className="flex items-center gap-1.5">
                   <span className="text-emerald-500 font-bold">✓</span>

@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { submitLeadAction, type LeadActionState } from "@/app/actions/lead";
+import { LEAD_TOPICS, type LeadTopic } from "@/lib/lead-topics";
 
 const initial: LeadActionState = { status: "idle" };
 
@@ -11,12 +12,14 @@ export function CtaLeadForm({
   subtitle,
   buttonLabel,
   className,
+  defaultTopic = "general",
 }: {
   source: "contact_form" | "support_inquiry";
   title: string;
   subtitle: string;
   buttonLabel: string;
   className?: string;
+  defaultTopic?: LeadTopic;
 }) {
   const [state, formAction, pending] = useActionState(submitLeadAction, initial);
   const formRef = useRef<HTMLFormElement>(null);
@@ -54,6 +57,20 @@ export function CtaLeadForm({
             required
             className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
           />
+        </label>
+        <label className="space-y-1 sm:col-span-2">
+          <span className="text-xs font-medium text-zinc-700">What is this about?</span>
+          <select
+            name="topic"
+            defaultValue={defaultTopic}
+            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-red-500/30 focus:ring-4"
+          >
+            {LEAD_TOPICS.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="space-y-1 sm:col-span-2">
           <span className="text-xs font-medium text-zinc-700">Message (optional)</span>

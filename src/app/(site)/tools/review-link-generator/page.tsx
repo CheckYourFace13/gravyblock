@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ToolNextSteps } from "@/components/tool-next-steps";
 import { ReviewLinkTool } from "./review-link-tool";
 
 export const metadata: Metadata = {
@@ -126,6 +127,7 @@ export default function ReviewLinkGeneratorPage() {
             Get my free visibility score →
           </Link>
         </section>
+        <ToolNextSteps current="review-link-generator" scanCta={false} />
       </div>
     </>
   );

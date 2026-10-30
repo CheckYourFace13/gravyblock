@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ReplyGenerator } from "./reply-generator";
+import { ToolNextSteps } from "@/components/tool-next-steps";
 
 export const metadata: Metadata = {
   title: "Free Google Review Reply Generator",
@@ -27,6 +28,7 @@ export default function ReplyGeneratorPage() {
       <div className="mt-8">
         <ReplyGenerator />
       </div>
+      <ToolNextSteps current="review-reply-generator" scanBody="Replies are one part of how your reviews look to customers. The free scan shows your rating and review gap against nearby competitors. About a minute, no credit card." />
     </div>
   );
 }

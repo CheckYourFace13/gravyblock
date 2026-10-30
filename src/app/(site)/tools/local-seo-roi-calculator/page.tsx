@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ToolNextSteps } from "@/components/tool-next-steps";
 import { RoiCalculator } from "./roi-calculator";
 
 export const metadata: Metadata = {
@@ -80,6 +81,7 @@ export default function RoiCalculatorPage() {
             Get my free visibility score →
           </Link>
         </section>
+        <ToolNextSteps current="local-seo-roi-calculator" scanCta={false} />
       </div>
     </>
   );

@@ -115,8 +115,8 @@ export default function ToolsPage() {
       <div className="mt-10 text-center">
         <p className="text-sm text-zinc-600">
           Want these checks to run automatically every month?{" "}
-          <Link href="/#plans" className="font-semibold text-red-800 underline">
-            See GravyBlock plans
+          <Link href="/pricing" className="font-semibold text-red-800 underline">
+            See GravyBlock pricing
           </Link>
         </p>
       </div>

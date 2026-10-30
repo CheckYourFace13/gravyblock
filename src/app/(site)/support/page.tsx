@@ -43,17 +43,12 @@ export default function SupportPage() {
             </p>
             <CtaLeadForm
               source="support_inquiry"
+              defaultTopic="support"
               title="Contact support"
               subtitle="Fill out the form and we'll get back to you by email."
               buttonLabel="Send message"
               className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6 shadow-sm"
             />
-            <p className="mt-3 text-xs text-zinc-400">
-              You can also email us directly at{" "}
-              <a href="mailto:support@gravyblock.com" className="font-medium text-zinc-600 hover:underline">
-                support@gravyblock.com
-              </a>
-            </p>
           </div>
 
           {/* Right: help topics + self-serve */}
@@ -97,7 +92,7 @@ export default function SupportPage() {
             <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
               <p className="text-sm font-semibold text-emerald-800">30-day money-back guarantee</p>
               <p className="mt-1 text-xs text-emerald-700 leading-relaxed">
-                Not happy in your first 30 days? Email us and we'll refund you in full. No forms, no hassle.
+                Not happy in your first 30 days? Choose &quot;Billing or refund request&quot; in the form above and we&apos;ll refund you in full.
               </p>
             </div>
           </div>

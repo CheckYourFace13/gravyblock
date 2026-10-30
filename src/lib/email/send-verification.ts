@@ -4,7 +4,7 @@ import { verifyEmailUrl } from "@/lib/auth/email-verify";
 export async function sendVerificationEmail(businessId: string, email: string, businessName: string): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return;
-  const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <chris@gravyblock.com>";
+  const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
   const url = verifyEmailUrl(businessId, email);
 
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.6;color:#1a1a1a;max-width:520px;margin:0 auto;padding:32px 20px">

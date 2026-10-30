@@ -233,7 +233,6 @@ export default function HomePage() {
         <div className="mx-auto max-w-3xl rounded-3xl border-2 border-red-200 bg-gradient-to-br from-red-50 via-white to-white p-8 text-center shadow-sm">
           <p className="text-xs font-bold uppercase tracking-widest text-red-700">The easiest option: let GravyBlock handle it</p>
           <h2 className="mt-2 text-3xl font-bold text-zinc-900">GravyBlock: $39.99/month</h2>
-          <p className="mt-1 text-sm font-semibold text-emerald-700"> ()</p>
           <ul className="mx-auto mt-5 grid max-w-xl gap-1.5 text-left text-sm text-zinc-700 sm:grid-cols-2">
             {[
               "Finds what is hurting your visibility",
@@ -259,7 +258,7 @@ export default function HomePage() {
           </div>
           <p className="mt-3 text-xs font-medium text-zinc-600">$39.99/month · Cancel anytime · 30-day money-back guarantee</p>
           <p className="mt-2 text-xs text-zinc-500">
-            Other plans are on the{" "}
+            Details are on the{" "}
             <Link href="/pricing" className="underline">
               pricing page
             </Link>

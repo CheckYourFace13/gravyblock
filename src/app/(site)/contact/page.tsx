@@ -5,7 +5,7 @@ import { CtaLeadForm } from "@/components/cta-lead-form";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Questions about GravyBlock, pricing, or getting started? Reach our team at support@gravyblock.com or send a message below.",
+    "Questions about GravyBlock, pricing, or getting started? Send us a message using the form: sales, support, billing and refunds, or privacy requests.",
   alternates: { canonical: "/contact" },
 };
 
@@ -35,7 +35,7 @@ export default function ContactPage() {
         <div className="grid gap-10 sm:grid-cols-2">
           <div>
             <h2 className="text-lg font-bold text-zinc-900 mb-1">Send a message</h2>
-            <p className="text-sm text-zinc-500 mb-5">Sales questions, product questions, anything else.</p>
+            <p className="text-sm text-zinc-500 mb-5">Sales, support, billing and refunds, and privacy requests all start here.</p>
             <CtaLeadForm
               source="contact_form"
               title="Contact GravyBlock"
@@ -47,11 +47,11 @@ export default function ContactPage() {
 
           <div className="space-y-6">
             <div>
-              <h2 className="text-lg font-bold text-zinc-900 mb-1">Direct email</h2>
-              <p className="text-sm text-zinc-500 mb-2">Prefer email? Write to our team.</p>
-              <a href="mailto:support@gravyblock.com" className="font-semibold text-red-700 hover:underline">
-                support@gravyblock.com
-              </a>
+              <h2 className="text-lg font-bold text-zinc-900 mb-1">How requests are routed</h2>
+              <p className="text-sm text-zinc-500">
+                Pick the topic that fits (general or sales, account support, billing or refund, privacy or data request) and we
+                reply to the email address you give us.
+              </p>
             </div>
 
             <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 space-y-3">
@@ -67,7 +67,7 @@ export default function ContactPage() {
                   <Link href="/pricing" className="font-medium text-red-600 hover:underline">
                     Check pricing →
                   </Link>{" "}
-                  for current plans and what's included
+                  for the $39.99/month price and what's included
                 </li>
                 <li>
                   <Link href="/faq" className="font-medium text-red-600 hover:underline">

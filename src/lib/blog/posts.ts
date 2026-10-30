@@ -665,7 +665,7 @@ Semrush is a broad SEO suite with a local toolkit that includes listing manageme
 ### GravyBlock ($39.99 per month)
 **Best for:** Owner-operated local businesses that want the work decided and done for them automatically
 
-GravyBlock is a lower-cost option that automatically decides and does a defined set of work: articles and service pages written from your own website's information and published to your connected WordPress, Webflow or Shopify site, Google Business Profile posts, automatic replies to Google reviews (Yelp and TripAdvisor reviews are monitored and flagged, since their APIs don't allow automatic replies), automatic review requests to your real customers, personalized local outreach, and citation consistency checks with drift alerts. It does not build or fix listings on hundreds of directories.
+GravyBlock is a single-price option that automatically decides and does a defined set of work: articles and service pages written from your own website's information and published to your connected WordPress, Webflow or Shopify site, Google Business Profile posts, automatic replies to Google reviews (Yelp and TripAdvisor reviews are monitored and flagged, since their APIs don't allow automatic replies), automatic review requests to your real customers, personalized local outreach, and citation consistency checks with drift alerts. It does not build or fix listings on hundreds of directories.
 
 ## Which Tool Should You Choose?
 
@@ -674,9 +674,9 @@ GravyBlock is a lower-cost option that automatically decides and does a defined 
 | Detailed reporting and you have someone to act on it | BrightLocal |
 | Listing sync across a large publisher network | Yext |
 | Keyword research alongside local SEO | Semrush |
-| A lower-cost option that automatically decides and does content, Google posts and review replies | GravyBlock |
+| A single-price option that automatically decides and does content, Google posts and review replies | GravyBlock |
 
-**Bottom line:** If you have an in-house marketing person or work with an agency, BrightLocal gives you the best reporting. If you're a small business owner who wants a lower-cost option that decides and does that work automatically, GravyBlock may fit. Results are not guaranteed.
+**Bottom line:** If you have an in-house marketing person or work with an agency, BrightLocal gives you the best reporting. If you're a small business owner who wants a single-price option that decides and does that work automatically, GravyBlock may fit. Results are not guaranteed.
 
 [Start your free GravyBlock scan and see your visibility score in 60 seconds →](/scan)`,
   },

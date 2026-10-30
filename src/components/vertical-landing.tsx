@@ -59,8 +59,8 @@ export function VerticalLanding({
         >
           {ctaLabel}
         </Link>
-        <Link href="/#plans" className="inline-flex rounded-full border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-700 hover:border-zinc-400">
-          See plans &amp; pricing
+        <Link href="/pricing" className="inline-flex rounded-full border border-zinc-300 px-6 py-3 text-sm font-semibold text-zinc-700 hover:border-zinc-400">
+          See pricing
         </Link>
       </div>
       <p className="mt-3 text-xs text-zinc-500">Free scan, no credit card. GravyBlock is $39.99/month.</p>

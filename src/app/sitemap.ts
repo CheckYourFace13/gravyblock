@@ -53,7 +53,6 @@ const staticRoutes: MetadataRoute.Sitemap = [
   entry("/features", 0.9),
   entry("/pricing", 0.9),
   entry("/scan", 0.9, "weekly"),
-  entry("/proof", 0.6, "weekly"),
   entry("/about", 0.5),
   entry("/contact", 0.5),
   entry("/support", 0.5),
@@ -81,7 +80,6 @@ const staticRoutes: MetadataRoute.Sitemap = [
   ...INDIVIDUAL_INDUSTRY_SLUGS.map((slug) => entry(`/industries/${slug}`, 0.7)),
   ...VERTICAL_PAGES.map((slug) => entry(`/${slug}`, 0.7)),
   entry("/examples", 0.5),
-  entry("/examples/sample-local-growth-report", 0.6),
   ...EXAMPLE_SLUGS.map((slug) => entry(`/examples/${slug}`, 0.5)),
 ];
 

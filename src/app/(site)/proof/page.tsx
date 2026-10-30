@@ -83,9 +83,34 @@ function ProofActivityList({ activity }: { activity: ProofActivity }) {
 }
 
 export default async function ProofPage() {
-  const showcased = await getShowcaseBusinesses();
-  const ledger = await getPublicProof({ limit: 12 });
-  const caseStudies = await getPublishedCaseStudies(6);
+  let showcased: Awaited<ReturnType<typeof getShowcaseBusinesses>> = [];
+  let ledger: Awaited<ReturnType<typeof getPublicProof>> = [];
+  let caseStudies: Awaited<ReturnType<typeof getPublishedCaseStudies>> = [];
+  try {
+    [showcased, ledger, caseStudies] = await Promise.all([getShowcaseBusinesses(), getPublicProof({ limit: 12 }), getPublishedCaseStudies(6)]);
+  } catch (err) {
+    // The proof data lives in the database. If it is unreachable, say so plainly (and keep the page out of search)
+    // rather than returning a 500 or showing anything that is not verified. The error is still logged.
+    console.error("[proof] proof data unavailable", err);
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+        <meta name="robots" content="noindex" />
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Proof is temporarily unavailable</h1>
+        <p className="mt-4 text-zinc-600">
+          This page lists only work GravyBlock has verified, and that data is not reachable right now. Nothing is shown in its
+          place. Please check back soon.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link href="/scan" className="inline-block rounded-full bg-red-600 px-7 py-3 text-sm font-semibold text-white hover:bg-red-500">
+            Get my free visibility score →
+          </Link>
+          <Link href="/how-it-works" className="inline-block rounded-full border border-zinc-300 bg-white px-7 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
+            How it works
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6">
