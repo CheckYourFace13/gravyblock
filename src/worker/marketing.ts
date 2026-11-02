@@ -12,6 +12,8 @@ import { randomUUID } from "node:crypto";
 import { cancelActiveWork } from "@/lib/marketing-studio/active-work";
 import { LIMITS, STUDIO_DIRS, studioEnabledByEnv } from "@/lib/marketing-studio/config";
 import { renderConcept } from "@/lib/marketing-studio/creative/pipeline";
+import { runDuePublications } from "@/lib/marketing-studio/publishing/queue";
+import { INTERNAL_SCOPE } from "@/lib/marketing-studio/scope";
 import { SIZE_KEYS, type SizeKey } from "@/lib/marketing-studio/creative/theme";
 import { renderVideoJob, runBenchmarkJob } from "@/lib/marketing-studio/video/jobs";
 import { closeStudioDb, getStudioDb } from "@/lib/marketing-studio/db";
@@ -166,6 +168,9 @@ async function loopOnce() {
       clearInterval(watchdog);
     }
   }
+  // Due direct publications. This does nothing at all unless live publishing has been switched on by an operator (default off).
+  const due = await runDuePublications(INTERNAL_SCOPE, undefined, db).catch((e) => ({ skipped: `error: ${e instanceof Error ? e.message : String(e)}`, attempted: 0 }));
+  if (due.attempted > 0) await log("publications processed", due);
   await writeHeartbeat({ at: new Date().toISOString(), pid: process.pid, workerId: WORKER_ID, state: ran > 0 ? "running" : "idle", lastJobKind }, db).catch(() => {});
 }
 

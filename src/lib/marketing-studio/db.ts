@@ -23,7 +23,7 @@ export function getStudioDb(): StudioDb | null {
   const url = getStudioUrl();
   if (!url) return null;
   if (!g.marketingStudioSql) {
-    g.marketingStudioSql = postgres(url, { max: 3, idle_timeout: 20, connect_timeout: 10, prepare: false });
+    g.marketingStudioSql = postgres(url, { max: Math.max(1, Number(process.env.MARKETING_DB_POOL_MAX ?? 3)), idle_timeout: 20, connect_timeout: 10, prepare: false });
   }
   if (!g.marketingStudioDb) g.marketingStudioDb = drizzle(g.marketingStudioSql, { schema: ms });
   return g.marketingStudioDb;

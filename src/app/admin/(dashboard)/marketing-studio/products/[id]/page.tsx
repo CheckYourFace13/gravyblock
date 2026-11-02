@@ -5,7 +5,7 @@ import { requireStudioAccess } from "@/lib/marketing-studio/auth";
 import { UPLOAD_KINDS, FACT_SOURCES } from "@/lib/marketing-studio/config";
 import { StudioAccessError } from "@/lib/marketing-studio/scope";
 import { CreativeSections } from "./creative-sections";
-import { listConnections } from "@/lib/marketing-studio/credentials";
+import { PublishingSections } from "./publishing-sections";
 import { getBrandProfile, listAssets, listCampaigns, listClaims, listFacts, requireProduct, truthReadiness } from "@/lib/marketing-studio/repository";
 import {
   addClaimAction,
@@ -38,14 +38,13 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
     if (e instanceof StudioAccessError) notFound();
     throw e;
   }
-  const [brand, facts, claims, assets, campaigns, readiness, connections] = await Promise.all([
+  const [brand, facts, claims, assets, campaigns, readiness] = await Promise.all([
     getBrandProfile(scope, id),
     listFacts(scope, id),
     listClaims(scope, id),
     listAssets(scope, id),
     listCampaigns(scope, id),
     truthReadiness(scope, id),
-    listConnections(scope, id),
   ]);
   const colors = (brand?.colors ?? {}) as Record<string, string>;
   const fonts = (brand?.fonts ?? {}) as Record<string, string>;
@@ -349,12 +348,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
 
       <CreativeSections productId={product.id} />
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5">
-        <h2 className="text-lg font-semibold text-zinc-900">Platform connections</h2>
-        <p className="mt-1 text-sm text-zinc-600">
-          {connections.length === 0 ? "None. Phase 1 connects no platform." : `${connections.length} stored (encrypted; secrets are never shown).`}
-        </p>
-      </section>
+      <PublishingSections productId={product.id} />
 
       <section className="rounded-2xl border border-red-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-red-800">Remove product</h2>

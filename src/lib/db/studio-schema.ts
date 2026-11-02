@@ -205,6 +205,11 @@ export const msConnections = pgTable(
     authorizedAt: timestamp("authorized_at", { withTimezone: true }).defaultNow().notNull(),
     tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
     lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    /** Phase 3: revocation and health. A revoked connection's token is overwritten, not just flagged. */
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    /** unknown | ok | expiring | expired | error | revoked */
+    healthStatus: text("health_status").notNull().default("unknown"),
+    healthDetail: text("health_detail"),
   },
   (t) => [index("ms_connections_product_idx").on(t.productId, t.platform)],
 );
@@ -350,3 +355,52 @@ export const msBenchmarkRuns = pgTable("ms_benchmark_runs", {
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+/**
+ * Phase 3: one planned or completed post (or export) of one approved creative or video to one platform. The default state is
+ * approval_required and nothing posts publicly without an approved, scheduled row, a healthy connection, the live-publishing
+ * setting, and the publish gate.
+ */
+export const msPublications = pgTable(
+  "ms_publications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id").references(() => msProducts.id, { onDelete: "cascade" }).notNull(),
+    conceptId: uuid("concept_id").references(() => msConcepts.id, { onDelete: "set null" }),
+    campaignId: uuid("campaign_id").references(() => msCampaigns.id, { onDelete: "set null" }),
+    creativeId: uuid("creative_id").references(() => msCreatives.id, { onDelete: "set null" }),
+    videoId: uuid("video_id").references(() => msVideos.id, { onDelete: "set null" }),
+    /** The media asset actually posted. */
+    assetId: uuid("asset_id").notNull(),
+    connectionId: uuid("connection_id").references(() => msConnections.id, { onDelete: "set null" }),
+    /** facebook | instagram | youtube | tiktok */
+    platform: text("platform").notNull(),
+    /** direct | export */
+    mode: text("mode").notNull().default("export"),
+    /** draft | approval_required | approved | scheduled | publishing | published | exported | failed | cancelled | revoked | deleted */
+    status: text("status").notNull().default("approval_required"),
+    title: text("title"),
+    caption: text("caption").notNull(),
+    ctaText: text("cta_text"),
+    ctaUrl: text("cta_url"),
+    /** Platform-specific formatted payload (never contains credentials). */
+    formatted: jsonb("formatted").notNull().default({}),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(3),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    /** One logical post exists once: product, platform, asset and channel. */
+    dedupeKey: text("dedupe_key").notNull(),
+    externalPostId: text("external_post_id"),
+    externalUrl: text("external_url"),
+    failureReason: text("failure_reason"),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    remoteDeletedAt: timestamp("remote_deleted_at", { withTimezone: true }),
+    createdBy: text("created_by").notNull().default("admin"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("ms_publications_dedupe_idx").on(t.dedupeKey), index("ms_publications_due_idx").on(t.status, t.scheduledFor), index("ms_publications_product_idx").on(t.productId, t.status)],
+);

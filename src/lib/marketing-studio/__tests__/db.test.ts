@@ -286,6 +286,18 @@ describe("House and site write protection (least-privilege role)", { skip: !proc
     await denied("create table studio_escape (id int)");
   });
 
+  test("the studio role can read and write EVERY ms_ table, including the newest, and is denied the site, publishing and business tables", async () => {
+    const msTables = ["ms_products", "ms_brand_profiles", "ms_product_facts", "ms_claims", "ms_assets", "ms_campaigns", "ms_media_jobs", "ms_connections", "ms_usage", "ms_settings", "ms_audit_events", "ms_concepts", "ms_creatives", "ms_videos", "ms_benchmark_runs", "ms_publications"];
+    for (const t of msTables) {
+      await assert.doesNotReject(sql.unsafe(`select 1 from ${t} limit 1`), t);
+      await assert.doesNotReject(sql.unsafe(`update ${t} set id = id where false`).catch((e: { code?: string }) => { if (e.code === "42703") return; throw e; }), t);
+    }
+    for (const t of ["businesses", "published_content", "publishing_targets", "publishing_jobs", "content_queue", "business_configs", "google_oauth_connections", "proof_ledger", "jobs", "leads", "outreach_sends", "growth_opportunities", "business_facts", "reports", "scans", "funnel_events", "email_events", "customer_sessions"]) {
+      await denied(`select 1 from ${t} limit 1`);
+      await denied(`delete from ${t} where false`);
+    }
+  });
+
   test("the studio role can use its own tables", async () => {
     const r = await sql`select count(*)::int as n from ms_products`;
     assert.equal(typeof r[0].n, "number");

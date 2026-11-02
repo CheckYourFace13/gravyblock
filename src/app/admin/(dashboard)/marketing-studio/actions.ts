@@ -19,6 +19,8 @@ import {
 } from "@/lib/marketing-studio/repository";
 import { enqueueConceptRender } from "@/lib/marketing-studio/creative/queue";
 import { generateConcepts, reviewCreative } from "@/lib/marketing-studio/creative/copy";
+import { connectAccount, refreshConnectionHealth, revokeAccount } from "@/lib/marketing-studio/publishing/connections";
+import { approvePublication, cancelPublication, createPublication, markPublicationDeleted, schedulePublication } from "@/lib/marketing-studio/publishing/queue";
 import { getSetting, setKillSwitch } from "@/lib/marketing-studio/runtime";
 import { createVideoFromProduct, reviewVideo } from "@/lib/marketing-studio/video/queue";
 import { importRemoteImage } from "@/lib/marketing-studio/remote-import";
@@ -194,4 +196,81 @@ export async function reviewVideoAction(fd: FormData) {
   const { scope, actor } = await requireStudioAccess();
   const id = s(fd, "productId");
   await guarded(`${base}/products/${id}`, () => reviewVideo(scope, actor, id, s(fd, "videoId"), s(fd, "decision") === "approved" ? "approved" : "rejected"));
+}
+
+// ---- Phase 3: publishing foundation (nothing posts without approval; live publishing is off by default) ---------------------
+
+export async function createPublicationAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    const media = s(fd, "media"); // "creative:<id>" or "video:<id>"
+    const [kind, mediaId] = media.split(":");
+    const mode = s(fd, "mode") === "direct" ? "direct" : "export";
+    await createPublication(scope, actor, id, {
+      creativeId: kind === "creative" ? mediaId : undefined,
+      videoId: kind === "video" ? mediaId : undefined,
+      platform: s(fd, "platform"),
+      mode,
+      connectionId: s(fd, "connectionId") || null,
+      caption: s(fd, "caption") || undefined,
+      title: s(fd, "title") || null,
+    });
+  });
+}
+
+export async function approvePublicationAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, () => approvePublication(scope, actor, id, s(fd, "publicationId")));
+}
+
+export async function schedulePublicationAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, () => schedulePublication(scope, actor, id, s(fd, "publicationId"), new Date(s(fd, "when"))));
+}
+
+export async function cancelPublicationAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, () => cancelPublication(scope, actor, id, s(fd, "publicationId")));
+}
+
+export async function markDeletedAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, () => markPublicationDeleted(scope, actor, id, s(fd, "publicationId")));
+}
+
+export async function connectAccountAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    const expires = s(fd, "expiresAt");
+    await connectAccount(scope, actor, id, {
+      platform: s(fd, "platform") as "facebook" | "instagram" | "youtube" | "tiktok",
+      accountLabel: s(fd, "accountLabel"),
+      externalAccountId: s(fd, "externalAccountId"),
+      tokens: { accessToken: s(fd, "accessToken"), refreshToken: s(fd, "refreshToken") || undefined },
+      scopes: fd.getAll("scopes").filter((v): v is string => typeof v === "string"),
+      tokenExpiresAt: expires ? new Date(expires) : null,
+    });
+  });
+}
+
+export async function revokeAccountAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    await revokeAccount(scope, actor, id, s(fd, "connectionId"));
+  });
+}
+
+export async function refreshHealthAction(fd: FormData) {
+  const { scope } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    await refreshConnectionHealth(scope, id, s(fd, "connectionId"));
+  });
 }

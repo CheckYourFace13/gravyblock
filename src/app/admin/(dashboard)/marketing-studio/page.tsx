@@ -60,7 +60,10 @@ export default async function MarketingStudioHome({ searchParams }: { searchPara
         <h1 className="text-2xl font-semibold text-zinc-900">Marketing Studio</h1>
         <p className="mt-1 text-sm text-zinc-600">
           Private foundation (Phase 1). Off-site marketing only: it reads product information and stores plans and assets, and it never edits a
-          product&apos;s website, app or game. Nothing here renders video, publishes, or calls a paid service.
+          product&apos;s website, app or game. Nothing posts automatically, and no paid service is used.{" "}
+          <Link href="/admin/marketing-studio/calendar" className="font-semibold underline">
+            Content calendar
+          </Link>
         </p>
       </div>
 
