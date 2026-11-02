@@ -289,3 +289,11 @@ describe("video assembly and QA with real FFmpeg", { skip: !HAVE_FFMPEG }, () =>
     }
   });
 });
+
+describe("template rules found in the pilot run", () => {
+  test("the landscape showcase drops its supporting line instead of overflowing", () => {
+    const base = { family: "screenshot_showcase" as const, theme: themeFor("saas", "#2563eb"), productName: "P", headline: { text: "Headline", src: { kind: "product" as const } }, subhead: { text: "A long supporting line", src: { kind: "product" as const } } };
+    assert.equal(buildCreative({ ...base, size: "landscape" }).textBlocks.some((b) => b.role === "subhead"), false);
+    assert.equal(buildCreative({ ...base, size: "square" }).textBlocks.some((b) => b.role === "subhead"), true);
+  });
+});

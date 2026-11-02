@@ -46,6 +46,8 @@ export function validateStoryboard(sb: Storyboard): string[] {
   if (sb.scenes.length > VIDEO.maxScenes) errors.push(`too many scenes (max ${VIDEO.maxScenes})`);
   for (const [i, s] of sb.scenes.entries()) {
     if (!(s.seconds >= 2 && s.seconds <= 12)) errors.push(`scene ${i + 1}: seconds must be between 2 and 12`);
+    // Clips are cut and joined on keyframes placed every 0.5 s, so scene lengths are whole multiples of 0.5.
+    if (Math.abs(s.seconds * 2 - Math.round(s.seconds * 2)) > 1e-9) errors.push(`scene ${i + 1}: seconds must be a multiple of 0.5`);
     if (s.type === "card" && !s.headline?.trim()) errors.push(`scene ${i + 1}: a card needs a headline`);
     if (s.type === "image" && !/^[0-9a-f-]{36}$/i.test(s.assetId)) errors.push(`scene ${i + 1}: invalid asset id`);
     if (s.type === "image" && !MOTIONS.includes(s.motion)) errors.push(`scene ${i + 1}: unknown motion`);

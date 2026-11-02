@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { SIZES, type SizeKey, type Theme } from "./theme";
 
-export const TEMPLATE_VERSION = "1.0.0";
+export const TEMPLATE_VERSION = "1.0.1";
 
 export const TEMPLATE_FAMILIES = ["product_benefit", "feature_highlight", "announcement", "educational_tip", "screenshot_showcase", "comparison", "cta"] as const;
 export type TemplateFamily = (typeof TEMPLATE_FAMILIES)[number];
@@ -152,7 +152,9 @@ export function buildCreative(input: CreativeInput): BuiltCreative {
 
   const headMax = input.family === "cta" ? m.head[0] + 8 : m.head[0];
   const headline = txt("headline", input.headline.text, input.headline.src, { max: headMax, min: m.head[1], boxH: m.head[2], cls: "headline" });
-  const subhead = input.subhead ? txt("subhead", input.subhead.text, input.subhead.src, { max: m.sub[0], min: m.sub[1], boxH: m.sub[2], cls: "subhead" }) : "";
+  // The landscape link-card showcase gives the screenshot the space; its supporting line stays in the caption instead of overflowing the card.
+  const dropSubhead = input.family === "screenshot_showcase" && landscape;
+  const subhead = input.subhead && !dropSubhead ? txt("subhead", input.subhead.text, input.subhead.src, { max: m.sub[0], min: m.sub[1], boxH: m.sub[2], cls: "subhead" }) : "";
   const body = input.body ? txt("body", input.body.text, input.body.src, { max: m.sub[0], min: m.sub[1], boxH: m.sub[2], cls: "subhead" }) : "";
   const labelFor = (text: string) => txt("label", text, { kind: "label" }, { max: 30, min: 24, boxH: 44, cls: "kicker" });
   const badge = input.badge ? txt("badge", input.badge.text, input.badge.src, { max: landscape ? 28 : 38, min: 24, boxH: landscape ? 56 : 70, cls: "badge" }) : "";

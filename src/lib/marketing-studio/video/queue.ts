@@ -43,10 +43,14 @@ export function buildStoryboard(ctx: ProductContext, targetSeconds: number): Sto
   const middle = (m: number) => m - 2;
   const cardsNeeded = (m: number) => Math.ceil(middle(m) / 2);
   while (n > 3 && cardsNeeded(n) > items.length) n--;
-  const d = +((targetSeconds + (n - 1) * VIDEO.transitionSeconds) / n).toFixed(2);
+  // Scene lengths are multiples of 0.5 s (keyframe-aligned cuts); the remainder is spread one half-second at a time over the first scenes.
+  const halves = Math.round((targetSeconds + (n - 1) * VIDEO.transitionSeconds) * 2);
+  const lengths = Array.from({ length: n }, (_, k) => (Math.floor(halves / n) + (k < halves % n ? 1 : 0)) / 2);
+  let sceneNo = 0;
+  const nextLen = () => lengths[sceneNo++];
 
   const scenes: Scene[] = [];
-  scenes.push({ type: "card", seconds: d, family: "product_benefit", headline: lead, subhead: tagline && desc ? shortDescription(desc.factValue, 190) : null });
+  scenes.push({ type: "card", seconds: nextLen(), family: "product_benefit", headline: lead, subhead: tagline && desc ? shortDescription(desc.factValue, 190) : null });
   let vi = 0;
   let ci = 0;
   for (let k = 0; k < middle(n); k++) {
@@ -54,16 +58,16 @@ export function buildStoryboard(ctx: ProductContext, targetSeconds: number): Sto
     const wantCard = middle(n) > 1 && k % 2 === 0;
     if (wantCard && items[ci]) {
       const it = items[ci++];
-      scenes.push({ type: "card", seconds: d, family: it.family, headline: it.headline, subhead: it.subhead });
+      scenes.push({ type: "card", seconds: nextLen(), family: it.family, headline: it.headline, subhead: it.subhead });
     } else {
       const prevCard = [...scenes].reverse().find((s): s is CardScene => s.type === "card");
       const caption = middle(n) > 1 && ci > 0 ? items[ci - 1]?.caption ?? null : null;
-      scenes.push({ type: "image", seconds: d, assetId: visuals[vi % visuals.length].assetId, motion: MOTIONS[1 + (vi % (MOTIONS.length - 1))], caption: caption && wrapCaption(caption) ? caption : null });
+      scenes.push({ type: "image", seconds: nextLen(), assetId: visuals[vi % visuals.length].assetId, motion: MOTIONS[1 + (vi % (MOTIONS.length - 1))], caption: caption && wrapCaption(caption) ? caption : null });
       vi++;
       void prevCard;
     }
   }
-  scenes.push({ type: "card", seconds: d, family: "cta", headline: note?.factValue ?? lead, cta: { text: cta.factValue, url: ctaUrl.factValue } });
+  scenes.push({ type: "card", seconds: nextLen(), family: "cta", headline: note?.factValue ?? lead, cta: { text: cta.factValue, url: ctaUrl.factValue } });
   const sb: Storyboard = { version: 1, scenes, transition: "fade" };
   const errors = validateStoryboard(sb);
   if (errors.length) throw new Error(`Storyboard is not valid: ${errors.join("; ")}`);

@@ -92,19 +92,21 @@ export async function assemble(i: AssembleInput): Promise<{ clipFiles: string[];
   const { storyboard: sb } = i;
   const clips: string[] = [];
   const x264 = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p", "-r", String(VIDEO.fps)];
+  // A keyframe every 0.5 s, no B-frames and no scene-cut keyframes: every cut and join below lands exactly on a keyframe.
+  const GOP = ["-g", String(VIDEO.fps / 2), "-keyint_min", String(VIDEO.fps / 2), "-sc_threshold", "0", "-bf", "0", "-force_key_frames", "expr:gte(t,n_forced*0.5)"];
   for (const [idx, scene] of sb.scenes.entries()) {
     const clip = path.join(i.dir, `clip-${idx}.mp4`);
     const frames = Math.round(scene.seconds * VIDEO.fps);
     if (scene.type === "card") {
       const png = path.join(i.dir, `card-${idx}.png`);
       await fs.writeFile(png, i.cards.get(idx)!);
-      const r = await ffmpeg(["-loop", "1", "-framerate", String(VIDEO.fps), "-i", png, "-frames:v", String(frames), "-vf", `scale=${W}:${H},format=yuv420p`, ...x264, clip], i.timeoutMs);
+      const r = await ffmpeg(["-loop", "1", "-framerate", String(VIDEO.fps), "-i", png, "-frames:v", String(frames), "-vf", `scale=${W}:${H},format=yuv420p`, ...x264, ...GOP, clip], i.timeoutMs);
       if (r.code !== 0) throw new Error(`card clip ${idx} failed: ${r.stderr.slice(0, 300)}`);
     } else {
       const plate = path.join(i.dir, `plate-${idx}.png`);
       await buildPlate(i.images.get(idx)!, plate);
       const vf = `zoompan=${motionExpr((scene as Extract<Scene, { type: "image" }>).motion, frames)}:d=${frames}:s=${W}x${H}:fps=${VIDEO.fps},format=yuv420p`;
-      const r = await ffmpeg(["-loop", "1", "-framerate", String(VIDEO.fps), "-i", plate, "-frames:v", String(frames), "-vf", vf, ...x264, clip], i.timeoutMs);
+      const r = await ffmpeg(["-loop", "1", "-framerate", String(VIDEO.fps), "-i", plate, "-frames:v", String(frames), "-vf", vf, ...x264, ...GOP, clip], i.timeoutMs);
       if (r.code !== 0) throw new Error(`image clip ${idx} failed: ${r.stderr.slice(0, 300)}`);
     }
     clips.push(clip);
@@ -112,29 +114,52 @@ export async function assemble(i: AssembleInput): Promise<{ clipFiles: string[];
     await fs.rm(path.join(i.dir, `plate-${idx}.png`), { force: true });
   }
 
-  // Cross-transitions between clips in one pass, with captions burned in afterwards.
-  const durs = sb.scenes.map((s) => s.seconds);
-  const inputs = clips.flatMap((c) => ["-i", c]);
-  let graph = "";
-  let last = "[0:v]";
-  let acc = durs[0];
-  for (let k = 1; k < clips.length; k++) {
-    const offset = +(acc - T).toFixed(3);
-    const out = k === clips.length - 1 ? "[vx]" : `[v${k}]`;
-    graph += `${last}[${k}:v]xfade=transition=${sb.transition}:duration=${T}:offset=${offset}${out};`;
-    last = out;
-    acc = offset + durs[k];
+  // Memory-bounded assembly. One big xfade chain makes FFmpeg queue frames of every later input for the whole timeline, so memory grows
+  // with video length. Instead: every clip has a keyframe each 0.5 s, so it can be cut on exact boundaries and joined by stream copy.
+  // Only each 0.5 s transition is decoded and re-encoded, and the single full re-encode happens once, at the end, for captions and audio.
+  const n = clips.length;
+  const pieces: string[] = [];
+  for (let idx = 0; idx < n; idx++) {
+    const d = sb.scenes[idx].seconds;
+    const start = idx === 0 ? 0 : T;
+    const end = idx === n - 1 ? d : d - T;
+    const piece = path.join(i.dir, `piece-${idx}.mp4`);
+    const r = await ffmpeg(["-ss", String(start), "-i", clips[idx], "-t", String(+(end - start).toFixed(3)), "-c", "copy", piece], i.timeoutMs);
+    if (r.code !== 0) throw new Error(`piece ${idx} failed: ${r.stderr.slice(0, 300)}`);
+    pieces.push(piece);
+    if (idx < n - 1) {
+      const trans = path.join(i.dir, `trans-${idx}.mp4`);
+      const tr = await ffmpeg(
+        ["-ss", String(+(d - T).toFixed(3)), "-t", String(T), "-i", clips[idx], "-t", String(T), "-i", clips[idx + 1], "-filter_complex", `[0:v][1:v]xfade=transition=${sb.transition}:duration=${T}:offset=0,format=yuv420p[v]`, "-map", "[v]", ...x264, ...GOP, trans],
+        i.timeoutMs,
+      );
+      if (tr.code !== 0) throw new Error(`transition ${idx} failed: ${tr.stderr.slice(0, 300)}`);
+      pieces.push(trans);
+    }
   }
-  const total = +acc.toFixed(2);
-  const assFile = path.join(i.dir, "captions.ass");
+  const list = path.join(i.dir, "pieces.txt");
+  await fs.writeFile(list, pieces.map((p) => `file '${path.basename(p)}'`).join("\n") + "\n");
+  const joined = path.join(i.dir, "joined.mp4");
+  const cj = await ffmpeg(["-f", "concat", "-safe", "0", "-i", "pieces.txt", "-c", "copy", joined], i.timeoutMs, i.dir);
+  if (cj.code !== 0) throw new Error(`join failed: ${cj.stderr.slice(0, 300)}`);
+  for (const p of pieces) await fs.rm(p, { force: true });
+
+  const total = +(sb.scenes.reduce((acc, s) => acc + s.seconds, 0) - (n - 1) * T).toFixed(2);
   const hasCaptions = i.captions.length > 0;
-  if (hasCaptions) await fs.writeFile(assFile, buildAss(i.captions));
-  // The subtitle file is referenced by a relative name with the job directory as the working directory, so no path needs escaping.
-  graph += hasCaptions ? `[vx]subtitles=captions.ass${existsSync(FONT_DIR) ? `:fontsdir=${FONT_DIR}` : ""}[vout]` : `[vx]null[vout]`;
-  const audioArgs = i.audioFile
-    ? ["-i", i.audioFile, "-filter_complex", `${graph};[${clips.length}:a]atrim=0:${total},afade=t=out:st=${Math.max(0, total - 1.5)}:d=1.5,loudnorm=I=-16:TP=-1.5:LRA=11[aout]`, "-map", "[vout]", "-map", "[aout]", "-c:a", "aac", "-b:a", "128k"]
-    : ["-filter_complex", graph, "-map", "[vout]", "-an"];
-  const r = await ffmpeg([...inputs, ...audioArgs, "-t", String(total), "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-r", String(VIDEO.fps), "-movflags", "+faststart", i.outFile], i.timeoutMs, i.dir);
+  if (hasCaptions) await fs.writeFile(path.join(i.dir, "captions.ass"), buildAss(i.captions));
+  let r;
+  if (!hasCaptions && !i.audioFile) {
+    await fs.rename(joined, i.outFile);
+    r = { code: 0, stderr: "", stdout: "", timedOut: false };
+  } else {
+    // The subtitle file is referenced by a relative name with the job directory as the working directory, so no path needs escaping.
+    const vf = hasCaptions ? `subtitles=captions.ass${existsSync(FONT_DIR) ? `:fontsdir=${FONT_DIR}` : ""}` : "null";
+    const audio = i.audioFile
+      ? ["-i", i.audioFile, "-filter_complex", `[0:v]${vf}[vout];[1:a]atrim=0:${total},afade=t=out:st=${Math.max(0, total - 1.5)}:d=1.5,loudnorm=I=-16:TP=-1.5:LRA=11[aout]`, "-map", "[vout]", "-map", "[aout]", "-c:a", "aac", "-b:a", "128k"]
+      : ["-vf", vf, "-an"];
+    r = await ffmpeg(["-i", joined, ...audio, "-t", String(total), "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-r", String(VIDEO.fps), "-movflags", "+faststart", i.outFile], i.timeoutMs, i.dir);
+    await fs.rm(joined, { force: true });
+  }
   if (r.code !== 0) throw new Error(`final assembly failed${r.timedOut ? " (timed out)" : ""}: ${r.stderr.slice(0, 400)}`);
   return { clipFiles: clips, seconds: total };
 }
