@@ -62,7 +62,7 @@ module.exports = {
       script: "bash",
       args: [
         "-c",
-        "if id gbstudio >/dev/null 2>&1 && [ -f /etc/gravyblock-marketing.env ]; then exec systemd-run --scope --quiet --collect -p MemoryHigh=640M -p MemoryMax=768M -p CPUQuota=50% -p TasksMax=128 runuser -u gbstudio -- nice -n 19 ionice -c 3 /home/deploy/gravyblock/node_modules/.bin/tsx --env-file=/etc/gravyblock-marketing.env src/worker/marketing.ts; fi; echo 'marketing worker not provisioned (no gbstudio user or env file): standby'; exec sleep infinity",
+        "if id gbstudio >/dev/null 2>&1 && [ -f /etc/gravyblock-marketing.env ]; then exec systemd-run --scope --quiet --collect -p MemoryHigh=640M -p MemoryMax=768M -p CPUQuota=50% -p TasksMax=128 /usr/sbin/runuser -u gbstudio -- /usr/bin/nice -n 19 /usr/bin/ionice -c 3 /home/deploy/gravyblock/node_modules/.bin/tsx --env-file=/etc/gravyblock-marketing.env src/worker/marketing.ts; fi; echo 'marketing worker not provisioned (no gbstudio user or env file): standby'; exec sleep infinity",
       ],
       cwd: "/home/deploy/gravyblock",
       instances: 1,
