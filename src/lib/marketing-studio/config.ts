@@ -43,7 +43,11 @@ export const SELF_DEPLOY_LOCK = "/tmp/gravyblock-self-deploy.lock";
 
 export const PRODUCT_KINDS = ["website", "saas", "mobile_app", "web_game", "mobile_game"] as const;
 export const OWNER_KINDS = ["internal", "house", "customer"] as const;
-export const ASSET_KINDS = ["logo", "screenshot", "icon", "gameplay_capture", "app_capture", "font", "audio", "other"] as const;
+/** Kinds an operator may upload or import. */
+export const UPLOAD_KINDS = ["logo", "screenshot", "icon", "gameplay_capture", "app_capture", "font", "audio", "other"] as const;
+/** Kinds only the studio itself produces (rendered output). */
+export const RENDER_KINDS = ["render_image", "render_video"] as const;
+export const ASSET_KINDS = [...UPLOAD_KINDS, ...RENDER_KINDS] as const;
 export const PLATFORMS = ["youtube", "facebook", "instagram", "tiktok"] as const;
 export const CAMPAIGN_STATUSES = ["draft", "needs_review", "approved", "scheduled", "live", "complete", "cancelled"] as const;
 export const FACT_SOURCES = ["public_page", "store_listing", "owner_entered", "asset_metadata"] as const;
@@ -51,9 +55,23 @@ export const FACT_SOURCES = ["public_page", "store_listing", "owner_entered", "a
 export type ProductKind = (typeof PRODUCT_KINDS)[number];
 export type OwnerKind = (typeof OWNER_KINDS)[number];
 export type AssetKind = (typeof ASSET_KINDS)[number];
+export type UploadKind = (typeof UPLOAD_KINDS)[number];
 export type Platform = (typeof PLATFORMS)[number];
 
 /** Master feature flag. The studio does nothing, and its UI is hidden, unless this is "1". */
 export function studioEnabledByEnv(): boolean {
   return process.env.MARKETING_STUDIO_ENABLED?.trim() === "1";
 }
+
+/** Video limits. Hard output limits apply to every render; benchmark-derived values replace the placeholders in Phase 2. */
+export const VIDEO = {
+  width: 1080,
+  height: 1920,
+  fps: 30,
+  maxSeconds: 60,
+  maxBytes: 60 * 1024 * 1024,
+  maxScenes: 24,
+  transitionSeconds: 0.5,
+  captionMaxLines: 3,
+  captionMaxCharsPerLine: 26,
+} as const;

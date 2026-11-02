@@ -8,7 +8,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { and, eq } from "drizzle-orm";
 import { audit } from "./audit";
-import { ASSET_KINDS, LIMITS, STUDIO_DIRS, type AssetKind } from "./config";
+import { LIMITS, RENDER_KINDS, STUDIO_DIRS, UPLOAD_KINDS, type AssetKind } from "./config";
 import { ms, requireStudioDb, type StudioDb } from "./db";
 import { requireProduct } from "./repository";
 import type { OwnerScope } from "./scope";
@@ -65,11 +65,13 @@ export async function storeImageAsset(
   scope: OwnerScope,
   actor: string,
   productId: string,
-  input: { bytes: Buffer; originalName: string; kind: AssetKind; provenance: "owner_upload" | "public_fetch"; sourceUrl?: string | null },
+  input: { bytes: Buffer; originalName: string; kind: AssetKind; provenance: "owner_upload" | "public_fetch" | "rendered"; sourceUrl?: string | null },
   db: StudioDb = requireStudioDb(),
 ): Promise<StoredAsset> {
   await requireProduct(scope, productId, db);
-  if (!ASSET_KINDS.includes(input.kind)) throw new UploadError("Unknown asset kind");
+  // Operators can only add upload kinds; rendered kinds come only from the studio's own pipeline.
+  const allowed: readonly string[] = input.provenance === "rendered" ? RENDER_KINDS : UPLOAD_KINDS;
+  if (!allowed.includes(input.kind)) throw new UploadError("Unknown asset kind");
   if (input.bytes.length === 0) throw new UploadError("The file is empty");
   if (input.bytes.length > LIMITS.maxUploadBytes) throw new UploadError("The file is larger than the upload limit");
   const detected = detectImage(input.bytes);

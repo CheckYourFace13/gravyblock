@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireStudioAccess } from "@/lib/marketing-studio/auth";
-import { ASSET_KINDS, FACT_SOURCES, PRODUCT_KINDS, type AssetKind, type ProductKind } from "@/lib/marketing-studio/config";
+import { UPLOAD_KINDS, FACT_SOURCES, PRODUCT_KINDS, type UploadKind, type ProductKind } from "@/lib/marketing-studio/config";
 import {
   addClaim,
   addFact,
@@ -17,9 +17,11 @@ import {
   softDeleteProduct,
   verifyFact,
 } from "@/lib/marketing-studio/repository";
-import { setKillSwitch } from "@/lib/marketing-studio/runtime";
+import { enqueueConceptRender } from "@/lib/marketing-studio/creative/queue";
+import { generateConcepts, reviewCreative } from "@/lib/marketing-studio/creative/copy";
+import { getSetting, setKillSwitch } from "@/lib/marketing-studio/runtime";
+import { createVideoFromProduct, reviewVideo } from "@/lib/marketing-studio/video/queue";
 import { importRemoteImage } from "@/lib/marketing-studio/remote-import";
-import { storeImageAsset } from "@/lib/marketing-studio/uploads";
 
 const base = "/admin/marketing-studio";
 
@@ -112,24 +114,12 @@ export async function removeClaimAction(fd: FormData) {
   await guarded(`${base}/products/${id}`, () => removeClaim(scope, actor, id, s(fd, "claimId")));
 }
 
-export async function uploadAssetAction(fd: FormData) {
-  const { scope, actor } = await requireStudioAccess();
-  const id = s(fd, "productId");
-  await guarded(`${base}/products/${id}`, async () => {
-    const kind = s(fd, "kind") as AssetKind;
-    if (!ASSET_KINDS.includes(kind)) throw new Error("Choose an asset type");
-    const file = fd.get("file");
-    if (!(file instanceof File) || file.size === 0) throw new Error("Choose a file");
-    await storeImageAsset(scope, actor, id, { bytes: Buffer.from(await file.arrayBuffer()), originalName: file.name, kind, provenance: "owner_upload" });
-  });
-}
-
 export async function importAssetAction(fd: FormData) {
   const { scope, actor } = await requireStudioAccess();
   const id = s(fd, "productId");
   await guarded(`${base}/products/${id}`, async () => {
-    const kind = s(fd, "kind") as AssetKind;
-    if (!ASSET_KINDS.includes(kind)) throw new Error("Choose an asset type");
+    const kind = s(fd, "kind") as UploadKind;
+    if (!UPLOAD_KINDS.includes(kind)) throw new Error("Choose an asset type");
     await importRemoteImage(scope, actor, id, { url: s(fd, "url"), kind });
   });
 }
@@ -164,4 +154,44 @@ export async function campaignStatusAction(fd: FormData) {
 export async function killSwitchAction(fd: FormData) {
   const { actor } = await requireStudioAccess();
   await guarded(base, () => setKillSwitch(s(fd, "on") === "1", actor));
+}
+
+// ---- Phase 1.5 and 2: concepts, creatives, videos ----------------------------------------------------------------------
+
+export async function generateConceptsAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    await generateConcepts(scope, actor, id, { limit: 4 });
+  });
+}
+
+export async function renderConceptAction(fd: FormData) {
+  const { scope } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    await enqueueConceptRender(scope, id, s(fd, "conceptId"));
+  });
+}
+
+export async function reviewCreativeAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, () => reviewCreative(scope, actor, id, s(fd, "creativeId"), s(fd, "decision") === "approved" ? "approved" : "rejected"));
+}
+
+export async function createVideoAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    // Video rendering stays off until the VPS benchmark has passed and an operator has switched it on.
+    if (!(await getSetting<boolean>("video_enabled", false))) throw new Error("Video rendering is not enabled: it requires a passing VPS benchmark");
+    await createVideoFromProduct(scope, actor, id, Number(s(fd, "seconds")));
+  });
+}
+
+export async function reviewVideoAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, () => reviewVideo(scope, actor, id, s(fd, "videoId"), s(fd, "decision") === "approved" ? "approved" : "rejected"));
 }

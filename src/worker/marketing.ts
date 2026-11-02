@@ -9,7 +9,11 @@
 import { appendFile, mkdir, rename, stat } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { cancelActiveWork } from "@/lib/marketing-studio/active-work";
 import { LIMITS, STUDIO_DIRS, studioEnabledByEnv } from "@/lib/marketing-studio/config";
+import { renderConcept } from "@/lib/marketing-studio/creative/pipeline";
+import { SIZE_KEYS, type SizeKey } from "@/lib/marketing-studio/creative/theme";
+import { renderVideoJob, runBenchmarkJob } from "@/lib/marketing-studio/video/jobs";
 import { closeStudioDb, getStudioDb } from "@/lib/marketing-studio/db";
 import {
   claimNext,
@@ -30,6 +34,8 @@ import { cleanupTmp, ensureStorageDirs, measureStudioUsage } from "@/lib/marketi
 
 const WORKER_ID = `marketing-${process.pid}-${randomUUID().slice(0, 8)}`;
 const JOB_TIMEOUT_MS = 60_000;
+/** Heavy jobs get a longer hard limit; at the limit the real child processes are killed, not just abandoned. */
+const HEAVY_TIMEOUT_MS: Record<string, number> = { render_creatives: 10 * 60_000, render_video: 15 * 60_000, benchmark_video: 20 * 60_000 };
 const MAX_JOBS_PER_LOOP = 3;
 const LOG_FILE = path.join(STUDIO_DIRS.logs, "worker.log");
 const LOG_MAX_BYTES = 5 * 1024 * 1024;
@@ -79,6 +85,16 @@ async function runJob(job: Job): Promise<Record<string, unknown>> {
       await setSetting("accepting_renders", !over, "worker", undefined, { audited: false });
       return { ...usage, ceilingBytes: LIMITS.totalDiskCeilingBytes, acceptingRenders: !over };
     }
+    case "render_creatives": {
+      const input = job.input as { conceptId?: string; sizes?: string[] };
+      if (!input.conceptId) throw new Error("render_creatives needs a conceptId");
+      const sizes = (input.sizes ?? SIZE_KEYS).filter((s): s is SizeKey => (SIZE_KEYS as readonly string[]).includes(s));
+      return { ...(await renderConcept(input.conceptId, sizes)) };
+    }
+    case "render_video":
+      return { ...(await renderVideoJob(job.input as { videoId?: string })) };
+    case "benchmark_video":
+      return { ...(await runBenchmarkJob(job.input as { targetSeconds?: number; label?: string })) };
     case "cleanup_tmp": {
       const r = await cleanupTmp();
       return { ...r };
@@ -122,8 +138,22 @@ async function loopOnce() {
     lastJobKind = job.kind;
     const started = Date.now();
     const beat = setInterval(() => void heartbeat(job.id, db).catch(() => {}), 15_000);
+    // Kill-switch watchdog: while a job runs, an emergency disable ends the real child processes within seconds.
+    const watchdog = setInterval(() => {
+      void disableState(db).then((s) => {
+        if (s.disabled) {
+          const n = cancelActiveWork();
+          if (n > 0) void log("emergency disable: killed active child processes", { reasons: s.reasons, killed: n });
+        }
+      }).catch(() => {});
+    }, 3_000);
     try {
-      const output = await withTimeout(runJob(job), JOB_TIMEOUT_MS, job.kind);
+      const limit = HEAVY_TIMEOUT_MS[job.kind] ?? JOB_TIMEOUT_MS;
+      const output = await withTimeout(runJob(job), limit, job.kind).catch((e) => {
+        // A hard timeout ends the real child processes (Chromium, FFmpeg), not just the promise.
+        cancelActiveWork();
+        throw e;
+      });
       await completeJob(job.id, output, Date.now() - started, db);
       await recordUsage("jobs_run", 1, { productId: job.productId }, db);
       await log("job done", { id: job.id, kind: job.kind, ms: Date.now() - started });
@@ -133,6 +163,7 @@ async function loopOnce() {
       await log("job failed", { id: job.id, kind: job.kind, attempt: job.attempts, error: msg });
     } finally {
       clearInterval(beat);
+      clearInterval(watchdog);
     }
   }
   await writeHeartbeat({ at: new Date().toISOString(), pid: process.pid, workerId: WORKER_ID, state: ran > 0 ? "running" : "idle", lastJobKind }, db).catch(() => {});

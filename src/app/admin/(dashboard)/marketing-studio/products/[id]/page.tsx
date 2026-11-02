@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStudioAccess } from "@/lib/marketing-studio/auth";
-import { ASSET_KINDS, FACT_SOURCES } from "@/lib/marketing-studio/config";
+import { UPLOAD_KINDS, FACT_SOURCES } from "@/lib/marketing-studio/config";
 import { StudioAccessError } from "@/lib/marketing-studio/scope";
+import { CreativeSections } from "./creative-sections";
 import { listConnections } from "@/lib/marketing-studio/credentials";
 import { getBrandProfile, listAssets, listCampaigns, listClaims, listFacts, requireProduct, truthReadiness } from "@/lib/marketing-studio/repository";
 import {
@@ -17,7 +18,6 @@ import {
   productStatusAction,
   removeClaimAction,
   saveBrandAction,
-  uploadAssetAction,
   verifyFactAction,
 } from "../../actions";
 
@@ -243,12 +243,12 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           ))}
           {assets.length === 0 ? <li className="py-2 text-zinc-500">No assets yet.</li> : null}
         </ul>
-        <form action={uploadAssetAction} className="mt-4 flex flex-wrap items-end gap-3">
+        <form action="/api/admin/marketing-studio/assets" method="post" encType="multipart/form-data" className="mt-4 flex flex-wrap items-end gap-3">
           <input type="hidden" name="productId" value={product.id} />
           <label className="text-xs">
             Type
             <select name="kind" className={input}>
-              {ASSET_KINDS.map((k) => (
+              {UPLOAD_KINDS.map((k) => (
                 <option key={k} value={k}>
                   {k.replace("_", " ")}
                 </option>
@@ -266,7 +266,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           <label className="text-xs">
             Type
             <select name="kind" className={input}>
-              {ASSET_KINDS.map((k) => (
+              {UPLOAD_KINDS.map((k) => (
                 <option key={k} value={k}>
                   {k.replace("_", " ")}
                 </option>
@@ -346,6 +346,8 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           </div>
         </form>
       </section>
+
+      <CreativeSections productId={product.id} />
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5">
         <h2 className="text-lg font-semibold text-zinc-900">Platform connections</h2>

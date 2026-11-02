@@ -3,6 +3,8 @@ import Link from "next/link";
 import { requireStudioAccess } from "@/lib/marketing-studio/auth";
 import { LIMITS, PRODUCT_KINDS } from "@/lib/marketing-studio/config";
 import { getStudioDb } from "@/lib/marketing-studio/db";
+import { desc } from "drizzle-orm";
+import { ms } from "@/lib/marketing-studio/db";
 import { listProducts } from "@/lib/marketing-studio/repository";
 import { disableState, getSetting, readWorkerHealth, usageSummary } from "@/lib/marketing-studio/runtime";
 import { listHouseAccountNames } from "@/lib/marketing-studio/house-accounts";
@@ -29,10 +31,21 @@ export default async function MarketingStudioHome({ searchParams }: { searchPara
   let health: Awaited<ReturnType<typeof readWorkerHealth>> | null = null;
   let usage: Record<string, number> = {};
   let kill = false;
+  let recentJobs: Array<typeof ms.msMediaJobs.$inferSelect> = [];
+  let benchmarks: Array<typeof ms.msBenchmarkRuns.$inferSelect> = [];
+  let videoEnabled = false;
   let dbError: string | null = null;
   if (db) {
     try {
-      [products, health, usage, kill] = await Promise.all([listProducts(scope, db), readWorkerHealth(db), usageSummary(db), getSetting<boolean>("kill_switch", false, db)]);
+      [products, health, usage, kill, recentJobs, benchmarks, videoEnabled] = await Promise.all([
+        listProducts(scope, db),
+        readWorkerHealth(db),
+        usageSummary(db),
+        getSetting<boolean>("kill_switch", false, db),
+        db.select().from(ms.msMediaJobs).orderBy(desc(ms.msMediaJobs.createdAt)).limit(12),
+        db.select().from(ms.msBenchmarkRuns).orderBy(desc(ms.msBenchmarkRuns.createdAt)).limit(9),
+        getSetting<boolean>("video_enabled", false, db),
+      ]);
     } catch (e) {
       dbError = e instanceof Error ? e.message : "database error";
     }
@@ -83,6 +96,54 @@ export default async function MarketingStudioHome({ searchParams }: { searchPara
           <p className="mt-1 text-xs text-zinc-600">{health ? `${gb(health.disk.freeBytes)} free on the volume (floor ${gb(LIMITS.freeDiskFloorBytes)})` : ""}</p>
           <p className="mt-1 text-xs text-zinc-600">Jobs run this month: {usage.jobs_run ?? 0}. Paid usage: $0 (no paid services are enabled).</p>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5">
+        <h2 className="text-lg font-semibold text-zinc-900">Jobs and resource use</h2>
+        <p className="mt-1 text-xs text-zinc-600">
+          Heavy jobs (graphics, video) run one at a time inside the Studio worker. Video rendering is {videoEnabled ? "ENABLED" : "OFF"} (it requires a passing VPS benchmark).
+        </p>
+        <ul className="mt-3 divide-y divide-zinc-100 text-xs">
+          {recentJobs.map((j) => (
+            <li key={j.id} className="py-1.5">
+              <span className="font-mono">{j.kind}</span> · {j.weight} · {j.status} · attempt {j.attempts}/{j.maxAttempts}
+              {j.wallMs ? ` · ${(j.wallMs / 1000).toFixed(1)}s` : ""}
+              {j.error ? <span className="block text-red-800">Reason: {j.error}</span> : null}
+            </li>
+          ))}
+          {recentJobs.length === 0 ? <li className="py-1.5 text-zinc-500">No jobs yet.</li> : null}
+        </ul>
+        {benchmarks.length ? (
+          <div className="mt-4 overflow-x-auto">
+            <p className="text-xs font-semibold text-zinc-700">VPS video benchmark runs</p>
+            <table className="mt-1 w-full text-left text-xs">
+              <thead className="text-zinc-500">
+                <tr>
+                  <th className="py-1 pr-3">Run</th>
+                  <th className="pr-3">Render</th>
+                  <th className="pr-3">Peak memory</th>
+                  <th className="pr-3">Peak CPU</th>
+                  <th className="pr-3">Temp disk</th>
+                  <th className="pr-3">Output</th>
+                  <th>Verdict</th>
+                </tr>
+              </thead>
+              <tbody>
+                {benchmarks.map((b) => (
+                  <tr key={b.id} className="border-t border-zinc-100">
+                    <td className="py-1 pr-3">{b.label}</td>
+                    <td className="pr-3">{b.renderMs ? `${(b.renderMs / 1000).toFixed(1)}s` : "n/a"}</td>
+                    <td className="pr-3">{b.peakRssBytes ? `${Math.round(b.peakRssBytes / 1048576)} MB` : "n/a"}</td>
+                    <td className="pr-3">{b.peakCpuPercent != null ? `${b.peakCpuPercent}%` : "n/a"}</td>
+                    <td className="pr-3">{b.tmpBytes ? `${Math.round(b.tmpBytes / 1048576)} MB` : "n/a"}</td>
+                    <td className="pr-3">{b.outBytes ? `${(b.outBytes / 1048576).toFixed(1)} MB` : "n/a"}</td>
+                    <td className={b.verdict === "safe" ? "text-emerald-700" : "text-red-700"}>{b.verdict}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5">

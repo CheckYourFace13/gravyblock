@@ -4,7 +4,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-const ROOTS = ["src/lib/marketing-studio", "src/worker/marketing.ts", "src/app/admin/(dashboard)/marketing-studio", "src/lib/db/studio-schema.ts"];
+const ROOTS = ["src/lib/marketing-studio", "src/worker/marketing.ts", "src/app/admin/(dashboard)/marketing-studio", "src/app/api/admin/marketing-studio", "src/lib/db/studio-schema.ts", "scripts/ops/marketing-seed-pilots.ts", "scripts/ops/marketing-pilot-run.ts"];
 const FORBIDDEN = [
   "@/lib/site-publish",
   "@/lib/publishing",

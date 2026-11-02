@@ -85,6 +85,17 @@ function parseDate(s: string | null | undefined): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * Platforms with no working LIVE review endpoint on DataForSEO. Verified against the API on 2026-11-02: POST
+ * /v3/business_data/{facebook,trustpilot,google}/reviews/live all answer 404 "Not Found" at cost 0 (the paths do not exist).
+ * Facebook has no review endpoint at all (DataForSEO covers Google, Trustpilot and TripAdvisor reviews, Facebook only as
+ * social engagement counts). Trustpilot and TripAdvisor reviews exist only as asynchronous task_post and task_get jobs,
+ * which this synchronous sync does not implement and would spend credits to try. Calling these endpoints can only ever
+ * 404, so they are classified as unsupported and skipped instead of retried and logged as failures every cycle.
+ */
+const UNSUPPORTED_LIVE_PLATFORMS: ReadonlySet<DfsPlatform> = new Set<DfsPlatform>(["facebook", "trustpilot", "tripadvisor", "google"]);
+const loggedUnsupported = new Set<DfsPlatform>();
+
 /** Fetch reviews for a business from DataForSEO. */
 export async function fetchDataForSeoReviews(params: {
   businessName: string;
@@ -94,6 +105,14 @@ export async function fetchDataForSeoReviews(params: {
 }): Promise<DataForSeoReview[]> {
   const auth = dfsAuth();
   if (!auth) return [];
+
+  if (UNSUPPORTED_LIVE_PLATFORMS.has(params.platform)) {
+    if (!loggedUnsupported.has(params.platform)) {
+      loggedUnsupported.add(params.platform);
+      console.info("[dataforseo] live reviews are not available for this platform; skipping (not an error)", { platform: params.platform });
+    }
+    return [];
+  }
 
   const url = `https://api.dataforseo.com/v3/business_data/${params.platform}/reviews/live`;
 
@@ -115,6 +134,12 @@ export async function fetchDataForSeoReviews(params: {
       cache: "no-store",
     });
 
+    if (res.status === 404) {
+      // The path does not exist: remember that for this process so it is never retried, and say so once.
+      loggedUnsupported.add(params.platform);
+      console.info("[dataforseo] endpoint not found; treating platform as unsupported", { platform: params.platform });
+      return [];
+    }
     if (!res.ok) {
       console.warn("[dataforseo] request failed", { platform: params.platform, status: res.status });
       return [];

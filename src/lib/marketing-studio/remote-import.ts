@@ -136,3 +136,41 @@ export async function importRemoteImage(
   const name = decodeURIComponent(new URL(finalUrl).pathname.split("/").pop() || "import");
   return storeImageAsset(scope, actor, productId, { bytes, originalName: name, kind: input.kind, provenance: "public_fetch", sourceUrl: finalUrl }, db);
 }
+
+/**
+ * Live check of a URL with the same SSRF guard as imports. Returns the final HTTP status, or null when it could not be checked
+ * (network error, blocked address). Only the status line is read; the body is discarded.
+ */
+export async function probeUrl(rawUrl: string): Promise<number | null> {
+  let url: URL;
+  try {
+    url = assertAllowedUrl(rawUrl);
+  } catch {
+    return null;
+  }
+  for (let hop = 0; hop <= 3; hop++) {
+    const status = await new Promise<{ status: number; location: string | null } | null>((resolve) => {
+      const req = https.request(
+        { protocol: "https:", hostname: url.hostname, port: 443, path: `${url.pathname}${url.search}`, method: "GET", lookup: guardedLookup, headers: { "user-agent": "GravyBlockMarketingStudio/1.0", accept: "text/html,*/*" }, timeout: 8000 },
+        (res) => {
+          resolve({ status: res.statusCode ?? 0, location: res.headers.location ?? null });
+          res.destroy();
+        },
+      );
+      req.on("timeout", () => req.destroy());
+      req.on("error", () => resolve(null));
+      req.end();
+    });
+    if (!status) return null;
+    if (status.status >= 300 && status.status < 400 && status.location) {
+      try {
+        url = assertAllowedUrl(new URL(status.location, url).toString());
+      } catch {
+        return null;
+      }
+      continue;
+    }
+    return status.status;
+  }
+  return null;
+}

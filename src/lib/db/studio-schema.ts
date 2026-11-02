@@ -248,3 +248,105 @@ export const msAuditEvents = pgTable(
   },
   (t) => [index("ms_audit_events_product_idx").on(t.productId, t.at)],
 );
+
+/**
+ * Phase 1.5: a campaign CONCEPT is one grounded idea (template family + copy). Every factual string in it traces to
+ * ms_product_facts through fact_ids. Nothing here publishes.
+ */
+export const msConcepts = pgTable(
+  "ms_concepts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id").references(() => msProducts.id, { onDelete: "cascade" }).notNull(),
+    campaignId: uuid("campaign_id").references(() => msCampaigns.id, { onDelete: "set null" }),
+    /** product_benefit | feature_highlight | announcement | educational_tip | screenshot_showcase | comparison | cta */
+    family: text("family").notNull(),
+    headline: text("headline").notNull(),
+    subhead: text("subhead"),
+    caption: text("caption").notNull(),
+    shortDescription: text("short_description"),
+    ctaText: text("cta_text"),
+    ctaUrl: text("cta_url"),
+    /** Alternative headlines, captions and CTAs built from the same facts. */
+    variants: jsonb("variants").notNull().default({}),
+    /** Concept-specific render inputs (steps, comparison columns, screenshot asset id). */
+    payload: jsonb("payload").notNull().default({}),
+    factIds: jsonb("fact_ids").notNull().default([]),
+    /** draft | rendering | ready_for_review | approved | rejected */
+    status: text("status").notNull().default("draft"),
+    createdBy: text("created_by").notNull().default("studio"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("ms_concepts_product_idx").on(t.productId, t.status)],
+);
+
+/** One rendered image of a concept at one size, with its automated QA verdict. */
+export const msCreatives = pgTable(
+  "ms_creatives",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id").references(() => msProducts.id, { onDelete: "cascade" }).notNull(),
+    conceptId: uuid("concept_id").references(() => msConcepts.id, { onDelete: "cascade" }).notNull(),
+    assetId: uuid("asset_id"),
+    /** square | portrait | story | landscape */
+    sizeKey: text("size_key").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    templateFamily: text("template_family").notNull(),
+    templateVersion: text("template_version").notNull(),
+    /** queued | rendering | qa_failed | ready_for_review | approved | rejected | failed */
+    status: text("status").notNull().default("queued"),
+    qa: jsonb("qa"),
+    /** 64 bit difference hash, for obvious-duplicate detection. */
+    dhash: text("dhash"),
+    error: text("error"),
+    reviewedBy: text("reviewed_by"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("ms_creatives_concept_size_idx").on(t.conceptId, t.sizeKey), index("ms_creatives_product_idx").on(t.productId, t.status)],
+);
+
+/** Phase 2 private Video Studio: one storyboarded 9:16 video and its automated QA verdict. */
+export const msVideos = pgTable(
+  "ms_videos",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id").references(() => msProducts.id, { onDelete: "cascade" }).notNull(),
+    conceptId: uuid("concept_id").references(() => msConcepts.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    storyboard: jsonb("storyboard").notNull(),
+    targetSeconds: integer("target_seconds").notNull(),
+    assetId: uuid("asset_id"),
+    width: integer("width"),
+    height: integer("height"),
+    durationMs: integer("duration_ms"),
+    bytes: integer("bytes"),
+    /** queued | rendering | qa_failed | ready_for_review | approved | rejected | failed */
+    status: text("status").notNull().default("queued"),
+    qa: jsonb("qa"),
+    error: text("error"),
+    renderMs: integer("render_ms"),
+    peakRssBytes: integer("peak_rss_bytes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("ms_videos_product_idx").on(t.productId, t.status)],
+);
+
+/** Measured VPS benchmark runs. Limits and thresholds are chosen from these rows, not guessed. */
+export const msBenchmarkRuns = pgTable("ms_benchmark_runs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  label: text("label").notNull(),
+  targetSeconds: integer("target_seconds").notNull(),
+  renderMs: integer("render_ms"),
+  peakRssBytes: integer("peak_rss_bytes"),
+  peakCpuPercent: integer("peak_cpu_percent"),
+  tmpBytes: integer("tmp_bytes"),
+  outBytes: integer("out_bytes"),
+  /** latency and health samples before, during and after, per hosted service */
+  measurements: jsonb("measurements").notNull().default({}),
+  /** safe | stopped | failed */
+  verdict: text("verdict").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
