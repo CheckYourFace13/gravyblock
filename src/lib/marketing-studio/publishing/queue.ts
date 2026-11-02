@@ -68,6 +68,21 @@ export function directBlockers(platform: string, conn: { status: string; revoked
   return out;
 }
 
+type CopyContext = { caption: string; headline: string | null; ctaText: string | null; ctaUrl: string | null; campaignId: string | null; family: string | null };
+
+/**
+ * A video made straight from Product Truth has no concept row. Its copy comes from the first text card of its own storyboard (already
+ * traced to verified facts by the storyboard builder and checked by video QA), and its link from a concept of the same product.
+ */
+async function videoCopyContext(db: StudioDb, productId: string, videoId: string): Promise<CopyContext | undefined> {
+  const [v] = await db.select({ storyboard: ms.msVideos.storyboard }).from(ms.msVideos).where(and(eq(ms.msVideos.id, videoId), eq(ms.msVideos.productId, productId))).limit(1);
+  const scenes = (v?.storyboard as { scenes?: Array<{ type?: string; headline?: string; subhead?: string }> } | undefined)?.scenes ?? [];
+  const card = scenes.find((x) => x.type === "card" && x.subhead);
+  if (!card) return undefined;
+  const [link] = await db.select().from(ms.msConcepts).where(and(eq(ms.msConcepts.productId, productId), sql`${ms.msConcepts.ctaUrl} is not null`)).limit(1);
+  return { caption: [card.headline, card.subhead].filter(Boolean).join("\n"), headline: card.headline ?? null, ctaText: link?.ctaText ?? null, ctaUrl: link?.ctaUrl ?? null, campaignId: link?.campaignId ?? null, family: "video" };
+}
+
 export async function createPublication(
   scope: OwnerScope,
   actor: string,
@@ -79,7 +94,8 @@ export async function createPublication(
   const spec = specFor(input.platform);
   if (!spec) throw new Error("Unknown platform");
   const { asset, info, conceptId } = await mediaFor(db, input, productId);
-  const [concept] = conceptId ? await db.select().from(ms.msConcepts).where(eq(ms.msConcepts.id, conceptId)).limit(1) : [];
+  const [conceptRow] = conceptId ? await db.select().from(ms.msConcepts).where(eq(ms.msConcepts.id, conceptId)).limit(1) : [];
+  const concept: CopyContext | undefined = conceptRow ?? (input.videoId ? await videoCopyContext(db, productId, input.videoId) : undefined);
   const publicationId = randomUUID();
   let caption = (input.caption ?? concept?.caption ?? "").trim();
   let taggedUrl: string | null = null;

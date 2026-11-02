@@ -213,6 +213,20 @@ describe("measurement and OAuth (database)", { skip: !HAVE_DB }, () => {
     assert.ok(!/@/.test(publication.caption), "no email address or handle in the caption");
   });
 
+  test("a video without a concept gets its caption from its own storyboard text and still carries only the product's tagged link", async () => {
+    const db = requireStudioDb();
+    const dir = path.join(STUDIO_DIRS.media, productId);
+    const sha = `${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`.padEnd(64, "1").slice(0, 64);
+    writeFileSync(path.join(dir, `${sha}.mp4`), Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from("ftypmp42"), Buffer.alloc(40)]));
+    const [vasset] = await db.insert(ms.msAssets).values({ productId, kind: "render_video", storagePath: `${productId}/${sha}.mp4`, sha256: sha, mimeType: "video/mp4", bytes: 52, width: 1080, height: 1920, provenance: "rendered", originalName: "v.mp4" }).returning();
+    const [video] = await db.insert(ms.msVideos).values({ productId, title: "V", storyboard: { scenes: [{ type: "card", seconds: 5, headline: "A real headline", subhead: "A verified sentence about the product." }] }, targetSeconds: 15, assetId: vasset.id, width: 1080, height: 1920, durationMs: 15000, status: "approved" }).returning();
+    const yt = await createPublication(INTERNAL_SCOPE, "t", productId, { videoId: video.id, platform: "youtube", mode: "export" });
+    assert.match(yt.publication.caption, /A verified sentence about the product\./);
+    assert.equal(yt.publication.title, "A real headline");
+    assert.match(yt.publication.caption, /utm_source=youtube/);
+    assert.equal(yt.publication.conceptId, null);
+  });
+
   test("a caption linking anywhere but the product's own call to action is refused", async () => {
     await assert.rejects(createPublication(INTERNAL_SCOPE, "t", productId, { creativeId, platform: "tiktok", mode: "export", caption: "see https://evil.example/x" }), /does not accept images|links somewhere other/);
     await assert.rejects(createPublication(INTERNAL_SCOPE, "t", productId, { creativeId, platform: "facebook", mode: "export", caption: "see https://evil.example/x" }), /links somewhere other/);

@@ -34,8 +34,10 @@ async function main() {
     };
     const images = creatives.filter((c) => ["ready_for_review", "approved"].includes(c.status) && cleanQa(c.qa) && eligible(c.conceptId));
     const byFamily = (...fams: string[]) => images.find((c) => fams.includes(concepts.find((x) => x.id === c.conceptId)?.family ?? ""));
-    const educational = byFamily("educational_tip");
-    const benefit = byFamily("product_benefit", "feature_highlight") ?? images.find((c) => c.id !== educational?.id);
+    // Product Truth for these products has no step-by-step facts, so no educational tip can be made without inventing content.
+    // The value angle is the product benefit; the feature angle is a feature highlight.
+    const educational = byFamily("educational_tip") ?? byFamily("product_benefit");
+    const benefit = byFamily("feature_highlight") ?? images.find((c) => c.id !== educational?.id);
     const video = videos.find((v) => ["ready_for_review", "approved"].includes(v.status) && cleanQa({ passed: ((v.qa as { passed?: boolean } | null)?.passed ?? false), checks: ((v.qa as { checks?: Array<{ ok: boolean }> } | null)?.checks ?? []) }));
 
     const picks = [
