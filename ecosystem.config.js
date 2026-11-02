@@ -31,10 +31,9 @@ module.exports = {
       // Persistent background worker — processes snapshot jobs and content queue
       // every WORKER_INTERVAL_MS (default 15 min). No external cron needed.
       name: "gravyblock-worker",
-      // While /var/lib/gravyblock-migration/hold exists (Neon to VPS Postgres migration pending) the worker
-      // idles without touching the database, so it cannot crash-loop on a blocked database or write mid-migration.
-      script: "bash",
-      args: ["-c", "while [ -e /var/lib/gravyblock-migration/hold ]; do sleep 60; done; exec npx tsx --env-file=/home/deploy/gravyblock/.env src/worker/index.ts"],
+      // The temporary Neon migration hold wrapper was removed after the move to VPS PostgreSQL (2026-11-02).
+      script: "npx",
+      args: "tsx --env-file=/home/deploy/gravyblock/.env src/worker/index.ts",
       cwd: "/home/deploy/gravyblock",
       instances: 1,
       exec_mode: "fork",
