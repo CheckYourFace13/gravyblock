@@ -10,7 +10,7 @@
  */
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { businesses, getDb, proofLedger } from "@/lib/db";
+import { businesses, getDb, jobs, proofLedger } from "@/lib/db";
 import { classifyProofLevel, type ProofLevel } from "./levels";
 
 export type ProofCategory = "content" | "ranking" | "backlink" | "gbp" | "technical" | "citation" | "review" | "aeo" | "social";
@@ -100,6 +100,27 @@ export async function matureProof(dedupeKey: string, patch: { summary?: string; 
   return { matured: true };
 }
 
+/**
+ * House accounts are read-only toward their websites. Website edits GravyBlock made to house sites before that
+ * policy (job `house_site_writes_withdrawn_v1`) were withdrawn, so ledger rows describing them are history, not
+ * current evidence, and must never be shown as proof. Off-site proof (listings, links, GBP, social, reviews, AEO)
+ * is unaffected. Customer accounts are unaffected.
+ */
+const SITE_WRITE_CATEGORIES = new Set(["technical", "content"]);
+
+export async function getHouseSiteWriteWithdrawnAt(): Promise<Date | null> {
+  const db = getDb();
+  if (!db) return null;
+  const [marker] = await db.select({ at: jobs.createdAt }).from(jobs).where(eq(jobs.type, "house_site_writes_withdrawn_v1")).orderBy(desc(jobs.createdAt)).limit(1);
+  return marker?.at ?? null;
+}
+
+export function isWithdrawnHouseSiteWrite(row: { accountType: string | null; proofCategory: string; verifiedAt: Date }, withdrawnAt: Date | null): boolean {
+  if (row.accountType !== "house" || !SITE_WRITE_CATEGORIES.has(row.proofCategory)) return false;
+  // No marker means we cannot prove the row is current, so a house site-write row is treated as withdrawn.
+  return withdrawnAt === null || row.verifiedAt.getTime() <= withdrawnAt.getTime();
+}
+
 export type PublicProofRow = typeof proofLedger.$inferSelect & { businessName: string };
 
 /** Ledger rows whose business permits public display (house account or showcase opt-in). */
@@ -118,8 +139,10 @@ export async function getPublicProof(opts: { limit?: number; categories?: ProofC
     )
     .orderBy(desc(proofLedger.verifiedAt))
     .limit((opts.limit ?? 50) * 3);
+  const withdrawnAt = await getHouseSiteWriteWithdrawnAt();
   return rows
     .filter((r) => (r.accountType === "house" || r.showcase === "true") && !r.name.toLowerCase().includes("iscream"))
+    .filter((r) => !isWithdrawnHouseSiteWrite({ accountType: r.accountType, proofCategory: r.row.proofCategory, verifiedAt: r.row.verifiedAt }, withdrawnAt))
     .slice(0, opts.limit ?? 50)
     .map((r) => ({ ...r.row, businessName: r.name }));
 }

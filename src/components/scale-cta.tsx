@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { startScaleFromReportAction } from "@/app/(site)/start/actions";
+import { useState, useTransition } from "react";
+import { startCheckoutFromReportAction } from "@/app/(site)/start/actions";
 
-const BUY_FLAG = "gb_buy_after_unlock";
 const RISK_LINE = "$39.99/month · Cancel anytime · 30-day money-back guarantee";
 
 /** Where a report visitor lands when we cannot send them straight to checkout. */
@@ -25,24 +24,21 @@ function track(eventType: string, publicId: string, businessId: string | null, p
 }
 
 /**
- * Primary purchase button for a completed scan. If the visitor has unlocked the report
- * (so we hold their email and business), one click goes straight to secure checkout with
- * the single GravyBlock price applied. Otherwise it opens the start page with the business already
- * filled in, needing only an email address.
+ * The one purchase button for a completed scan. It goes straight to secure Stripe Checkout for the scanned
+ * business at the single GravyBlock price. There is no plan chooser and no form before Stripe: Stripe collects
+ * the email. If checkout cannot be created it falls back to the start page with the business already filled in.
  */
 export function ScaleCta({
   publicId,
   businessId,
-  unlockToken,
   placement,
-  label = "Start GravyBlock — $39.99/mo",
+  label = "Start GravyBlock — $39.99/month",
   showRisk = true,
   compact = false,
   className = "",
 }: {
   publicId: string;
   businessId?: string | null;
-  unlockToken?: string | null;
   placement: string;
   label?: string;
   showRisk?: boolean;
@@ -52,55 +48,11 @@ export function ScaleCta({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function goToCheckout(token: string) {
-    startTransition(async () => {
-      const res = await startScaleFromReportAction({ publicId, unlockToken: token });
-      if (res.ok) {
-        window.location.href = res.checkoutUrl;
-      } else if (res.fallbackToStart) {
-        window.location.href = startHref(publicId);
-      } else {
-        setError(res.error);
-      }
-    });
-  }
-
-  // The visitor pressed the button before unlocking, entered their email inline, and is now unlocked:
-  // carry on to checkout without asking for anything again.
-  useEffect(() => {
-    if (!unlockToken) return;
-    try {
-      if (sessionStorage.getItem(BUY_FLAG) !== publicId) return;
-      sessionStorage.removeItem(BUY_FLAG);
-    } catch {
-      return;
-    }
-    goToCheckout(unlockToken);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unlockToken, publicId]);
-
   function onClick() {
     setError(null);
     track("scale_cta_clicked", publicId, businessId ?? null, placement);
-    if (!unlockToken) {
-      // Not unlocked yet: ask for the email once, right here on the report, then continue to checkout.
-      const input = document.getElementById("unlock-email") as HTMLInputElement | null;
-      if (!input) {
-        window.location.href = startHref(publicId);
-        return;
-      }
-      try {
-        sessionStorage.setItem(BUY_FLAG, publicId);
-      } catch {
-        /* falls back to the visitor pressing the button again after unlocking */
-      }
-      setError("Enter your email above and we'll take you straight to secure checkout.");
-      input.scrollIntoView({ behavior: "smooth", block: "center" });
-      input.focus();
-      return;
-    }
     startTransition(async () => {
-      const res = await startScaleFromReportAction({ publicId, unlockToken });
+      const res = await startCheckoutFromReportAction({ publicId });
       if (res.ok) {
         window.location.href = res.checkoutUrl;
       } else if (res.fallbackToStart) {
@@ -142,13 +94,11 @@ const VALUE_STACK = [
 export function ScaleOffer({
   publicId,
   businessId,
-  unlockToken,
   placement,
   heading = "You can fix this yourself, or GravyBlock can take it from here.",
 }: {
   publicId: string;
   businessId?: string | null;
-  unlockToken?: string | null;
   placement: string;
   heading?: string;
 }) {
@@ -156,8 +106,8 @@ export function ScaleOffer({
     <section className="rounded-3xl border-2 border-red-200 bg-gradient-to-br from-red-50 via-white to-white p-6 shadow-sm sm:p-8">
       <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">{heading}</h2>
       <p className="mt-2 max-w-2xl text-base text-zinc-700">
-        GravyBlock already knows what is wrong. Turn on Autopilot and it will prioritize the work, perform the eligible fixes, verify them
-        and keep working automatically.
+        GravyBlock already knows what is wrong. Connect once where needed and it prioritizes the work, performs the eligible fixes,
+        verifies them, measures the result and keeps going.
       </p>
       <p className="mt-4 text-sm font-semibold text-zinc-900">
         For $39.99/month, GravyBlock keeps working on your visibility without you managing SEO.
@@ -170,32 +120,16 @@ export function ScaleOffer({
           </li>
         ))}
       </ul>
-      <ScaleCta publicId={publicId} businessId={businessId} unlockToken={unlockToken} placement={placement} className="mt-6" />
+      <ScaleCta publicId={publicId} businessId={businessId} placement={placement} className="mt-6" />
     </section>
   );
 }
 
 /** Persistent bottom bar on small screens so the next step is always one tap away. */
-export function StickyScaleBar({
-  publicId,
-  businessId,
-  unlockToken,
-}: {
-  publicId: string;
-  businessId?: string | null;
-  unlockToken?: string | null;
-}) {
+export function StickyScaleBar({ publicId, businessId }: { publicId: string; businessId?: string | null }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white/95 px-4 py-2 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur md:hidden">
-      <ScaleCta
-        publicId={publicId}
-        businessId={businessId}
-        unlockToken={unlockToken}
-        placement="sticky"
-        label="Start GravyBlock — $39.99/mo"
-        showRisk={false}
-        compact
-      />
+      <ScaleCta publicId={publicId} businessId={businessId} placement="sticky" label="Start GravyBlock — $39.99/month" showRisk={false} compact />
     </div>
   );
 }

@@ -80,6 +80,8 @@ const staticRoutes: MetadataRoute.Sitemap = [
   ...INDIVIDUAL_INDUSTRY_SLUGS.map((slug) => entry(`/industries/${slug}`, 0.7)),
   ...VERTICAL_PAGES.map((slug) => entry(`/${slug}`, 0.7)),
   entry("/examples", 0.5),
+  entry("/examples/sample-local-growth-report", 0.5),
+  entry("/proof", 0.7),
   ...EXAMPLE_SLUGS.map((slug) => entry(`/examples/${slug}`, 0.5)),
 ];
 

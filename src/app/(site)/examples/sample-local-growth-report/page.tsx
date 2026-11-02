@@ -1,347 +1,67 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getWorkspaceBundle } from "@/lib/report/repository";
-import { getAutopilotWorkspace } from "@/lib/autopilot/repository";
-import { getAiVisibilityStats } from "@/lib/ai-visibility/llm-probes";
-import { getGeoAuditScore } from "@/lib/audit/geo-audit";
-import { getSiteTechAudit } from "@/lib/audit/tech-audit";
-import { computeAeoScore } from "@/lib/scoring/aeo-score";
-import { computeEntityScore } from "@/lib/scoring/entity-score";
-import { ScoresOverviewSection } from "@/app/(site)/workspace/[businessId]/scores-overview-section";
-import { CompetitorPanel } from "@/app/(site)/workspace/[businessId]/competitor-panel";
-import { IssueTrackerPanel } from "@/app/(site)/workspace/[businessId]/issue-tracker-panel";
-import { getBusinessIssues } from "@/lib/audit/issue-tracker";
+import { desc, eq } from "drizzle-orm";
+import { ReportView } from "@/components/report-view";
+import { getDb, reports, scans } from "@/lib/db";
+import { getReportWithContext } from "@/lib/report/repository";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "A real GravyBlock report — sample local growth scan",
+  title: "Sample free report: what the GravyBlock scan shows",
   description:
-    "An actual GravyBlock account, live scores and all — not a mockup. See exactly what a business gets: visibility scores, findings, and what runs automatically.",
+    "A real free GravyBlock report for GravyBlock's own website: the score, the findings, the Maps snapshot and the competitor table, using only data the scan actually collected.",
   alternates: { canonical: "https://gravyblock.com/examples/sample-local-growth-report" },
 };
 
-// Boating Chicago — a real business GravyBlock operates and
-// runs on the same automation paying customers get (same one shown on /proof).
-// Using a real, currently-live account instead of a mockup so nothing here is
-// invented — see the honest gaps called out inline where this specific
-// business doesn't have a data point yet (e.g. no ranking checks recorded).
-const SAMPLE_BUSINESS_ID = "9cb1c401-34d8-4f52-8dc9-b6a1e3aedecf";
+// The sample is the most recent stored free report for GravyBlock's own business, a business we operate. It is the same
+// report format a visitor gets, shown unmodified. Nothing here is invented: where the scan collected no data for a section
+// (for example AI probes, which run once GravyBlock is working on a business) the section says so.
+const FALLBACK_REPORT_PUBLIC_ID = "XhVx4rrzXq8h";
 
-export default async function SampleLocalGrowthReportPage() {
-  let bundle: Awaited<ReturnType<typeof getWorkspaceBundle>> = null;
-  try {
-    bundle = await getWorkspaceBundle(SAMPLE_BUSINESS_ID);
-  } catch (err) {
-    // Database unreachable: say so plainly, keep the page out of search, and keep the error in the logs.
-    console.error("[sample-report] data unavailable", err);
-  }
-  if (!bundle) {
+async function findSampleReportPublicId(): Promise<string> {
+  const db = getDb();
+  const selfId = process.env.GRAVYBLOCK_SELF_BUSINESS_ID?.trim();
+  if (!db || !selfId) return FALLBACK_REPORT_PUBLIC_ID;
+  const [row] = await db
+    .select({ publicId: reports.publicId })
+    .from(reports)
+    .innerJoin(scans, eq(scans.id, reports.scanId))
+    .where(eq(scans.businessId, selfId))
+    .orderBy(desc(reports.createdAt))
+    .limit(1);
+  return row?.publicId ?? FALLBACK_REPORT_PUBLIC_ID;
+}
+
+export default async function SampleReportPage() {
+  const publicId = await findSampleReportPublicId();
+  const record = await getReportWithContext(publicId);
+  if (!record) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
-        <meta name="robots" content="noindex" />
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Sample report is temporarily unavailable</h1>
-        <p className="mt-4 text-zinc-600">The report data is not reachable right now. Nothing is shown in its place.</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Sample report</h1>
+        <p className="mt-4 text-zinc-600">The sample report could not be loaded. The free scan produces the same report for your business.</p>
         <p className="mt-6">
           <Link href="/scan" className="inline-block rounded-full bg-red-600 px-7 py-3 text-sm font-semibold text-white hover:bg-red-500">
-            Get my own free visibility score →
+            Run my free scan →
           </Link>
         </p>
       </div>
     );
   }
-
-  const autopilot = await getAutopilotWorkspace(SAMPLE_BUSINESS_ID).catch(() => null);
-  const aiVisibility = await getAiVisibilityStats(SAMPLE_BUSINESS_ID).catch(() => ({ total: 0, mentioned: 0, byEngine: {} as Record<string, unknown>, recentChecks: [] }));
-  const geoAudit = await getGeoAuditScore(SAMPLE_BUSINESS_ID).catch(() => null);
-  const techAudit = await getSiteTechAudit(SAMPLE_BUSINESS_ID).catch(() => null);
-
-  const techItems = techAudit?.items ?? [];
-  const techPass = (key: string) => techItems.find((i) => i.key === key)?.status === "pass";
-  const publishedContentCount = autopilot?.publishedContent.filter((p) => p.status === "published").length ?? 0;
-  const latestReviewCount = bundle.placeProfiles[0]?.reviewCount ?? 0;
-
-  const aeoResult = computeAeoScore({
-    websiteAudit: bundle.business.website
-      ? {
-          score: techAudit?.score ?? 0,
-          findings: [],
-          signals: {
-            hasTitle: techPass("no-title"),
-            hasMetaDescription: techPass("no-meta-description"),
-            hasH1: techPass("no-h1"),
-            hasViewport: techPass("no-viewport"),
-            hasStructuredData: techPass("no-structured-data"),
-            hasClickToCall: techPass("no-tel"),
-            locationClarity: techPass("no-location"),
-            hoursClarity: techPass("no-hours"),
-            ctaClarity: techPass("no-cta"),
-            speedHook: "not_tested" as const,
-          },
-        }
-      : null,
-    hasSchemaMarkup: publishedContentCount > 0,
-    reviewCount: latestReviewCount,
-  });
-
-  const citationMismatches = autopilot?.citationIssues.filter((c) => c.mismatchNote !== null).length ?? 0;
-  const citationTotal = autopilot?.citationIssues.length ?? 0;
-  const aiMentionRate = aiVisibility.total > 0 ? aiVisibility.mentioned / aiVisibility.total : 0;
-
-  const entityResult = computeEntityScore({
-    citationMismatches,
-    citationTotal,
-    socialProfilesFound: bundle.socialProfiles.length,
-    hasWebsite: Boolean(bundle.business.website),
-    hasPhone: Boolean(bundle.business.phone),
-    hasAddress: Boolean(bundle.business.address),
-    aiMentionRate,
-  });
-
-  const latestSnapshot = bundle.snapshots[0] ?? null;
-  const previousSnapshot = bundle.snapshots[1] ?? null;
-  const scoreDelta =
-    latestSnapshot && previousSnapshot ? latestSnapshot.overallScore - previousSnapshot.overallScore : null;
-
-  // Earliest snapshot actually on record (real data only — never a made-up
-  // "before" number). bundle.snapshots is capped at 20 rows, newest first;
-  // this account only has a handful, so that cap doesn't hide anything here.
-  const earliestSnapshot = bundle.snapshots[bundle.snapshots.length - 1] ?? null;
-  const cyclesRun = bundle.snapshots.length;
-  const businessIssues = await getBusinessIssues(SAMPLE_BUSINESS_ID).catch(() => ({ open: [], resolved: [] }));
-
-  const openRecs = bundle.recommendations.filter((r) => r.status !== "done");
-  const fixNow = openRecs.filter((r) => r.lane === "FIX_NOW");
-  const improveNext = openRecs.filter((r) => r.lane === "IMPROVE_NEXT");
-  const ongoing = openRecs.filter((r) => r.lane === "ONGOING_MONITORING");
-
-  const totalFindings = openRecs.length;
-
+  const generated = new Date(record.payload.generatedAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   return (
-    <div className="bg-white">
-      {/* Header */}
-      <section className="bg-gradient-to-b from-red-50 to-white px-4 pt-12 pb-8 sm:px-6">
-        <div className="mx-auto max-w-4xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-red-800">A real GravyBlock report</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
-            {bundle.business.name}
-          </h1>
-          <p className="mt-2 text-sm text-zinc-500">
-            {bundle.business.vertical && bundle.business.vertical.toLowerCase() !== "other" ? bundle.business.vertical.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()) : "Local business"}
-            {" "}· Automation running since account creation · Snapshot as of{" "}
-            {new Date(bundle.business.updatedAt).toLocaleDateString()}
+    <>
+      <div className="mx-auto max-w-4xl px-4 pt-8 sm:px-6">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <p className="font-semibold">A real free report, shown as a sample</p>
+          <p className="mt-1">
+            This is the free scan of GravyBlock&apos;s own business, generated {generated}. It is not a mockup and nothing in it was edited.
+            Your report shows your own business, and the free scan needs no email to read it.
           </p>
-          <div className="mt-4 max-w-2xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            This is not a mockup. It&apos;s a real GravyBlock account — the same one shown on{" "}
-            <Link href="/proof" className="font-semibold underline">
-              /proof
-            </Link>
-            , operated by GravyBlock and running the exact automation paying customers get. Some sections below
-            are honestly empty where this specific business hasn&apos;t generated that data point yet (e.g. no
-            competitor ranking checks have run for it) — we show that plainly instead of filling it in.
-          </div>
-          {latestSnapshot ? (
-            <div className="mt-6 flex flex-wrap items-end gap-6">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-zinc-500">Overall visibility</p>
-                <p className="text-6xl font-bold text-zinc-900">{latestSnapshot.overallScore}</p>
-              </div>
-              <div className="pb-2">
-                <p className="text-sm font-semibold text-zinc-700 uppercase">{latestSnapshot.opportunityLevel} opportunity</p>
-                {scoreDelta !== null ? (
-                  <p className={`text-sm font-semibold ${scoreDelta >= 0 ? "text-emerald-700" : "text-red-600"}`}>
-                    {scoreDelta >= 0 ? "+" : ""}
-                    {scoreDelta} vs previous check
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-
-          {/* Real progress context — every number here is from the actual account, never invented */}
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 max-w-2xl">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Automation started</p>
-              <p className="text-sm font-semibold text-zinc-900">{new Date(bundle.business.createdAt).toLocaleDateString()}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Refresh cycles completed</p>
-              <p className="text-sm font-semibold text-zinc-900">{cyclesRun}</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Score trend on record</p>
-              <p className="text-sm font-semibold text-zinc-900">
-                {earliestSnapshot && latestSnapshot && earliestSnapshot.overallScore !== latestSnapshot.overallScore
-                  ? `${earliestSnapshot.overallScore} → ${latestSnapshot.overallScore}`
-                  : cyclesRun > 1
-                    ? "Stable"
-                    : "First cycle — no trend yet"}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-zinc-500">Issues resolved on record</p>
-              <p className="text-sm font-semibold text-zinc-900">{businessIssues.resolved.length}</p>
-            </div>
-          </div>
         </div>
-      </section>
-
-      {/* Scorecard — real component, real computed scores */}
-      <section className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-        <h2 className="text-lg font-semibold text-zinc-900 mb-1">Scorecard</h2>
-        <p className="text-sm text-zinc-500 mb-5">
-          The exact same four scores and &quot;how to improve&quot; panel every GravyBlock customer sees in their own
-          workspace.
-        </p>
-        <ScoresOverviewSection
-          seoScore={latestSnapshot?.overallScore ?? null}
-          geoScore={geoAudit?.overallScore ?? null}
-          geoGrade={geoAudit?.grade ?? null}
-          aeoScore={aeoResult.score}
-          aeoGrade={aeoResult.grade}
-          entityScore={entityResult.score}
-          entityGrade={entityResult.grade}
-          scoreDelta={scoreDelta}
-          hasContentPublishing={publishedContentCount > 0}
-          publishedCount={publishedContentCount}
-          probesRun={aiVisibility.total}
-        />
-      </section>
-
-      {/* Top findings */}
-      <section className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-        <h2 className="text-lg font-semibold text-zinc-900 mb-1">
-          Top opportunities ({totalFindings} open)
-        </h2>
-        <p className="text-sm text-zinc-500 mb-5">
-          Real, currently-open recommendations for this account — these are the ones that need the owner (see
-          &quot;What happens automatically vs. what needs you&quot; below for what GravyBlock is already doing on its own).
-        </p>
-        <div className="space-y-5">
-          {fixNow.length > 0 ? (
-            <FindingGroup title="Fix now" tone="red" items={fixNow} />
-          ) : null}
-          {improveNext.length > 0 ? (
-            <FindingGroup title="Improve next" tone="amber" items={improveNext} />
-          ) : null}
-          {ongoing.length > 0 ? (
-            <FindingGroup title="Ongoing monitoring" tone="zinc" items={ongoing} />
-          ) : null}
-          {totalFindings === 0 ? <p className="text-sm text-zinc-400">No open findings right now.</p> : null}
-        </div>
-      </section>
-
-      {/* Competitors — real component, honest empty state if no data */}
-      <section className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-        <h2 className="text-lg font-semibold text-zinc-900 mb-1">Competitive picture</h2>
-        <p className="text-sm text-zinc-500 mb-5">
-          Real nearby competitor tracking — populated once a scan captures local competitor data for this account.
-        </p>
-        <CompetitorPanel businessId={SAMPLE_BUSINESS_ID} />
-      </section>
-
-      {/* Citations — real component */}
-      <section className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-        <h2 className="text-lg font-semibold text-zinc-900 mb-1">Citations &amp; listing consistency</h2>
-        <p className="text-sm text-zinc-500 mb-5">
-          Real, currently-tracked citation checks — GravyBlock monitors and flags mismatches, it does not fabricate a
-          count to look more active than it is.
-        </p>
-        <IssueTrackerPanel businessId={SAMPLE_BUSINESS_ID} />
-      </section>
-
-      {/* AI visibility */}
-      <section className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-        <h2 className="text-lg font-semibold text-zinc-900 mb-1">AI visibility (GEO)</h2>
-        <p className="text-sm text-zinc-500 mb-3">
-          Live probes against ChatGPT, Perplexity, and Gemini — asking each one real questions a customer might, and
-          checking whether this business gets mentioned.
-        </p>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          {aiVisibility.total > 0 ? (
-            <p className="text-sm text-zinc-700">
-              <span className="font-semibold text-zinc-900">{aiVisibility.mentioned} of {aiVisibility.total}</span> real
-              probes returned a mention of this business across the engines tested.
-            </p>
-          ) : (
-            <p className="text-sm text-amber-800">
-              No probes have run for this account yet — monthly probes are scheduled automatically and results appear
-              here once the first cycle completes. We don&apos;t show a fabricated result in the meantime.
-            </p>
-          )}
-        </div>
-      </section>
-
-      {/* Automation preview */}
-      <section className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-        <div className="rounded-2xl border-2 border-red-200 bg-red-50/50 p-6">
-          <h2 className="text-lg font-semibold text-zinc-900 mb-2">What happens automatically vs. what needs you</h2>
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div>
-              <p className="text-sm font-semibold text-red-800 mb-2">GravyBlock handles this automatically</p>
-              <ul className="space-y-1.5 text-sm text-zinc-700">
-                <li>✓ Weekly visibility score refresh and history</li>
-                <li>✓ Articles written and published to the site ({publishedContentCount} published so far)</li>
-                <li>✓ Schema markup injected into every published article</li>
-                <li>✓ Monthly AI-visibility probes across ChatGPT, Perplexity, and Gemini</li>
-                <li>✓ Citation consistency checks and drift alerts</li>
-                <li>✓ Personalized outreach to real published contacts of relevant local organizations (never guessed addresses); a link counts only once verified live</li>
-              </ul>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-amber-800 mb-2">Still needs the owner</p>
-              <ul className="space-y-1.5 text-sm text-zinc-700">
-                <li>○ Connecting Google Search Console for verified ranking data</li>
-                <li>○ Connecting Google Business Profile for posts, photos and Google review replies</li>
-                <li>○ Creating missing social profiles (GravyBlock posts to existing ones, doesn&apos;t create new ones)</li>
-                <li>○ Structural website fixes flagged above (e.g. adding a click-to-call link)</li>
-                <li>○ Pasting the drafted replies for Yelp and TripAdvisor reviews (Google replies are posted automatically)</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="mx-auto max-w-4xl px-4 pb-16 sm:px-6 text-center">
-        <h2 className="text-2xl font-semibold text-zinc-900">See your own business&apos;s real numbers</h2>
-        <p className="mt-2 text-zinc-600">Free, 60 seconds, no credit card. Same scan, same real scoring.</p>
-        <Link
-          href="/scan"
-          className="mt-5 inline-block rounded-full bg-red-600 px-8 py-3.5 text-sm font-semibold text-white hover:bg-red-500 shadow-sm"
-        >
-          Run your free scan →
-        </Link>
-      </section>
-    </div>
-  );
-}
-
-function FindingGroup({
-  title,
-  tone,
-  items,
-}: {
-  title: string;
-  tone: "red" | "amber" | "zinc";
-  items: Array<{ id: string; title: string; detail: string; category: string }>;
-}) {
-  const toneClasses = {
-    red: "border-red-200 bg-red-50",
-    amber: "border-amber-200 bg-amber-50",
-    zinc: "border-zinc-200 bg-zinc-50",
-  }[tone];
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">{title}</p>
-      <ul className="space-y-2">
-        {items.map((item) => (
-          <li key={item.id} className={`rounded-xl border ${toneClasses} p-4`}>
-            <p className="text-sm font-semibold text-zinc-900">{item.title}</p>
-            <p className="mt-1 text-sm text-zinc-600">{item.detail}</p>
-          </li>
-        ))}
-      </ul>
-    </div>
+      </div>
+      <ReportView payload={record.payload} publicId={publicId} businessId={record.businessId ?? undefined} sample />
+    </>
   );
 }

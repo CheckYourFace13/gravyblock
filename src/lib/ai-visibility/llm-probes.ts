@@ -310,6 +310,7 @@ export async function getAiVisibilityStats(businessId: string) {
       mentionFound: aiVisibilityChecks.mentionFound,
       prompt: aiVisibilityChecks.prompt,
       sentiment: aiVisibilityChecks.sentiment,
+      citationUrl: aiVisibilityChecks.citationUrl,
       createdAt: aiVisibilityChecks.createdAt,
     })
     .from(aiVisibilityChecks)

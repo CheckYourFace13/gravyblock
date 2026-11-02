@@ -40,7 +40,7 @@ export async function getShowcaseBusinesses(): Promise<ShowcaseBusiness[]> {
   const db = getDb();
   if (!db) return [];
 
-  let rows: Array<{ id: string; name: string; vertical: string | null; address: string | null }> = [];
+  let rows: Array<{ id: string; name: string; vertical: string | null; address: string | null; accountType: string }> = [];
   try {
     rows = await db
       .select({
@@ -48,6 +48,7 @@ export async function getShowcaseBusinesses(): Promise<ShowcaseBusiness[]> {
         name: businesses.name,
         vertical: businesses.vertical,
         address: businesses.address,
+        accountType: businesses.accountType,
       })
       .from(businesses)
       .where(eq(businesses.showcaseOptIn, "true"))
@@ -112,7 +113,7 @@ export async function getShowcaseBusinesses(): Promise<ShowcaseBusiness[]> {
         score: latest,
         scoreDelta,
         baselineJustEstablished,
-        activity: await loadActivity(db, b.id),
+        activity: await loadActivity(db, b.id, b.accountType === "house"),
       };
     }),
   );
@@ -126,7 +127,7 @@ type Db = NonNullable<ReturnType<typeof getDb>>;
  * or post id, a link was found on the other site). Queued, drafted, planned
  * or "sent" work is never counted as completed work.
  */
-async function loadActivity(db: Db, businessId: string): Promise<ProofActivity> {
+async function loadActivity(db: Db, businessId: string, isHouse: boolean): Promise<ProofActivity> {
   const count = async (type: string, extra?: ReturnType<typeof sql>) => {
     const [r] = await db
       .select({ n: sql<number>`count(*)::int` })
@@ -142,7 +143,9 @@ async function loadActivity(db: Db, businessId: string): Promise<ProofActivity> 
     .where(and(eq(jobs.businessId, businessId), eq(jobs.type, "content_publish_verified"), eq(jobs.status, "completed")))
     .orderBy(desc(jobs.createdAt))
     .limit(50);
-  const pagesLive = verified
+  // House accounts are read-only toward their websites and earlier GravyBlock-written pages were withdrawn,
+  // so no house website page is ever presented as current work.
+  const pagesLive = (isHouse ? [] : verified)
     .map((v) => v.payload as { title?: string; publicUrl?: string })
     .filter((p): p is { title: string; publicUrl: string } => Boolean(p.title && p.publicUrl));
 

@@ -8,9 +8,9 @@ import { getShowcaseBusinesses, type ProofActivity } from "@/lib/proof/get-showc
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Proof: we run GravyBlock on our own businesses",
+  title: "Proof: what GravyBlock has verified and measured",
   description:
-    "Verified activity from businesses we operate ourselves on the same automation paying customers get. Only work confirmed to have happened is shown, not testimonials and not queued or drafted work.",
+    "Verified activity and measured outcomes from businesses we operate ourselves, kept in three separate levels: verified actions, measured search results, and business results. Only confirmed work is shown, and zeros are shown as zeros.",
   alternates: { canonical: "/proof" },
 };
 
@@ -83,51 +83,63 @@ function ProofActivityList({ activity }: { activity: ProofActivity }) {
 }
 
 export default async function ProofPage() {
-  let showcased: Awaited<ReturnType<typeof getShowcaseBusinesses>> = [];
-  let ledger: Awaited<ReturnType<typeof getPublicProof>> = [];
-  let caseStudies: Awaited<ReturnType<typeof getPublishedCaseStudies>> = [];
-  try {
-    [showcased, ledger, caseStudies] = await Promise.all([getShowcaseBusinesses(), getPublicProof({ limit: 12 }), getPublishedCaseStudies(6)]);
-  } catch (err) {
-    // The proof data lives in the database. If it is unreachable, say so plainly (and keep the page out of search)
-    // rather than returning a 500 or showing anything that is not verified. The error is still logged.
-    console.error("[proof] proof data unavailable", err);
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-        <meta name="robots" content="noindex" />
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Proof is temporarily unavailable</h1>
-        <p className="mt-4 text-zinc-600">
-          This page lists only work GravyBlock has verified, and that data is not reachable right now. Nothing is shown in its
-          place. Please check back soon.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/scan" className="inline-block rounded-full bg-red-600 px-7 py-3 text-sm font-semibold text-white hover:bg-red-500">
-            Get my free visibility score →
-          </Link>
-          <Link href="/how-it-works" className="inline-block rounded-full border border-zinc-300 bg-white px-7 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50">
-            How it works
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const [showcased, ledger, caseStudies] = await Promise.all([getShowcaseBusinesses(), getPublicProof({ limit: 12 }), getPublishedCaseStudies(6)]);
+
+  // Three distinct levels, never blended. Level 1 counts externally verified actions that exist today; levels 2 and 3 count
+  // only ledger rows that carry a measured before and after. Website edits to house sites were withdrawn and are not counted.
+  const level2 = ledger.filter((p) => p.proofLevel === 2).length;
+  const level3 = ledger.filter((p) => p.proofLevel >= 3).length;
+  const liveLinks = showcased.reduce((n, b) => n + (b.activity.authority?.liveLinks.length ?? 0), 0);
+  const pitches = showcased.reduce((n, b) => n + (b.activity.authority?.outreachSent ?? 0), 0);
+  const verifiedActions = showcased.reduce((n, b) => {
+    const a = b.activity;
+    return n + (a.listingChecks?.checked ?? 0) + a.gbpPosts + a.gbpPhotos + a.socialPosts + a.reviewReplies + (a.authority?.liveLinks.length ?? 0);
+  }, ledger.filter((p) => p.proofLevel === 1).length);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-14 sm:px-6">
       <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-800">Proof, not promises</p>
       <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
-        We run GravyBlock on our own businesses.
+        What GravyBlock has verified, and what it has measured.
       </h1>
       <p className="mt-4 max-w-2xl text-lg text-zinc-600">
-        These are real businesses operated by GravyBlock, running the same automation paying customers get.
-        The numbers below are pulled live from the same database that powers customer workspaces, and a category appears
-        only when there is external evidence for it.
+        These are businesses operated by GravyBlock&apos;s owner, running the same automation customers get. The numbers are
+        pulled live from the database that powers customer workspaces. They are kept in three separate levels, and an empty
+        level is shown as zero.
       </p>
 
-      <p className="mt-4 max-w-2xl rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-        What this page shows: work GravyBlock completed and confirmed on a live site or profile. Confirmed work is not by itself
-        evidence of more traffic, rankings, leads or revenue, and is labeled that way below. The visibility number is
-        GravyBlock&apos;s own score, not a measure of traffic or revenue.
+      <div className="mt-8 grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">Level 1: verified action</p>
+          <p className="mt-2 text-3xl font-semibold text-zinc-900">{verifiedActions}</p>
+          <p className="mt-1 text-xs text-zinc-600">
+            Work confirmed at an external destination, such as listing checks, Google and social posts, review replies, or links
+            found live on other sites. It shows the work happened, not that results followed.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-sky-700">Level 2: search or visibility result</p>
+          <p className="mt-2 text-3xl font-semibold text-zinc-900">{level2}</p>
+          <p className="mt-1 text-xs text-zinc-600">
+            A measured before and after in impressions, clicks, position, map-pack rank or AI mentions.
+            {level2 === 0 ? " None recorded yet." : ""}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">Level 3: business result</p>
+          <p className="mt-2 text-3xl font-semibold text-zinc-900">{level3}</p>
+          <p className="mt-1 text-xs text-zinc-600">
+            A measured before and after in leads, calls, bookings, sign-ups or revenue.
+            {level3 === 0 ? " None recorded yet." : ""}
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-4 max-w-3xl rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+        Authority outreach so far: {pitches} {pitches === 1 ? "pitch" : "pitches"} sent and {liveLinks} {liveLinks === 1 ? "link" : "links"}{" "}
+        verified live on other sites. These businesses&apos; own websites are read-only for GravyBlock: it observes and measures them
+        but does not edit them, and earlier on-site edits were withdrawn and are not counted anywhere on this page. The visibility
+        number on each card is GravyBlock&apos;s own score, not a measure of traffic or revenue.
       </p>
 
       {showcased.length === 0 ? (

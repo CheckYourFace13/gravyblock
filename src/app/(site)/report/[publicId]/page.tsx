@@ -3,18 +3,14 @@ import { notFound } from "next/navigation";
 import { ReportView } from "@/components/report-view";
 import { FunnelBeacon } from "@/components/funnel-beacon";
 import { getReportWithContext } from "@/lib/report/repository";
-import { verifyReportUnlockToken } from "@/lib/report/unlock-token";
+import { getAiVisibilityStats } from "@/lib/ai-visibility/llm-probes";
 import { proofPointForFinding } from "@/lib/proof/sales";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ publicId: string }>;
-  searchParams: Promise<{ unlock?: string; plan?: string; promo?: string }>;
 };
-
-import { normalizePromoCode } from "@/lib/stripe/promo-codes";
-const normalizePromoCodeIntent = normalizePromoCode;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { publicId } = await params;
@@ -29,23 +25,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ReportPage({ params, searchParams }: Props) {
+export default async function ReportPage({ params }: Props) {
   const { publicId } = await params;
-  const query = await searchParams;
   const record = await getReportWithContext(publicId);
   if (!record) notFound();
-  const initiallyUnlocked = verifyReportUnlockToken(publicId, query.unlock);
-  const raw = query.plan?.toLowerCase() ?? "";
-  const selectedPlan = (["starter", "growth", "pro", "agency"].includes(raw)
-    ? raw
-    : raw === "base" || raw === "entry" ? "starter" : null) as "starter" | "growth" | "pro" | "agency" | null;
-  const promoCode = normalizePromoCodeIntent(query.promo);
   // First of the top findings for which the Proof Ledger holds a matching, verified result.
   let proof: Awaited<ReturnType<typeof proofPointForFinding>> = null;
   for (const fix of (record.payload.prioritizedFixes ?? []).slice(0, 4)) {
     proof = await proofPointForFinding(fix.id).catch(() => null);
     if (proof) break;
   }
+  // Real AI answer probes only. Free-scan businesses usually have none, and the panel then says so.
+  const stats = record.businessId ? await getAiVisibilityStats(record.businessId).catch(() => null) : null;
+  const aiProbes = stats && stats.total > 0 && "recentChecks" in stats
+    ? {
+        total: stats.total,
+        mentioned: stats.mentioned,
+        byEngine: stats.byEngine,
+        recent: (stats.recentChecks ?? []).map((c) => ({
+          engine: c.engine,
+          prompt: c.prompt,
+          mentionFound: c.mentionFound,
+          citationUrl: c.citationUrl ?? null,
+          sentiment: c.sentiment ?? null,
+          createdAt: c.createdAt.toISOString(),
+        })),
+      }
+    : null;
   return (
     <>
       <FunnelBeacon eventType="report_landed" businessId={record.businessId} reportPublicId={publicId} proofType={proof?.category ?? "none"} />
@@ -64,10 +70,7 @@ export default async function ReportPage({ params, searchParams }: Props) {
         payload={record.payload}
         publicId={publicId}
         businessId={record.businessId}
-        initiallyUnlocked={initiallyUnlocked}
-        unlockToken={initiallyUnlocked ? (query.unlock ?? null) : null}
-        selectedPlan={selectedPlan}
-        promoCode={promoCode}
+        aiProbes={aiProbes}
       />
     </>
   );

@@ -34,8 +34,9 @@ function normalizeWebsite(raw: string | null | undefined): { url: string | null;
 
 type CheckoutArgs = {
   businessId: string;
-  email: string;
   businessName: string;
+  /** Null when checkout starts straight from a report: Stripe Checkout collects the email itself. */
+  email: string | null;
   plan: CheckoutPlan;
   interval: BillingInterval;
   promoIntent: ReturnType<typeof normalizePromoCode>;
@@ -51,7 +52,7 @@ async function buildCheckout(args: CheckoutArgs): Promise<DirectSignupResult> {
   if (!stripe) return { ok: false, error: "Payment system unavailable. Please try again." };
 
   let customerId = existingStripeCustomerId;
-  if (!customerId) {
+  if (!customerId && email) {
     const customer = await stripe.customers.create({
       email,
       name: businessName,
@@ -88,7 +89,9 @@ async function buildCheckout(args: CheckoutArgs): Promise<DirectSignupResult> {
   }
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
-    customer: customerId,
+    // Without a known email Stripe creates the customer (and collects the email) inside Checkout; the webhook then
+    // links the subscription to this business through the metadata below.
+    ...(customerId ? { customer: customerId } : {}),
     client_reference_id: businessId,
     metadata: {
       businessId,
@@ -104,7 +107,7 @@ async function buildCheckout(args: CheckoutArgs): Promise<DirectSignupResult> {
     subscription_data: {
       metadata: { businessId, billingInterval: interval },
     },
-    customer_update: { address: "auto", name: "auto" },
+    ...(customerId ? { customer_update: { address: "auto" as const, name: "auto" as const } } : {}),
     billing_address_collection: "auto",
     success_url: `${baseUrl}/api/billing/return?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: reportPublicId ? `${baseUrl}/report/${reportPublicId}?plan=${plan}` : `${baseUrl}/start?plan=${plan}`,
@@ -284,6 +287,43 @@ export async function startScaleFromReportAction(input: { publicId: string; unlo
     });
   } catch (err) {
     console.error("[start-from-report] error", { error: err instanceof Error ? err.message : String(err) });
+    return { ok: false, error: "Something went wrong. Please try again.", fallbackToStart: true };
+  }
+}
+
+/**
+ * One-click purchase from a report with no email gate. The visitor goes straight to Stripe Checkout for the single
+ * GravyBlock price; Stripe collects their email, and the webhook ties the subscription to the scanned business.
+ * House accounts and businesses that already have a plan are never sold through this path.
+ */
+export async function startCheckoutFromReportAction(input: { publicId: string }): Promise<StartFromReportResult> {
+  const fallback: StartFromReportResult = { ok: false, error: "Please continue on the start page.", fallbackToStart: true };
+  try {
+    const report = await getReportWithContext(input.publicId);
+    const db = getDb();
+    if (!report?.businessId || !db) return fallback;
+    const [biz] = await db
+      .select({ id: businesses.id, name: businesses.name, planTier: businesses.planTier, accountType: businesses.accountType, stripeCustomerId: businesses.stripeCustomerId })
+      .from(businesses)
+      .where(eq(businesses.id, report.businessId))
+      .limit(1);
+    if (!biz) return fallback;
+    if (biz.accountType === "house") return { ok: false, error: "This is a GravyBlock-operated business and is not available to purchase. Run a free scan for your own business." };
+    if (biz.planTier && biz.planTier !== "free") return { ok: false, error: "This business already has a GravyBlock plan. Log in to manage it." };
+    const promoIntent = normalizePromoCode(null);
+    return await buildCheckout({
+      businessId: biz.id,
+      email: null,
+      businessName: biz.name,
+      plan: OFFER.tier,
+      interval: "monthly",
+      promoIntent,
+      couponId: resolveCouponId(promoIntent),
+      existingStripeCustomerId: biz.stripeCustomerId ?? null,
+      reportPublicId: input.publicId,
+    });
+  } catch (err) {
+    console.error("[start-checkout-from-report] error", { error: err instanceof Error ? err.message : String(err) });
     return { ok: false, error: "Something went wrong. Please try again.", fallbackToStart: true };
   }
 }

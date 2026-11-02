@@ -8,7 +8,7 @@
 
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { businesses, getDb, jobs, proofLedger } from "@/lib/db";
-import { getPublicProof, proofCategoriesForFinding, type ProofCategory } from "./ledger";
+import { getHouseSiteWriteWithdrawnAt, getPublicProof, isWithdrawnHouseSiteWrite, proofCategoriesForFinding, type ProofCategory } from "./ledger";
 
 import type { ProofLevel } from "./levels";
 export type ProofPoint = { text: string; category: ProofCategory; ledgerId: string; level: ProofLevel };
@@ -102,6 +102,7 @@ export async function generateCaseStudies(limit = 20): Promise<{ created: number
     .orderBy(desc(proofLedger.verifiedAt))
     .limit(limit);
   if (rows.length === 0) return { created: 0, published: 0 };
+  const withdrawnAtForGen = await getHouseSiteWriteWithdrawnAt();
   const existing = await db
     .select({ payload: jobs.payload })
     .from(jobs)
@@ -111,6 +112,7 @@ export async function generateCaseStudies(limit = 20): Promise<{ created: number
   let published = 0;
   for (const { row, name, accountType, showcase } of rows) {
     if (have.has(row.id)) continue;
+    if (isWithdrawnHouseSiteWrite({ accountType, proofCategory: row.proofCategory, verifiedAt: row.verifiedAt }, withdrawnAtForGen)) continue;
     const consent = accountType === "house" || showcase === "true";
     const improved = (row.metricAfter ?? 0) !== (row.metricBefore ?? 0);
     if (!improved) continue; // execution without a changed result is not a case study
@@ -151,8 +153,22 @@ export type CaseStudy = {
 export async function getPublishedCaseStudies(limit = 6): Promise<CaseStudy[]> {
   const db = getDb();
   if (!db) return [];
-  const rows = await db.select({ payload: jobs.payload }).from(jobs).where(and(eq(jobs.type, "case_study"), eq(jobs.status, "published"))).orderBy(desc(jobs.createdAt)).limit(limit);
-  return rows.map((r) => r.payload as CaseStudy);
+  const rows = await db.select({ payload: jobs.payload }).from(jobs).where(and(eq(jobs.type, "case_study"), eq(jobs.status, "published"))).orderBy(desc(jobs.createdAt)).limit(limit * 4);
+  const ledgerIds = rows.map((r) => (r.payload as { ledgerId?: string }).ledgerId).filter((id): id is string => Boolean(id));
+  const withdrawnAt = await getHouseSiteWriteWithdrawnAt();
+  const meta = ledgerIds.length
+    ? await db
+        .select({ id: proofLedger.id, category: proofLedger.proofCategory, verifiedAt: proofLedger.verifiedAt, accountType: businesses.accountType })
+        .from(proofLedger)
+        .innerJoin(businesses, eq(businesses.id, proofLedger.businessId))
+        .where(inArray(proofLedger.id, ledgerIds))
+    : [];
+  // Case studies built on house website edits that were later withdrawn are history, not evidence.
+  const withdrawn = new Set(meta.filter((m) => isWithdrawnHouseSiteWrite({ accountType: m.accountType, proofCategory: m.category, verifiedAt: m.verifiedAt }, withdrawnAt)).map((m) => m.id));
+  return rows
+    .filter((r) => !withdrawn.has((r.payload as { ledgerId?: string }).ledgerId ?? ""))
+    .slice(0, limit)
+    .map((r) => r.payload as CaseStudy);
 }
 
 export type ProofAttributionRow = { proofType: string; reportVisits: number; pricingViews: number; unlocks: number; checkoutStarted: number; paid: number };
