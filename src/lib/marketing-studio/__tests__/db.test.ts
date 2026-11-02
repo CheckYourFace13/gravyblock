@@ -277,7 +277,7 @@ describe("House and site write protection (least-privilege role)", { skip: !proc
     await denied("insert into businesses (name) values ('x')");
     await denied("delete from businesses where false");
     await denied("update published_content set status = status where false");
-    await denied("insert into publishing_jobs (business_id) values (null)");
+    await denied("insert into publishing_jobs default values");
     await denied("update proof_ledger set summary = summary where false");
     await denied("update growth_opportunities set status = status where false");
     await denied("insert into jobs (type) values ('x')");
