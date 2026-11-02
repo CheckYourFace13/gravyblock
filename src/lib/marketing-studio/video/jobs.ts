@@ -138,7 +138,7 @@ export async function renderVideoJob(input: { videoId?: string }, scope: OwnerSc
     const status = r.qa.passed ? "ready_for_review" : "qa_failed";
     await db
       .update(ms.msVideos)
-      .set({ assetId: stored.id, width: VIDEO.width, height: VIDEO.height, durationMs: Math.round((r.qa.probe?.durationSec ?? r.seconds) * 1000), bytes: stored.bytes, status, qa: { passed: r.qa.passed, checks: r.qa.checks }, renderMs: r.sampler.wallMs, peakRssBytes: r.sampler.peakMemoryBytes })
+      .set({ assetId: stored.id, width: VIDEO.width, height: VIDEO.height, durationMs: Math.round((r.qa.probe?.durationSec ?? r.seconds) * 1000), bytes: stored.bytes, status, qa: { passed: r.qa.passed, checks: r.qa.checks }, renderMs: r.sampler.wallMs, peakRssBytes: r.sampler.peakAnonBytes ?? r.sampler.peakMemoryBytes })
       .where(eq(ms.msVideos.id, video.id));
     await audit(db, { actor: "studio-worker", action: "video.render", entity: "video", entityId: video.id, productId: video.productId, detail: { status, renderMs: r.sampler.wallMs } });
     return { videoId: video.id, status, renderMs: r.sampler.wallMs, peakMemoryBytes: r.sampler.peakMemoryBytes, failed: r.qa.checks.filter((c) => !c.ok && c.severity === "fail").map((c) => `${c.id}: ${c.detail}`) };
@@ -183,15 +183,15 @@ export async function runBenchmarkJob(input: { targetSeconds?: number; label?: s
       label,
       targetSeconds,
       renderMs: r.sampler.wallMs,
-      peakRssBytes: r.sampler.peakMemoryBytes,
+      peakRssBytes: r.sampler.peakAnonBytes ?? r.sampler.peakMemoryBytes,
       peakCpuPercent: r.sampler.peakCpuPercent,
       tmpBytes: r.sampler.peakTmpBytes,
       outBytes: stat.size,
-      measurements: { product: ctx.productName, scenes: sb.scenes.length, cards: r.cardsRendered, actualSeconds: r.seconds, avgCpuPercent: r.sampler.avgCpuPercent, memoryLimitBytes: r.sampler.memoryLimitBytes, samples: r.sampler.samples, videoQaPassed: r.qa.passed, videoQaFailures: failed },
+      measurements: { product: ctx.productName, scenes: sb.scenes.length, cards: r.cardsRendered, actualSeconds: r.seconds, avgCpuPercent: r.sampler.avgCpuPercent, peakCgroupMemoryBytesCumulativeIncludingCache: r.sampler.peakMemoryBytes, memoryLimitBytes: r.sampler.memoryLimitBytes, samples: r.sampler.samples, videoQaPassed: r.qa.passed, videoQaFailures: failed },
       verdict: r.qa.passed ? "safe" : "failed",
       notes: "Output deleted after measurement. Production latency is recorded separately by the external monitor.",
     });
-    return { label, renderMs: r.sampler.wallMs, peakMemoryBytes: r.sampler.peakMemoryBytes, peakCpuPercent: r.sampler.peakCpuPercent, peakTmpBytes: r.sampler.peakTmpBytes, outBytes: stat.size, qaPassed: r.qa.passed, failed };
+    return { label, renderMs: r.sampler.wallMs, peakAnonBytes: r.sampler.peakAnonBytes, peakMemoryBytes: r.sampler.peakMemoryBytes, peakCpuPercent: r.sampler.peakCpuPercent, peakTmpBytes: r.sampler.peakTmpBytes, outBytes: stat.size, qaPassed: r.qa.passed, failed };
   } catch (e) {
     await db.insert(ms.msBenchmarkRuns).values({ label, targetSeconds, measurements: {}, verdict: "failed", notes: (e instanceof Error ? e.message : String(e)).slice(0, 500) });
     throw e;

@@ -48,7 +48,17 @@ async function dirBytes(dir: string): Promise<number> {
   return total;
 }
 
-export type SamplerResult = { wallMs: number; peakMemoryBytes: number | null; peakCpuPercent: number | null; avgCpuPercent: number | null; peakTmpBytes: number; samples: number; memoryLimitBytes: number | null };
+/** Anonymous memory (heap, stacks, decoded frames) of everything in the cgroup. This is the real RAM the work needs; page cache is not counted. */
+function anonBytes(dir: string): number | null {
+  try {
+    const m = /^anon (\d+)/m.exec(readFileSync(path.join(dir, "memory.stat"), "utf8"));
+    return m ? Number(m[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+export type SamplerResult = { wallMs: number; peakAnonBytes: number | null; peakMemoryBytes: number | null; peakCpuPercent: number | null; avgCpuPercent: number | null; peakTmpBytes: number; samples: number; memoryLimitBytes: number | null };
 
 export function startSampler(tmpDir: string, intervalMs = 500) {
   const dir = cgroupDir();
@@ -57,6 +67,7 @@ export function startSampler(tmpDir: string, intervalMs = 500) {
   let lastCpu = startCpu;
   let lastAt = started;
   let peakMem = 0;
+  let peakAnon = 0;
   let peakCpu = 0;
   let peakTmp = 0;
   let samples = 0;
@@ -69,6 +80,8 @@ export function startSampler(tmpDir: string, intervalMs = 500) {
       if (dir) {
         const cur = readNum(path.join(dir, "memory.current"));
         if (cur !== null) peakMem = Math.max(peakMem, cur);
+        const anon = anonBytes(dir);
+        if (anon !== null) peakAnon = Math.max(peakAnon, anon);
         const cpu = cpuUsec(dir);
         const now = Date.now();
         if (cpu !== null && lastCpu !== null && now > lastAt) {
@@ -92,6 +105,8 @@ export function startSampler(tmpDir: string, intervalMs = 500) {
       const endCpu = dir ? cpuUsec(dir) : null;
       return {
         wallMs,
+        peakAnonBytes: dir ? peakAnon || null : null,
+        // Cumulative for the life of the worker's cgroup and includes page cache: an upper bound, not this job's own need.
         peakMemoryBytes: kernelPeak ?? (peakMem || null),
         peakCpuPercent: dir ? Math.round(peakCpu) : null,
         avgCpuPercent: endCpu !== null && startCpu !== null && wallMs > 0 ? Math.round(((endCpu - startCpu) / 1000 / wallMs) * 100) : null,
