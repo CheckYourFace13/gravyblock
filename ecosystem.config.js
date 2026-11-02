@@ -51,5 +51,30 @@ module.exports = {
       error_file: "/home/deploy/logs/worker-err.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
     },
+    {
+      // Marketing Studio worker: a separate process from the web app and from the growth worker above. It runs in its own
+      // systemd cgroup scope at the lowest CPU and IO priority, so a runaway job is killed by the kernel before it can
+      // starve GravyBlock, RentalNoodle, TheDrinkPlace or PostgreSQL. The limits below are PROVISIONAL placeholders for
+      // Phase 1 (which runs no heavy work); Phase 2 replaces them with values chosen from a measured benchmark.
+      // It idles in standby unless MARKETING_STUDIO_ENABLED=1 and MARKETING_DATABASE_URL are set in .env.
+      name: "gravyblock-marketing-worker",
+      script: "bash",
+      args: [
+        "-c",
+        "mkdir -p /var/lib/gravyblock-marketing/logs && exec systemd-run --scope --quiet --collect -p MemoryHigh=640M -p MemoryMax=768M -p CPUQuota=50% -p TasksMax=128 nice -n 19 ionice -c 3 /home/deploy/gravyblock/node_modules/.bin/tsx --env-file=/home/deploy/gravyblock/.env src/worker/marketing.ts",
+      ],
+      cwd: "/home/deploy/gravyblock",
+      instances: 1,
+      exec_mode: "fork",
+      env: { NODE_ENV: "production" },
+      max_restarts: 10,
+      min_uptime: "30s",
+      restart_delay: 10000,
+      kill_timeout: 20000,
+      watch: false,
+      out_file: "/home/deploy/logs/marketing-worker-out.log",
+      error_file: "/home/deploy/logs/marketing-worker-err.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+    },
   ],
 };

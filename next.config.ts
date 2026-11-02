@@ -17,6 +17,8 @@ function resolveGitSha(): string {
 }
 
 const nextConfig: NextConfig = {
+  // Marketing Studio asset uploads are capped at 10 MB by the studio itself; the framework default of 1 MB would reject them first.
+  experimental: { serverActions: { bodySizeLimit: "11mb" } },
   async redirects() {
     return [{ source: "/privacy-policy", destination: "/privacy", permanent: true }];
   },

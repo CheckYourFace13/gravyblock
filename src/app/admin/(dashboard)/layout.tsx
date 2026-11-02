@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { adminLogoutAction } from "@/app/actions/admin-login";
 import { AdminShellNav } from "@/components/admin-shell-nav";
 import { isAdminSession } from "@/lib/auth/admin-session";
+import { studioEnabledByEnv } from "@/lib/marketing-studio/config";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function AdminDashboardLayout({ children }: { children: Rea
             <p className="mt-1 text-xs text-zinc-500">GravyBlock backend</p>
           </div>
           <div className="flex-1 overflow-y-auto px-2 py-4">
-            <AdminShellNav variant="sidebar" />
+            <AdminShellNav variant="sidebar" studio={studioEnabledByEnv()} />
             <p className="mt-6 border-t border-zinc-100 px-3 pt-4 text-xs text-zinc-500">
               Social URLs and signals are on each business detail page.
             </p>
@@ -44,7 +45,7 @@ export default async function AdminDashboardLayout({ children }: { children: Rea
                   </span>
                 </summary>
                 <div className="absolute left-0 z-20 mt-1 w-56 rounded-xl border border-zinc-200 bg-white p-2 shadow-lg">
-                  <AdminShellNav variant="mobile" />
+                  <AdminShellNav variant="mobile" studio={studioEnabledByEnv()} />
                 </div>
               </details>
               <p className="hidden text-sm font-semibold text-zinc-800 lg:block">Control center</p>
