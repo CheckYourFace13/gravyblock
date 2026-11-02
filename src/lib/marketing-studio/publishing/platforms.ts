@@ -47,7 +47,7 @@ export const PLATFORM_SPECS: Record<Platform, PlatformSpec> = {
     },
     direct: "available_with_healthy_connection",
     accountRequirements: ["A Facebook Page the connecting user can post as (a Page role with the CREATE_CONTENT task)", "Posting is to Pages only, never personal profiles"],
-    auth: { type: "oauth2", requiredScopes: ["pages_show_list", "pages_read_engagement", "pages_manage_posts"], allowedScopes: ["pages_show_list", "pages_read_engagement", "pages_manage_posts"] },
+    auth: { type: "oauth2", requiredScopes: ["pages_show_list", "pages_read_engagement", "pages_manage_posts"], allowedScopes: ["pages_show_list", "pages_read_engagement", "pages_manage_posts", "read_insights"] },
     rateLimit: { max24h: 30, ourCap24h: 6, note: "Meta documents 30 API-published Reels per 24 hours per Page. GravyBlock caps itself far lower." },
     approvalNote: "Posting to a Page you administer works for your own app roles. Serving other businesses' Pages needs Meta App Review (Advanced Access) and possibly Business Verification.",
     caption: { max: 5000 },

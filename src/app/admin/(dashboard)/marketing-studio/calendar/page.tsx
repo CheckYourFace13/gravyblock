@@ -37,6 +37,9 @@ export default async function CalendarPage() {
         <Link href="/admin/marketing-studio" className="text-xs text-zinc-500 underline">
           ← Marketing Studio
         </Link>
+        <Link href="/admin/marketing-studio/insights" className="ml-3 text-xs text-zinc-500 underline">
+          Insights
+        </Link>
         <h1 className="mt-1 text-2xl font-semibold text-zinc-900">Content calendar</h1>
         <p className="text-sm text-zinc-600">
           Private and internal. Live posting is <strong className={live ? "text-red-700" : "text-emerald-700"}>{live ? "ON" : "OFF"}</strong>; every item needs approval first. Items without a scheduled time are shown on the day they were prepared.

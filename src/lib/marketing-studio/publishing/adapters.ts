@@ -31,8 +31,9 @@ export interface Adapter {
 }
 
 /** Graph API version. Configurable because Meta retires old versions; the default is a recent one (VERIFY against current docs). */
-const graphVersion = () => process.env.MARKETING_FB_GRAPH_VERSION?.trim() || "v23.0";
+const graphVersion = () => process.env.MARKETING_FB_GRAPH_VERSION?.trim() || "v25.0";
 const GRAPH = () => `https://graph.facebook.com/${graphVersion()}`;
+export const graphBase = GRAPH;
 
 type FbError = { error?: { message?: string; code?: number; type?: string } };
 

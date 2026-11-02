@@ -5,6 +5,7 @@
  * the per-platform daily cap has room, and this process won the compare-and-swap claim (so a post can never be sent twice).
  * Export bundles need none of the connection pieces and never post anything.
  */
+import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { and, eq, gt, inArray, lte, ne, sql } from "drizzle-orm";
 import { audit } from "../audit";
@@ -18,6 +19,7 @@ import { safeJoin } from "../storage";
 import { ADAPTERS, type Deps } from "./adapters";
 import { evaluateHealth, tokensForPublish, usable } from "./connections";
 import { buildExportBundle } from "./export";
+import { applyUtmToCaption, foreignLinks, utmIdFor, withUtm } from "../measurement/utm";
 import { formatPayload, specFor, validateForPlatform, type MediaInfo } from "./platforms";
 
 export type Publication = typeof ms.msPublications.$inferSelect;
@@ -78,9 +80,19 @@ export async function createPublication(
   if (!spec) throw new Error("Unknown platform");
   const { asset, info, conceptId } = await mediaFor(db, input, productId);
   const [concept] = conceptId ? await db.select().from(ms.msConcepts).where(eq(ms.msConcepts.id, conceptId)).limit(1) : [];
-  const caption = (input.caption ?? concept?.caption ?? "").trim();
+  const publicationId = randomUUID();
+  let caption = (input.caption ?? concept?.caption ?? "").trim();
+  let taggedUrl: string | null = null;
+  if (concept?.ctaUrl) {
+    // The link in the post is the product's own call to action plus privacy-safe campaign tags; any other link is refused.
+    const [campaign] = concept.campaignId ? await db.select({ name: ms.msCampaigns.name }).from(ms.msCampaigns).where(eq(ms.msCampaigns.id, concept.campaignId)).limit(1) : [];
+    taggedUrl = withUtm(concept.ctaUrl, { platform: input.platform, campaign: campaign?.name ?? null, family: concept.family, publicationId });
+    caption = applyUtmToCaption(caption, concept.ctaUrl, taggedUrl, concept.ctaText);
+    const stray = foreignLinks(caption, new URL(concept.ctaUrl).host);
+    if (stray.length) throw new Error(`The caption links somewhere other than the product's own call to action: ${stray[0]}`);
+  }
   const title = input.title ?? (spec.needsTitle ? concept?.headline ?? null : null);
-  const problems = validateForPlatform(input.platform, info, { caption, title, ctaUrl: concept?.ctaUrl });
+  const problems = validateForPlatform(input.platform, info, { caption, title, ctaUrl: taggedUrl ?? concept?.ctaUrl });
   if (problems.length) throw new Error(`Cannot prepare this for ${spec.label}: ${problems.join("; ")}`);
 
   let connectionId: string | null = null;
@@ -104,6 +116,7 @@ export async function createPublication(
   const [row] = await db
     .insert(ms.msPublications)
     .values({
+      id: publicationId,
       productId,
       conceptId: conceptId ?? null,
       campaignId: concept?.campaignId ?? null,
@@ -117,7 +130,7 @@ export async function createPublication(
       title,
       caption,
       ctaText: concept?.ctaText ?? null,
-      ctaUrl: concept?.ctaUrl ?? null,
+      ctaUrl: taggedUrl ?? concept?.ctaUrl ?? null,
       formatted: formatPayload(input.platform, info, { caption, title }),
       dedupeKey,
       maxAttempts: input.maxAttempts ?? 3,
@@ -129,7 +142,7 @@ export async function createPublication(
     const [existing] = await db.select().from(ms.msPublications).where(eq(ms.msPublications.dedupeKey, dedupeKey)).limit(1);
     return { publication: existing, duplicate: true };
   }
-  await audit(db, { actor, action: "publication.create", entity: "publication", entityId: row.id, productId, detail: { platform: input.platform, mode } });
+  await audit(db, { actor, action: "publication.create", entity: "publication", entityId: row.id, productId, detail: { platform: input.platform, mode, utmId: taggedUrl ? utmIdFor(publicationId) : null } });
   return { publication: row, duplicate: false };
 }
 

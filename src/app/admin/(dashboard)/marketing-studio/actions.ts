@@ -21,6 +21,7 @@ import { enqueueConceptRender } from "@/lib/marketing-studio/creative/queue";
 import { generateConcepts, reviewCreative } from "@/lib/marketing-studio/creative/copy";
 import { connectAccount, refreshConnectionHealth, revokeAccount } from "@/lib/marketing-studio/publishing/connections";
 import { approvePublication, cancelPublication, createPublication, markPublicationDeleted, schedulePublication } from "@/lib/marketing-studio/publishing/queue";
+import { collectForPublication } from "@/lib/marketing-studio/measurement/collect";
 import { getSetting, setKillSwitch } from "@/lib/marketing-studio/runtime";
 import { createVideoFromProduct, reviewVideo } from "@/lib/marketing-studio/video/queue";
 import { importRemoteImage } from "@/lib/marketing-studio/remote-import";
@@ -272,5 +273,13 @@ export async function refreshHealthAction(fd: FormData) {
   const id = s(fd, "productId");
   await guarded(`${base}/products/${id}`, async () => {
     await refreshConnectionHealth(scope, id, s(fd, "connectionId"));
+  });
+}
+
+export async function collectMetricsAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/insights`, async () => {
+    await collectForPublication(scope, actor, id, s(fd, "publicationId"));
   });
 }

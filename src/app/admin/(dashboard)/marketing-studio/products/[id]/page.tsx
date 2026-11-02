@@ -27,7 +27,7 @@ export const metadata: Metadata = { title: "Marketing Studio product", robots: {
 const input = "mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm";
 const btn = "rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white";
 
-export default async function ProductPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ e?: string }> }) {
+export default async function ProductPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ e?: string; connect?: string }> }) {
   const { scope } = await requireStudioAccess();
   const { id } = await params;
   const q = await searchParams;
@@ -80,6 +80,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
         </form>
       </div>
       {q.e ? <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{q.e}</p> : null}
+      {q.connect ? <p className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900">{q.connect}</p> : null}
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-5">
         <h2 className="text-lg font-semibold text-zinc-900">Product Truth</h2>

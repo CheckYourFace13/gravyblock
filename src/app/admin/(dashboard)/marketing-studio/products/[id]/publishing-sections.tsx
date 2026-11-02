@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { listConnections } from "@/lib/marketing-studio/credentials";
 import { ms, requireStudioDb } from "@/lib/marketing-studio/db";
 import { evaluateHealth } from "@/lib/marketing-studio/publishing/connections";
+import { facebookOAuthConfigured } from "@/lib/marketing-studio/publishing/oauth-facebook";
 import { PLATFORM_SPECS } from "@/lib/marketing-studio/publishing/platforms";
 import { approvedSetting, LIVE_SETTING, listPublications } from "@/lib/marketing-studio/publishing/queue";
 import { getSetting } from "@/lib/marketing-studio/runtime";
@@ -221,6 +222,22 @@ export async function PublishingSections({ productId }: { productId: string }) {
           })}
           {connections.length === 0 ? <li className="py-2 text-zinc-500">None connected.</li> : null}
         </ul>
+        <div className="mt-3 rounded-xl border border-zinc-200 p-3 text-xs">
+          <p className="font-semibold text-zinc-900">Connect a Facebook Page (official sign-in, nothing is typed or pasted)</p>
+          {facebookOAuthConfigured() ? (
+            <form action="/api/admin/marketing-studio/connect/facebook/start" method="get" className="mt-2 flex flex-wrap items-end gap-2">
+              <input type="hidden" name="productId" value={productId} />
+              <label>
+                Page username (optional, picks the right Page if you manage several)
+                <input name="handle" className={input} placeholder="for example drinkknird" />
+              </label>
+              <button className={btn}>Connect with Facebook</button>
+            </form>
+          ) : (
+            <p className="mt-1 text-amber-800">Not available yet: the Studio Meta app id and secret are not configured on the web server.</p>
+          )}
+          <p className="mt-2 text-zinc-500">Requests only: pages_show_list, pages_read_engagement, pages_manage_posts, read_insights. Instagram, YouTube and TikTok stay export-only until each platform approves direct posting.</p>
+        </div>
         <details className="mt-3">
           <summary className="cursor-pointer text-xs font-semibold text-zinc-700">Register a connection (token from the platform; minimal scopes only)</summary>
           <form action={connectAccountAction} className="mt-3 grid gap-3 sm:grid-cols-3">

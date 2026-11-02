@@ -404,3 +404,22 @@ export const msPublications = pgTable(
   },
   (t) => [uniqueIndex("ms_publications_dedupe_idx").on(t.dedupeKey), index("ms_publications_due_idx").on(t.status, t.scheduledFor), index("ms_publications_product_idx").on(t.productId, t.status)],
 );
+
+/**
+ * Phase 4 measurement. One row per collection of a published post's numbers. `metrics` maps a metric name to
+ * { value, status, note } where status is confirmed (the platform reported it), estimated (derived or inferred) or unknown
+ * (the platform did not give it to us). Unknown is never stored as zero.
+ */
+export const msPublicationMetrics = pgTable(
+  "ms_publication_metrics",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    publicationId: uuid("publication_id").references(() => msPublications.id, { onDelete: "cascade" }).notNull(),
+    productId: uuid("product_id").references(() => msProducts.id, { onDelete: "cascade" }).notNull(),
+    /** facebook_graph | attribution | manual */
+    source: text("source").notNull(),
+    metrics: jsonb("metrics").notNull(),
+    collectedAt: timestamp("collected_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("ms_publication_metrics_pub_idx").on(t.publicationId, t.collectedAt)],
+);
