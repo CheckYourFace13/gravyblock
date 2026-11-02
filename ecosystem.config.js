@@ -56,12 +56,13 @@ module.exports = {
       // systemd cgroup scope at the lowest CPU and IO priority, so a runaway job is killed by the kernel before it can
       // starve GravyBlock, RentalNoodle, TheDrinkPlace or PostgreSQL. The limits below are PROVISIONAL placeholders for
       // Phase 1 (which runs no heavy work); Phase 2 replaces them with values chosen from a measured benchmark.
-      // It idles in standby unless MARKETING_STUDIO_ENABLED=1 and MARKETING_DATABASE_URL are set in .env.
+      // It runs as the unprivileged `gbstudio` user and reads ONLY /etc/gravyblock-marketing.env (the four MARKETING_* values), never the
+      // main .env, so it holds no Stripe, email or GravyBlock database credentials. If that user or file is not provisioned it idles.
       name: "gravyblock-marketing-worker",
       script: "bash",
       args: [
         "-c",
-        "mkdir -p /var/lib/gravyblock-marketing/logs && exec systemd-run --scope --quiet --collect -p MemoryHigh=640M -p MemoryMax=768M -p CPUQuota=50% -p TasksMax=128 nice -n 19 ionice -c 3 /home/deploy/gravyblock/node_modules/.bin/tsx --env-file=/home/deploy/gravyblock/.env src/worker/marketing.ts",
+        "if id gbstudio >/dev/null 2>&1 && [ -f /etc/gravyblock-marketing.env ]; then exec systemd-run --scope --quiet --collect -p MemoryHigh=640M -p MemoryMax=768M -p CPUQuota=50% -p TasksMax=128 runuser -u gbstudio -- nice -n 19 ionice -c 3 /home/deploy/gravyblock/node_modules/.bin/tsx --env-file=/etc/gravyblock-marketing.env src/worker/marketing.ts; fi; echo 'marketing worker not provisioned (no gbstudio user or env file): standby'; exec sleep infinity",
       ],
       cwd: "/home/deploy/gravyblock",
       instances: 1,

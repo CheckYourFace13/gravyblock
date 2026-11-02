@@ -15,7 +15,7 @@ export class StorageLimitError extends Error {
 }
 
 export async function ensureStorageDirs(): Promise<void> {
-  for (const d of [STUDIO_DIRS.tmp, STUDIO_DIRS.media, STUDIO_DIRS.logs]) await fs.mkdir(d, { recursive: true, mode: 0o750 });
+  for (const d of [STUDIO_DIRS.tmp, STUDIO_DIRS.media, STUDIO_DIRS.logs]) await fs.mkdir(d, { recursive: true, mode: 0o770 });
 }
 
 /** Joins segments under a root and refuses anything that would escape it (traversal, absolute segments, NUL). */

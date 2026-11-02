@@ -12,12 +12,17 @@ Governing design: `PHASE0-audit-and-plan.md`. Phase 1 is the private foundation 
 - Least-privilege DB role `gb_studio` (`scripts/ops/marketing-db-grants.sh`): writes only `ms_*` tables.
 - Emergency disable: (1) `/var/lib/gravyblock-marketing/DISABLE` file, (2) kill switch button in the UI, (3) `pm2 stop gravyblock-marketing-worker`, (4) unset the flag.
 
-## Environment (in /home/deploy/gravyblock/.env, never committed)
-`MARKETING_STUDIO_ENABLED=1`, `MARKETING_DATABASE_URL` (gb_studio role), `MARKETING_SECRET_KEY` (32 bytes, base64), `MARKETING_SECRET_KEY_ID=k1`.
+## Environment and the unprivileged worker user
+- The worker runs as the system user `gbstudio` (no login, no home) and reads ONLY `/etc/gravyblock-marketing.env` (root:gbstudio, mode 640) containing
+  `NODE_ENV`, `MARKETING_STUDIO_ENABLED=1`, `MARKETING_DATABASE_URL` (the gb_studio role), `MARKETING_SECRET_KEY` (32 bytes, base64), `MARKETING_SECRET_KEY_ID=k1`, `MARKETING_STORAGE_ROOT`.
+  It never reads the main `.env`, so it holds no Stripe, email or GravyBlock database credentials.
+- The web app (admin UI) needs the same four MARKETING_* values in `/home/deploy/gravyblock/.env` (mode 640). Never commit either file.
+- Storage: `/var/lib/gravyblock-marketing/{tmp,media,logs}`, owner gbstudio:gbstudio, mode 2770 (setgid) so files the web app writes stay readable by the worker.
 
 ## Setup after the tables exist
-1. `GB_STUDIO_PASSWORD=... DB_NAME=gravyblock_prod bash scripts/ops/marketing-db-grants.sh`
-2. Add the four env keys, then `pm2 delete` and `pm2 start ecosystem.config.js --only gravyblock-marketing-worker`, and restart `gravyblock` so the UI sees the flag.
+1. `useradd --system --no-create-home --shell /usr/sbin/nologin gbstudio`; create the storage directories above.
+2. `GB_STUDIO_PASSWORD=... DB_NAME=gravyblock_prod bash scripts/ops/marketing-db-grants.sh`
+3. Write the env file and add the keys to `.env`, then `pm2 restart gravyblock-marketing-worker` and `pm2 delete gravyblock && pm2 start ecosystem.config.js --only gravyblock` (PM2 caches environments).
 
 ## Verification commands
 - `node scripts/ops/check-marketing-isolation.mjs` (no import path to site writes, publishing, outreach, growth engine).

@@ -84,11 +84,11 @@ export async function storeImageAsset(
   await ensureStorageDirs();
   await assertCanStore(productId, input.bytes.length);
   const dir = productMediaDir(productId);
-  await fs.mkdir(dir, { recursive: true, mode: 0o750 });
+  await fs.mkdir(dir, { recursive: true, mode: 0o770 });
   const rel = path.join(productId, `${sha256}.${detected.ext}`);
   const finalPath = safeJoin(STUDIO_DIRS.media, productId, `${sha256}.${detected.ext}`);
   const tmpPath = safeJoin(STUDIO_DIRS.tmp, `${randomUUID()}.part`);
-  await fs.writeFile(tmpPath, input.bytes, { mode: 0o640 });
+  await fs.writeFile(tmpPath, input.bytes, { mode: 0o660 });
   await fs.rename(tmpPath, finalPath);
 
   const [row] = await db

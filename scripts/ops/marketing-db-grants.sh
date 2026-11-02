@@ -16,8 +16,11 @@ PSQL=(sudo -u postgres psql -X -q -v ON_ERROR_STOP=1 -d "$DB_NAME")
 role_exists="$(sudo -u postgres psql -X -Atc "select 1 from pg_roles where rolname='gb_studio'")"
 if [ -z "$role_exists" ]; then
   : "${GB_STUDIO_PASSWORD:?GB_STUDIO_PASSWORD is required to create the gb_studio role}"
-  sudo -u postgres psql -X -q -v ON_ERROR_STOP=1 -v pw="$GB_STUDIO_PASSWORD" -d postgres \
-    -c "create role gb_studio login password :'pw' nosuperuser nocreatedb nocreaterole noinherit connection limit 6"
+  # The password goes in on stdin (not argv), so it never appears in a process listing.
+  sudo -u postgres psql -X -q -v ON_ERROR_STOP=1 -d postgres <<SQL
+\set pw '$GB_STUDIO_PASSWORD'
+create role gb_studio login password :'pw' nosuperuser nocreatedb nocreaterole noinherit connection limit 6;
+SQL
 fi
 
 "${PSQL[@]}" <<SQL
