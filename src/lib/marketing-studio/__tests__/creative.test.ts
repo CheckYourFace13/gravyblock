@@ -176,10 +176,12 @@ describe("rendered creative QA", { skip: !HAVE_BROWSER }, () => {
     assert.ok(failedIds(await run({}, { allowedUrlHosts: ["example.org"] })).includes("cta_url_valid"));
     assert.ok(failedIds(await run({}, { urlStatus: 404 })).includes("cta_url_live"));
   });
-  test("an obvious duplicate of another concept fails", async () => {
+  test("an obvious duplicate of another concept fails, but the same template with different words does not", async () => {
     const first = await run();
-    const r = await run({}, { otherHashes: [{ conceptId: "other", dhash: first.dhash }] });
+    const r = await run({}, { otherHashes: [{ conceptId: "other", dhash: first.dhash, textSig: first.textSig }] });
     assert.ok(failedIds(r).includes("not_a_duplicate"));
+    const different = await run({}, { otherHashes: [{ conceptId: "other", dhash: first.dhash, textSig: "completely different wording about something else entirely" }] });
+    assert.ok(!failedIds(different).includes("not_a_duplicate"));
   });
   test("logos keep their aspect ratio", async () => {
     const wide: Img = { ...(await sq("#2563eb")), w: 512, h: 128 };

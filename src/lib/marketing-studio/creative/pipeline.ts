@@ -34,7 +34,8 @@ export async function renderConcept(conceptId: string, sizes: SizeKey[] = SIZE_K
 
   const ctaUrl = concept.ctaUrl;
   const urlStatus = ctaUrl ? await probeUrl(ctaUrl) : null;
-  const others = await db.select({ conceptId: ms.msCreatives.conceptId, dhash: ms.msCreatives.dhash }).from(ms.msCreatives).where(and(eq(ms.msCreatives.productId, product.id), ne(ms.msCreatives.conceptId, concept.id)));
+  const othersRaw = await db.select({ conceptId: ms.msCreatives.conceptId, dhash: ms.msCreatives.dhash, qa: ms.msCreatives.qa }).from(ms.msCreatives).where(and(eq(ms.msCreatives.productId, product.id), ne(ms.msCreatives.conceptId, concept.id)));
+  const others = othersRaw.map((o) => ({ conceptId: o.conceptId, dhash: o.dhash, textSig: (o.qa as { textSig?: string } | null)?.textSig ?? null }));
 
   const handle = await launchBrowser();
   const results: RenderSummary["results"] = [];
@@ -79,16 +80,16 @@ export async function renderConcept(conceptId: string, sizes: SizeKey[] = SIZE_K
         urlStatus,
         requiredAssets: required,
         conceptId: concept.id,
-        otherHashes: others.filter((o): o is { conceptId: string; dhash: string } => Boolean(o.dhash)),
+        otherHashes: others.flatMap((o) => (o.dhash ? [{ conceptId: o.conceptId, dhash: o.dhash, textSig: o.textSig }] : [])),
       });
       const stored = await storeImageAsset(scope, "studio-worker", product.id, { bytes: png, originalName: `${family}-${size}.png`, kind: "render_image", provenance: "rendered" }, db);
       const status = qa.passed ? "ready_for_review" : "qa_failed";
       await db
         .insert(ms.msCreatives)
-        .values({ productId: product.id, conceptId: concept.id, assetId: stored.id, sizeKey: size, width: dims.w, height: dims.h, templateFamily: family, templateVersion: TEMPLATE_VERSION, status, qa: { passed: qa.passed, checks: qa.checks }, dhash: qa.dhash })
+        .values({ productId: product.id, conceptId: concept.id, assetId: stored.id, sizeKey: size, width: dims.w, height: dims.h, templateFamily: family, templateVersion: TEMPLATE_VERSION, status, qa: { passed: qa.passed, checks: qa.checks, textSig: qa.textSig }, dhash: qa.dhash })
         .onConflictDoUpdate({
           target: [ms.msCreatives.conceptId, ms.msCreatives.sizeKey],
-          set: { assetId: stored.id, status, qa: { passed: qa.passed, checks: qa.checks }, dhash: qa.dhash, templateVersion: TEMPLATE_VERSION, error: null, reviewedBy: null, reviewedAt: null },
+          set: { assetId: stored.id, status, qa: { passed: qa.passed, checks: qa.checks, textSig: qa.textSig }, dhash: qa.dhash, templateVersion: TEMPLATE_VERSION, error: null, reviewedBy: null, reviewedAt: null },
         });
       results.push({ size, status, failed: qa.checks.filter((c) => !c.ok && c.severity === "fail").map((c) => `${c.id}: ${c.detail}`) });
     }

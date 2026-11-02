@@ -28,7 +28,8 @@ export type QaInput = {
   urlStatus: number | null;
   requiredAssets: Array<{ id: string; approved: boolean; present: boolean }>;
   conceptId: string;
-  otherHashes: Array<{ conceptId: string; dhash: string }>;
+  /** Other creatives of the same product: image hash plus the normalized text they show. */
+  otherHashes: Array<{ conceptId: string; dhash: string; textSig?: string | null }>;
 };
 
 export const norm = (s: string) =>
@@ -42,6 +43,16 @@ export const norm = (s: string) =>
     .trim();
 
 const PLACEHOLDER = /lorem|ipsum|\btodo\b|\btbd\b|\bxxx+\b|\[[^\]]*\]|\{\{|\}\}|undefined|\bnull\b|your (text|logo|brand|name) here|placeholder|sample (text|product)/i;
+
+/** Share of words two texts have in common (Jaccard). */
+export function wordOverlap(a: string, b: string): number {
+  const A = new Set(a.split(" ").filter(Boolean));
+  const B = new Set(b.split(" ").filter(Boolean));
+  if (A.size === 0 && B.size === 0) return 1;
+  let inter = 0;
+  for (const w of A) if (B.has(w)) inter++;
+  return inter / (A.size + B.size - inter);
+}
 
 export function hamming(a: string, b: string): number {
   let d = 0;
@@ -97,7 +108,7 @@ export function traceText(block: BuiltCreative["textBlocks"][number], i: Pick<Qa
   }
 }
 
-export async function runCreativeQa(i: QaInput): Promise<{ passed: boolean; checks: QaCheck[]; dhash: string }> {
+export async function runCreativeQa(i: QaInput): Promise<{ passed: boolean; checks: QaCheck[]; dhash: string; textSig: string }> {
   const checks: QaCheck[] = [];
   const add = (id: string, ok: boolean, detail: string, severity: "fail" | "warn" = "fail") => checks.push({ id, ok, severity, detail: ok ? detail : detail });
 
@@ -155,10 +166,12 @@ export async function runCreativeQa(i: QaInput): Promise<{ passed: boolean; chec
   const ph = i.built.textBlocks.filter((x) => PLACEHOLDER.test(x.text));
   add("no_placeholder_text", ph.length === 0, ph.length ? `placeholder text: ${ph.map((x) => `"${x.text.slice(0, 30)}"`).join(", ")}` : "no placeholder text");
 
-  // 6. duplicates
+  // 6. duplicates: near-identical picture AND near-identical words. A coarse image hash alone also matches two different texts on the same
+  // template, which is not a duplicate.
+  const textSig = i.built.textBlocks.map((x) => norm(x.text)).join(" ");
   if (hash) {
-    const dup = i.otherHashes.filter((o) => o.conceptId !== i.conceptId && hamming(o.dhash, hash) <= 3);
-    add("not_a_duplicate", dup.length === 0, dup.length ? "visually near-identical to another creative of this product" : "visually distinct from other creatives");
+    const dup = i.otherHashes.filter((o) => o.conceptId !== i.conceptId && hamming(o.dhash, hash) <= 6 && wordOverlap(textSig, o.textSig ?? "") >= 0.7);
+    add("not_a_duplicate", dup.length === 0, dup.length ? "near-identical picture and wording to another creative of this product" : "distinct from other creatives");
   }
 
   // 7. CTA URL
@@ -178,7 +191,7 @@ export async function runCreativeQa(i: QaInput): Promise<{ passed: boolean; chec
   }
 
   const passed = checks.every((c) => c.ok || c.severity === "warn");
-  return { passed, checks, dhash: hash };
+  return { passed, checks, dhash: hash, textSig };
 }
 
 function contrastRatio(a: string, b: string): number {
