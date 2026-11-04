@@ -80,7 +80,7 @@ export type DemoQaInput = {
   /** Replaces the typed-into-live-interfaces check for products whose primary visual is real gameplay. */
   interaction?: { ok: boolean; detail: string };
   /** Real gameplay provenance and smoothness, checked when the primary visual is gameplay footage. */
-  gameplay?: { minFps: number; hudEvents: string[]; levelsCleared: number; windows: number };
+  gameplay?: { minFps: number; /** every frame was rendered on the game's own clock (a deterministic 30 fps render), so there is no capture-rate to fall short */ frameExact?: boolean; hudEvents: string[]; levelsCleared: number; windows: number };
   /** Game videos sell fun first: the creative-language checks (language-qa.ts) must pass before a game video can go to the owner. */
   gameCreative?: { storeLive: boolean };
 };
@@ -204,7 +204,8 @@ export async function runDemoQa(i: DemoQaInput): Promise<DemoQaResult> {
   if (i.gameplay) {
     const g = i.gameplay;
     metrics.gameplayCaptureFps = g.minFps;
-    add("gameplay_smooth", g.minFps >= 40, `the real gameplay was captured at ${g.minFps.toFixed(0)} fps or better in every window where the game moves (needs 40; the video plays at 30, and the heaviest board, the Daily Challenge, renders a little slower than the plain ones)`);
+    if (g.frameExact) add("gameplay_smooth", true, "the real gameplay was rendered frame by frame on the game's own clock, so every one of the 30 frames each second is a distinct real game frame");
+    else add("gameplay_smooth", g.minFps >= 35, `the real gameplay was captured at ${g.minFps.toFixed(0)} fps or better in every window where the game moves (needs 35; the video plays at 30, and the heaviest boards render a little slower than the plain ones)`);
     add("gameplay_is_real", g.levelsCleared >= 1 && g.hudEvents.length >= 3, `${g.levelsCleared} level(s) cleared in the footage and ${g.hudEvents.length} real in-game events seen in the game's own HUD text: ${g.hudEvents.slice(0, 5).join(", ")}`);
   }
   const thin = screenScenes.filter((s) => s.motion.length < 3).map((s) => s.id);

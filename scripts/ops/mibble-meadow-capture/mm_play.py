@@ -60,6 +60,10 @@ def wait(n):
     until(frames() + n)
 
 BG = (255, 251, 245)
+WIN_W = 780.0  # window (input) coordinates; movie frames are written at the game's own base size, so every pixel probe is scaled by F
+
+def F(img):
+    return img.width / WIN_W
 
 def colored(p):
     return sum(abs(a - b) for a, b in zip(p, BG)) > 60 and not (p[0] > 235 and p[1] > 235 and p[2] > 225)
@@ -79,11 +83,14 @@ def runs(vals, gap=2):
 
 def read_board(img):
     px = img.load()
-    y0, y1 = 560, 1500
-    cols = [c for c in range(30, 750) if sum(colored(px[c, y]) for y in range(y0, y1, 8)) >= 0.3 * ((y1 - y0) // 8)]
-    rows = [r for r in range(y0, y1) if sum(colored(px[c, r]) for c in range(40, 740, 8)) >= 0.3 * (700 // 8)]
-    cr = [r for r in runs(cols) if r[1] - r[0] > 20]
-    rr = [r for r in runs(rows) if r[1] - r[0] > 20]
+    f = F(img)
+    y0, y1 = int(560 * f), int(1500 * f)
+    st = max(1, int(8 * f))
+    cols = [c for c in range(int(30 * f), int(750 * f)) if sum(colored(px[c, y]) for y in range(y0, y1, st)) >= 0.3 * len(range(y0, y1, st))]
+    xs = list(range(int(40 * f), int(740 * f), st))
+    rows = [r for r in range(y0, y1) if sum(colored(px[c, r]) for c in xs) >= 0.3 * len(xs)]
+    cr = [r for r in runs(cols, 1) if r[1] - r[0] > 8]
+    rr = [r for r in runs(rows, 1) if r[1] - r[0] > 8]
     if len(cr) != len(rr) or len(cr) < 3:
         return None
     n = len(cr)
@@ -97,7 +104,7 @@ def read_board(img):
                 pal.append(p); k = len(pal) - 1
             row.append(k)
         grid.append(row)
-    centers = [[((xa + xb) // 2, (ya + yb) // 2) for (xa, xb) in cr] for (ya, yb) in rr]
+    centers = [[(int((xa + xb) / 2 / f), int((ya + yb) / 2 / f)) for (xa, xb) in cr] for (ya, yb) in rr]
     return n, grid, centers
 
 def solve(n, grid):
@@ -113,24 +120,38 @@ def solve(n, grid):
 def dim_level(img):
     # the completion card dims the whole screen: average brightness of a strip near the top
     px = img.load()
-    return sum(sum(px[c, 40]) for c in range(20, 760, 40)) / 19
+    f = F(img)
+    return sum(sum(px[int(c * f), int(40 * f)]) for c in range(20, 760, 40)) / 19
 
 def green_button(img):
+    # the Next Level button is a flat (110, 203, 142); foliage in the background is a different green
     px = img.load()
-    for y in range(900, 1400, 6):
-        run = [c for c in range(100, 700, 4) if px[c, y][1] > px[c, y][0] + 40 and px[c, y][1] > px[c, y][2] + 20]
-        if len(run) > 90:
-            return (run[0] + run[-1]) // 2, y
+    f = F(img)
+    def near(p):
+        return abs(p[0] - 110) + abs(p[1] - 203) + abs(p[2] - 142) < 26
+    for y in range(700, 1500, 6):
+        run = [c for c in range(60, 720, 4) if near(px[int(c * f), int(y * f)])]
+        if len(run) > 70:
+            return (run[0] + run[-1]) // 2, y + 20
     return None
+
+def orange_ok(img):
+    f = F(img)
+    p = img.getpixel((int(300 * f), int(891 * f)))
+    return p[0] > 230 and p[2] < 120
 
 try:
     until(235); log("home")
     click(390, 945); log("play")
-    wait(55)
+    wait(40)
     for lvl in range(1, LEVELS + 1):
+        # a tip dialog may appear for a new idea: wait up to two seconds for its OK button, then dismiss it like a player would
         img = shot()
-        if img.getpixel((390, 891))[0] > 230 and img.getpixel((390, 891))[2] < 120:  # an orange OK button: a tip dialog is up
-            click(390, 891); log("tip_dismissed", level=lvl); wait(45); img = shot()
+        for _ in range(45):
+            if orange_ok(img):
+                click(390, 891); log("tip_dismissed", level=lvl); wait(45); break
+            wait(2); img = shot()
+        img = shot()
         board = read_board(img)
         if not board:
             log("board_unreadable", level=lvl); break
@@ -140,6 +161,7 @@ try:
         if len(sols) < 1:
             break
         sol = sols[0]
+        base = dim_level(img)  # the undimmed board: the completion card dims the whole screen
         cells = {(r, sol[r]) for r in range(n)}
         free = [(r, c) for r in range(n) for c in range(n) if (r, c) not in cells]
         # a couple of single taps (mark) on cells that cannot hold an animal, then a swipe (mark several) along one row, then the placements
@@ -156,7 +178,6 @@ try:
         wait(8)
         for r in range(n):
             dbl(*centers[r][sol[r]]); log("placed", level=lvl, row=r, col=sol[r]); wait(14)
-        base = dim_level(shot())
         done = False
         for _ in range(180):
             wait(1)
@@ -165,10 +186,17 @@ try:
         log("level_complete" if done else "level_not_completed", level=lvl)
         if not done:
             break
-        wait(70)
-        g = green_button(shot())
         if lvl < LEVELS:
-            click(*(g or (390, 1080))); log("next_level", level=lvl); wait(50)
+            # the real flow is two screens (the Meadow Moment card, then the results page); click Next Level until a fresh board is showing
+            for _ in range(6):
+                wait(70)
+                im = shot()
+                if read_board(im) and dim_level(im) > base - 10:
+                    break
+                g = green_button(im)
+                if g:
+                    click(*g); log("next_level_click", level=lvl)
+            wait(30)
     # the rest of the game: back to home, the Animals and Levels tabs, then the Daily Meadow
     wait(20)
     click(109, 125); log("back_home"); wait(60)
@@ -177,7 +205,7 @@ try:
     click(124, 1583); log("home_tab"); wait(45)
     click(390, 1062); log("daily_meadow"); wait(70)
     img = shot()
-    if img.getpixel((390, 891))[0] > 230 and img.getpixel((390, 891))[2] < 120:
+    if orange_ok(img):
         click(390, 891); log("tip_dismissed", level="daily"); wait(45); img = shot()
     board = read_board(img)
     if board:

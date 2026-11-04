@@ -5,6 +5,8 @@
  */
 import { captureDrinkKnirdPlates, DK_ORIGIN } from "./drinkknird-plates";
 import { captureScribbleZapPlates, SZ_ORIGIN } from "./scribblezap-capture";
+import { captureMibblePlates, MB_ORIGIN } from "./mibble-capture";
+import { MB_CLAIMS, MB_CTA, MB_FACTS, MB_NARRATION, MB_ON_SCREEN, MB_SCENE_META, MB_TITLE, mbBuildTimeline, mbLayoutLines } from "./mibble";
 import { SZ_CLAIMS, SZ_CTA, SZ_FACTS, SZ_NARRATION, SZ_ON_SCREEN, SZ_SCENE_META, SZ_TITLE, szBuildTimeline, szLayoutLines } from "./scribblezap";
 import type { DemoQaInput } from "./qa";
 import { DK_CLAIMS, DK_CTA, DK_FACTS, DK_NARRATION, DK_ON_SCREEN, DK_SCENE_META, DK_TITLE, dkBuildTimeline, dkLayoutLines, type BuiltDkDemo } from "./drinkknird";
@@ -20,7 +22,7 @@ export type DemoSpec = {
   cta: { text: string; url: string; display: string };
   narration: NarrationLine[];
   claims: Claim[];
-  facts: Array<{ plate: string; value: string }>;
+  facts: Array<{ plate: string; value: string; kind?: "asset_metadata" }>;
   onScreen: Array<{ sceneId: string; kind: "headline" | "label" | "cta"; text: string; claim: string }>;
   sceneMeta: Record<string, { plate?: string; purpose: string; motion: string[]; note: string }>;
   capture: (outDir: string, logoFile: string) => Promise<Manifest>;
@@ -47,6 +49,30 @@ export const DEMO_SPECS: Record<string, DemoSpec> = {
     capture: capturePlates,
     layout: layoutLines,
     build: buildTimeline,
+  },
+  mibblemeadow: {
+    kind: "game",
+    slug: "mibblemeadow",
+    productName: "Mibble Meadow",
+    site: { origin: MB_ORIGIN, ctaText: MB_CTA.text, ctaHost: "iscream studio" },
+    title: MB_TITLE,
+    cta: MB_CTA,
+    narration: MB_NARRATION,
+    claims: MB_CLAIMS,
+    facts: MB_FACTS,
+    onScreen: MB_ON_SCREEN,
+    sceneMeta: MB_SCENE_META,
+    capture: captureMibblePlates,
+    layout: mbLayoutLines,
+    build: mbBuildTimeline,
+    qaExtra: (m) => {
+      const g = m.gameplay;
+      if (!g) return {};
+      return {
+        interaction: { ok: g.windows.length >= 3 && g.levelsCleared >= 1, detail: `real gameplay of the game's own project files, played by real taps, a swipe and double-taps: ${g.windows.length} windows from ${g.levelsCleared} solved levels; nothing drawn or synthesised` },
+        gameplay: { minFps: 30, frameExact: true, hudEvents: g.hudEvents, levelsCleared: g.levelsCleared, windows: g.windows.length },
+      };
+    },
   },
   scribblezap: {
     kind: "game",

@@ -32,7 +32,7 @@ type FactLite = { id: string; value: string; verified: boolean };
  * Adds the few Product Truth facts this video needs. A fact is only added when its exact text is on the live page it cites, which is what
  * lets it be marked verified. With write=false (a dry run) nothing is stored and the facts count as prospective.
  */
-export async function ensureFacts(db: StudioDb, scope: OwnerScope, productId: string, manifest: Manifest, write: boolean, wanted: Array<{ plate: string; value: string }> = demoSpecFor("rentalnoodle").facts): Promise<FactLite[]> {
+export async function ensureFacts(db: StudioDb, scope: OwnerScope, productId: string, manifest: Manifest, write: boolean, wanted: Array<{ plate: string; value: string; kind?: "asset_metadata" }> = demoSpecFor("rentalnoodle").facts): Promise<FactLite[]> {
   const out: FactLite[] = (await listFacts(scope, productId, db)).filter((f) => f.status === "current").map((f) => ({ id: f.id, value: f.factValue, verified: Boolean(f.verifiedAt) }));
   for (const d of wanted) {
     const plate = manifest.plates[d.plate];
@@ -44,7 +44,7 @@ export async function ensureFacts(db: StudioDb, scope: OwnerScope, productId: st
       out.push({ id: `prospective:${out.length}`, value: d.value, verified: true });
       continue;
     }
-    const row = await addFact(scope, DEMO_ACTOR, productId, { factKey: "capability", factValue: d.value, sourceKind: "public_page", sourceUrl: plate.url }, db);
+    const row = await addFact(scope, DEMO_ACTOR, productId, { factKey: "capability", factValue: d.value, sourceKind: d.kind ?? "public_page", sourceUrl: d.kind ? null : plate.url }, db);
     await verifyFact(scope, DEMO_ACTOR, productId, row.id, db);
     if (existing) existing.verified = true;
     else out.push({ id: row.id, value: d.value, verified: true });

@@ -12,6 +12,8 @@ import { approveVideoExpansion, freezeVideoGeneration, unfreezeVideoGeneration }
 import { DEMO_SPECS, demoSpecFor } from "../video/demo/specs";
 import { DK_CLAIMS, DK_NARRATION, DK_ON_SCREEN } from "../video/demo/drinkknird";
 import { SZ_CLAIMS, SZ_CTA, SZ_NARRATION, SZ_ON_SCREEN } from "../video/demo/scribblezap";
+import { MB_CLAIMS, MB_CTA, MB_NARRATION, MB_ON_SCREEN } from "../video/demo/mibble";
+import { MB_WINDOWS } from "../video/demo/mibble-capture";
 import { checkGameLanguage, gameCtaPhase, NOT_YET_DOWNLOADABLE } from "../video/demo/language-qa";
 import { activeCaptureFps, SZ_WINDOWS } from "../video/demo/scribblezap-capture";
 import { createVideoFromProduct } from "../video/queue";
@@ -278,7 +280,7 @@ describe("video freeze and the single demo (database)", { skip: !HAVE_DB }, () =
     const dk = await createDemoVideo(INTERNAL_SCOPE, "t", other, db, { queue: false });
     assert.equal(dk.status, "queued");
     await assert.rejects(createDemoVideo(INTERNAL_SCOPE, "t", other, db, { queue: false }), /already a demo video/);
-    const game = (await createProduct(INTERNAL_SCOPE, "t", { name: "Mibble Meadow", kind: "mobile_game" })).id;
+    const game = (await createProduct(INTERNAL_SCOPE, "t", { name: "Neon Warzone", kind: "mobile_game" })).id;
     await assert.rejects(createDemoVideo(INTERNAL_SCOPE, "t", game, db, { queue: false }), /TEASER_ONLY/);
     assert.equal((await db.select().from(ms.msPublications)).length, 0);
   });
@@ -286,8 +288,8 @@ describe("video freeze and the single demo (database)", { skip: !HAVE_DB }, () =
 
 describe("demo specs", () => {
   test("only products with real captured interaction have a spec", () => {
-    assert.deepEqual(Object.keys(DEMO_SPECS).sort(), ["drinkknird", "rentalnoodle", "scribblezap"]);
-    assert.throws(() => demoSpecFor("miblemeadow"), /TEASER_ONLY/);
+    assert.deepEqual(Object.keys(DEMO_SPECS).sort(), ["drinkknird", "mibblemeadow", "rentalnoodle", "scribblezap"]);
+    assert.throws(() => demoSpecFor("neonwarzone"), /TEASER_ONLY/);
   });
   test("DrinkKnird: every line has a claim, every claim has sources, every on-screen text has a claim, no unsupported wording", () => {
     const ids = new Set(DK_CLAIMS.map((c) => c.id));
@@ -350,3 +352,20 @@ describe("game creative language QA (fun first, features second)", () => {
 function checks_ids(c: Array<{ id: string; ok: boolean }>) {
   return c.filter((x) => !x.ok).map((x) => x.id);
 }
+
+describe("Mibble Meadow trailer", () => {
+  test("script passes the fun-first language QA, every line has a claim and every claim a source, and nothing implies a download", () => {
+    const failed = checkGameLanguage({ spoken: MB_NARRATION.map((l) => l.spoken), headlines: MB_ON_SCREEN.map((o) => o.text), cta: { text: MB_CTA.text } }).filter((c) => !c.ok);
+    assert.deepEqual(failed, [], failed.map((c) => c.detail).join("; "));
+    const ids = new Set(MB_CLAIMS.map((c) => c.id));
+    for (const l of MB_NARRATION) assert.ok(l.claims.length && l.claims.every((c) => ids.has(c)), l.id);
+    for (const c of MB_CLAIMS) assert.ok(c.facts.length && c.sources.length && c.sources.every((x) => x.plate === "public" || x.plate === "play"), c.id);
+    for (const o of MB_ON_SCREEN) assert.ok(ids.has(o.claim), o.text);
+    assert.doesNotMatch([...MB_NARRATION.map((l) => l.spoken + " " + (l.caption ?? "")), ...MB_ON_SCREEN.map((o) => o.text), MB_CTA.text].join(" | "), NOT_YET_DOWNLOADABLE);
+  });
+  test("footage windows do not overlap or repeat, and are long enough for a two to three second beat", () => {
+    const sorted = [...MB_WINDOWS].sort((a, b) => a.from - b.from);
+    for (let i = 1; i < sorted.length; i++) assert.ok(sorted[i].from >= sorted[i - 1].to, "windows overlap");
+    for (const w of MB_WINDOWS) assert.ok(w.to - w.from >= 80, w.scene);
+  });
+});
