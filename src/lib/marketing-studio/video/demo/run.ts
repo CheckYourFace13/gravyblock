@@ -16,6 +16,7 @@ import { storeVideoFile } from "../store";
 import { audioInfo, mixAudio, parseSpoken, placeLines, synthesizeLines, synthMusic, writeWav } from "./audio";
 import { renderDemo } from "./render";
 import { runDemoQa, type DemoQaResult } from "./qa";
+import { gameCtaPhase } from "./language-qa";
 import { demoSpecFor, type DemoSpec } from "./specs";
 import type { DemoRecord, Manifest } from "./types";
 
@@ -87,6 +88,9 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
 
   // 2. facts the claims rest on
   const facts = await ensureFacts(db, scope, product.id, manifest, opts.writeFacts, spec.facts);
+
+  // A game whose verified store listing is live needs an install CTA, not the pre-launch invitation this spec carries.
+  if (spec.kind === "game" && gameCtaPhase(facts) === "store_live") throw new Error(`${spec.productName} now has a verified store listing: update its spec to an install or play CTA before making a new video.`);
 
   // 3. voiceover
   log("recording the voiceover");
@@ -172,6 +176,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
     endStartMs: endScene.start,
     mixFile: path.join(workDir, "mix.wav"),
     site: spec.site,
+    ...(spec.kind === "game" ? { gameCreative: { storeLive: false } } : {}),
     ...(spec.qaExtra?.(manifest) ?? {}),
   });
   return { file: outFile, record, qa, stats: { captureMs, voiceMs, renderMs: rendered.wallMs, frames: rendered.frames }, manifest };

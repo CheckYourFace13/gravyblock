@@ -62,9 +62,24 @@ export const PAID_ACQUISITION = {
   ],
 } as const;
 
+/**
+ * PERMANENT RULE (owner, 2026-11-04): game videos sell FUN first, features second. Before any game video is READY_FOR_OWNER_REVIEW the creative-language
+ * QA (video/demo/language-qa.ts) rejects scripts that are corporate, robotic, a feature list, repetitive, over-explained, low-energy, or technically
+ * accurate but not enticing. Truthfulness stays mandatory: fun never permits exaggerating or fabricating gameplay, and every spoken line still needs
+ * a verified fact and matching real footage.
+ */
+export const GAME_CREATIVE_RULES = {
+  principle: "Game videos sell FUN first, features second.",
+  voice: ["fun", "energetic", "playful", "slightly competitive", "satisfying", "surprising", "easy to understand", "fast-moving", "not corporate", "not technical", "not like documentation"],
+  hook: "The first one or two seconds show something satisfying, surprising or challenging. Start inside the fun; never open with an introduction.",
+  cta: "Until a verified store listing is live, an invitation CTA (How far can you get? Think you can beat it? Follow iScream Studio for the launch). Never 'coming soon', never anything that implies a download. Once a verified store link exists in Product Truth, the run refuses the pre-launch spec so the creative is moved to an install or play CTA.",
+  qa: "language-qa.ts runs as part of the video QA for every game and blocks READY_FOR_OWNER_REVIEW on failure.",
+  truth: "Every spoken claim has a verified fact and matching real footage. Style examples are only used when they accurately describe real gameplay.",
+} as const;
+
 export const GAME_CAPTURE = {
   ScribbleZap: { feasible: true, source: "private web tester (https://iscreamstudio.com/test/scribblezap/play/)", method: "headless browser with a disposable profile, GET only, scripted touch input, CDP screencast; no code, save or progression changes, nothing deployed", measured: "2026-11-04 test: game ran at 60 fps, screencast delivered about 50 fps, two scripted cuts cleared level 1 (67% of a 60% target)" },
   "Mibble Meadow": { feasible: true, source: "the real 0.1.23 APK's own project files (a Godot 4.7.2 game, Android only)", method: "an Android emulator is blocked on the VPS (no hardware virtualization, ARM-only libraries), so the project files extracted from the APK run read-only in the matching official Godot 4.7.2 desktop engine inside a disposable no-network container, Movie Maker mode at 30 fps, real mouse input tied to rendered frames", measured: "2026-11-04: level 1 solved with real taps, ending on the game's own completion card; UI, layout, art, text and rules match the Android build's screenshots; known non-material differences: haptics, audio and the Android safe-area and GPU path were not exercised" },
 } as const;
 
-export const ROLLOUT_PLAN = { version: 2, firstSocialSetup: FIRST_SOCIAL_SETUP, deferredAccounts: DEFERRED_ACCOUNTS, ownerIdentity: OWNER_IDENTITY, decidedAt: "2026-11-04", order: ROLLOUT_ORDER, social: SOCIAL_STRATEGY, paid: PAID_ACQUISITION, gameCapture: GAME_CAPTURE, videoQualityReference: "RentalNoodle" } as const;
+export const ROLLOUT_PLAN = { version: 3, gameCreative: GAME_CREATIVE_RULES, firstSocialSetup: FIRST_SOCIAL_SETUP, deferredAccounts: DEFERRED_ACCOUNTS, ownerIdentity: OWNER_IDENTITY, decidedAt: "2026-11-04", order: ROLLOUT_ORDER, social: SOCIAL_STRATEGY, paid: PAID_ACQUISITION, gameCapture: GAME_CAPTURE, videoQualityReference: "RentalNoodle" } as const;

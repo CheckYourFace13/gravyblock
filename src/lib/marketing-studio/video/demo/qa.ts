@@ -2,6 +2,7 @@
  * QA for product demo videos. These checks target exactly what makes a bad marketing video: a static slideshow, silence, captions that
  * drift from the voice, and claims that are not backed by the product's own pages.
  */
+import { checkGameLanguage } from "./language-qa";
 import { spawn } from "node:child_process";
 import { registerKiller } from "../../active-work";
 import { ffprobe, run } from "../ffmpeg";
@@ -80,6 +81,8 @@ export type DemoQaInput = {
   interaction?: { ok: boolean; detail: string };
   /** Real gameplay provenance and smoothness, checked when the primary visual is gameplay footage. */
   gameplay?: { minFps: number; hudEvents: string[]; levelsCleared: number; windows: number };
+  /** Game videos sell fun first: the creative-language checks (language-qa.ts) must pass before a game video can go to the owner. */
+  gameCreative?: { storeLive: boolean };
 };
 
 const RN_SITE = { origin: "https://rentalnoodle.com", ctaText: "Start Managing Free", ctaHost: "rentalnoodle.com" };
@@ -223,6 +226,13 @@ export async function runDemoQa(i: DemoQaInput): Promise<DemoQaResult> {
   const onSite = (u: string) => u === site.origin || u.startsWith(`${site.origin}/`);
   const noVisual = screenScenes.filter((s) => !s.sourceVisual || !onSite(s.sourceVisual.url) || !s.sourceVisual.capturedAt).map((s) => s.id);
   add("source_visual_per_scene", noVisual.length === 0, noVisual.length ? `scenes without a source page: ${noVisual.join(", ")}` : "every product scene names the live page it was captured from, with the capture time");
+
+  // 7b. game creative language: fun first, features second
+  if (i.gameCreative) {
+    const ctaLine = i.narration.at(-1);
+    for (const c of checkGameLanguage({ spoken: i.narration.map((l) => l.spoken.replace(/\{[a-z0-9]+\}/gi, "")), headlines: i.onScreenTexts, cta: { text: i.record.cta.text }, storeLive: i.gameCreative.storeLive })) add(c.id, c.ok, c.detail);
+    void ctaLine;
+  }
 
   // 8. wording
   const text = [...i.narration.map((l) => `${l.spoken} ${l.caption ?? ""}`), ...i.onScreenTexts].join(" | ");

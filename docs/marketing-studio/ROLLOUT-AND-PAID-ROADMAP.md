@@ -37,6 +37,14 @@ Only these three, for the first controlled Facebook publishing loop:
 
 **Owner identity:** any signup or recovery email is a private iScream Studio business email, not a personal Gmail, and is never shown publicly. Chris's personal Facebook profile may be the private Meta administrator only if Meta requires it, and must never publish, appear as the brand, be a public contact or receive product marketing activity.
 
+## Game creative standard (permanent): fun first, features second
+
+Every game video (ScribbleZap, Mibble Meadow, future iScream games) must sell the *fun* before any feature: start inside something satisfying, surprising or challenging; short, playful, conversational lines; no introductions, menu names or feature lists; a challenge or invitation for the viewer. The voice is fun, energetic, slightly competitive, satisfying and easy to understand, never corporate, technical or like documentation.
+
+- **CTA:** until a verified store link is live use an invitation ("How far can you get? Follow iScream Studio for the launch."). Never "coming soon" and nothing that implies a download. Once a verified store link exists in Product Truth, the render refuses the pre-launch spec so the creative moves to an install or play CTA.
+- **Creative-language QA** (`video/demo/language-qa.ts`) runs on every game video and rejects scripts that are corporate, robotic, a feature list, repetitive, over-explained, low-energy or merely accurate: no download wording, no corporate words, a short hook, short punchy lines, no list-of-features lines, enough energetic play words, a line that challenges the viewer, no repeated phrases, short on-screen headlines, a CTA that invites.
+- **Truth is unchanged:** fun never permits exaggeration. Every spoken line still has a verified Product Truth fact (from the public page or the game's own on-screen text) and matching real footage.
+
 ## Paid acquisition (roadmap module, NOT enabled, no money spent)
 
 Loop: creative, small paid test, measure qualified users, pause losers, identify winners, create better variants, scale within the owner-approved budget.

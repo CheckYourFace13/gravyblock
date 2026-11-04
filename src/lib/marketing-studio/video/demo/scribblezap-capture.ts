@@ -22,9 +22,10 @@ export const SZ_PLATE = { w: 390, h: 780 };
 
 /** Which stretch of the stored recording each scene plays, in seconds from the start of the recording. */
 export const SZ_WINDOWS: Array<{ scene: string; fromSec: number; toSec: number; what: string }> = [
-  { scene: "hook", fromSec: 32.4, toSec: 36.8, what: "level 2: a cut with the game's big-cut burst" },
+  { scene: "hook", fromSec: 33.1, toSec: 37.5, what: "level 2: a cut with the game's big-cut burst" },
   { scene: "pen", fromSec: 0.3, toSec: 4.5, what: "level 1: the PEN UNLOCKED tip card, then tap and hold draws the first cut" },
   { scene: "sunset", fromSec: 113.0, toSec: 117.0, what: "level 5: the sunset-themed Mastery stage (95 percent fill)" },
+  { scene: "lvl4", fromSec: 95.6, toSec: 100.4, what: "level 4: a late board with a 91 percent target, mostly cut already, with a combo burst" },
   { scene: "clear", fromSec: 129.8, toSec: 134.6, what: "after level 5: BASICS MASTERED, Neon board unlocked" },
   { scene: "unlock", fromSec: 137.0, toSec: 142.8, what: "TENNIS BALL UNLOCKED card, then the first Tennis Ball board (level 6)" },
   { scene: "tennis", fromSec: 166.2, toSec: 170.2, what: "level 7: Tennis Ball gameplay with a combo burst" },

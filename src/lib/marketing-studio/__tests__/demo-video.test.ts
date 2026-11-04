@@ -11,7 +11,8 @@ import { createDemoVideo } from "../video/demo/queue";
 import { approveVideoExpansion, freezeVideoGeneration, unfreezeVideoGeneration } from "../video/freeze";
 import { DEMO_SPECS, demoSpecFor } from "../video/demo/specs";
 import { DK_CLAIMS, DK_NARRATION, DK_ON_SCREEN } from "../video/demo/drinkknird";
-import { SZ_CLAIMS, SZ_NARRATION, SZ_ON_SCREEN } from "../video/demo/scribblezap";
+import { SZ_CLAIMS, SZ_CTA, SZ_NARRATION, SZ_ON_SCREEN } from "../video/demo/scribblezap";
+import { checkGameLanguage, gameCtaPhase, NOT_YET_DOWNLOADABLE } from "../video/demo/language-qa";
 import { activeCaptureFps, SZ_WINDOWS } from "../video/demo/scribblezap-capture";
 import { createVideoFromProduct } from "../video/queue";
 import { captionWordsFor, groupCaptions, parseSpoken, placeLines, synthMusic, trimSilence, wordTimings, writeWav } from "../video/demo/audio";
@@ -303,12 +304,11 @@ describe("ScribbleZap gameplay video", () => {
   test("every line has a claim, every claim a public-page source, every on-screen text a claim, no unsupported wording, honest call to action", () => {
     const ids = new Set(SZ_CLAIMS.map((c) => c.id));
     for (const l of SZ_NARRATION) assert.ok(l.claims.length && l.claims.every((c) => ids.has(c)), l.id);
-    for (const c of SZ_CLAIMS) assert.ok(c.facts.length && c.sources.length && c.sources.every((s) => s.plate === "public"), c.id);
+    for (const c of SZ_CLAIMS) assert.ok(c.facts.length && c.sources.length && c.sources.every((s) => s.plate === "public" || s.plate === "play"), c.id);
     for (const o of SZ_ON_SCREEN) assert.ok(ids.has(o.claim), o.text);
     const text = [...SZ_NARRATION.map((l) => l.spoken + " " + (l.caption ?? "")), ...SZ_ON_SCREEN.map((o) => o.text)].join(" | ");
     assert.equal(BANNED.test(text), false, "banned wording");
-    assert.match(text, /Coming soon/, "the game is not released yet and the video must not imply otherwise");
-    assert.doesNotMatch(text, /download now|available now|on google play now/i);
+    assert.doesNotMatch(text, NOT_YET_DOWNLOADABLE, "the game is not on a store yet: no download wording, and no coming soon");
   });
   test("footage windows are inside the recording, do not overlap, and smoothness is measured on active seconds only", () => {
     const sorted = [...SZ_WINDOWS].sort((a, b) => a.fromSec - b.fromSec);
@@ -318,3 +318,35 @@ describe("ScribbleZap gameplay video", () => {
     assert.equal(activeCaptureFps(frames, 6, 16), 0, "idle seconds are not counted as smoothness");
   });
 });
+
+describe("game creative language QA (fun first, features second)", () => {
+  const lang = (spoken: string[], headlines: string[], cta = "Follow iScream Studio") => checkGameLanguage({ spoken, headlines, cta: { text: cta } });
+  test("the current ScribbleZap script passes every language check", () => {
+    const checks = lang(SZ_NARRATION.map((l) => l.spoken.replace(/\{[a-z0-9]+\}/gi, "")), SZ_ON_SCREEN.map((o) => o.text), SZ_CTA.text);
+    const failed = checks.filter((c) => !c.ok);
+    assert.deepEqual(failed, [], failed.map((c) => c.detail).join("; "));
+  });
+  test("a feature-list product-demo script is rejected on several counts", () => {
+    const bad = lang(
+      ["ScribbleZap is a mobile puzzle game from iScream Studio, with hazards, drawing tools, and daily challenges.", "Our platform features a seamless interface that allows you to cut lines across the board and fill the page until you reach the target percentage.", "Download it now from Google Play, coming soon."],
+      ["A draw-and-fill puzzle game from iScream Studio with many features"],
+      "Coming soon",
+    );
+    const failed = checks_ids(bad);
+    for (const id of ["lang_no_download_wording", "lang_not_corporate", "lang_short_and_punchy", "lang_not_a_feature_list", "lang_headlines_short", "lang_cta_invites"]) assert.ok(failed.includes(id), `${id} should fail`);
+  });
+  test("a low-energy, repetitive script is rejected", () => {
+    const bad = lang(["Cut the board.", "Cut the board.", "Cut the board.", "Cut the board and cut the board again."], ["Cut"]);
+    const failed = checks_ids(bad);
+    assert.ok(failed.includes("lang_energy") && failed.includes("lang_not_repetitive"), failed.join(","));
+  });
+  test("install wording is allowed once a verified store listing is live, and the phase is detected from verified facts only", () => {
+    const live = checkGameLanguage({ spoken: ["One cut. Big payoff.", "Think you can beat it? Get it on Google Play."], headlines: ["Play now"], cta: { text: "Get it on Google Play" }, storeLive: true });
+    assert.equal(live.some((c) => c.id === "lang_no_download_wording"), false);
+    assert.equal(gameCtaPhase([{ value: "https://play.google.com/store/apps/details?id=x", verified: false }]), "pre_launch");
+    assert.equal(gameCtaPhase([{ value: "https://play.google.com/store/apps/details?id=x", verified: true }]), "store_live");
+  });
+});
+function checks_ids(c: Array<{ id: string; ok: boolean }>) {
+  return c.filter((x) => !x.ok).map((x) => x.id);
+}

@@ -26,6 +26,8 @@ export type DemoSpec = {
   capture: (outDir: string, logoFile: string) => Promise<Manifest>;
   layout: (durMs: Record<string, number>) => Record<string, LineTime>;
   build: (manifest: Manifest, lt: Record<string, LineTime>) => BuiltDkDemo;
+  /** Games are held to the fun-first creative-language QA and may not use a pre-launch CTA once a verified store listing is live. */
+  kind?: "game";
   /** Extra QA inputs for products whose primary visual is real gameplay. */
   qaExtra?: (manifest: Manifest) => Pick<DemoQaInput, "interaction" | "gameplay">;
 };
@@ -47,9 +49,10 @@ export const DEMO_SPECS: Record<string, DemoSpec> = {
     build: buildTimeline,
   },
   scribblezap: {
+    kind: "game",
     slug: "scribblezap",
     productName: "ScribbleZap",
-    site: { origin: SZ_ORIGIN, ctaText: SZ_CTA.text, ctaHost: "scribblezap.com" },
+    site: { origin: SZ_ORIGIN, ctaText: SZ_CTA.text, ctaHost: "iscream studio" },
     title: SZ_TITLE,
     cta: SZ_CTA,
     narration: SZ_NARRATION,
