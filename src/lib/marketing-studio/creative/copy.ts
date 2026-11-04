@@ -253,12 +253,14 @@ export async function listCreatives(scope: OwnerScope, productId: string, db: St
   return db.select().from(ms.msCreatives).where(eq(ms.msCreatives.productId, productId)).orderBy(ms.msCreatives.createdAt);
 }
 
-export async function reviewCreative(scope: OwnerScope, actor: string, productId: string, creativeId: string, decision: "approved" | "rejected", db: StudioDb = requireStudioDb()) {
+export async function reviewCreative(scope: OwnerScope, actor: string, productId: string, creativeId: string, decision: "approved" | "rejected" | "regenerate_later", db: StudioDb = requireStudioDb()) {
   await requireProduct(scope, productId, db);
   const [c] = await db.select().from(ms.msCreatives).where(and(eq(ms.msCreatives.id, creativeId), eq(ms.msCreatives.productId, productId))).limit(1);
   if (!c) throw new Error("not found");
   // A creative that did not pass QA can never be approved.
-  if (decision === "approved" && c.status !== "ready_for_review") throw new Error("Only creatives that passed QA can be approved");
+  // A decision can be changed later (reject then approve) only while the automated checks still pass. Regenerating is only recorded, never started.
+  const qaClean = Boolean((c.qa as { passed?: boolean } | null)?.passed);
+  if (decision === "approved" && !(c.status === "ready_for_review" || (qaClean && ["rejected", "regenerate_later", "approved"].includes(c.status)))) throw new Error("Only creatives that passed QA can be approved");
   await db.update(ms.msCreatives).set({ status: decision, reviewedBy: actor, reviewedAt: new Date() }).where(eq(ms.msCreatives.id, creativeId));
   await audit(db, { actor, action: `creative.${decision}`, entity: "creative", entityId: creativeId, productId });
 }

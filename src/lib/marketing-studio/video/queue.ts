@@ -87,11 +87,12 @@ export async function createVideoFromProduct(scope: OwnerScope, actor: string, p
   return row;
 }
 
-export async function reviewVideo(scope: OwnerScope, actor: string, productId: string, videoId: string, decision: "approved" | "rejected", db: StudioDb = requireStudioDb()) {
+export async function reviewVideo(scope: OwnerScope, actor: string, productId: string, videoId: string, decision: "approved" | "rejected" | "regenerate_later", db: StudioDb = requireStudioDb()) {
   await requireProduct(scope, productId, db);
   const [v] = await db.select().from(ms.msVideos).where(and(eq(ms.msVideos.id, videoId), eq(ms.msVideos.productId, productId))).limit(1);
   if (!v) throw new Error("not found");
-  if (decision === "approved" && v.status !== "ready_for_review") throw new Error("Only videos that passed QA can be approved");
+  const qaClean = Boolean((v.qa as { passed?: boolean } | null)?.passed);
+  if (decision === "approved" && !(v.status === "ready_for_review" || (qaClean && ["rejected", "regenerate_later", "approved"].includes(v.status)))) throw new Error("Only videos that passed QA can be approved");
   await db.update(ms.msVideos).set({ status: decision }).where(eq(ms.msVideos.id, videoId));
   await audit(db, { actor, action: `video.${decision}`, entity: "video", entityId: videoId, productId });
 }

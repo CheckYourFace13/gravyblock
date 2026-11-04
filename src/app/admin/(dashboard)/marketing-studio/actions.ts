@@ -199,6 +199,23 @@ export async function reviewVideoAction(fd: FormData) {
   await guarded(`${base}/products/${id}`, () => reviewVideo(scope, actor, id, s(fd, "videoId"), s(fd, "decision") === "approved" ? "approved" : "rejected"));
 }
 
+/**
+ * Owner review decision from the Review screen. It records approve, reject or regenerate-later and nothing else: it does not create a
+ * publication, schedule anything, connect anything or start a render.
+ */
+export async function reviewDecisionAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const requested = s(fd, "back");
+  const back = /^\/admin\/marketing-studio\/review(\?[A-Za-z0-9=&_.-]*)?$/.test(requested) ? requested : `${base}/review`;
+  const raw = s(fd, "decision");
+  const decision = raw === "approved" ? "approved" : raw === "regenerate_later" ? "regenerate_later" : "rejected";
+  const productId = s(fd, "productId");
+  await guarded(back, async () => {
+    if (s(fd, "kind") === "video") await reviewVideo(scope, actor, productId, s(fd, "id"), decision);
+    else await reviewCreative(scope, actor, productId, s(fd, "id"), decision);
+  });
+}
+
 // ---- Phase 3: publishing foundation (nothing posts without approval; live publishing is off by default) ---------------------
 
 export async function createPublicationAction(fd: FormData) {

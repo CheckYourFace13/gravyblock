@@ -74,7 +74,7 @@ type CopyContext = { caption: string; headline: string | null; ctaText: string |
  * A video made straight from Product Truth has no concept row. Its copy comes from the first text card of its own storyboard (already
  * traced to verified facts by the storyboard builder and checked by video QA), and its link from a concept of the same product.
  */
-async function videoCopyContext(db: StudioDb, productId: string, videoId: string): Promise<CopyContext | undefined> {
+export async function videoCopyContext(db: StudioDb, productId: string, videoId: string): Promise<CopyContext | undefined> {
   const [v] = await db.select({ storyboard: ms.msVideos.storyboard }).from(ms.msVideos).where(and(eq(ms.msVideos.id, videoId), eq(ms.msVideos.productId, productId))).limit(1);
   const scenes = (v?.storyboard as { scenes?: Array<{ type?: string; headline?: string; subhead?: string }> } | undefined)?.scenes ?? [];
   const card = scenes.find((x) => x.type === "card" && x.subhead);

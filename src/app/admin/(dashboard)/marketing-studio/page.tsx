@@ -61,6 +61,10 @@ export default async function MarketingStudioHome({ searchParams }: { searchPara
         <p className="mt-1 text-sm text-zinc-600">
           Private foundation (Phase 1). Off-site marketing only: it reads product information and stores plans and assets, and it never edits a
           product&apos;s website, app or game. Nothing posts automatically, and no paid service is used.{" "}
+          <Link href="/admin/marketing-studio/review" className="font-semibold underline">
+            Review the generated output
+          </Link>{" "}
+          ·{" "}
           <Link href="/admin/marketing-studio/calendar" className="font-semibold underline">
             Content calendar
           </Link>

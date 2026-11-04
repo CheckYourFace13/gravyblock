@@ -31,7 +31,10 @@ function linkClass(href: string, pathname: string | null, variant: "sidebar" | "
 }
 
 /** Appended only when the Marketing Studio feature flag is on (decided on the server, passed down). */
-const STUDIO_NAV_ITEM = { href: "/admin/marketing-studio", label: "🎬 Marketing Studio" };
+const STUDIO_NAV_ITEMS = [
+  { href: "/admin/marketing-studio", label: "🎬 Marketing Studio" },
+  { href: "/admin/marketing-studio/review", label: "🖼 Studio Review" },
+];
 
 export function AdminShellNav({ variant, studio = false }: { variant: "sidebar" | "mobile" | "topbar"; studio?: boolean }) {
   const pathname = usePathname();
@@ -44,7 +47,7 @@ export function AdminShellNav({ variant, studio = false }: { variant: "sidebar" 
 
   return (
     <nav aria-label="Admin" className={listClass}>
-      {(studio ? [...ADMIN_NAV_ITEMS, STUDIO_NAV_ITEM] : ADMIN_NAV_ITEMS).map((item) => (
+      {(studio ? [...ADMIN_NAV_ITEMS, ...STUDIO_NAV_ITEMS] : ADMIN_NAV_ITEMS).map((item) => (
         <Link key={item.href} href={item.href} className={linkClass(item.href, pathname, variant)}>
           {item.label}
         </Link>

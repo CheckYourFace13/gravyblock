@@ -29,16 +29,27 @@ export async function GET(req: Request, ctx: { params: Promise<{ assetId: string
     const download = new URL(req.url).searchParams.get("download") === "1";
     const ext = asset.storagePath.split(".").pop() ?? "bin";
     const base = (asset.originalName ?? "asset").replace(/[^A-Za-z0-9._-]+/g, "_").replace(/\.[A-Za-z0-9]+$/, "").slice(0, 80) || "asset";
-    return new Response(new Uint8Array(bytes), {
-      headers: {
-        "content-type": asset.mimeType,
-        "content-length": String(bytes.length),
-        "cache-control": "private, no-store",
-        "x-content-type-options": "nosniff",
-        "content-security-policy": "default-src 'none'; img-src 'self' data:; media-src 'self'; sandbox",
-        "content-disposition": `${download ? "attachment" : "inline"}; filename="${base}.${ext}"`,
-      },
-    });
+    const headers: Record<string, string> = {
+      "content-type": asset.mimeType,
+      "accept-ranges": "bytes",
+      "cache-control": "private, no-store",
+      "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; img-src 'self' data:; media-src 'self'; sandbox",
+      "content-disposition": `${download ? "attachment" : "inline"}; filename="${base}.${ext}"`,
+    };
+    // Video players ask for byte ranges to start playing and to seek (Safari refuses to play without them).
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get("range") ?? "");
+    if (range && (range[1] || range[2])) {
+      const size = bytes.length;
+      let start = range[1] ? Number(range[1]) : size - Number(range[2]);
+      let end = range[1] && range[2] ? Number(range[2]) : size - 1;
+      start = Math.max(0, start);
+      end = Math.min(size - 1, end);
+      if (!(start <= end) || start >= size) return new Response(null, { status: 416, headers: { "content-range": `bytes */${size}` } });
+      const part = bytes.subarray(start, end + 1);
+      return new Response(new Uint8Array(part), { status: 206, headers: { ...headers, "content-length": String(part.length), "content-range": `bytes ${start}-${end}/${size}` } });
+    }
+    return new Response(new Uint8Array(bytes), { headers: { ...headers, "content-length": String(bytes.length) } });
   } catch {
     return notFoundResponse();
   }
