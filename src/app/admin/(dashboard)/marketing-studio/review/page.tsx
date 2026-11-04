@@ -111,7 +111,147 @@ function CreativeCard({ c, productId, back }: { c: ReviewCreative; productId: st
   );
 }
 
+const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}.${String(Math.floor((ms % 1000) / 100))}`;
+
+/** The owner's view of a product demo: the video, what is said, what happens scene by scene, and the source behind every claim. */
+function DemoVideoCard({ v, productId, back }: { v: ReviewVideo; productId: string; back: string }) {
+  const d = v.demo!;
+  const label = v.status === "ready_for_review" ? "READY_FOR_OWNER_REVIEW" : v.status === "approved" ? "APPROVED" : v.status.toUpperCase();
+  const failed = v.qaChecks.filter((c) => !c.ok);
+  return (
+    <article className="space-y-5 rounded-2xl border border-zinc-200 bg-white p-4">
+      <div className="grid gap-5 md:grid-cols-[minmax(0,340px)_1fr]">
+        <div>
+          {v.assetId ? (
+            // No autoplay and no loop: the owner presses play.
+            <video src={media(v.assetId)} controls preload="metadata" playsInline className="w-full rounded-lg border border-zinc-200 bg-black" />
+          ) : (
+            <p className="rounded-lg bg-red-50 p-6 text-center text-xs text-red-800">No video file was stored.</p>
+          )}
+          <Decision kind="video" id={v.videoId} productId={productId} back={back} status={v.status} qaPassed={v.qa.passed && Boolean(v.assetId)} />
+          <p className="mt-2 text-[11px] text-zinc-500">Approving only records your decision. Nothing is published, scheduled or connected, and no other video is made until you decide.</p>
+        </div>
+        <div className="min-w-0 space-y-3 text-sm">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${v.status === "approved" ? "bg-emerald-100 text-emerald-800" : v.status === "ready_for_review" ? "bg-sky-100 text-sky-800" : "bg-red-100 text-red-800"}`}>{label}</span>
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-700">{d.classification.replaceAll("_", " ")}</span>
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-700">{v.durationSec ?? "?"} seconds</span>
+            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-700">
+              {v.width ?? "?"}x{v.height ?? "?"} · 30 fps
+            </span>
+          </div>
+          <h3 className="text-base font-semibold text-zinc-900">{d.title}</h3>
+          <p>
+            <span className="font-medium">CTA:</span> {d.cta.text} <span className="break-all text-xs text-zinc-500">{d.cta.url}</span>
+          </p>
+          <div className="rounded-lg bg-zinc-50 p-3">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">Audio</p>
+            <p className="mt-1 text-xs text-zinc-800">
+              <span className="font-semibold">Voiceover:</span> {d.audio.voiceover.engine}, voice {d.audio.voiceover.voice}, speed {d.audio.voiceover.speed}. Model {d.audio.voiceover.model}. License: {d.audio.voiceover.license}. Cost: {d.audio.voiceover.cost}.
+            </p>
+            <p className="mt-1 text-xs text-zinc-800">
+              <span className="font-semibold">Music:</span> {d.audio.music.source}. License: {d.audio.music.license}. Cost: {d.audio.music.cost}.
+            </p>
+          </div>
+          <div className="rounded-lg bg-zinc-50 p-3">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">Quality checks ({v.qaChecks.filter((c) => c.ok).length} of {v.qaChecks.length} passed)</p>
+            {failed.length ? (
+              <ul className="mt-1 space-y-0.5 text-xs text-red-800">
+                {failed.map((c) => (
+                  <li key={c.id}>
+                    {c.severity === "warn" ? "Warning" : "FAILED"} {c.id}: {c.detail}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-xs font-semibold text-emerald-700">Every automated check passed.</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <section>
+        <h4 className="text-sm font-semibold text-zinc-900">Voiceover transcript</h4>
+        <ol className="mt-2 space-y-1.5 text-sm">
+          {d.transcript.map((t) => (
+            <li key={t.id} className="flex gap-3">
+              <span className="w-24 shrink-0 font-mono text-[11px] text-zinc-500">
+                {mmss(t.startMs)} to {mmss(t.endMs)}
+              </span>
+              <span className="text-zinc-900">{t.text}</span>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-1 text-[11px] text-zinc-500">Captions are on screen word by word with the voice. Word timing inside a line is estimated from the line&apos;s measured audio length; line starts and ends are exact.</p>
+      </section>
+
+      <section>
+        <h4 className="text-sm font-semibold text-zinc-900">Scene by scene</h4>
+        <ol className="mt-2 space-y-3">
+          {d.scenes.map((s, i) => (
+            <li key={s.id} className="rounded-xl border border-zinc-200 p-3 text-sm">
+              <p className="font-semibold text-zinc-900">
+                {i + 1}. {s.headline ?? s.id} <span className="font-mono text-[11px] font-normal text-zinc-500">{mmss(s.startMs)} to {mmss(s.endMs)}</span>
+              </p>
+              <p className="text-zinc-700">{s.purpose}</p>
+              <p className="mt-1 text-xs text-zinc-700">
+                <span className="font-semibold">Motion:</span> {s.motion.join("; ")}.
+              </p>
+              {s.sourceVisual ? (
+                <div className="mt-1 text-xs text-zinc-700">
+                  <p>
+                    <span className="font-semibold">Source visual:</span>{" "}
+                    <a href={s.sourceVisual.url} target="_blank" rel="noreferrer noopener" className="break-all underline">
+                      {s.sourceVisual.url}
+                    </a>{" "}
+                    <span className="text-zinc-500">captured {s.sourceVisual.capturedAt.slice(0, 16).replace("T", " ")} UTC</span>
+                  </p>
+                  <p className="text-zinc-600">{s.sourceVisual.note}</p>
+                  {s.sourceVisual.states.length > 1 ? <p className="text-zinc-500">Real states captured: {s.sourceVisual.states.join(" | ")}</p> : null}
+                </div>
+              ) : (
+                <p className="mt-1 text-xs text-zinc-500">No product screen is claimed in this scene.</p>
+              )}
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section>
+        <h4 className="text-sm font-semibold text-zinc-900">Source for every product claim</h4>
+        <ul className="mt-2 space-y-2 text-sm">
+          {d.claims.map((c) => (
+            <li key={c.id} className="rounded-xl border border-zinc-200 p-3">
+              <p className="text-zinc-900">{c.text}</p>
+              <p className={`text-[11px] ${c.factsVerified && c.factIds.length ? "text-emerald-700" : "text-red-800"}`}>{c.factIds.length} verified Product Truth fact(s) {c.factsVerified ? "back this claim" : "are missing or unverified"}</p>
+              <ul className="mt-1 space-y-0.5 text-xs text-zinc-700">
+                {c.sources.map((s, k) => (
+                  <li key={k}>
+                    <span className={s.onPage ? "text-emerald-700" : "text-red-800"}>{s.onPage ? "Found on page" : "NOT FOUND on page"}</span>: &quot;{s.quote}&quot;{" "}
+                    <a href={s.url} target="_blank" rel="noreferrer noopener" className="break-all text-zinc-500 underline">
+                      {s.url}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500">On-screen text and the claim behind it</p>
+        <ul className="mt-1 grid gap-x-6 text-xs text-zinc-700 sm:grid-cols-2">
+          {d.onScreen.map((o, i) => (
+            <li key={i}>
+              {o.kind}: &quot;{o.text}&quot; <span className="text-zinc-500">({o.claim})</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </article>
+  );
+}
+
 function VideoCard({ v, productId, back }: { v: ReviewVideo; productId: string; back: string }) {
+  if (v.demo) return <DemoVideoCard v={v} productId={productId} back={back} />;
   return (
     <article className="grid gap-4 rounded-2xl border border-zinc-200 bg-white p-4 md:grid-cols-[minmax(0,320px)_1fr]">
       <div>
@@ -236,7 +376,7 @@ function ProductSection({ p, showAll, back }: { p: ReviewProduct; showAll: boole
       )}
 
       <h3 className="pt-2 text-lg font-semibold text-zinc-900">Pilot video</h3>
-      {p.video ? <VideoCard v={p.video} productId={p.productId} back={back} /> : <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">No video has been rendered for this product.</p>}
+      {p.video ? <VideoCard v={p.video} productId={p.productId} back={back} /> : <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{p.videoNote ?? "No video has been rendered for this product."}</p>}
       {p.otherVideos ? <p className="text-xs text-zinc-500">{p.otherVideos} older or alternative video(s) exist for this product and are not shown here.</p> : null}
     </section>
   );
@@ -265,14 +405,14 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
         <h1 className="mt-1 text-2xl font-semibold text-zinc-900">Marketing Studio → Review</h1>
         <p className="mt-1 max-w-3xl text-sm text-zinc-600">
           The real generated output for the three pilots: the best {REPRESENTATIVE_COUNT}{" "}
-          images per product (one per concept, different angles first) and the pilot video. Approving, rejecting or
+          images per product (one per concept, different angles first) and the RentalNoodle pilot demo video (other video generation is frozen until you approve it). Approving, rejecting or
           marking &quot;regenerate later&quot; only records your decision. <strong>Nothing is published, scheduled or connected from this screen.</strong>
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
           <a href="/api/admin/marketing-studio/review-bundle" className="rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white">
             Download private review bundle (.zip)
           </a>
-          <span className="text-xs text-zinc-500">12 images, 3 videos and an index.html with captions, CTAs and Product Truth. Owner only.</span>
+          <span className="text-xs text-zinc-500">12 images, the RentalNoodle demo video and an index.html with captions, CTAs, the voiceover transcript and the source of every claim. Owner only.</span>
           <span className="text-xs text-zinc-500">Approved so far: {approved}</span>
           {allParam ? null : (
             <Link href="/admin/marketing-studio/review?all=1" className="text-xs font-semibold underline">

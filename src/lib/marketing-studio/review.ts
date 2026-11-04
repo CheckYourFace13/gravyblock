@@ -8,6 +8,7 @@ import { aspectLabel } from "./publishing/platforms";
 import { videoCopyContext } from "./publishing/queue";
 import { listProducts } from "./repository";
 import type { OwnerScope } from "./scope";
+import type { DemoRecord } from "./video/demo/types";
 import type { CardScene, Storyboard } from "./video/types";
 
 export const PILOT_SLUGS = ["drinkknird", "rentalnoodle", "scribblezap"] as const;
@@ -61,6 +62,10 @@ export type ReviewVideo = {
   postCaption: string | null;
   sources: Array<{ assetId: string; name: string; kind: string; provenance: string; sourceUrl: string | null }>;
   facts: FactRef[];
+  /** Present for a product demo video: the transcript, storyboard, claim sources and audio provenance the owner reviews. */
+  demo: DemoRecord | null;
+  qaChecks: Array<{ id: string; ok: boolean; severity: string; detail: string }>;
+  classification: string | null;
 };
 
 export type ReviewProduct = {
@@ -72,6 +77,8 @@ export type ReviewProduct = {
   all: ReviewCreative[];
   totalCreatives: number;
   video: ReviewVideo | null;
+  /** Why there is no video to watch for this product (for example it was rejected and generation is frozen). */
+  videoNote: string | null;
   otherVideos: number;
 };
 
@@ -177,9 +184,37 @@ export async function loadReview(scope: OwnerScope, db: StudioDb = requireStudio
 
     // The pilot video: the newest one that passed review checks, else the newest of any state so a failure is visible rather than hidden.
     const pVideos = videos.filter((v) => v.productId === p.id && v.status !== "superseded").sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    const chosen = pVideos.find((v) => REVIEWABLE.has(v.status) && summarizeQa(v.qa).passed && v.assetId) ?? pVideos[0];
+    const isDemo = (v: (typeof pVideos)[number]) => (v.storyboard as { kind?: string } | null)?.kind === "demo";
+    const chosen = pVideos.find((v) => isDemo(v) && v.status !== "failed") ?? pVideos.find((v) => REVIEWABLE.has(v.status) && summarizeQa(v.qa).passed && v.assetId) ?? pVideos[0];
     let video: ReviewVideo | null = null;
-    if (chosen) {
+    let videoNote: string | null = null;
+    const chosenQaChecks = (((chosen?.qa as { checks?: ReviewVideo["qaChecks"] } | null)?.checks ?? []) as ReviewVideo["qaChecks"]).map((c) => ({ id: c.id, ok: c.ok, severity: c.severity ?? "fail", detail: c.detail ?? "" }));
+    const classification = (chosen?.storyboard as { classification?: string } | null)?.classification ?? null;
+    if (chosen && !isDemo(chosen) && chosen.status === "rejected") {
+      // A slideshow the owner judged not good enough is history, not review material.
+      videoNote = `The slideshow video for this product was rejected as not production-ready${classification ? ` (${classification.replaceAll("_", " ")})` : ""}. Video generation is frozen until the RentalNoodle pilot demo is approved.`;
+    } else if (chosen && isDemo(chosen)) {
+      const rec = chosen.storyboard as DemoRecord;
+      video = {
+        videoId: chosen.id,
+        assetId: chosen.assetId,
+        title: chosen.title,
+        status: chosen.status,
+        durationSec: chosen.durationMs ? +(chosen.durationMs / 1000).toFixed(1) : null,
+        width: chosen.width,
+        height: chosen.height,
+        qa: summarizeQa(chosen.qa),
+        captions: [],
+        scenes: [],
+        endCard: rec?.cta ? { headline: "One simple place for every rental.", ctaText: rec.cta.text, ctaUrl: rec.cta.url } : null,
+        postCaption: null,
+        sources: [],
+        facts: [],
+        demo: rec?.version === 2 ? rec : null,
+        qaChecks: chosenQaChecks,
+        classification: rec?.classification ?? null,
+      };
+    } else if (chosen) {
       const sb = (chosen.storyboard as Storyboard | null) ?? { version: 1 as const, scenes: [], transition: "fade" as const };
       const cards = sb.scenes.filter((s): s is CardScene => s.type === "card");
       const end = [...cards].reverse().find((s) => s.family === "cta") ?? null;
@@ -210,6 +245,9 @@ export async function loadReview(scope: OwnerScope, db: StudioDb = requireStudio
           return { assetId: id, name: a?.originalName ?? "unknown asset", kind: a?.kind ?? "unknown", provenance: a?.provenance ?? "unknown", sourceUrl: a?.sourceUrl ?? null };
         }),
         facts: matchFacts([...onScreen, end?.cta?.text ?? "", end?.cta?.url ?? ""], pFacts),
+        demo: null,
+        qaChecks: chosenQaChecks,
+        classification,
       };
     }
 
@@ -222,6 +260,7 @@ export async function loadReview(scope: OwnerScope, db: StudioDb = requireStudio
       all: items,
       totalCreatives: items.length,
       video,
+      videoNote,
       otherVideos: Math.max(0, pVideos.length - (chosen ? 1 : 0)),
     });
   }

@@ -14,6 +14,9 @@ export const STUDIO_DIRS = {
   logs: path.join(STUDIO_ROOT, "logs"),
 } as const;
 
+/** Isolated install of the free offline voiceover engine (Kokoro). Not part of the web app's dependencies. */
+export const STUDIO_TTS_DIR = process.env.MARKETING_TTS_DIR?.trim() || path.join(STUDIO_ROOT, "tts");
+
 /** Presence of this file stops the worker claiming or running anything (emergency global disable, layer 1). */
 export const DISABLE_FILE = path.join(STUDIO_ROOT, "DISABLE");
 

@@ -32,7 +32,26 @@ function imageCard(c: ReviewCreative, file: string): string {
 </article>`;
 }
 
+const clock = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
+
+function demoCard(v: ReviewVideo, file: string): string {
+  const d = v.demo!;
+  const label = v.status === "ready_for_review" ? "READY_FOR_OWNER_REVIEW" : v.status.toUpperCase();
+  return `<article class="card video wide">
+<video src="${file}" controls preload="metadata" playsinline></video>
+<div class="meta"><span class="tag">${esc(label)}</span> <span class="tag">${v.durationSec ?? "?"}s</span> <span class="tag ${v.qa.passed ? "ok" : "bad"}">QA ${v.qa.passed ? "passed" : "failed"} (${v.qaChecks.length} checks)</span></div>
+<h3>${esc(d.title)}</h3>
+<p><b>CTA:</b> ${esc(d.cta.text)} &rarr; ${esc(d.cta.url)}</p>
+<p><b>Voiceover:</b> ${esc(d.audio.voiceover.engine)}, voice ${esc(d.audio.voiceover.voice)}, ${esc(d.audio.voiceover.license)}, cost ${esc(d.audio.voiceover.cost)}.<br><b>Music:</b> ${esc(d.audio.music.source)}, ${esc(d.audio.music.license)}, cost ${esc(d.audio.music.cost)}.</p>
+<details open><summary>Voiceover transcript</summary><ol>${d.transcript.map((t) => `<li><span class="muted">${clock(t.startMs)}</span> ${esc(t.text)}</li>`).join("")}</ol></details>
+<details open><summary>Scene by scene</summary><ol>${d.scenes.map((s) => `<li><b>${esc(s.headline ?? s.id)}</b> <span class="muted">${clock(s.startMs)}-${clock(s.endMs)}</span><br>${esc(s.purpose)}<br><span class="muted">Motion: ${esc(s.motion.join("; "))}.${s.sourceVisual ? ` Source: ${esc(s.sourceVisual.url)} (captured ${esc(s.sourceVisual.capturedAt.slice(0, 16))} UTC).` : ""}</span></li>`).join("")}</ol></details>
+<details open><summary>Source for every claim</summary><ul>${d.claims.map((c) => `<li>${esc(c.text)}<br>${c.sources.map((s) => `<span class="muted">${s.onPage ? "found" : "NOT FOUND"}: &quot;${esc(s.quote)}&quot; ${esc(s.url)}</span>`).join("<br>")}</li>`).join("")}</ul></details>
+<details><summary>Quality checks</summary><ul>${v.qaChecks.map((c) => `<li>${c.ok ? "ok" : "FAIL"} ${esc(c.id)}: ${esc(c.detail)}</li>`).join("")}</ul></details>
+</article>`;
+}
+
 function videoCard(v: ReviewVideo, file: string): string {
+  if (v.demo) return demoCard(v, file);
   return `<article class="card video">
 <video src="${file}" controls preload="metadata" playsinline></video>
 <div class="meta"><span class="tag">${v.durationSec ?? "?"}s</span> <span class="tag">${v.width ?? "?"}x${v.height ?? "?"}</span> <span class="tag ${v.qa.passed ? "ok" : "bad"}">QA ${v.qa.passed ? "passed" : "failed"} (${v.qa.checks} checks)</span></div>
@@ -56,7 +75,7 @@ ${s.video ? `<h3>Pilot video</h3><div class="grid">${videoCard(s.video.v, s.vide
     .join("\n");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
 <title>Marketing Studio owner review</title>
-<style>body{font:15px/1.45 system-ui,sans-serif;margin:0;padding:24px;background:#fafafa;color:#18181b}h1{margin:0 0 4px}h2{margin-top:36px;border-bottom:1px solid #d4d4d8;padding-bottom:6px}.muted{color:#71717a;font-size:12px}.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}.card{background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:12px}.card img,.card video{width:100%;border-radius:8px;border:1px solid #e4e4e7;background:#000}.card.video{max-width:340px}.tag{display:inline-block;background:#f4f4f5;border-radius:99px;padding:1px 8px;font-size:11px;margin:2px 2px 0 0}.ok{background:#d1fae5;color:#065f46}.bad{background:#fee2e2;color:#991b1b}.facts{padding-left:18px;margin:6px 0}h3{margin:8px 0 4px}p{margin:4px 0}</style></head><body>
+<style>body{font:15px/1.45 system-ui,sans-serif;margin:0;padding:24px;background:#fafafa;color:#18181b}h1{margin:0 0 4px}h2{margin-top:36px;border-bottom:1px solid #d4d4d8;padding-bottom:6px}.muted{color:#71717a;font-size:12px}.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}.card{background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:12px}.card img,.card video{width:100%;border-radius:8px;border:1px solid #e4e4e7;background:#000}.card.video{max-width:340px}.card.wide{max-width:560px}.tag{display:inline-block;background:#f4f4f5;border-radius:99px;padding:1px 8px;font-size:11px;margin:2px 2px 0 0}.ok{background:#d1fae5;color:#065f46}.bad{background:#fee2e2;color:#991b1b}.facts{padding-left:18px;margin:6px 0}h3{margin:8px 0 4px}p{margin:4px 0}</style></head><body>
 <h1>Marketing Studio owner review</h1>
 <p class="muted">Generated ${esc(generatedAt.toISOString())}. For owner review only. Nothing here has been published, scheduled or sent anywhere.</p>
 ${body}

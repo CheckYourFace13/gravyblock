@@ -70,7 +70,7 @@ describe("review selection (pure)", () => {
     assert.deepEqual(matchFacts(["Rent anything anywhere"], facts).map((f) => f.id), ["1"]);
   });
   test("bundle index escapes text and says nothing was published", () => {
-    const html = renderIndexHtml([{ product: { productId: "p", slug: "x", name: "<b>X</b>", kind: "saas", representatives: [], all: [], totalCreatives: 0, video: null, otherVideos: 0 }, images: [{ c: cr({ headline: '<script>alert("x")</script>', caption: "a & b" }), file: "x-01.png" }], video: null }], new Date("2026-11-03T00:00:00Z"));
+    const html = renderIndexHtml([{ product: { productId: "p", slug: "x", name: "<b>X</b>", kind: "saas", representatives: [], all: [], totalCreatives: 0, video: null, videoNote: null, otherVideos: 0 }, images: [{ c: cr({ headline: '<script>alert("x")</script>', caption: "a & b" }), file: "x-01.png" }], video: null }], new Date("2026-11-03T00:00:00Z"));
     assert.ok(!html.includes("<script>alert"));
     assert.ok(html.includes("&lt;script&gt;"));
     assert.ok(html.includes("a &amp; b"));
@@ -115,16 +115,31 @@ describe("owner review (database)", { skip: !HAVE_DB }, () => {
       }
       const shot = await put("png", PNG, "image/png", "screenshot", `${name}-shot.png`, 1080, 1080);
       const v = await put("mp4", MP4, "video/mp4", "render_video", `${name}.mp4`, 1080, 1920);
+      const demoRecord = {
+        version: 2,
+        kind: "demo",
+        classification: "PRODUCT_DEMO",
+        title: "RentalNoodle demo",
+        durationMs: 29000,
+        transcript: [{ id: "L1", sceneId: "s1", text: "Prorating rent for a mid-month move-in?", caption: "Prorating rent for a mid-month move-in?", startMs: 300, endMs: 2500 }],
+        scenes: [{ id: "s1", kind: "screen", startMs: 0, endMs: 3000, purpose: "Hook", motion: ["cursor", "typing", "camera"], headline: "Mid-month move-in?", sourceVisual: { plate: "prorate", url: "https://rentalnoodle.com/tools/prorated-rent", capturedAt: "2026-11-03T00:00:00.000Z", states: ["Calculator as it loads"], note: "Real states of the calculator" } }],
+        claims: [{ id: "c1", text: "RentalNoodle has a prorated rent calculator.", sceneId: "s1", factIds: ["f1"], factsVerified: true, sources: [{ url: "https://rentalnoodle.com/tools", capturedAt: "2026-11-03T00:00:00.000Z", quote: "Mid-month move-in/out", onPage: true }] }],
+        onScreen: [{ sceneId: "s1", kind: "headline", text: "Mid-month move-in?", claim: "c1" }],
+        cta: { text: "Start Managing Free", url: "https://rentalnoodle.com/sign-up" },
+        audio: { voiceover: { engine: "Kokoro-82M", model: "m", voice: "af_heart", license: "Apache-2.0", cost: "$0", speed: 1 }, music: { source: "generated", license: "original", cost: "$0" } },
+        capturedAt: "2026-11-03T00:00:00.000Z",
+      };
+      const isDemo = name === "RentalNoodle";
       const [video] = await db.insert(ms.msVideos).values({
         productId: p.id,
         title: `${name} video`,
-        storyboard: { version: 1, transition: "fade", scenes: [{ type: "card", seconds: 4, family: "product_benefit", headline: `${name} makes this simple.`, subhead: "A verified sentence." }, { type: "image", seconds: 4, assetId: shot.id, motion: "zoom_in", caption: "Real screen" }, { type: "card", seconds: 4, family: "cta", headline: "Try it", cta: { text: "Learn more", url: `https://${name.toLowerCase()}.com/` } }] },
+        storyboard: isDemo ? demoRecord : { version: 1, classification: name === "ScribbleZap" ? "TEASER_ONLY" : "SLIDESHOW_NOT_PRODUCTION_READY", transition: "fade", scenes: [{ type: "card", seconds: 4, family: "product_benefit", headline: `${name} makes this simple.`, subhead: "A verified sentence." }, { type: "image", seconds: 4, assetId: shot.id, motion: "zoom_in", caption: "Real screen" }, { type: "card", seconds: 4, family: "cta", headline: "Try it", cta: { text: "Learn more", url: `https://${name.toLowerCase()}.com/` } }] },
         targetSeconds: 15,
         assetId: v.id,
         width: 1080,
         height: 1920,
-        durationMs: 15000,
-        status: "ready_for_review",
+        durationMs: isDemo ? 29000 : 15000,
+        status: isDemo ? "ready_for_review" : "rejected",
         qa: { passed: true, checks: [{ id: "cta_readable", ok: true, severity: "fail", detail: "ok" }] },
       }).returning();
       ids[name] = { productId: p.id, creatives, video: video.id };
@@ -142,11 +157,21 @@ describe("owner review (database)", { skip: !HAVE_DB }, () => {
       assert.equal(p.representatives.length, 4);
       assert.equal(p.totalCreatives, 10);
       assert.ok(p.representatives.every((c) => c.qa.passed && c.assetId && c.facts.length === 1 && c.facts[0].verified && c.campaign === "Pilot launch" && c.sizeKey === "square" && c.aspect === "1:1"));
-      assert.ok(p.video && p.video.assetId && p.video.durationSec === 15 && p.video.qa.passed);
-      assert.equal(p.video?.endCard?.ctaText, "Learn more");
-      assert.deepEqual(p.video?.captions, ["Real screen"]);
-      assert.equal(p.video?.sources[0].kind, "screenshot");
-      assert.ok((p.video?.facts.length ?? 0) >= 1);
+      if (p.slug === "rentalnoodle") {
+        assert.ok(p.video && p.video.assetId && p.video.durationSec === 29 && p.video.qa.passed);
+        assert.equal(p.video.demo?.kind, "demo");
+        assert.equal(p.video.demo?.transcript.length, 1);
+        assert.equal(p.video.demo?.claims[0].sources[0].onPage, true);
+        assert.equal(p.video.demo?.cta.text, "Start Managing Free");
+        assert.ok(p.video.qaChecks.length >= 1);
+        assert.equal(p.videoNote, null);
+      } else {
+        // a slideshow the owner rejected is history: no player, an explanation instead
+        assert.equal(p.video, null);
+        assert.match(p.videoNote ?? "", /rejected as not production-ready/);
+        assert.match(p.videoNote ?? "", p.slug === "scribblezap" ? /TEASER ONLY/ : /SLIDESHOW NOT PRODUCTION READY/);
+        assert.match(p.videoNote ?? "", /frozen/);
+      }
     }
   });
 
@@ -187,18 +212,22 @@ describe("owner review (database)", { skip: !HAVE_DB }, () => {
     await assert.rejects(reviewCreative({ kind: "customer", organizationId: "00000000-0000-4000-8000-000000000001" }, "t", ids.ScribbleZap.productId, ids.ScribbleZap.creatives[0], "approved"));
   });
 
-  test("the bundle holds 12 images, 3 videos and an index with captions, CTAs and provenance", async () => {
+  test("the bundle holds 12 images, the demo video and an index with captions, CTAs, transcript and claim sources", async () => {
     // Put the video back in review so all three pilot videos are present.
     await reviewVideo(INTERNAL_SCOPE, "t", ids.RentalNoodle.productId, ids.RentalNoodle.video, "approved");
     const b = await buildReviewBundle(INTERNAL_SCOPE);
     assert.equal(b.images, 12);
-    assert.equal(b.videos, 3);
-    assert.equal(b.files.length, 16);
+    assert.equal(b.videos, 1);
+    assert.equal(b.files.length, 14);
     assert.ok(b.files.includes("index.html"));
     assert.ok(b.files.every((f) => /^[A-Za-z0-9._-]+$/.test(f)));
     assert.match(b.fileName, /^marketing-studio-review-\d{4}-\d{2}-\d{2}\.zip$/);
     const text = b.zip.toString("latin1");
-    assert.ok(text.includes("drinkknird-pilot-video.mp4"));
+    assert.ok(text.includes("rentalnoodle-pilot-video.mp4"));
+    assert.ok(!text.includes("drinkknird-pilot-video.mp4"), "a rejected slideshow must not be in the bundle");
+    assert.ok(text.includes("Prorating rent for a mid-month move-in?"));
+    assert.ok(text.includes("READY_FOR_OWNER_REVIEW") || text.includes("APPROVED"), "the demo's review state must be shown");
+    assert.ok(text.includes("Mid-month move-in/out"));
     assert.ok(text.includes("DrinkKnird caption"));
     assert.ok(text.includes("Learn more"));
     assert.ok(text.includes("https://drinkknird.com"));

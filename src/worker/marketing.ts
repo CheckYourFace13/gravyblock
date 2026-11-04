@@ -16,6 +16,7 @@ import { collectDueMetrics } from "@/lib/marketing-studio/measurement/collect";
 import { runDuePublications } from "@/lib/marketing-studio/publishing/queue";
 import { INTERNAL_SCOPE } from "@/lib/marketing-studio/scope";
 import { SIZE_KEYS, type SizeKey } from "@/lib/marketing-studio/creative/theme";
+import { renderDemoVideoJob } from "@/lib/marketing-studio/video/demo/run";
 import { renderVideoJob, runBenchmarkJob } from "@/lib/marketing-studio/video/jobs";
 import { closeStudioDb, getStudioDb } from "@/lib/marketing-studio/db";
 import {
@@ -38,7 +39,7 @@ import { cleanupTmp, ensureStorageDirs, measureStudioUsage } from "@/lib/marketi
 const WORKER_ID = `marketing-${process.pid}-${randomUUID().slice(0, 8)}`;
 const JOB_TIMEOUT_MS = 60_000;
 /** Heavy jobs get a longer hard limit; at the limit the real child processes are killed, not just abandoned. */
-const HEAVY_TIMEOUT_MS: Record<string, number> = { render_creatives: 10 * 60_000, render_video: 15 * 60_000, benchmark_video: 20 * 60_000 };
+const HEAVY_TIMEOUT_MS: Record<string, number> = { render_creatives: 10 * 60_000, render_video: 15 * 60_000, render_demo_video: 30 * 60_000, benchmark_video: 20 * 60_000 };
 const MAX_JOBS_PER_LOOP = 3;
 const LOG_FILE = path.join(STUDIO_DIRS.logs, "worker.log");
 const LOG_MAX_BYTES = 5 * 1024 * 1024;
@@ -96,6 +97,8 @@ async function runJob(job: Job): Promise<Record<string, unknown>> {
     }
     case "render_video":
       return { ...(await renderVideoJob(job.input as { videoId?: string })) };
+    case "render_demo_video":
+      return { ...(await renderDemoVideoJob(job.input as { videoId?: string })) };
     case "benchmark_video":
       return { ...(await runBenchmarkJob(job.input as { targetSeconds?: number; label?: string })) };
     case "cleanup_tmp": {
