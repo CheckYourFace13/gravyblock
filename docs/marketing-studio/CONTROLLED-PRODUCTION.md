@@ -40,4 +40,4 @@ To unlock a production video, supply ONE of:
 
 ## Social publishing preparation
 
-No social account is connected and nothing has been posted. The first live post is the approved RentalNoodle video, to an owned account connected by official OAuth only (Chris authorizes once; no password or token is ever typed into chat). `scripts/ops/marketing-fb-pilot.ts` runs the pre-flight check (account, video, caption, Product Truth, CTA, no email or personal information, no duplicate) before `--publish`.
+Superseded by `ROLLOUT-AND-PAID-ROADMAP.md` (2026-11-04): games first on a shared iScream Studio identity; the RentalNoodle Page and first post are postponed. No account is connected and nothing has been posted. `scripts/ops/marketing-fb-video-post.ts` stays ready (check mode) for whichever approved video is posted first.
