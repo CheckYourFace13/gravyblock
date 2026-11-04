@@ -14,6 +14,7 @@ import { LIMITS, STUDIO_DIRS, studioEnabledByEnv } from "@/lib/marketing-studio/
 import { renderConcept } from "@/lib/marketing-studio/creative/pipeline";
 import { collectDueMetrics } from "@/lib/marketing-studio/measurement/collect";
 import { runDuePublications } from "@/lib/marketing-studio/publishing/queue";
+import { reconcileGameLaunchState } from "@/lib/marketing-studio/video/demo/launch-state";
 import { INTERNAL_SCOPE } from "@/lib/marketing-studio/scope";
 import { SIZE_KEYS, type SizeKey } from "@/lib/marketing-studio/creative/theme";
 import { renderDemoVideoJob } from "@/lib/marketing-studio/video/demo/run";
@@ -172,6 +173,9 @@ async function loopOnce() {
       clearInterval(watchdog);
     }
   }
+  // Launch transition: a game that gained a verified live store listing has its unpublished pre-launch videos flagged stale before anything is sent.
+  const launch = await reconcileGameLaunchState(db).catch((e) => [{ slug: "error", phase: "pre_launch" as const, stale: [], cancelled: 0, replacement: null, skipped: [e instanceof Error ? e.message : String(e)] }]);
+  if (launch.some((r) => r.stale.length > 0)) await log("launch state: stale pre-launch creative flagged", { launch });
   // Due direct publications. This does nothing at all unless live publishing has been switched on by an operator (default off).
   const due = await runDuePublications(INTERNAL_SCOPE, undefined, db).catch((e) => ({ skipped: `error: ${e instanceof Error ? e.message : String(e)}`, attempted: 0 }));
   if (due.attempted > 0) await log("publications processed", due);

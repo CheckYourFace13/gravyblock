@@ -68,11 +68,41 @@ export function checkGameLanguage(i: LanguageInput): LanguageCheck[] {
   add("lang_headlines_short", longHead.length === 0, longHead.length ? `on-screen text too wordy: "${longHead[0]}"` : "on-screen headlines are short");
 
   const ctaLine = i.spoken[i.spoken.length - 1] ?? "";
-  add("lang_cta_invites", /\?|\b(follow|try|ready|think you|how far|can you)\b/i.test(ctaLine) && !NOT_YET_DOWNLOADABLE.test(i.cta.text), `closing line "${ctaLine}" and button "${i.cta.text}" invite the viewer without claiming a download`);
+  if (i.storeLive) {
+    const installs = /\b(google play|app store|download|play now)\b/i;
+    add("lang_cta_installs", installs.test(i.cta.text) && installs.test(ctaLine), `the game is live, so closing line "${ctaLine}" and button "${i.cta.text}" must send the viewer to the store`);
+  } else {
+    add("lang_cta_invites", /\?|\b(follow|try|ready|think you|how far|can you)\b/i.test(ctaLine) && !NOT_YET_DOWNLOADABLE.test(i.cta.text), `closing line "${ctaLine}" and button "${i.cta.text}" invite the viewer without claiming a download`);
+  }
   return out;
+}
+
+export type StoreDestination = { store: "google_play" | "app_store"; url: string };
+
+/**
+ * The verified, live public store destination in Product Truth, if any. Only a verified fact holding a real store listing URL counts; a fact that
+ * still says "coming soon" never does. Google Play wins when both exist (the first mobile target).
+ */
+export function storeDestination(facts: Array<{ value: string; verified: boolean }>): StoreDestination | null {
+  const found: StoreDestination[] = [];
+  for (const f of facts) {
+    if (!f.verified || /coming soon/i.test(f.value)) continue;
+    for (const m of f.value.matchAll(/https?:\/\/[^\s"'<>)]+/gi)) {
+      let u: URL;
+      try {
+        u = new URL(m[0].replace(/[.,;]+$/, ""));
+      } catch {
+        continue;
+      }
+      if (u.protocol !== "https:") continue;
+      if (u.hostname === "play.google.com" && u.pathname.startsWith("/store/apps/")) found.push({ store: "google_play", url: u.toString() });
+      else if (u.hostname === "apps.apple.com" && u.pathname.length > 1) found.push({ store: "app_store", url: u.toString() });
+    }
+  }
+  return found.find((d) => d.store === "google_play") ?? found[0] ?? null;
 }
 
 /** Until a verified store link is live a game uses an invitation CTA; afterwards an install CTA is required. */
 export function gameCtaPhase(facts: Array<{ value: string; verified: boolean }>): "pre_launch" | "store_live" {
-  return facts.some((f) => f.verified && /https?:\/\/(play\.google\.com\/store\/apps|apps\.apple\.com\/)/i.test(f.value)) ? "store_live" : "pre_launch";
+  return storeDestination(facts) ? "store_live" : "pre_launch";
 }

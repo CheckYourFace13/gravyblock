@@ -17,7 +17,7 @@ import type { Claim, Manifest, NarrationLine } from "./types";
 export type DemoSpec = {
   slug: string;
   productName: string;
-  site: { origin: string; ctaText: string; ctaHost: string };
+  site: { origin: string; ctaText: string; ctaHost: string; /** extra origins the CTA may point to (a live store listing) */ ctaOrigins?: string[] };
   title: string;
   cta: { text: string; url: string; display: string };
   narration: NarrationLine[];

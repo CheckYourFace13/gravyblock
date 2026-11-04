@@ -54,3 +54,13 @@ Loop: creative, small paid test, measure qualified users, pause losers, identify
 - **Websites and SaaS:** Google Search, Google video and Demand-style campaigns where appropriate, Meta traffic and conversion campaigns where a proper brand identity exists, retargeting later only where consent and privacy rules allow. Optimize toward qualified visitors, signups, trials, subscriptions and revenue.
 - **Safety:** the owner sets the total approved budget; product-level limits; campaign-level daily caps; no automatic increase beyond approved bounds; automatic pause for clear losers; no runaway spend; attribution marked CONFIRMED, ESTIMATED or UNKNOWN. Studio recommends budget changes but may never exceed approved limits.
 - **State:** `paid_acquisition = { status: roadmap_only, spendEnabled: false, totalApprovedBudgetCents: 0 }`. No ad code exists that can spend.
+
+## Automatic game CTA (launch transition)
+
+Product Truth decides a game video's call to action; no spec is edited when a game goes live.
+
+- **Pre-launch** (no verified live store URL): invitation CTA ("Follow iScream Studio", "How far can you get?"). Never "coming soon", never anything that implies a download.
+- **Live**: a verified fact holding a real Google Play (`play.google.com/store/apps/...`) or App Store (`apps.apple.com/...`) HTTPS URL, and not marked coming soon. Renders then use "Get it on Google Play" / "Download on the App Store", the closing line "Ready to play? Get it on ...", the verified URL, and drop the pre-launch "Coming Soon" fact and claims. Google Play wins if both exist. Code: `video/demo/language-qa.ts` (`storeDestination`), `video/demo/launch.ts` (`specForLaunchState`).
+- **Stale protection**: the Studio worker runs `reconcileGameLaunchState` every loop. For a live game, each unpublished pre-launch video (record `ctaPhase` is not `store_live`) is marked `stale`, its unsent publications (draft, approval required, approved, scheduled) are cancelled, and, when the owner-approved expansion gate allows and generation is not frozen, the old row is superseded and a replacement record is queued. Rendering stays the governed `marketing-demo-run.ts <slug>`. Stale videos cannot be prepared, approved, scheduled or sent.
+- **History is never changed**: a video with a published, publishing, revoked or deleted post, and those posts, are left exactly as they were.
+- Look at it with `scripts/ops/marketing-launch-state.ts` (add `apply` to run the reconcile by hand).

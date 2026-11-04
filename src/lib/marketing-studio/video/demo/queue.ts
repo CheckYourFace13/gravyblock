@@ -19,7 +19,7 @@ const LIVE = ["queued", "rendering", "ready_for_review", "approved"];
  * `queue: false` creates the record only. The pilot demo needs about 1.5 GB at its peak, more than the worker's memory cap, so it is rendered by
  * scripts/ops/marketing-demo-run.ts in its own bounded scope; a worker job would be killed for exceeding the cap.
  */
-export async function createDemoVideo(scope: OwnerScope, actor: string, productId: string, db: StudioDb = requireStudioDb(), opts: { queue?: boolean } = {}) {
+export async function createDemoVideo(scope: OwnerScope, actor: string, productId: string, db: StudioDb = requireStudioDb(), opts: { queue?: boolean; /** a launch-transition replacement may sit beside an earlier video that is already public (history) */ replaceStale?: boolean } = {}) {
   const product = await requireProduct(scope, productId, db);
   if (!DEMO_PILOT_SLUGS.includes(product.slug)) throw new Error(`${product.name} has no demo video spec: without real captured product interaction or real gameplay it stays TEASER_ONLY`);
   // Anything beyond the approved reference needs the owner-approved expansion gate (and no freeze).
@@ -27,7 +27,12 @@ export async function createDemoVideo(scope: OwnerScope, actor: string, productI
     await assertVideosNotFrozen(db);
     if (!(await videoExpansion(db))) throw new Error("Video expansion is not approved; only the RentalNoodle reference demo may be made");
   }
-  const live = await db.select({ id: ms.msVideos.id, status: ms.msVideos.status }).from(ms.msVideos).where(and(eq(ms.msVideos.productId, productId), sql`${ms.msVideos.storyboard}->>'kind' = 'demo'`, inArray(ms.msVideos.status, LIVE)));
+  let live = await db.select({ id: ms.msVideos.id, status: ms.msVideos.status }).from(ms.msVideos).where(and(eq(ms.msVideos.productId, productId), sql`${ms.msVideos.storyboard}->>'kind' = 'demo'`, inArray(ms.msVideos.status, LIVE)));
+  if (opts.replaceStale && live.length) {
+    const pub = await db.select({ videoId: ms.msPublications.videoId }).from(ms.msPublications).where(and(inArray(ms.msPublications.videoId, live.map((v) => v.id)), inArray(ms.msPublications.status, ["published", "publishing", "revoked", "deleted"])));
+    const history = new Set(pub.map((r) => r.videoId));
+    live = live.filter((v) => !history.has(v.id));
+  }
   if (live.length) throw new Error(`There is already a demo video (${live[0].status}). Review it first; no second demo is made until the owner decides.`);
   // The slideshow video is replaced by the demo, not shown next to it.
   await db.update(ms.msVideos).set({ status: "superseded" }).where(and(eq(ms.msVideos.productId, productId), sql`coalesce(${ms.msVideos.storyboard}->>'kind','') <> 'demo'`, sql`${ms.msVideos.status} <> 'superseded'`));

@@ -16,6 +16,7 @@ import { backoffMs, disableState, getSetting } from "../runtime";
 import type { OwnerScope } from "../scope";
 import { StudioAccessError } from "../scope";
 import { safeJoin } from "../storage";
+import { assertCreativeFresh, staleMarkFor } from "../video/stale";
 import { ADAPTERS, type Deps } from "./adapters";
 import { evaluateHealth, tokensForPublish, usable } from "./connections";
 import { buildExportBundle } from "./export";
@@ -99,6 +100,7 @@ export async function createPublication(
   await requireProduct(scope, productId, db);
   const spec = specFor(input.platform);
   if (!spec) throw new Error("Unknown platform");
+  await assertCreativeFresh(db, input.videoId);
   const { asset, info, conceptId } = await mediaFor(db, input, productId);
   const [conceptRow] = conceptId ? await db.select().from(ms.msConcepts).where(eq(ms.msConcepts.id, conceptId)).limit(1) : [];
   const concept: CopyContext | undefined = conceptRow ?? (input.videoId ? await videoCopyContext(db, productId, input.videoId) : undefined);
@@ -178,6 +180,7 @@ async function load(db: StudioDb, scope: OwnerScope, productId: string, id: stri
 export async function approvePublication(scope: OwnerScope, actor: string, productId: string, id: string, db: StudioDb = requireStudioDb()) {
   const p = await load(db, scope, productId, id);
   if (p.status !== "approval_required" && p.status !== "draft") throw new Error(`A publication in state ${p.status} cannot be approved`);
+  await assertCreativeFresh(db, p.videoId);
   const res = await db.update(ms.msPublications).set({ status: "approved", approvedBy: actor, approvedAt: new Date(), updatedAt: new Date() }).where(and(eq(ms.msPublications.id, id), inArray(ms.msPublications.status, ["approval_required", "draft"]))).returning({ id: ms.msPublications.id });
   if (!res.length) throw new Error("This publication changed while approving; reload and try again");
   await audit(db, { actor, action: "publication.approve", entity: "publication", entityId: id, productId });
@@ -186,6 +189,7 @@ export async function approvePublication(scope: OwnerScope, actor: string, produ
 export async function schedulePublication(scope: OwnerScope, actor: string, productId: string, id: string, when: Date, db: StudioDb = requireStudioDb()) {
   const p = await load(db, scope, productId, id);
   if (p.status !== "approved") throw new Error("Only an approved publication can be scheduled");
+  await assertCreativeFresh(db, p.videoId);
   if (p.mode !== "direct") throw new Error("Export publications are downloaded, not scheduled");
   if (Number.isNaN(when.getTime())) throw new Error("Invalid time");
   const lo = new Date(when.getTime() - MIN_GAP_MS);
@@ -278,6 +282,13 @@ export async function runDuePublications(scope: OwnerScope, deps: Deps = { fetch
       await audit(db, { actor: "studio-worker", action: event, entity: "publication", entityId: p.id, productId: p.productId, detail });
     };
     try {
+      // Stale creative never goes out, even if it was scheduled before the game launched.
+      const stale = await staleMarkFor(db, p.videoId);
+      if (stale) {
+        res.blocked++;
+        await finish({ status: "failed", failureReason: `Blocked before sending: stale pre-launch creative (${stale.reason})` }, "publication.blocked", { blockers: ["stale creative"] });
+        continue;
+      }
       // Gate: connection, platform approval, tenant, daily cap.
       const [conn] = p.connectionId ? await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.id, p.connectionId), eq(ms.msConnections.productId, p.productId))).limit(1) : [];
       const attested = await getSetting<boolean>(approvedSetting(p.platform), false, db);

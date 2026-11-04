@@ -121,6 +121,8 @@ export type DemoRecord = {
   /** Every string shown on screen apart from the captioned voiceover, and the claim that backs it. */
   onScreen: Array<{ sceneId: string; kind: "headline" | "label" | "cta"; text: string; claim: string }>;
   cta: { text: string; url: string };
+  /** Games only: the launch state the call to action was derived from (Product Truth), so later changes can flag stale creative. */
+  ctaPhase?: "pre_launch" | "store_live";
   /** Headline of the closing card, shown on the Review page. */
   endHeadline?: string;
   /** Set when the owner has approved this exact video as a production quality reference. */

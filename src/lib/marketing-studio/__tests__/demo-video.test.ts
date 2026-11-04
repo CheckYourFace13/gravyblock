@@ -5,7 +5,10 @@ import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import { eq } from "drizzle-orm";
 import { closeStudioDb, ms, requireStudioDb } from "../db";
-import { createProduct } from "../repository";
+import { addFact, createProduct, verifyFact } from "../repository";
+import { reconcileGameLaunchState } from "../video/demo/launch-state";
+import { specForLaunchState } from "../video/demo/launch";
+import { assertCreativeFresh } from "../video/stale";
 import { INTERNAL_SCOPE } from "../scope";
 import { createDemoVideo } from "../video/demo/queue";
 import { approveVideoExpansion, freezeVideoGeneration, unfreezeVideoGeneration } from "../video/freeze";
@@ -14,7 +17,7 @@ import { DK_CLAIMS, DK_NARRATION, DK_ON_SCREEN } from "../video/demo/drinkknird"
 import { SZ_CLAIMS, SZ_CTA, SZ_NARRATION, SZ_ON_SCREEN } from "../video/demo/scribblezap";
 import { MB_CLAIMS, MB_CTA, MB_NARRATION, MB_ON_SCREEN } from "../video/demo/mibble";
 import { MB_WINDOWS } from "../video/demo/mibble-capture";
-import { checkGameLanguage, gameCtaPhase, NOT_YET_DOWNLOADABLE } from "../video/demo/language-qa";
+import { checkGameLanguage, gameCtaPhase, NOT_YET_DOWNLOADABLE, storeDestination } from "../video/demo/language-qa";
 import { activeCaptureFps, SZ_WINDOWS } from "../video/demo/scribblezap-capture";
 import { createVideoFromProduct } from "../video/queue";
 import { captionWordsFor, groupCaptions, parseSpoken, placeLines, synthMusic, trimSilence, wordTimings, writeWav } from "../video/demo/audio";
@@ -367,5 +370,104 @@ describe("Mibble Meadow trailer", () => {
     const sorted = [...MB_WINDOWS].sort((a, b) => a.from - b.from);
     for (let i = 1; i < sorted.length; i++) assert.ok(sorted[i].from >= sorted[i - 1].to, "windows overlap");
     for (const w of MB_WINDOWS) assert.ok(w.to - w.from >= 80, w.scene);
+  });
+});
+
+describe("game CTA follows Product Truth automatically", () => {
+  const PLAY = { value: "Google Play: https://play.google.com/store/apps/details?id=com.iscream.scribblezap", verified: true };
+  test("a verified listing URL makes the game live; unverified, coming-soon or non-store facts never do", () => {
+    assert.equal(storeDestination([PLAY])?.store, "google_play");
+    assert.equal(storeDestination([{ ...PLAY, verified: false }]), null);
+    assert.equal(storeDestination([{ value: "Google Play is Coming Soon https://play.google.com/store/apps/details?id=x", verified: true }]), null);
+    assert.equal(storeDestination([{ value: "https://example.com/play.google.com/store/apps/x", verified: true }]), null);
+    assert.equal(storeDestination([{ value: "http://play.google.com/store/apps/details?id=x", verified: true }]), null);
+    assert.equal(storeDestination([PLAY, { value: "https://apps.apple.com/us/app/x/id1", verified: true }])?.store, "google_play");
+    assert.equal(storeDestination([{ value: "https://apps.apple.com/us/app/x/id1", verified: true }])?.store, "app_store");
+  });
+  for (const slug of ["scribblezap", "mibblemeadow"]) {
+    test(`${slug}: pre-launch spec is untouched, the live spec switches CTA, closing line, end card and claims, and passes the language QA`, () => {
+      const base = demoSpecFor(slug);
+      assert.equal(specForLaunchState(base, []), base);
+      assert.equal(specForLaunchState(base, [{ value: "Google Play — Coming Soon", verified: true }]), base);
+      const live = specForLaunchState(base, [PLAY]);
+      assert.equal(live.cta.text, "Get it on Google Play");
+      assert.ok(live.cta.url.startsWith("https://play.google.com/store/apps/"));
+      assert.equal(live.narration.length, base.narration.length);
+      assert.match(live.narration.at(-1)!.caption!, /Google Play/);
+      assert.deepEqual(live.narration.at(-1)!.claims, ["c-store"]);
+      assert.ok(live.onScreen.filter((o) => o.kind === "cta").every((o) => o.claim === "c-store"));
+      assert.ok(!live.facts.some((f) => /coming soon/i.test(f.value)) && !live.claims.some((c) => c.facts.some((f) => /coming soon/i.test(f))));
+      const failed = checkGameLanguage({ spoken: live.narration.map((l) => l.spoken), headlines: live.onScreen.map((o) => o.text), cta: { text: live.cta.text }, storeLive: true }).filter((c) => !c.ok);
+      assert.deepEqual(failed, [], failed.map((c) => c.detail).join("; "));
+      // the pre-launch wording check would (rightly) reject the same script
+      const pre = checkGameLanguage({ spoken: live.narration.map((l) => l.spoken), headlines: [], cta: { text: live.cta.text } });
+      assert.ok(pre.some((c) => c.id === "lang_no_download_wording" && !c.ok));
+      // a non-game spec never changes
+      assert.equal(specForLaunchState(demoSpecFor("rentalnoodle"), [PLAY]), demoSpecFor("rentalnoodle"));
+    });
+  }
+});
+
+describe("launch transition: stale creative (database)", { skip: !HAVE_DB }, () => {
+  let sz = "";
+  const ids: Record<string, string> = {};
+  before(async () => {
+    const db = requireStudioDb();
+    for (const t of [ms.msAuditEvents, ms.msPublications, ms.msConnections, ms.msMediaJobs, ms.msVideos, ms.msCreatives, ms.msConcepts, ms.msCampaigns, ms.msProductFacts, ms.msAssets, ms.msSettings, ms.msProducts]) await db.delete(t);
+    sz = (await createProduct(INTERNAL_SCOPE, "t", { name: "ScribbleZap", kind: "mobile_game" })).id;
+    const sb = (extra: object) => ({ version: 2, kind: "demo", ...extra });
+    const mk = async (key: string, status: string, storyboard: object) => {
+      ids[key] = (await db.insert(ms.msVideos).values({ productId: sz, title: key, storyboard, targetSeconds: 30, status }).returning())[0].id;
+    };
+    await mk("old", "approved", sb({ ctaPhase: "pre_launch" }));
+    await mk("public", "approved", sb({}));
+    await mk("rejected", "rejected", sb({}));
+    const pub = (key: string, videoId: string, status: string) => db.insert(ms.msPublications).values({ productId: sz, videoId, assetId: crypto.randomUUID(), platform: "facebook", status, caption: "c", dedupeKey: `${key}|${Math.random()}` });
+    await pub("a", ids.old, "approved");
+    await pub("b", ids.old, "approval_required");
+    await pub("c", ids.public, "published");
+    await pub("d", ids.public, "approved");
+  });
+  after(async () => {
+    await closeStudioDb();
+  });
+
+  test("nothing happens while the game has no verified store listing", async () => {
+    const r = (await reconcileGameLaunchState(requireStudioDb())).find((x) => x.slug === "scribblezap")!;
+    assert.equal(r.phase, "pre_launch");
+    assert.deepEqual(r.stale, []);
+  });
+
+  test("once live: unpublished pre-launch video flagged stale, unsent posts cancelled, replacement queued; public history untouched; idempotent", async () => {
+    const db = requireStudioDb();
+    await approveVideoExpansion("t", "rentalnoodle", "owner approved the reference");
+    const f = await addFact(INTERNAL_SCOPE, "t", sz, { factKey: "store", factValue: "Google Play: https://play.google.com/store/apps/details?id=com.iscream.scribblezap", sourceKind: "asset_metadata", sourceUrl: null }, db);
+    await verifyFact(INTERNAL_SCOPE, "t", sz, f.id, db);
+    const r = (await reconcileGameLaunchState(db)).find((x) => x.slug === "scribblezap")!;
+    assert.equal(r.phase, "store_live");
+    assert.deepEqual(r.stale, [ids.old]);
+    assert.equal(r.cancelled, 2);
+    assert.ok(r.replacement);
+    assert.ok(r.skipped.some((s) => s.includes(ids.public)));
+    const [old] = await db.select().from(ms.msVideos).where(eq(ms.msVideos.id, ids.old));
+    assert.equal(old.status, "superseded");
+    assert.ok((old.storyboard as { stale?: object }).stale);
+    const [pubVid] = await db.select().from(ms.msVideos).where(eq(ms.msVideos.id, ids.public));
+    assert.equal(pubVid.status, "approved");
+    assert.equal((pubVid.storyboard as { stale?: object }).stale, undefined);
+    const pubs = await db.select().from(ms.msPublications);
+    assert.deepEqual(pubs.filter((p) => p.videoId === ids.public).map((p) => p.status).sort(), ["approved", "published"]);
+    assert.ok(pubs.filter((p) => p.videoId === ids.old).every((p) => p.status === "cancelled"));
+    const [fresh] = await db.select().from(ms.msVideos).where(eq(ms.msVideos.id, r.replacement!));
+    assert.equal(fresh.status, "queued");
+    const again = (await reconcileGameLaunchState(db)).find((x) => x.slug === "scribblezap")!;
+    assert.deepEqual(again.stale, []);
+    assert.equal(again.replacement, null);
+  });
+
+  test("stale creative cannot be prepared or approved", async () => {
+    const db = requireStudioDb();
+    await assert.rejects(assertCreativeFresh(db, ids.old), /stale/);
+    await assertCreativeFresh(db, ids.public);
   });
 });

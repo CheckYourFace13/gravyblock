@@ -17,6 +17,7 @@ import { audioInfo, mixAudio, parseSpoken, placeLines, synthesizeLines, synthMus
 import { renderDemo } from "./render";
 import { runDemoQa, type DemoQaResult } from "./qa";
 import { gameCtaPhase } from "./language-qa";
+import { specForLaunchState } from "./launch";
 import { demoSpecFor, type DemoSpec } from "./specs";
 import type { DemoRecord, Manifest } from "./types";
 
@@ -64,17 +65,17 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
   const { db, workDir } = opts;
   const scope = opts.scope ?? INTERNAL_SCOPE;
   const log = opts.log ?? (() => {});
-  const spec: DemoSpec = demoSpecFor(opts.slug ?? "rentalnoodle");
-  const { narration: NARRATION, claims: CLAIMS, onScreen: ON_SCREEN, sceneMeta: SCENE_META } = spec;
+  const baseSpec: DemoSpec = demoSpecFor(opts.slug ?? "rentalnoodle");
+  const spec0 = baseSpec;
   await fs.mkdir(workDir, { recursive: true });
-  const product = (await listProducts(scope, db)).find((p) => p.slug === spec.slug);
-  if (!product) throw new Error(`${spec.productName} is not a Studio product`);
+  const product = (await listProducts(scope, db)).find((p) => p.slug === spec0.slug);
+  if (!product) throw new Error(`${spec0.productName} is not a Studio product`);
 
   // 1. capture the real product
   const platesDir = path.join(workDir, "stage");
   await fs.mkdir(platesDir, { recursive: true });
   const [logoAsset] = (await db.select().from(ms.msAssets).where(eq(ms.msAssets.productId, product.id))).filter((a) => a.kind === "logo" && a.approved === "true");
-  if (!logoAsset) throw new Error(`${spec.productName} has no approved logo asset`);
+  if (!logoAsset) throw new Error(`${spec0.productName} has no approved logo asset`);
   const logoFile = path.join(platesDir, "logo.png");
   await fs.writeFile(logoFile, await readAssetBytes(logoAsset));
   const t0 = Date.now();
@@ -82,15 +83,17 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
   if (opts.reuse?.manifest) manifest = JSON.parse(await fs.readFile(path.join(platesDir, "manifest.json"), "utf8")) as Manifest;
   else {
     log("capturing the live product pages");
-    manifest = await spec.capture(platesDir, logoFile);
+    manifest = await spec0.capture(platesDir, logoFile);
   }
   const captureMs = Date.now() - t0;
 
   // 2. facts the claims rest on
+  // The call to action follows Product Truth: a game with a verified live store listing gets the install CTA automatically, with no spec edit.
+  const known = (await listFacts(scope, product.id, db)).filter((f) => f.status === "current").map((f) => ({ value: f.factValue, verified: Boolean(f.verifiedAt) }));
+  const spec = specForLaunchState(spec0, known);
+  const ctaPhase = spec0.kind === "game" ? gameCtaPhase(known) : undefined;
   const facts = await ensureFacts(db, scope, product.id, manifest, opts.writeFacts, spec.facts);
-
-  // A game whose verified store listing is live needs an install CTA, not the pre-launch invitation this spec carries.
-  if (spec.kind === "game" && gameCtaPhase(facts) === "store_live") throw new Error(`${spec.productName} now has a verified store listing: update its spec to an install or play CTA before making a new video.`);
+  const { narration: NARRATION, claims: CLAIMS, onScreen: ON_SCREEN, sceneMeta: SCENE_META } = spec;
 
   // 3. voiceover
   log("recording the voiceover");
@@ -157,6 +160,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
     claims,
     onScreen: ON_SCREEN,
     cta: { text: spec.cta.text, url: spec.cta.url },
+    ...(ctaPhase ? { ctaPhase } : {}),
     endHeadline: timeline.scenes.find((s) => s.kind === "end")?.end_card?.headline,
     audio: audioInfo(VOICE_ID, VOICE_SPEED),
     capturedAt: manifest.capturedAt,
@@ -176,7 +180,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
     endStartMs: endScene.start,
     mixFile: path.join(workDir, "mix.wav"),
     site: spec.site,
-    ...(spec.kind === "game" ? { gameCreative: { storeLive: false } } : {}),
+    ...(spec.kind === "game" ? { gameCreative: { storeLive: ctaPhase === "store_live" } } : {}),
     ...(spec.qaExtra?.(manifest) ?? {}),
   });
   return { file: outFile, record, qa, stats: { captureMs, voiceMs, renderMs: rendered.wallMs, frames: rendered.frames }, manifest };

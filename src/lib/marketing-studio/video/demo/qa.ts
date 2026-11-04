@@ -76,7 +76,7 @@ export type DemoQaInput = {
   /** The final mixed audio (wav), used to prove the music is audible and sits under the voice. */
   mixFile: string;
   /** The product's own site, used to prove every source page and the call to action belong to it. Defaults to RentalNoodle. */
-  site?: { origin: string; ctaText: string; ctaHost: string };
+  site?: { origin: string; ctaText: string; ctaHost: string; ctaOrigins?: string[] };
   /** Replaces the typed-into-live-interfaces check for products whose primary visual is real gameplay. */
   interaction?: { ok: boolean; detail: string };
   /** Real gameplay provenance and smoothness, checked when the primary visual is gameplay footage. */
@@ -85,7 +85,7 @@ export type DemoQaInput = {
   gameCreative?: { storeLive: boolean };
 };
 
-const RN_SITE = { origin: "https://rentalnoodle.com", ctaText: "Start Managing Free", ctaHost: "rentalnoodle.com" };
+const RN_SITE: { origin: string; ctaText: string; ctaHost: string; ctaOrigins?: string[] } = { origin: "https://rentalnoodle.com", ctaText: "Start Managing Free", ctaHost: "rentalnoodle.com" };
 
 export async function runDemoQa(i: DemoQaInput): Promise<DemoQaResult> {
   const checks: DemoQaCheck[] = [];
@@ -243,7 +243,7 @@ export async function runDemoQa(i: DemoQaInput): Promise<DemoQaResult> {
 
   // 9. call to action and audio provenance
   const endScene = i.record.scenes.at(-1);
-  add("cta_present", endScene?.kind === "end" && i.record.cta.text === site.ctaText && onSite(i.record.cta.url) && (i.narration.at(-1)?.caption ?? "").toLowerCase().includes(site.ctaHost), `end card CTA "${i.record.cta.text}" to ${i.record.cta.url}`);
+  add("cta_present", endScene?.kind === "end" && i.record.cta.text === site.ctaText && (onSite(i.record.cta.url) || (site.ctaOrigins ?? []).some((o) => i.record.cta.url === o || i.record.cta.url.startsWith(`${o}/`))) && (i.narration.at(-1)?.caption ?? "").toLowerCase().includes(site.ctaHost), `end card CTA "${i.record.cta.text}" to ${i.record.cta.url}`);
   const a = i.record.audio;
   add("audio_sources_recorded", Boolean(a.voiceover.model && a.voiceover.license && a.voiceover.voice && a.music.source && a.music.license && a.voiceover.cost === "$0" && a.music.cost === "$0"), `voice: ${a.voiceover.engine} (${a.voiceover.license}, ${a.voiceover.cost}); music: ${a.music.source} (${a.music.cost})`);
 
