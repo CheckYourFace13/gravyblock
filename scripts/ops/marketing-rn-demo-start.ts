@@ -30,6 +30,16 @@ async function main() {
   }
   const noodle = products.find((x) => x.slug === "rentalnoodle");
   if (!noodle) throw new Error("RentalNoodle not found");
+  // --replace: swap a demo the owner has NOT yet approved (for example after a defect found before review) for a fresh one. An approved demo is never replaced.
+  if (process.argv.includes("--replace")) {
+    const demos = (await db.select().from(ms.msVideos).where(eq(ms.msVideos.productId, noodle.id))).filter((v) => (v.storyboard as { kind?: string } | null)?.kind === "demo" && v.status !== "superseded");
+    if (demos.some((v) => v.status === "approved")) throw new Error("The demo is approved; it is not replaced.");
+    for (const v of demos) {
+      await db.update(ms.msVideos).set({ status: "superseded" }).where(eq(ms.msVideos.id, v.id));
+      await audit(db, { actor: ACTOR, action: "video.demo_superseded_before_review", entity: "video", entityId: v.id, productId: noodle.id, detail: { was: v.status } });
+      console.log(`RentalNoodle: previous unreviewed demo ${v.id} (${v.status}) superseded`);
+    }
+  }
   // Record only: the render runs in its own bounded scope (marketing-rn-demo-run.ts), not in the memory-capped worker.
   const row = await createDemoVideo(INTERNAL_SCOPE, ACTOR, noodle.id, db, { queue: false });
   console.log(`RentalNoodle: demo video ${row.id} created (status ${row.status}); the old slideshow is superseded. Render it with marketing-rn-demo-run.ts.`);

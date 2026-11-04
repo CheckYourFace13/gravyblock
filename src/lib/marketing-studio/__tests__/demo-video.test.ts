@@ -160,6 +160,14 @@ describe("motion analysis, stage and audio helpers", () => {
     assert.ok(d[2] > 50 && d[0] === 0);
     assert.equal(longestStill(d, 10, 0.06), 0.4);
   });
+  test("the highlighted caption word cannot grow into the space after it", () => {
+    const html = buildStageHtml(buildTimeline(MANIFEST, layoutLines(DUR)).timeline);
+    const m = /style\.transform=a\?'scale\(([0-9.]+)\)'/.exec(html);
+    assert.ok(m, "active-word scale not found");
+    assert.ok(Number(m[1]) <= 1.03, `active word scaled ${m[1]}x would eat the gap before the next word`);
+    assert.match(html, /\.cw\{[^}]*white-space:pre[^}]*margin-right/);
+    assert.match(html, /\.hw\{[^}]*white-space:pre/);
+  });
   test("the stage page is safe to embed and exposes the seek function", () => {
     const html = buildStageHtml({ ...built().timeline, scenes: built().timeline.scenes.map((s) => (s.headline ? { ...s, headline: { ...s.headline, text: "</script><b>x" } } : s)) });
     assert.ok(html.includes("window.__seek"));
