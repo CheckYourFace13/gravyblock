@@ -28,7 +28,7 @@ export async function renderDemo(opts: { dir: string; timeline: Timeline; audioF
       "-f", "image2pipe", "-framerate", String(CANVAS.fps), "-c:v", "mjpeg", "-i", "-",
       "-i", audioFile,
       "-map", "0:v", "-map", "1:a",
-      "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-r", String(CANVAS.fps),
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-x264-params", "rc-lookahead=8:sync-lookahead=0:threads=2", "-pix_fmt", "yuv420p", "-r", String(CANVAS.fps),
       "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
       "-t", (timeline.durationMs / 1000).toFixed(3),
       "-movflags", "+faststart",

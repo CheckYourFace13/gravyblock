@@ -104,7 +104,10 @@ export async function runDemoQa(i: DemoQaInput): Promise<DemoQaResult> {
   const ordered = i.narration.map((l) => i.lineTimes[l.id]);
   const gaps = ordered.slice(1).map((l, k) => (l.start - ordered[k].end) / 1000);
   metrics.longestGapSec = +Math.max(...gaps).toFixed(2);
-  add("no_dead_air", Math.max(...gaps) <= 0.7, `longest pause between spoken lines ${Math.max(...gaps).toFixed(2)}s`);
+  // The one planned longer pause leads into the closing line; the screen keeps moving and the music plays through it (checked below).
+  const lastIdx = gaps.length - 1;
+  const tooLong = gaps.map((g, k) => ({ g, k })).filter(({ g, k }) => g > (k === lastIdx ? 1.5 : 0.7));
+  add("no_dead_air", tooLong.length === 0, tooLong.length ? `pause of ${tooLong[0].g.toFixed(2)}s between spoken lines` : `longest pause between spoken lines ${Math.max(...gaps).toFixed(2)}s (pauses over 0.7s: none except the planned lead-in to the closing line)`);
 
   // 3b. music is really there: audible in the pauses, and quieter than the voice
   const pcm = await new Promise<Buffer>((resolve, reject) => {

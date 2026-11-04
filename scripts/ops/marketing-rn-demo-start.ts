@@ -1,5 +1,5 @@
 // Starts the RentalNoodle pilot demo. In this order: (1) freeze all other video generation, (2) record the owner's verdict on the existing
-// slideshow videos (rejected: not production-ready; ScribbleZap's icon-and-text video is classified TEASER_ONLY), (3) queue exactly one demo render.
+// slideshow videos (rejected: not production-ready; ScribbleZap's icon-and-text video is classified TEASER_ONLY), (3) create exactly one demo record, rendered by marketing-rn-demo-run.ts.
 // Approves, schedules, connects and publishes nothing. Unfreezing is a separate, deliberate step after the owner approves the demo.
 //   runuser -u gbstudio -- tsx --env-file=/etc/gravyblock-marketing.env scripts/ops/marketing-rn-demo-start.ts
 import { eq } from "drizzle-orm";
@@ -30,8 +30,9 @@ async function main() {
   }
   const noodle = products.find((x) => x.slug === "rentalnoodle");
   if (!noodle) throw new Error("RentalNoodle not found");
-  const row = await createDemoVideo(INTERNAL_SCOPE, ACTOR, noodle.id, db);
-  console.log(`RentalNoodle: demo video ${row.id} queued (status ${row.status}); the old slideshow is superseded`);
+  // Record only: the render runs in its own bounded scope (marketing-rn-demo-run.ts), not in the memory-capped worker.
+  const row = await createDemoVideo(INTERNAL_SCOPE, ACTOR, noodle.id, db, { queue: false });
+  console.log(`RentalNoodle: demo video ${row.id} created (status ${row.status}); the old slideshow is superseded. Render it with marketing-rn-demo-run.ts.`);
 }
 
 main()

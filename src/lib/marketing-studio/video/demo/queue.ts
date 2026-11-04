@@ -10,7 +10,11 @@ import type { OwnerScope } from "../../scope";
 export const DEMO_PILOT_SLUGS = ["rentalnoodle"] as const;
 const LIVE = ["queued", "rendering", "ready_for_review", "approved"];
 
-export async function createDemoVideo(scope: OwnerScope, actor: string, productId: string, db: StudioDb = requireStudioDb()) {
+/**
+ * `queue: false` creates the record only. The pilot demo needs about 1.5 GB at its peak, more than the worker's memory cap, so it is rendered by
+ * scripts/ops/marketing-rn-demo-run.ts in its own bounded scope; a worker job would be killed for exceeding the cap.
+ */
+export async function createDemoVideo(scope: OwnerScope, actor: string, productId: string, db: StudioDb = requireStudioDb(), opts: { queue?: boolean } = {}) {
   const product = await requireProduct(scope, productId, db);
   if (!(DEMO_PILOT_SLUGS as readonly string[]).includes(product.slug)) throw new Error("Demo videos are limited to the RentalNoodle pilot until the owner approves it");
   const live = await db.select({ id: ms.msVideos.id, status: ms.msVideos.status }).from(ms.msVideos).where(and(eq(ms.msVideos.productId, productId), sql`${ms.msVideos.storyboard}->>'kind' = 'demo'`, inArray(ms.msVideos.status, LIVE)));
@@ -18,7 +22,7 @@ export async function createDemoVideo(scope: OwnerScope, actor: string, productI
   // The slideshow video is replaced by the demo, not shown next to it.
   await db.update(ms.msVideos).set({ status: "superseded" }).where(and(eq(ms.msVideos.productId, productId), sql`coalesce(${ms.msVideos.storyboard}->>'kind','') <> 'demo'`, sql`${ms.msVideos.status} <> 'superseded'`));
   const [row] = await db.insert(ms.msVideos).values({ productId, title: `${product.name} product demo`, storyboard: { version: 2, kind: "demo", pending: true }, targetSeconds: 30, status: "queued" }).returning();
-  const { id } = await enqueue({ kind: "render_demo_video", weight: "heavy", priority: 3, productId, input: { videoId: row.id }, maxAttempts: 1 }, db);
-  await audit(db, { actor, action: "video.demo_create", entity: "video", entityId: row.id, productId, detail: { jobId: id } });
+  const id = opts.queue === false ? null : (await enqueue({ kind: "render_demo_video", weight: "heavy", priority: 3, productId, input: { videoId: row.id }, maxAttempts: 1 }, db)).id;
+  await audit(db, { actor, action: "video.demo_create", entity: "video", entityId: row.id, productId, detail: { jobId: id, queued: opts.queue !== false } });
   return row;
 }

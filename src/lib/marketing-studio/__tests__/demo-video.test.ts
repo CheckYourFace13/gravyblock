@@ -242,6 +242,12 @@ describe("video freeze and the single demo (database)", { skip: !HAVE_DB }, () =
     await db.update(ms.msVideos).set({ status: "rejected" }).where(eq(ms.msVideos.productId, noodle));
     const again = await createDemoVideo(INTERNAL_SCOPE, "t", noodle);
     assert.equal(again.status, "queued");
+    // The pilot is rendered in its own bounded scope, so its record can be created without putting a (memory-capped) worker job on the queue.
+    await db.update(ms.msVideos).set({ status: "rejected" }).where(eq(ms.msVideos.id, again.id));
+    const jobsBefore = (await db.select().from(ms.msMediaJobs)).length;
+    const recordOnly = await createDemoVideo(INTERNAL_SCOPE, "t", noodle, db, { queue: false });
+    assert.equal(recordOnly.status, "queued");
+    assert.equal((await db.select().from(ms.msMediaJobs)).length, jobsBefore, "record-only creation must not queue a worker job");
   });
 
   test("unfreezing is explicit and only then do slideshow videos work again", async () => {

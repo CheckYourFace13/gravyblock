@@ -2,9 +2,10 @@
  * Audio for demo videos: a free, offline voiceover (Kokoro-82M, Apache-2.0, run on the VPS) and original music generated here, so no
  * third-party track or paid service is involved. Also the word timing that keeps captions in step with the voice, and the ducked mix.
  */
+import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { registerKiller } from "../../active-work";
 import { ffmpeg } from "../ffmpeg";
 import type { DemoAudioInfo, NarrationLine, WordTime } from "./types";
 
@@ -136,20 +137,45 @@ export function levelLine(samples: Float32Array, targetRms = 0.1): Float32Array 
 
 export type SynthLine = { id: string; samples: Float32Array; rate: number };
 
-/** Runs Kokoro from its isolated install folder. Throws a clear message when the voice is not installed. */
-export async function synthesizeLines(lines: Array<{ id: string; text: string }>, opts: { ttsDir: string; voice: string; speed: number }): Promise<SynthLine[]> {
+/**
+ * Runs Kokoro in a short-lived CHILD process from its isolated install folder, then reads the audio back. The model needs about 450 MB while it
+ * works; as a child it releases that memory when it exits, before the video is rendered, so the worker stays inside its memory cap.
+ */
+export async function synthesizeLines(lines: Array<{ id: string; text: string }>, opts: { ttsDir: string; voice: string; speed: number; tmpDir: string }): Promise<SynthLine[]> {
   const entry = path.join(opts.ttsDir, "node_modules", "kokoro-js", "dist", "kokoro.js");
   try {
     await fs.access(entry);
   } catch {
     throw new Error(`The voiceover engine is not installed (expected ${entry}). Install kokoro-js into that folder first.`);
   }
-  const mod = (await import(pathToFileURL(entry).href)) as { KokoroTTS: { from_pretrained: (id: string, o: Record<string, unknown>) => Promise<{ generate: (t: string, o: Record<string, unknown>) => Promise<{ audio: Float32Array; sampling_rate: number }> }> } };
-  const tts = await mod.KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX", { dtype: "q8", device: "cpu" });
+  await fs.mkdir(opts.tmpDir, { recursive: true });
+  const childScript = path.join(process.cwd(), "src", "lib", "marketing-studio", "video", "demo", "tts-child.mjs");
+  const result = await new Promise<string>((resolve, reject) => {
+    // A minimal environment: the voice process never sees database credentials or any other secret.
+    const child = spawn(process.execPath, [childScript], { stdio: ["pipe", "pipe", "pipe"], env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: opts.ttsDir, NODE_ENV: "production" } });
+    let out = "";
+    let err = "";
+    child.stdout.on("data", (d: Buffer) => (out += d.toString()));
+    child.stderr.on("data", (d: Buffer) => {
+      if (err.length < 2000) err += d.toString();
+    });
+    const un = registerKiller(() => child.kill("SIGKILL"));
+    const timer = setTimeout(() => child.kill("SIGKILL"), 10 * 60_000);
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      un();
+      if (code === 0) resolve(out);
+      else reject(new Error(`voiceover failed (exit ${code}): ${err.slice(-300)}`));
+    });
+    child.stdin.end(JSON.stringify({ ttsDir: opts.ttsDir, voice: opts.voice, speed: opts.speed, outDir: opts.tmpDir, lines }));
+  });
+  const items = JSON.parse(result.slice(result.indexOf("["))) as Array<{ id: string; rate: number; file: string }>;
   const out: SynthLine[] = [];
-  for (const l of lines) {
-    const a = await tts.generate(l.text, { voice: opts.voice, speed: opts.speed });
-    out.push({ id: l.id, samples: levelLine(trimSilence(a.audio, a.sampling_rate), 0.1), rate: a.sampling_rate });
+  for (const it of items) {
+    const buf = await fs.readFile(it.file);
+    await fs.rm(it.file, { force: true });
+    const samples = new Float32Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+    out.push({ id: it.id, samples: levelLine(trimSilence(samples, it.rate), 0.1), rate: it.rate });
   }
   return out;
 }

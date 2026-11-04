@@ -90,7 +90,7 @@ export async function produceDemo(opts: { db: StudioDb; scope?: OwnerScope; work
   // 3. voiceover
   log("recording the voiceover");
   const t1 = Date.now();
-  const synth = await synthesizeLines(NARRATION.map((l) => ({ id: l.id, text: parseSpoken(l.spoken).words.join(" ") })), { ttsDir: opts.ttsDir ?? STUDIO_TTS_DIR, voice: VOICE_ID, speed: VOICE_SPEED });
+  const synth = await synthesizeLines(NARRATION.map((l) => ({ id: l.id, text: parseSpoken(l.spoken).words.join(" ") })), { ttsDir: opts.ttsDir ?? STUDIO_TTS_DIR, voice: VOICE_ID, speed: VOICE_SPEED, tmpDir: path.join(workDir, "tts") });
   const voiceMs = Date.now() - t1;
   const dur = Object.fromEntries(synth.map((s) => [s.id, Math.round((s.samples.length / s.rate) * 1000)]));
   const lineTimes = layoutLines(dur);
@@ -173,9 +173,24 @@ export async function produceDemo(opts: { db: StudioDb; scope?: OwnerScope; work
   return { file: outFile, record, qa, stats: { captureMs, voiceMs, renderMs: rendered.wallMs, frames: rendered.frames }, manifest };
 }
 
-/** Worker job: render the demo for a stored ms_videos row and hand it to the owner for review. */
+export const DEMO_MIN_MEMORY_BYTES = 1800 * 1024 * 1024;
+
+/** Refuses to start where the memory cap would kill the job half way (the worker's own scope is 768 MB). Unreadable limits are not blocked. */
+export async function assertDemoMemoryHeadroom(min = DEMO_MIN_MEMORY_BYTES): Promise<void> {
+  try {
+    const cg = (await fs.readFile("/proc/self/cgroup", "utf8")).split("\n").find((l) => l.startsWith("0::"))?.slice(3).trim();
+    if (!cg) return;
+    const raw = (await fs.readFile(`/sys/fs/cgroup${cg}/memory.max`, "utf8")).trim();
+    if (raw !== "max" && Number(raw) < min) throw new Error(`The demo render needs about ${Math.round(min / 1048576)} MB but this process is capped at ${Math.round(Number(raw) / 1048576)} MB. Run scripts/ops/marketing-rn-demo-run.ts, which uses its own bounded scope.`);
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith("The demo render needs")) throw e;
+  }
+}
+
+/** Render the demo for a stored ms_videos row and hand it to the owner for review. Needs more memory than the worker's cap; see assertDemoMemoryHeadroom. */
 export async function renderDemoVideoJob(input: { videoId?: string }, scope: OwnerScope = INTERNAL_SCOPE, db: StudioDb = requireStudioDb()) {
   if (!input.videoId) throw new Error("render_demo_video needs a videoId");
+  await assertDemoMemoryHeadroom();
   const [video] = await db.select().from(ms.msVideos).where(eq(ms.msVideos.id, input.videoId)).limit(1);
   if (!video) throw new Error("video not found");
   await db.update(ms.msVideos).set({ status: "rendering", error: null }).where(eq(ms.msVideos.id, video.id));
