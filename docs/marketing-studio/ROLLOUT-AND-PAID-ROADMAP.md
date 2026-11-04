@@ -16,23 +16,26 @@ RentalNoodle remains the owner-approved **video quality reference** but is no lo
 
 ## Game videos (real gameplay is the primary visual)
 
-| Game | Capture source | Feasible read-only | Notes |
-| --- | --- | --- | --- |
-| ScribbleZap | Private web tester, `/test/scribblezap/play/` | Yes (loads and renders in a real browser; start screen, daily challenge, endless run, level select) | Headless browser, GET only, scripted taps and drags, nothing saved, no code or progression changes, nothing deployed. Real-time capture must be validated for smoothness on the VPS (an earlier screencast approach ran at only about 8 fps); if the VPS cannot capture at 30 fps, a phone recording is the fallback. |
-| Mibble Meadow | Android APK only (private phone test 0.1.23) | No | There is no browser build. Needs a real screen recording from a phone or an Android emulator, neither available to the VPS. Still screenshots exist but stills alone are not gameplay. |
+| Game | Capture source | Result (2026-11-04) |
+| --- | --- | --- |
+| ScribbleZap | Private web tester, `/test/scribblezap/play/` | **Smooth enough.** Headless Chromium with a disposable profile, GET only, scripted touch input. The game ran at 60 fps and the CDP screencast delivered about 50 fps. Two scripted cuts cleared level 1 (67% filled against a 60% target), showing the real tool-unlock card, fill meter, confetti and level-clear screen. No code, save, progression or deployment was touched. A screenshot loop is only 3.5 fps and is not used. |
+| Mibble Meadow | Android APK only (private phone test 0.1.23) | **Emulator blocked.** It is a Godot 4.7.2 game with arm64-v8a and armeabi-v7a native libraries only (no x86). The VPS has no hardware virtualization (no /dev/kvm, no vmx or svm flags), 2 vCPUs and about 3 GB of free memory shared with production, so only a full ARM system emulation could run it: unusably slow and unsafe on the production host. |
+
+Mibble Meadow fallback options, for the owner to choose (nothing started): (a) a phone screen recording; (b) with approval to download the matching Godot 4.7.2 engine (open source, about 60 MB) and run the game's own project files from the real APK headless on the VPS with scripted input. That is real game code and assets, but not the APK itself.
 
 Both videos must meet the RentalNoodle bar (hook, real gameplay, motion, voiceover where appropriate, music, synchronized captions, CTA, Product Truth grounding). One video per game, owner review required, no mass generation.
 
-## One-time accounts to create first (all under the iScream Studio identity)
+## One-time accounts: MINIMUM first (refined)
 
-1. **Facebook Page "iScream Studio"** (needed first; the Studio posts to it by official OAuth).
-2. **Meta Business portfolio** that owns the Page (and later the single ad account).
-3. **Instagram professional account** `iscreamstudio`, linked to that Page.
-4. **YouTube channel "iScream Studio"** (a brand channel).
-5. **TikTok account** `iscreamstudio`.
-6. A **Studio-only Meta app** (developer.facebook.com) for the OAuth connection, with redirect URI `https://gravyblock.com/api/admin/marketing-studio/connect/facebook/callback`.
+Only these three, for the first controlled Facebook publishing loop:
 
-Minimum to post the first game video: items 1, 2 and 6. Instagram, YouTube and TikTok start as manual uploads from the export bundle (their direct publishing needs platform approval or an audit) and become direct later. Not yet needed: a Google Ads account, a Meta ad account, TikTok ads, a live Play Store listing.
+1. **Facebook Page "iScream Studio"**
+2. **Meta Business portfolio** that owns that Page
+3. **Studio-only Meta app** for GravyBlock OAuth, redirect URI `https://gravyblock.com/api/admin/marketing-studio/connect/facebook/callback`
+
+**Deferred until the first Facebook loop is proven:** Instagram, TikTok, YouTube, Google Ads, Meta Ads account.
+
+**Owner identity:** any signup or recovery email is a private iScream Studio business email, not a personal Gmail, and is never shown publicly. Chris's personal Facebook profile may be the private Meta administrator only if Meta requires it, and must never publish, appear as the brand, be a public contact or receive product marketing activity.
 
 ## Paid acquisition (roadmap module, NOT enabled, no money spent)
 

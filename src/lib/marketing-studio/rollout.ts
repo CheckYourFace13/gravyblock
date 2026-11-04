@@ -13,6 +13,15 @@ export const SOCIAL_PLATFORMS_IN_SCOPE = ["facebook", "instagram", "tiktok", "yo
 /** Explicitly out of scope by owner decision. */
 export const SOCIAL_PLATFORMS_OUT_OF_SCOPE = ["linkedin"] as const;
 
+/** The minimum owner setup for the first controlled Facebook publishing loop. Nothing else is required yet. */
+export const FIRST_SOCIAL_SETUP = ["iScream Studio Facebook Page", "Meta Business portfolio that owns that Page", "Studio-only Meta app for GravyBlock OAuth"] as const;
+/** Come only after the first controlled Facebook publishing loop is proven. */
+export const DEFERRED_ACCOUNTS = ["Instagram", "TikTok", "YouTube", "Google Ads", "Meta Ads account"] as const;
+export const OWNER_IDENTITY = {
+  signupAndRecoveryEmail: "a private iScream Studio business email, never a personal Gmail, never shown publicly",
+  personalFacebookProfile: "may be the private Meta administrator only if Meta requires it; must never publish, appear as the brand, be a public contact, or receive product marketing activity",
+} as const;
+
 export const SOCIAL_STRATEGY = {
   games: {
     identity: "iScream Studio",
@@ -54,8 +63,8 @@ export const PAID_ACQUISITION = {
 } as const;
 
 export const GAME_CAPTURE = {
-  ScribbleZap: { feasible: true, source: "private web tester (https://iscreamstudio.com/test/scribblezap/play/)", method: "headless browser, GET only, scripted taps and drags, no code, save or progression changes, nothing deployed" },
-  "Mibble Meadow": { feasible: false, source: "Android APK only (private phone test build 0.1.23); no browser build exists", method: "needs a real screen recording from a phone or an Android emulator; not available to the VPS" },
+  ScribbleZap: { feasible: true, source: "private web tester (https://iscreamstudio.com/test/scribblezap/play/)", method: "headless browser with a disposable profile, GET only, scripted touch input, CDP screencast; no code, save or progression changes, nothing deployed", measured: "2026-11-04 test: game ran at 60 fps, screencast delivered about 50 fps, two scripted cuts cleared level 1 (67% of a 60% target)" },
+  "Mibble Meadow": { feasible: false, source: "Android APK only (private phone test 0.1.23): a Godot 4.7.2 game with arm64-v8a and armeabi-v7a native libraries only", method: "emulator blocked: the VPS has no hardware virtualization (no /dev/kvm, no vmx or svm), 2 vCPUs, about 3 GB of free memory shared with production, and the APK has no x86 libraries, so only a full ARM system emulation would run it, which is unusably slow and unsafe on the production host" },
 } as const;
 
-export const ROLLOUT_PLAN = { version: 1, decidedAt: "2026-11-04", order: ROLLOUT_ORDER, social: SOCIAL_STRATEGY, paid: PAID_ACQUISITION, gameCapture: GAME_CAPTURE, videoQualityReference: "RentalNoodle" } as const;
+export const ROLLOUT_PLAN = { version: 2, firstSocialSetup: FIRST_SOCIAL_SETUP, deferredAccounts: DEFERRED_ACCOUNTS, ownerIdentity: OWNER_IDENTITY, decidedAt: "2026-11-04", order: ROLLOUT_ORDER, social: SOCIAL_STRATEGY, paid: PAID_ACQUISITION, gameCapture: GAME_CAPTURE, videoQualityReference: "RentalNoodle" } as const;
