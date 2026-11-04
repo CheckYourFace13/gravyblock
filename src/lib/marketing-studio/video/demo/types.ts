@@ -73,7 +73,7 @@ export type StageScene = {
 export type CaptionGroup = { from: number; to: number; words: WordTime[] };
 export type Timeline = {
   durationMs: number;
-  brand: { name: string; accent: string; dark: string; light: string; logo: string };
+  brand: { name: string; accent: string; dark: string; light: string; logo: string; /** optional palette; defaults are the RentalNoodle look */ palette?: { blobs: [string, string]; endFrom: string; endMid: string; endTo: string; button: string; ripple: string } };
   plates: Record<string, { w: number; h: number; states: Record<string, string> }>;
   scenes: StageScene[];
   captions: CaptionGroup[];
@@ -106,6 +106,10 @@ export type DemoRecord = {
   /** Every string shown on screen apart from the captioned voiceover, and the claim that backs it. */
   onScreen: Array<{ sceneId: string; kind: "headline" | "label" | "cta"; text: string; claim: string }>;
   cta: { text: string; url: string };
+  /** Headline of the closing card, shown on the Review page. */
+  endHeadline?: string;
+  /** Set when the owner has approved this exact video as a production quality reference. */
+  ownerApproval?: { status: "OWNER_APPROVED_REFERENCE"; at: string; by: string; note: string };
   audio: DemoAudioInfo;
   capturedAt: string;
 };

@@ -83,6 +83,9 @@ export type ReviewProduct = {
 };
 
 const REVIEWABLE = new Set(["ready_for_review", "approved"]);
+/** Shown instead of a player for a game that has no genuine gameplay capture. An icon-and-text video is a teaser, never a finished marketing video. */
+const TEASER_ONLY_NOTE =
+  "TEASER_ONLY: there is no genuine gameplay footage Studio may use (the public page has only icon and store artwork, still screenshots, and the web build is a private tester page). A production video needs a real screen recording of the game, 30 to 60 seconds, touch gameplay in portrait, with the first level and a scored finish. See docs/marketing-studio/CONTROLLED-PRODUCTION.md.";
 const SIZE_PREFERENCE = ["square", "portrait", "landscape", "story"];
 
 /**
@@ -192,7 +195,7 @@ export async function loadReview(scope: OwnerScope, db: StudioDb = requireStudio
     const classification = (chosen?.storyboard as { classification?: string } | null)?.classification ?? null;
     if (chosen && !isDemo(chosen) && chosen.status === "rejected") {
       // A slideshow the owner judged not good enough is history, not review material.
-      videoNote = `The slideshow video for this product was rejected as not production-ready${classification ? ` (${classification.replaceAll("_", " ")})` : ""}. Video generation is frozen until the RentalNoodle pilot demo is approved.`;
+      videoNote = `The slideshow video for this product was rejected as not production-ready${classification ? ` (${classification.replaceAll("_", " ")})` : ""}. ${classification === "TEASER_ONLY" ? TEASER_ONLY_NOTE : "A real product demo replaces it; slideshow videos are not produced for production."}`;
     } else if (chosen && isDemo(chosen)) {
       const rec = chosen.storyboard as DemoRecord;
       video = {
@@ -206,7 +209,7 @@ export async function loadReview(scope: OwnerScope, db: StudioDb = requireStudio
         qa: summarizeQa(chosen.qa),
         captions: [],
         scenes: [],
-        endCard: rec?.cta ? { headline: "One simple place for every rental.", ctaText: rec.cta.text, ctaUrl: rec.cta.url } : null,
+        endCard: rec?.cta ? { headline: rec.endHeadline ?? "", ctaText: rec.cta.text, ctaUrl: rec.cta.url } : null,
         postCaption: null,
         sources: [],
         facts: [],

@@ -8,7 +8,9 @@ import { closeStudioDb, ms, requireStudioDb } from "../db";
 import { createProduct } from "../repository";
 import { INTERNAL_SCOPE } from "../scope";
 import { createDemoVideo } from "../video/demo/queue";
-import { freezeVideoGeneration, unfreezeVideoGeneration } from "../video/freeze";
+import { approveVideoExpansion, freezeVideoGeneration, unfreezeVideoGeneration } from "../video/freeze";
+import { DEMO_SPECS, demoSpecFor } from "../video/demo/specs";
+import { DK_CLAIMS, DK_NARRATION, DK_ON_SCREEN } from "../video/demo/drinkknird";
 import { createVideoFromProduct } from "../video/queue";
 import { captionWordsFor, groupCaptions, parseSpoken, placeLines, synthMusic, trimSilence, wordTimings, writeWav } from "../video/demo/audio";
 import { BANNED, frameDiffs, longestStill } from "../video/demo/qa";
@@ -228,9 +230,9 @@ describe("video freeze and the single demo (database)", { skip: !HAVE_DB }, () =
     await assert.rejects(createVideoFromProduct(INTERNAL_SCOPE, "t", other, 15), /frozen/);
   });
 
-  test("the demo is limited to RentalNoodle, replaces the slideshow, queues one render and publishes nothing", async () => {
+  test("the reference demo replaces the slideshow, queues one render and publishes nothing; other products wait for the expansion gate", async () => {
     const db = requireStudioDb();
-    await assert.rejects(createDemoVideo(INTERNAL_SCOPE, "t", other), /limited to the RentalNoodle pilot/);
+    await assert.rejects(createDemoVideo(INTERNAL_SCOPE, "t", other), /frozen|expansion is not approved/);
     const row = await createDemoVideo(INTERNAL_SCOPE, "t", noodle);
     assert.equal(row.status, "queued");
     assert.equal((row.storyboard as { kind: string }).kind, "demo");
@@ -262,5 +264,35 @@ describe("video freeze and the single demo (database)", { skip: !HAVE_DB }, () =
     await unfreezeVideoGeneration("t");
     // no verified facts exist in this scratch product, so the refusal now comes from missing Product Truth, not from the freeze
     await assert.rejects(createVideoFromProduct(INTERNAL_SCOPE, "t", other, 15), (e: Error) => !/frozen/.test(e.message));
+  });
+
+  test("after the expansion gate: the slideshow pipeline stays retired, a spec product gets one demo, a product without a spec stays TEASER_ONLY", async () => {
+    const db = requireStudioDb();
+    await assert.rejects(createDemoVideo(INTERNAL_SCOPE, "t", other, db, { queue: false }), /expansion is not approved/);
+    await approveVideoExpansion("t", "rentalnoodle", "owner approved the reference");
+    await assert.rejects(createVideoFromProduct(INTERNAL_SCOPE, "t", other, 15), /slideshow video pipeline is retired/);
+    await assert.rejects(createVideoFromProduct(INTERNAL_SCOPE, "t", noodle, 30), /slideshow video pipeline is retired/);
+    const dk = await createDemoVideo(INTERNAL_SCOPE, "t", other, db, { queue: false });
+    assert.equal(dk.status, "queued");
+    await assert.rejects(createDemoVideo(INTERNAL_SCOPE, "t", other, db, { queue: false }), /already a demo video/);
+    const game = (await createProduct(INTERNAL_SCOPE, "t", { name: "ScribbleZap", kind: "mobile_game" })).id;
+    await assert.rejects(createDemoVideo(INTERNAL_SCOPE, "t", game, db, { queue: false }), /TEASER_ONLY/);
+    assert.equal((await db.select().from(ms.msPublications)).length, 0);
+  });
+});
+
+describe("demo specs", () => {
+  test("only products with real captured interaction have a spec", () => {
+    assert.deepEqual(Object.keys(DEMO_SPECS).sort(), ["drinkknird", "rentalnoodle"]);
+    assert.throws(() => demoSpecFor("scribblezap"), /TEASER_ONLY/);
+  });
+  test("DrinkKnird: every line has a claim, every claim has sources, every on-screen text has a claim, no unsupported wording", () => {
+    const ids = new Set(DK_CLAIMS.map((c) => c.id));
+    for (const l of DK_NARRATION) assert.ok(l.claims.length && l.claims.every((c) => ids.has(c)), l.id);
+    for (const c of DK_CLAIMS) assert.ok(c.facts.length && c.sources.length, c.id);
+    for (const o of DK_ON_SCREEN) assert.ok(ids.has(o.claim), o.text);
+    const text = [...DK_NARRATION.map((l) => l.spoken + " " + (l.caption ?? "")), ...DK_ON_SCREEN.map((o) => o.text)].join(" | ");
+    assert.equal(BANNED.test(text), false, "banned wording");
+    assert.match(DK_NARRATION.at(-1)!.caption ?? "", /DrinkKnird.com/);
   });
 });

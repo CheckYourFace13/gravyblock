@@ -170,7 +170,7 @@ describe("owner review (database)", { skip: !HAVE_DB }, () => {
         assert.equal(p.video, null);
         assert.match(p.videoNote ?? "", /rejected as not production-ready/);
         assert.match(p.videoNote ?? "", p.slug === "scribblezap" ? /TEASER ONLY/ : /SLIDESHOW NOT PRODUCTION READY/);
-        assert.match(p.videoNote ?? "", /frozen/);
+        assert.match(p.videoNote ?? "", /not production-ready/);
       }
     }
   });

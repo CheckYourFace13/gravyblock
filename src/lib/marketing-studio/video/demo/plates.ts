@@ -10,13 +10,13 @@ import { launchBrowser } from "../../creative/render";
 import { PLATE_CSS_W, type Manifest, type PlateManifest, type Rect } from "./types";
 
 const ORIGIN = "https://rentalnoodle.com";
-const VIEW = { w: PLATE_CSS_W, h: 844, dpr: 3 };
-const MOBILE_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36 GravyBlockStudioCapture";
+export const VIEW = { w: PLATE_CSS_W, h: 844, dpr: 3 };
+export const MOBILE_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36 GravyBlockStudioCapture";
 
-const round = (n: number) => Math.round(n * 10) / 10;
+export const round = (n: number) => Math.round(n * 10) / 10;
 
 /** Finds the smallest element containing the text and returns its box (or its card's box) in page coordinates. */
-async function rectByText(page: Page, text: string, opts: { card?: boolean; offsetY?: number; maxExtra?: number } = {}): Promise<Rect> {
+export async function rectByText(page: Page, text: string, opts: { card?: boolean; offsetY?: number; maxExtra?: number } = {}): Promise<Rect> {
   const r = await page.evaluate(
     ({ text, card, maxExtra }) => {
       const els = [...document.querySelectorAll("main *")].filter((e) => {
@@ -40,14 +40,14 @@ async function rectByText(page: Page, text: string, opts: { card?: boolean; offs
   return [round(r[0]), round(r[1] - (opts.offsetY ?? 0)), round(r[2]), round(r[3])];
 }
 
-async function boxOf(page: Page, selector: string, nth = 0, offsetY = 0): Promise<Rect> {
+export async function boxOf(page: Page, selector: string, nth = 0, offsetY = 0): Promise<Rect> {
   const b = await page.locator(selector).nth(nth).boundingBox();
   if (!b) throw new Error(`capture: no box for ${selector}[${nth}] on ${page.url()}`);
   const sy = await page.evaluate(() => window.scrollY);
   return [round(b.x), round(b.y + sy - offsetY), round(b.width), round(b.height)];
 }
 
-const union = (...rs: Rect[]): Rect => {
+export const union = (...rs: Rect[]): Rect => {
   const x = Math.min(...rs.map((r) => r[0]));
   const y = Math.min(...rs.map((r) => r[1]));
   const x2 = Math.max(...rs.map((r) => r[0] + r[2]));

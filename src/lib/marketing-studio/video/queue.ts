@@ -12,7 +12,7 @@ import { requireProduct } from "../repository";
 import { enqueue } from "../runtime";
 import type { OwnerScope } from "../scope";
 import { wrapCaption } from "./captions";
-import { assertVideosNotFrozen } from "./freeze";
+import { assertSlideshowAllowed } from "./freeze";
 import { MOTIONS, validateStoryboard, type CardScene, type Scene, type Storyboard } from "./types";
 
 // ---- storyboard from Product Truth ---------------------------------------------------------------------------------------
@@ -92,7 +92,7 @@ export function buildStoryboard(ctx: ProductContext, targetSeconds: number): Sto
 /** Creates a video record from Product Truth and queues its render (one active render job per video). */
 export async function createVideoFromProduct(scope: OwnerScope, actor: string, productId: string, targetSeconds: number, db: StudioDb = requireStudioDb()) {
   await requireProduct(scope, productId, db);
-  await assertVideosNotFrozen(db);
+  await assertSlideshowAllowed(db);
   if (![15, 30, 60].includes(targetSeconds)) throw new Error("Choose 15, 30 or 60 seconds");
   const ctx = await loadProductContext(scope, productId, db);
   const sb = buildStoryboard(ctx, targetSeconds);

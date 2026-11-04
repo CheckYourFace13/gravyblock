@@ -23,7 +23,7 @@ import { wrapCaption } from "./captions";
 import { buildStoryboard } from "./queue";
 import { runVideoQa } from "./qa";
 import { startSampler, type SamplerResult } from "./sampler";
-import { assertVideosNotFrozen } from "./freeze";
+import { assertSlideshowAllowed } from "./freeze";
 import { storeVideoFile } from "./store";
 import { storyboardSeconds, validateStoryboard, type CardScene, type Storyboard } from "./types";
 
@@ -128,7 +128,7 @@ export async function renderStoryboardToFile(ctx: ProductContext, sb: Storyboard
 /** Render job for a stored ms_videos row. */
 export async function renderVideoJob(input: { videoId?: string }, scope: OwnerScope = INTERNAL_SCOPE, db: StudioDb = requireStudioDb()) {
   if (!input.videoId) throw new Error("render_video needs a videoId");
-  await assertVideosNotFrozen(db);
+  await assertSlideshowAllowed(db);
   const [video] = await db.select().from(ms.msVideos).where(eq(ms.msVideos.id, input.videoId)).limit(1);
   if (!video) throw new Error("video not found");
   await db.update(ms.msVideos).set({ status: "rendering", error: null }).where(eq(ms.msVideos.id, video.id));

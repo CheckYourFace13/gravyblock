@@ -14,10 +14,9 @@ import { addFact, listFacts, listProducts, verifyFact } from "../../repository";
 import { INTERNAL_SCOPE, type OwnerScope } from "../../scope";
 import { storeVideoFile } from "../store";
 import { audioInfo, mixAudio, parseSpoken, placeLines, synthesizeLines, synthMusic, writeWav } from "./audio";
-import { capturePlates } from "./plates";
 import { renderDemo } from "./render";
 import { runDemoQa, type DemoQaResult } from "./qa";
-import { buildTimeline, CLAIMS, CTA, DEMO_FACTS, layoutLines, NARRATION, ON_SCREEN, SCENE_META, TITLE } from "./rentalnoodle";
+import { demoSpecFor, type DemoSpec } from "./specs";
 import type { DemoRecord, Manifest } from "./types";
 
 export const DEMO_ACTOR = "pilot-prep (public sources, owner directive)";
@@ -32,9 +31,9 @@ type FactLite = { id: string; value: string; verified: boolean };
  * Adds the few Product Truth facts this video needs. A fact is only added when its exact text is on the live page it cites, which is what
  * lets it be marked verified. With write=false (a dry run) nothing is stored and the facts count as prospective.
  */
-export async function ensureFacts(db: StudioDb, scope: OwnerScope, productId: string, manifest: Manifest, write: boolean): Promise<FactLite[]> {
+export async function ensureFacts(db: StudioDb, scope: OwnerScope, productId: string, manifest: Manifest, write: boolean, wanted: Array<{ plate: string; value: string }> = demoSpecFor("rentalnoodle").facts): Promise<FactLite[]> {
   const out: FactLite[] = (await listFacts(scope, productId, db)).filter((f) => f.status === "current").map((f) => ({ id: f.id, value: f.factValue, verified: Boolean(f.verifiedAt) }));
-  for (const d of DEMO_FACTS) {
+  for (const d of wanted) {
     const plate = manifest.plates[d.plate];
     if (!plate) throw new Error(`no captured page "${d.plate}" for fact "${d.value.slice(0, 40)}"`);
     if (!norm(plate.text).includes(norm(d.value))) throw new Error(`The live page ${plate.url} no longer says "${d.value.slice(0, 60)}". Not adding it as a fact.`);
@@ -60,19 +59,21 @@ export type ProducedDemo = {
   manifest: Manifest;
 };
 
-export async function produceDemo(opts: { db: StudioDb; scope?: OwnerScope; workDir: string; writeFacts: boolean; log?: (m: string) => void; ttsDir?: string; reuse?: { manifest?: boolean } }): Promise<ProducedDemo> {
+export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: OwnerScope; workDir: string; writeFacts: boolean; log?: (m: string) => void; ttsDir?: string; reuse?: { manifest?: boolean } }): Promise<ProducedDemo> {
   const { db, workDir } = opts;
   const scope = opts.scope ?? INTERNAL_SCOPE;
   const log = opts.log ?? (() => {});
+  const spec: DemoSpec = demoSpecFor(opts.slug ?? "rentalnoodle");
+  const { narration: NARRATION, claims: CLAIMS, onScreen: ON_SCREEN, sceneMeta: SCENE_META } = spec;
   await fs.mkdir(workDir, { recursive: true });
-  const product = (await listProducts(scope, db)).find((p) => p.slug === "rentalnoodle");
-  if (!product) throw new Error("RentalNoodle is not a Studio product");
+  const product = (await listProducts(scope, db)).find((p) => p.slug === spec.slug);
+  if (!product) throw new Error(`${spec.productName} is not a Studio product`);
 
   // 1. capture the real product
   const platesDir = path.join(workDir, "stage");
   await fs.mkdir(platesDir, { recursive: true });
   const [logoAsset] = (await db.select().from(ms.msAssets).where(eq(ms.msAssets.productId, product.id))).filter((a) => a.kind === "logo" && a.approved === "true");
-  if (!logoAsset) throw new Error("RentalNoodle has no approved logo asset");
+  if (!logoAsset) throw new Error(`${spec.productName} has no approved logo asset`);
   const logoFile = path.join(platesDir, "logo.png");
   await fs.writeFile(logoFile, await readAssetBytes(logoAsset));
   const t0 = Date.now();
@@ -80,12 +81,12 @@ export async function produceDemo(opts: { db: StudioDb; scope?: OwnerScope; work
   if (opts.reuse?.manifest) manifest = JSON.parse(await fs.readFile(path.join(platesDir, "manifest.json"), "utf8")) as Manifest;
   else {
     log("capturing the live product pages");
-    manifest = await capturePlates(platesDir, logoFile);
+    manifest = await spec.capture(platesDir, logoFile);
   }
   const captureMs = Date.now() - t0;
 
   // 2. facts the claims rest on
-  const facts = await ensureFacts(db, scope, product.id, manifest, opts.writeFacts);
+  const facts = await ensureFacts(db, scope, product.id, manifest, opts.writeFacts, spec.facts);
 
   // 3. voiceover
   log("recording the voiceover");
@@ -93,8 +94,8 @@ export async function produceDemo(opts: { db: StudioDb; scope?: OwnerScope; work
   const synth = await synthesizeLines(NARRATION.map((l) => ({ id: l.id, text: parseSpoken(l.spoken).words.join(" ") })), { ttsDir: opts.ttsDir ?? STUDIO_TTS_DIR, voice: VOICE_ID, speed: VOICE_SPEED, tmpDir: path.join(workDir, "tts") });
   const voiceMs = Date.now() - t1;
   const dur = Object.fromEntries(synth.map((s) => [s.id, Math.round((s.samples.length / s.rate) * 1000)]));
-  const lineTimes = layoutLines(dur);
-  const built = buildTimeline(manifest, lineTimes);
+  const lineTimes = spec.layout(dur);
+  const built = spec.build(manifest, lineTimes);
   const { timeline } = built;
 
   // 4. audio mix
@@ -145,13 +146,14 @@ export async function produceDemo(opts: { db: StudioDb; scope?: OwnerScope; work
     version: 2,
     kind: "demo",
     classification: "PRODUCT_DEMO",
-    title: TITLE,
+    title: spec.title,
     durationMs: timeline.durationMs,
     transcript: NARRATION.map((l) => ({ id: l.id, sceneId: l.sceneId, text: parseSpoken(l.spoken).words.join(" "), caption: l.caption ?? parseSpoken(l.spoken).words.join(" "), startMs: lineTimes[l.id].start, endMs: lineTimes[l.id].end })),
     scenes: sceneRows,
     claims,
     onScreen: ON_SCREEN,
-    cta: { text: CTA.text, url: CTA.url },
+    cta: { text: spec.cta.text, url: spec.cta.url },
+    endHeadline: timeline.scenes.find((s) => s.kind === "end")?.end_card?.headline,
     audio: audioInfo(VOICE_ID, VOICE_SPEED),
     capturedAt: manifest.capturedAt,
   };
@@ -169,6 +171,7 @@ export async function produceDemo(opts: { db: StudioDb; scope?: OwnerScope; work
     onScreenTexts: ON_SCREEN.map((o) => o.text),
     endStartMs: endScene.start,
     mixFile: path.join(workDir, "mix.wav"),
+    site: spec.site,
   });
   return { file: outFile, record, qa, stats: { captureMs, voiceMs, renderMs: rendered.wallMs, frames: rendered.frames }, manifest };
 }
@@ -193,11 +196,13 @@ export async function renderDemoVideoJob(input: { videoId?: string }, scope: Own
   await assertDemoMemoryHeadroom();
   const [video] = await db.select().from(ms.msVideos).where(eq(ms.msVideos.id, input.videoId)).limit(1);
   if (!video) throw new Error("video not found");
+  const product = (await listProducts(scope, db)).find((p) => p.id === video.productId);
+  if (!product) throw new Error("product not found");
   await db.update(ms.msVideos).set({ status: "rendering", error: null }).where(eq(ms.msVideos.id, video.id));
   const dir = path.join(STUDIO_DIRS.tmp, `demo-${video.id}`);
   try {
     const t0 = Date.now();
-    const made = await produceDemo({ db, scope, workDir: dir, writeFacts: true });
+    const made = await produceDemo({ slug: product.slug, db, scope, workDir: dir, writeFacts: true });
     const stored = await storeVideoFile(scope, "studio-worker", video.productId, made.file, { width: 1080, height: 1920, name: `${made.record.title}.mp4` }, db);
     const status = made.qa.passed ? "ready_for_review" : "qa_failed";
     await db

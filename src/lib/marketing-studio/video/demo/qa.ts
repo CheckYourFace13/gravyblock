@@ -74,7 +74,11 @@ export type DemoQaInput = {
   endStartMs: number;
   /** The final mixed audio (wav), used to prove the music is audible and sits under the voice. */
   mixFile: string;
+  /** The product's own site, used to prove every source page and the call to action belong to it. Defaults to RentalNoodle. */
+  site?: { origin: string; ctaText: string; ctaHost: string };
 };
+
+const RN_SITE = { origin: "https://rentalnoodle.com", ctaText: "Start Managing Free", ctaHost: "rentalnoodle.com" };
 
 export async function runDemoQa(i: DemoQaInput): Promise<DemoQaResult> {
   const checks: DemoQaCheck[] = [];
@@ -203,7 +207,9 @@ export async function runDemoQa(i: DemoQaInput): Promise<DemoQaResult> {
   add("quotes_on_live_pages", missingQuote.length === 0, missingQuote.length ? `quotes not found on the captured page: ${missingQuote.slice(0, 3).join("; ")}` : "every quoted source line was found on the page it cites");
   const orphan = i.record.onScreen.filter((o) => !i.record.claims.some((c) => c.id === o.claim)).map((o) => o.text);
   add("on_screen_text_sourced", orphan.length === 0, orphan.length ? `on-screen text with no claim: ${orphan.join(", ")}` : `${i.record.onScreen.length} on-screen texts, each tied to a claim`);
-  const noVisual = screenScenes.filter((s) => !s.sourceVisual || !/^https:\/\/rentalnoodle\.com\//.test(s.sourceVisual.url) || !s.sourceVisual.capturedAt).map((s) => s.id);
+  const site = i.site ?? RN_SITE;
+  const onSite = (u: string) => u === site.origin || u.startsWith(`${site.origin}/`);
+  const noVisual = screenScenes.filter((s) => !s.sourceVisual || !onSite(s.sourceVisual.url) || !s.sourceVisual.capturedAt).map((s) => s.id);
   add("source_visual_per_scene", noVisual.length === 0, noVisual.length ? `scenes without a source page: ${noVisual.join(", ")}` : "every product scene names the live page it was captured from, with the capture time");
 
   // 8. wording
@@ -214,7 +220,7 @@ export async function runDemoQa(i: DemoQaInput): Promise<DemoQaResult> {
 
   // 9. call to action and audio provenance
   const endScene = i.record.scenes.at(-1);
-  add("cta_present", endScene?.kind === "end" && i.record.cta.text === "Start Managing Free" && /^https:\/\/rentalnoodle\.com\//.test(i.record.cta.url) && /rentalnoodle\.com/i.test(i.narration.at(-1)?.caption ?? ""), `end card CTA "${i.record.cta.text}" to ${i.record.cta.url}`);
+  add("cta_present", endScene?.kind === "end" && i.record.cta.text === site.ctaText && onSite(i.record.cta.url) && (i.narration.at(-1)?.caption ?? "").toLowerCase().includes(site.ctaHost), `end card CTA "${i.record.cta.text}" to ${i.record.cta.url}`);
   const a = i.record.audio;
   add("audio_sources_recorded", Boolean(a.voiceover.model && a.voiceover.license && a.voiceover.voice && a.music.source && a.music.license && a.voiceover.cost === "$0" && a.music.cost === "$0"), `voice: ${a.voiceover.engine} (${a.voiceover.license}, ${a.voiceover.cost}); music: ${a.music.source} (${a.music.cost})`);
 
