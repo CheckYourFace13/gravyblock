@@ -20,7 +20,7 @@ export const MB_CAPTURE_DIR = process.env.STUDIO_MIBBLE_CAPTURE_DIR ?? "/var/lib
 export const MB_PLATE = { w: 390, h: 845 };
 
 /** Which stretch of the stored footage each beat plays, in movie frames (30 per second). Event frames come from the capture's own log. */
-export const MB_WINDOWS: Array<{ scene: string; from: number; to: number; what: string }> = [
+export const MB_WINDOWS: Array<{ scene: string; from: number; to: number; what: string; /** footage folder under the capture directory (default: the six-level session) */ dir?: string }> = [
   { scene: "hook", from: 1885, to: 1990, what: "level 4 (a 5 by 5 board): animals placed one by one until the board is solved" },
   { scene: "cute", from: 463, to: 565, what: "after level 1: the celebration screen with its bunny, title, stars and score" },
   { scene: "touch", from: 895, to: 990, what: "level 2: marks and placements on a 4 by 4 board with different meadows" },
@@ -29,7 +29,7 @@ export const MB_WINDOWS: Array<{ scene: string; from: number; to: number; what: 
   { scene: "grow", from: 2715, to: 2810, what: "level 6 (a 5 by 5 board): marks, then every animal placed" },
   { scene: "fresh", from: 2300, to: 2385, what: "level 5: a differently shaped board in new colours" },
   { scene: "stars", from: 2449, to: 2580, what: "after level 5: the panda's celebration screen with three stars" },
-  { scene: "home", from: 130, to: 238, what: "the splash with its running animals, then the home screen with Play, Daily Meadow and Endless Meadow" },
+  { scene: "home", from: 178, to: 292, dir: "home/mv", what: "the end of the splash, then the real home screen with Play, Daily Meadow and Endless Meadow (a separate idle run of the same game)" },
 ];
 
 type Ev = { frame: number; kind: string; level?: number | string; size?: number };
@@ -46,7 +46,7 @@ export async function captureMibblePlates(outDir: string, logoFile: string): Pro
     const sub = `clip-${w.scene}`;
     await mkdir(path.join(outDir, sub), { recursive: true });
     const n = w.to - w.from;
-    await run("ffmpeg", ["-hide_banner", "-nostdin", "-y", "-loglevel", "error", "-framerate", "30", "-start_number", String(w.from), "-i", path.join(dir, "mv", "f%08d.png"), "-frames:v", String(n), "-q:v", "2", path.join(outDir, sub, "f%04d.jpg")], { timeout: 180_000 });
+    await run("ffmpeg", ["-hide_banner", "-nostdin", "-y", "-loglevel", "error", "-framerate", "30", "-start_number", String(w.from), "-i", path.join(dir, w.dir ?? "mv", "f%08d.png"), "-frames:v", String(n), "-q:v", "2", path.join(outDir, sub, "f%04d.jpg")], { timeout: 180_000 });
     clips[w.scene] = { frames: Array.from({ length: n }, (_, k) => `${sub}/f${String(k + 1).padStart(4, "0")}.jpg`), fps: 30, fromSec: w.from / 30 };
     // Movie Maker renders every frame on its own clock, so the footage is exactly 30 distinct frames per second
     windows.push({ scene: w.scene, fromSec: w.from / 30, toSec: w.to / 30, capturedFps: 30 });
