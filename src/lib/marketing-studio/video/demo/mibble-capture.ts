@@ -24,6 +24,7 @@ export const MB_WINDOWS: Array<{ scene: string; from: number; to: number; what: 
   { scene: "hook", from: 1885, to: 1990, what: "level 4 (a 5 by 5 board): animals placed one by one until the board is solved" },
   { scene: "cute", from: 463, to: 565, what: "after level 1: the celebration screen with its bunny, title, stars and score" },
   { scene: "touch", from: 895, to: 990, what: "level 2: marks and placements on a 4 by 4 board with different meadows" },
+  { scene: "mark", from: 1475, to: 1570, what: "level 3: single-tap marks, a swipe of marks, then double-tap placements on a different board" },
   { scene: "cheer", from: 1039, to: 1135, what: "after level 2: the fox's celebration screen" },
   { scene: "grow", from: 2715, to: 2810, what: "level 6 (a 5 by 5 board): marks, then every animal placed" },
   { scene: "fresh", from: 2300, to: 2385, what: "level 5: a differently shaped board in new colours" },

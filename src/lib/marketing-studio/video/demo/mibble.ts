@@ -16,6 +16,7 @@ export const MB_BEATS: Array<{ id: string; line: string; headline?: string }> = 
   { id: "hook", line: "L1", headline: "Find their spots." },
   { id: "cute", line: "L2", headline: "Cute + clever." },
   { id: "touch", line: "L3", headline: "No touching!" },
+  { id: "mark", line: "L3b", headline: "Mark. Place. Repeat." },
   { id: "cheer", line: "L4", headline: "Meadow cheers!" },
   { id: "grow", line: "L5", headline: "New puzzle, new meadow." },
   { id: "fresh", line: "L5" },
@@ -28,9 +29,10 @@ export const MB_NARRATION: NarrationLine[] = [
   { id: "L1", sceneId: "hook", spoken: "Find a home for every animal.", claims: ["c-place"] },
   { id: "L2", sceneId: "cute", spoken: "Cute faces. Clever puzzles.", claims: ["c-cozy"] },
   { id: "L3", sceneId: "touch", spoken: "But no two animals can touch.", claims: ["c-touch"] },
+  { id: "L3b", sceneId: "mark", spoken: "Mark what can't work. Place what does.", claims: ["c-mark"] },
   { id: "L4", sceneId: "cheer", spoken: "Get it right and the meadow cheers.", claims: ["c-cheer"] },
   { id: "L5", sceneId: "grow", spoken: "Every meadow is a new puzzle.", claims: ["c-varied"] },
-  { id: "L6", sceneId: "stars", spoken: "Chase those three stars.", claims: ["c-cheer"] },
+  { id: "L6", sceneId: "stars", spoken: "Chase those three stars, then go for just one more meadow.", claims: ["c-cheer", "c-varied"] },
   { id: "L7", sceneId: "home", spoken: "There's a Daily Meadow, too.", claims: ["c-daily"] },
   { id: "L8", sceneId: "end", spoken: "How many meadows can you clear? Follow I Scream Studio.", caption: "How many meadows can you clear? Follow iScream Studio.", claims: ["c-invite"] },
 ];
@@ -39,6 +41,7 @@ const P = "public";
 const G = "play";
 const BOARDS = "Boards played: 4 by 4, then 4 by 4, then 4 by 4, then 5 by 5, then 4 by 4, then 5 by 5.";
 const CELEBRATE = "Every solved level ended on a celebration screen with an animal, a title, stars and a score";
+const MARKS = "Animals are placed by double-tap; a single tap or a swipe marks cells.";
 const HOME = "The home screen offers Play, Daily Meadow and Endless Meadow.";
 export const MB_CLAIMS: Claim[] = [
   { id: "c-place", text: "You place one resident per meadow, row and column.", facts: ["Place one resident per meadow, row, and column"], sources: [{ plate: P, quote: "Place one resident per meadow, row, and column" }] },
@@ -46,6 +49,7 @@ export const MB_CLAIMS: Claim[] = [
   { id: "c-touch", text: "The animals never touch, even at the corners.", facts: ["they never touch, even at the corners"], sources: [{ plate: P, quote: "they never touch, even at the corners" }] },
   { id: "c-cheer", text: "Each solved level ends on a celebration screen with an animal, a title, stars and a score.", facts: [CELEBRATE], sources: [{ plate: G, quote: CELEBRATE }] },
   { id: "c-varied", text: "Each meadow is a different board (the first six played were 4 by 4 and 5 by 5 with different meadow shapes and colours).", facts: [BOARDS], sources: [{ plate: G, quote: BOARDS }] },
+  { id: "c-mark", text: "A single tap or a swipe marks cells, and a double-tap places an animal.", facts: [MARKS], sources: [{ plate: G, quote: MARKS }] },
   { id: "c-daily", text: "The home screen has a Daily Meadow next to Play and Endless Meadow.", facts: [HOME], sources: [{ plate: G, quote: HOME }] },
   { id: "c-invite", text: "Mibble Meadow is published by iScream Studio.", facts: ["iScream Studio"], sources: [{ plate: P, quote: "iScream Studio" }] },
 ];
@@ -58,6 +62,7 @@ export const MB_FACTS: Array<{ plate: string; value: string; kind?: "asset_metad
   { plate: P, value: "iScream Studio" },
   { plate: G, value: CELEBRATE, kind: "asset_metadata" },
   { plate: G, value: BOARDS, kind: "asset_metadata" },
+  { plate: G, value: MARKS, kind: "asset_metadata" },
   { plate: G, value: HOME, kind: "asset_metadata" },
 ];
 
@@ -65,6 +70,7 @@ export const MB_ON_SCREEN: Array<{ sceneId: string; kind: "headline" | "label" |
   { sceneId: "hook", kind: "headline", text: "Find their spots.", claim: "c-place" },
   { sceneId: "cute", kind: "headline", text: "Cute + clever.", claim: "c-cozy" },
   { sceneId: "touch", kind: "headline", text: "No touching!", claim: "c-touch" },
+  { sceneId: "mark", kind: "headline", text: "Mark. Place. Repeat.", claim: "c-mark" },
   { sceneId: "cheer", kind: "headline", text: "Meadow cheers!", claim: "c-cheer" },
   { sceneId: "grow", kind: "headline", text: "New puzzle, new meadow.", claim: "c-varied" },
   { sceneId: "stars", kind: "headline", text: "Chase 3 stars.", claim: "c-cheer" },
@@ -79,6 +85,7 @@ export const MB_SCENE_META: Record<string, { plate?: string; purpose: string; mo
   hook: { plate: "play", purpose: "Hook: animals landing on a 5 by 5 board until the puzzle is solved.", motion: four("animals placed one by one by real double-taps", "the board fills with cute faces", "the solve ends on the game's own celebration", "kinetic headline"), note },
   cute: { plate: "play", purpose: "Cute animals and a celebration: the game's own results screen with a bunny, a title, stars and a score.", motion: four("the results screen animates in with confetti", "the bunny and its title bounce", "stars and score appear", "slow camera push"), note },
   touch: { plate: "play", purpose: "The challenge: marks and placements on a board where no two animals may touch.", motion: four("real single-tap marks and a swipe of marks", "double-tap placements", "the rules strip and animal row at the top", "camera drifts across the board"), note },
+  mark: { plate: "play", purpose: "The rhythm of play: single-tap marks, a swipe of marks, then double-tap placements on a purple, blue and yellow board.", motion: four("real single-tap marks", "a swipe of marks across a row", "double-tap placements", "camera drifts across the board"), note },
   cheer: { plate: "play", purpose: "Reward: the fox's celebration screen after a solve.", motion: four("the celebration screen animates in", "the fox and its title", "stars and score", "slow camera push"), note },
   grow: { plate: "play", purpose: "Variety: a bigger 5 by 5 meadow.", motion: four("real marks and placements on a 5 by 5 board", "animals landing one by one", "the board completes", "camera drifts across the board"), note },
   fresh: { plate: "play", purpose: "Variety: another meadow with a different shape and colours.", motion: four("real placements on a differently shaped board", "different meadow colours and layout", "animals landing one by one", "camera drifts across the board"), note },
