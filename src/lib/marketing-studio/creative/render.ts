@@ -16,6 +16,7 @@ import type { SizeKey } from "./theme";
 export type Measure = {
   canvas: { w: number; h: number };
   texts: Array<{ idx: number; role: string; text: string; fs: number; min: number; overflow: boolean; rect: { x: number; y: number; w: number; h: number } }>;
+  frames?: Array<{ rect: { x: number; y: number; w: number; h: number } }>;
   images: Array<{ asset: string; role: string; rect: { x: number; y: number; w: number; h: number }; natural: { w: number; h: number }; ok: boolean }>;
 };
 

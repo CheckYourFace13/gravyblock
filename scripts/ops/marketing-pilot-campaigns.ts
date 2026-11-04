@@ -28,7 +28,7 @@ async function main() {
     ]);
     const verified = new Set(facts.filter((f) => f.verifiedAt && f.status === "current").map((f) => f.id));
     const eligible = (conceptId: string) => {
-      const c = concepts.find((x) => x.id === conceptId);
+      const c = concepts.find((x) => x.id === conceptId && x.status !== "superseded");
       const ids = (c?.factIds as string[] | undefined) ?? [];
       return Boolean(c) && ids.length > 0 && ids.every((i) => verified.has(i));
     };

@@ -93,15 +93,22 @@ export function pickRepresentatives(items: ReviewCreative[], limit = REPRESENTAT
   const concepts = [...best.values()];
   const picked: ReviewCreative[] = [];
   const seenFamilies = new Set<string>();
+  const seenHeadlines = new Set<string>();
+  const hk = (c: ReviewCreative) => c.headline.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  // Different angles first, and never two representatives with the same headline.
   for (const c of concepts) {
     if (picked.length >= limit) break;
-    if (seenFamilies.has(c.family)) continue;
+    if (seenFamilies.has(c.family) || seenHeadlines.has(hk(c))) continue;
     seenFamilies.add(c.family);
+    seenHeadlines.add(hk(c));
     picked.push(c);
   }
   for (const c of concepts) {
     if (picked.length >= limit) break;
-    if (!picked.includes(c)) picked.push(c);
+    if (!picked.includes(c) && !seenHeadlines.has(hk(c))) {
+      seenHeadlines.add(hk(c));
+      picked.push(c);
+    }
   }
   return picked;
 }
@@ -142,7 +149,7 @@ export async function loadReview(scope: OwnerScope, db: StudioDb = requireStudio
   for (const p of products) {
     const pFacts = facts.filter((f) => f.productId === p.id).map(toFactRef);
     const factById = new Map(pFacts.map((f) => [f.id, f]));
-    const pConcepts = new Map(concepts.filter((c) => c.productId === p.id).map((c) => [c.id, c]));
+    const pConcepts = new Map(concepts.filter((c) => c.productId === p.id && c.status !== "superseded").map((c) => [c.id, c]));
     const items: ReviewCreative[] = [];
     for (const cr of creatives.filter((c) => c.productId === p.id).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) {
       const c = pConcepts.get(cr.conceptId);
@@ -169,7 +176,7 @@ export async function loadReview(scope: OwnerScope, db: StudioDb = requireStudio
     }
 
     // The pilot video: the newest one that passed review checks, else the newest of any state so a failure is visible rather than hidden.
-    const pVideos = videos.filter((v) => v.productId === p.id).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const pVideos = videos.filter((v) => v.productId === p.id && v.status !== "superseded").sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     const chosen = pVideos.find((v) => REVIEWABLE.has(v.status) && summarizeQa(v.qa).passed && v.assetId) ?? pVideos[0];
     let video: ReviewVideo | null = null;
     if (chosen) {

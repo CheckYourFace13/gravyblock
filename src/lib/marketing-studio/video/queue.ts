@@ -29,19 +29,29 @@ export function buildStoryboard(ctx: ProductContext, targetSeconds: number): Sto
   const lead = tagline?.factValue ?? (desc ? firstSentence(desc.factValue) : null);
   if (!lead) throw new Error("A video needs a verified tagline or description");
 
-  const items: Array<{ family: CardScene["family"]; headline: string; subhead: string | null; caption: string | null }> = [];
-  for (const f of facts.filter((x) => x.factKey === "feature")) {
-    const [title, detail] = splitTitleDetail(f.factValue);
-    items.push({ family: "feature_highlight", headline: title, subhead: detail, caption: detail ?? title });
-  }
-  for (const f of facts.filter((x) => x.factKey === "how_it_plays")) items.push({ family: "product_benefit", headline: f.factValue, subhead: null, caption: f.factValue });
+  type Item = { family: CardScene["family"]; headline: string; subhead: string | null; caption: string | null };
+  const inPageOrder = (key: string) => facts.filter((x) => x.factKey === key).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  const flat = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const leadKey = flat(lead);
+  // A feature that only restates the opening headline is not another scene.
+  const featureItems: Item[] = inPageOrder("feature")
+    .filter((f) => !flat(f.factValue).includes(leadKey))
+    .map((f) => {
+      const [title, detail] = splitTitleDetail(f.factValue);
+      return { family: "feature_highlight" as const, headline: title, subhead: detail, caption: detail ?? title };
+    });
+  const playItems: Item[] = inPageOrder("how_it_plays").map((f) => ({ family: "product_benefit" as const, headline: f.factValue, subhead: null, caption: f.factValue }));
+  // With only an icon to show, the verified how-it-plays steps carry the video; otherwise the features lead.
+  const logoOnly = ctx.screenshotAssets.length === 0;
+  const items: Item[] = logoOnly ? [...playItems, ...featureItems] : [...featureItems, ...playItems];
 
   const visuals: Array<{ assetId: string }> = ctx.screenshotAssets.length ? ctx.screenshotAssets.map((a) => ({ assetId: a.id })) : ctx.logoAsset ? [{ assetId: ctx.logoAsset.id }] : [];
   if (visuals.length === 0) throw new Error("A video needs at least one approved screenshot or logo/icon asset");
 
   let n = Math.min(Math.max(Math.round(targetSeconds / 5), 3), 16);
   const middle = (m: number) => m - 2;
-  const cardsNeeded = (m: number) => Math.ceil(middle(m) / 2);
+  // Icon-only: one image scene, every other middle scene is a card.
+  const cardsNeeded = (m: number) => (logoOnly ? Math.max(0, middle(m) - 1) : Math.ceil(middle(m) / 2));
   while (n > 3 && cardsNeeded(n) > items.length) n--;
   // Scene lengths are multiples of 0.5 s (keyframe-aligned cuts); the remainder is spread one half-second at a time over the first scenes.
   const halves = Math.round((targetSeconds + (n - 1) * VIDEO.transitionSeconds) * 2);
@@ -55,19 +65,23 @@ export function buildStoryboard(ctx: ProductContext, targetSeconds: number): Sto
   let ci = 0;
   for (let k = 0; k < middle(n); k++) {
     // With three scenes there is only room for one visual: title, image, call to action.
-    const wantCard = middle(n) > 1 && k % 2 === 0;
+    const wantCard = logoOnly ? k !== (middle(n) >= 2 ? 1 : 0) : middle(n) > 1 && k % 2 === 0;
     if (wantCard && items[ci]) {
       const it = items[ci++];
       scenes.push({ type: "card", seconds: nextLen(), family: it.family, headline: it.headline, subhead: it.subhead });
     } else {
       const prevCard = [...scenes].reverse().find((s): s is CardScene => s.type === "card");
-      const caption = middle(n) > 1 && ci > 0 ? items[ci - 1]?.caption ?? null : null;
+      // An icon scene carries no caption (the card before it already says it); a screenshot scene repeats the detail of the card before it.
+      const caption = !logoOnly && middle(n) > 1 && ci > 0 ? items[ci - 1]?.caption ?? null : null;
       scenes.push({ type: "image", seconds: nextLen(), assetId: visuals[vi % visuals.length].assetId, motion: MOTIONS[1 + (vi % (MOTIONS.length - 1))], caption: caption && wrapCaption(caption) ? caption : null });
       vi++;
       void prevCard;
     }
   }
-  scenes.push({ type: "card", seconds: nextLen(), family: "cta", headline: note?.factValue ?? lead, cta: { text: cta.factValue, url: ctaUrl.factValue } });
+  const spare = items[ci];
+  const endHeadline = note?.factValue ?? spare?.headline ?? `Meet ${ctx.productName}`;
+  const endSub = note ? null : spare?.subhead ?? null;
+  scenes.push({ type: "card", seconds: nextLen(), family: "cta", headline: endHeadline, subhead: endSub, cta: { text: cta.factValue, url: ctaUrl.factValue } });
   const sb: Storyboard = { version: 1, scenes, transition: "fade" };
   const errors = validateStoryboard(sb);
   if (errors.length) throw new Error(`Storyboard is not valid: ${errors.join("; ")}`);

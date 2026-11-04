@@ -4,12 +4,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { and, eq } from "drizzle-orm";
-import { reviewCreative } from "../../src/lib/marketing-studio/creative/copy";
 import { closeStudioDb, ms, requireStudioDb } from "../../src/lib/marketing-studio/db";
 import { approvePublication, createPublication, exportPublication } from "../../src/lib/marketing-studio/publishing/queue";
 import { listProducts } from "../../src/lib/marketing-studio/repository";
 import { INTERNAL_SCOPE } from "../../src/lib/marketing-studio/scope";
-import { reviewVideo } from "../../src/lib/marketing-studio/video/queue";
 
 const ACTOR = "pilot-operator";
 const outDir = process.argv[2] ?? "/tmp/ms-exports";
@@ -19,11 +17,10 @@ async function main() {
   const db = requireStudioDb();
   const product = (await listProducts(INTERNAL_SCOPE, db)).find((p) => p.slug === "drinkknird");
   if (!product) throw new Error("DrinkKnird not found");
-  const [creative] = (await db.select().from(ms.msCreatives).where(and(eq(ms.msCreatives.productId, product.id), eq(ms.msCreatives.sizeKey, "square")))).filter((c) => ["ready_for_review", "approved"].includes(c.status) && clean(c.qa));
-  const [video] = (await db.select().from(ms.msVideos).where(eq(ms.msVideos.productId, product.id))).filter((v) => ["ready_for_review", "approved"].includes(v.status));
-  if (!creative || !video) throw new Error("Need one QA-clean square creative and one video");
-  if (creative.status !== "approved") await reviewCreative(INTERNAL_SCOPE, ACTOR, product.id, creative.id, "approved", db);
-  if (video.status !== "approved") await reviewVideo(INTERNAL_SCOPE, ACTOR, product.id, video.id, "approved", db);
+  const [creative] = (await db.select().from(ms.msCreatives).where(and(eq(ms.msCreatives.productId, product.id), eq(ms.msCreatives.sizeKey, "square")))).filter((c) => c.status === "approved" && clean(c.qa));
+  const [video] = (await db.select().from(ms.msVideos).where(eq(ms.msVideos.productId, product.id))).filter((v) => v.status === "approved");
+  // Exports only ever use work the owner has approved in the Review screen. This script never approves anything itself.
+  if (!creative || !video) throw new Error("Nothing to export yet: approve one QA-clean square creative and one video in Marketing Studio > Review first");
   mkdirSync(outDir, { recursive: true });
   const plan: Array<[string, { creativeId?: string; videoId?: string }]> = [["instagram", { creativeId: creative.id }], ["youtube", { videoId: video.id }], ["tiktok", { videoId: video.id }]];
   for (const [platform, ref] of plan) {

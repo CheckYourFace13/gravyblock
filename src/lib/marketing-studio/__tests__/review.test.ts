@@ -22,7 +22,7 @@ const cr = (over: Partial<ReviewCreative>): ReviewCreative => ({
   conceptId: "c1",
   family: "product_benefit",
   campaign: null,
-  headline: "H",
+  headline: `Headline ${Math.random().toString(16).slice(2)}`,
   subhead: null,
   caption: "C",
   ctaText: null,

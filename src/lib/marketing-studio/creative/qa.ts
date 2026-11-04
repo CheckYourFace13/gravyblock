@@ -30,6 +30,8 @@ export type QaInput = {
   conceptId: string;
   /** Other creatives of the same product: image hash plus the normalized text they show. */
   otherHashes: Array<{ conceptId: string; dhash: string; textSig?: string | null }>;
+  /** Normalized headlines of the product's other (current) concepts; a product never repeats one. Optional for callers that have no siblings. */
+  otherHeadlines?: string[];
 };
 
 export const norm = (s: string) =>
@@ -108,7 +110,13 @@ export function traceText(block: BuiltCreative["textBlocks"][number], i: Pick<Qa
   }
 }
 
-export async function runCreativeQa(i: QaInput): Promise<{ passed: boolean; checks: QaCheck[]; dhash: string; textSig: string }> {
+type Rect = { x: number; y: number; w: number; h: number };
+/** Two boxes overlap when they share more than a few pixels in both directions (touching edges and anti-aliasing do not count). */
+export const overlaps = (a: Rect, b: Rect, tol = 4) => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > tol && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > tol;
+const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z0-9.-]+/;
+const PERSONAL = /\bchris\b|\bchristopher\b/i;
+
+export async function runCreativeQa(i: QaInput): Promise<{ passed: boolean; checks: QaCheck[]; dhash: string; textSig: string; headline: string }> {
   const checks: QaCheck[] = [];
   const add = (id: string, ok: boolean, detail: string, severity: "fail" | "warn" = "fail") => checks.push({ id, ok, severity, detail: ok ? detail : detail });
 
@@ -138,6 +146,20 @@ export async function runCreativeQa(i: QaInput): Promise<{ passed: boolean; chec
   const mismatched = i.built.textBlocks.filter((blk, idx) => rendered.get(idx) !== norm(blk.text));
   add("text_rendered_as_planned", mismatched.length === 0, mismatched.length ? `rendered text differs from the plan: ${mismatched.map((m) => m.role).join(", ")}` : "rendered text equals planned text");
 
+  // 2b. nothing collides: no text over text, over the logo or over the screenshot frame, and nothing outside the canvas
+  const items: Array<{ label: string; rect: Rect }> = [
+    ...i.measure.texts.map((x) => ({ label: `${x.role} "${x.text.slice(0, 24)}"`, rect: x.rect })),
+    ...i.measure.images.filter((x) => x.role !== "screenshot").map((x) => ({ label: x.role, rect: x.rect })),
+    ...(i.measure.frames ?? []).map((x) => ({ label: "screenshot", rect: x.rect })),
+  ];
+  const clashes: string[] = [];
+  for (let a = 0; a < items.length; a++) for (let c = a + 1; c < items.length; c++) if (overlaps(items[a].rect, items[c].rect)) clashes.push(`${items[a].label} overlaps ${items[c].label}`);
+  add("no_overlaps", clashes.length === 0, clashes.length ? `elements overlap: ${clashes.slice(0, 3).join("; ")}` : "no elements overlap");
+  const cw = i.measure.canvas.w;
+  const ch = i.measure.canvas.h;
+  const offCanvas = [...i.measure.images.filter((x) => x.role !== "screenshot"), ...(i.measure.frames ?? [])].filter((x) => x.rect.x < -1 || x.rect.y < -1 || x.rect.x + x.rect.w > cw + 1 || x.rect.y + x.rect.h > ch + 1);
+  add("inside_canvas", offCanvas.length === 0, offCanvas.length ? "an image or screenshot extends beyond the canvas" : "all images are inside the canvas");
+
   // 3. contrast, from the theme itself
   const lowContrast = contrastPairs(i.theme).filter((p) => {
     // Pairings the template does not use are not checked.
@@ -163,12 +185,16 @@ export async function runCreativeQa(i: QaInput): Promise<{ passed: boolean; chec
   const allText = i.built.textBlocks.map((x) => norm(x.text)).join(" | ");
   const hit = i.prohibited.map(norm).filter((p) => p.length >= 4 && allText.includes(p));
   add("no_prohibited_claims", hit.length === 0, hit.length ? `contains prohibited claim: ${hit.join("; ")}` : "no prohibited claims");
+  const personal = i.built.textBlocks.filter((x) => EMAIL.test(x.text) || PERSONAL.test(x.text));
+  add("no_personal_info", personal.length === 0, personal.length ? `personal information on the creative: ${personal.map((x) => x.role).join(", ")}` : "no email addresses or personal names");
   const ph = i.built.textBlocks.filter((x) => PLACEHOLDER.test(x.text));
   add("no_placeholder_text", ph.length === 0, ph.length ? `placeholder text: ${ph.map((x) => `"${x.text.slice(0, 30)}"`).join(", ")}` : "no placeholder text");
 
   // 6. duplicates: near-identical picture AND near-identical words. A coarse image hash alone also matches two different texts on the same
   // template, which is not a duplicate.
   const textSig = i.built.textBlocks.map((x) => norm(x.text)).join(" ");
+  const headline = norm(i.built.textBlocks.find((x) => x.role === "headline")?.text ?? "");
+  if (headline && i.otherHeadlines) add("distinct_headline", !i.otherHeadlines.includes(headline), i.otherHeadlines.includes(headline) ? "another concept of this product already uses this headline" : "headline is unique within the product");
   if (hash) {
     const dup = i.otherHashes.filter((o) => o.conceptId !== i.conceptId && hamming(o.dhash, hash) <= 6 && wordOverlap(textSig, o.textSig ?? "") >= 0.7);
     add("not_a_duplicate", dup.length === 0, dup.length ? "near-identical picture and wording to another creative of this product" : "distinct from other creatives");
@@ -191,7 +217,7 @@ export async function runCreativeQa(i: QaInput): Promise<{ passed: boolean; chec
   }
 
   const passed = checks.every((c) => c.ok || c.severity === "warn");
-  return { passed, checks, dhash: hash, textSig };
+  return { passed, checks, dhash: hash, textSig, headline };
 }
 
 function contrastRatio(a: string, b: string): number {

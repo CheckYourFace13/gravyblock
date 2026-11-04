@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { SIZES, type SizeKey, type Theme } from "./theme";
 
-export const TEMPLATE_VERSION = "1.0.1";
+export const TEMPLATE_VERSION = "1.1.0";
 
 export const TEMPLATE_FAMILIES = ["product_benefit", "feature_highlight", "announcement", "educational_tip", "screenshot_showcase", "comparison", "cta"] as const;
 export type TemplateFamily = (typeof TEMPLATE_FAMILIES)[number];
@@ -16,7 +16,7 @@ export type TemplateFamily = (typeof TEMPLATE_FAMILIES)[number];
 /** Fixed structural labels. They make no factual claim about any product. */
 export const STRUCTURAL_LABELS = ["Feature", "Tip", "Compare", "Step"] as const;
 /** Neutral framing patterns; {product} is replaced with the product name. */
-export const NEUTRAL_PATTERNS = ["Meet {product}", "{product} at a glance", "Learn more"] as const;
+export const NEUTRAL_PATTERNS = ["Meet {product}", "{product} at a glance", "Learn more", "How {product} plays"] as const;
 
 export type Img = { dataUri: string; w: number; h: number; assetId: string; alt: string };
 
@@ -38,6 +38,8 @@ export type CreativeInput = {
   columns?: Array<{ label: { text: string; src: TextSrc }; text: { text: string; src: TextSrc } }>;
   logo?: Img | null;
   screenshot?: Img | null;
+  /** Show the logo or app icon as a large hero mark. For products that have no screenshots, so the layout is a deliberate teaser, not an empty card. */
+  hero?: boolean;
 };
 
 export type BuiltCreative = {
@@ -82,13 +84,13 @@ function metrics(size: SizeKey): Metrics {
   switch (size) {
     case "story":
       // Extra top and bottom room for the platform interface that overlays stories and reels.
-      return { w, h, padTop: 230, padBottom: 270, padX: 84, gap: 30, head: [118, 46, 470], sub: [42, 28, 250], logoH: 84, ctaPx: 40, mediaMin: 420 };
+      return { w, h, padTop: 230, padBottom: 270, padX: 84, gap: 30, head: [118, 46, 470], sub: [42, 34, 250], logoH: 84, ctaPx: 40, mediaMin: 420 };
     case "portrait":
-      return { w, h, padTop: 72, padBottom: 76, padX: 80, gap: 26, head: [100, 44, 400], sub: [38, 26, 230], logoH: 72, ctaPx: 36, mediaMin: 300 };
+      return { w, h, padTop: 72, padBottom: 76, padX: 80, gap: 26, head: [100, 44, 400], sub: [38, 30, 230], logoH: 72, ctaPx: 36, mediaMin: 300 };
     case "landscape":
-      return { w, h, padTop: 44, padBottom: 44, padX: 60, gap: 16, head: [58, 32, 190], sub: [26, 24, 110], logoH: 48, ctaPx: 26, mediaMin: 200 };
+      return { w, h, padTop: 44, padBottom: 44, padX: 60, gap: 16, head: [58, 32, 190], sub: [28, 26, 110], logoH: 48, ctaPx: 26, mediaMin: 200 };
     default:
-      return { w, h, padTop: 72, padBottom: 72, padX: 76, gap: 24, head: [92, 42, 330], sub: [36, 26, 200], logoH: 66, ctaPx: 34, mediaMin: 280 };
+      return { w, h, padTop: 72, padBottom: 72, padX: 76, gap: 24, head: [92, 42, 330], sub: [36, 30, 200], logoH: 66, ctaPx: 34, mediaMin: 280 };
   }
 }
 
@@ -101,6 +103,22 @@ const FIT_AND_MEASURE = `
       while((el.scrollHeight>el.clientHeight+Math.ceil(fs*0.2)||el.scrollWidth>el.clientWidth+4)&&fs>min){fs-=2;el.style.fontSize=fs+'px';}
       el.dataset.fs=String(fs);
     });
+    budget();
+  }
+  // Column layouts: if the stacked content is taller than the space it has, shrink the largest text a step at a time so nothing spills over
+  // the logo, the screenshot or the call to action. Text can only shrink down to its readable minimum; QA fails the creative beyond that.
+  function budget(){
+    var main=document.querySelector('.main');
+    if(!main||getComputedStyle(main).flexDirection!=='column')return;
+    var gap=parseFloat(getComputedStyle(main).rowGap)||0;
+    function need(){var s=0,k=main.children;for(var i=0;i<k.length;i++)s+=k[i].getBoundingClientRect().height;return s+gap*Math.max(0,k.length-1);}
+    var guard=0;
+    while(need()>main.clientHeight+1&&guard++<300){
+      var cand=Array.prototype.slice.call(main.querySelectorAll('[data-fit]')).filter(function(e){return ['headline','subhead','body','step','column'].indexOf(e.dataset.role)>=0&&parseFloat(e.style.fontSize)>+e.dataset.min;});
+      if(!cand.length)break;
+      cand.sort(function(a,b){return parseFloat(b.style.fontSize)-parseFloat(a.style.fontSize);});
+      var fs=parseFloat(cand[0].style.fontSize)-2;cand[0].style.fontSize=fs+'px';cand[0].dataset.fs=String(fs);
+    }
   }
   window.__fit=fit;
   window.__measure=function(){
@@ -112,6 +130,7 @@ const FIT_AND_MEASURE = `
         return {idx:+el.dataset.idx,role:el.dataset.role,text:el.textContent,fs:parseFloat(getComputedStyle(el).fontSize),min:+el.dataset.min,
           overflow:el.scrollHeight>el.clientHeight+Math.ceil(parseFloat(getComputedStyle(el).fontSize)*0.2)||el.scrollWidth>el.clientWidth+4,rect:{x:t.x,y:t.y,w:t.width,h:t.height}};
       }),
+      frames:Array.prototype.map.call(document.querySelectorAll('.frame'),function(f){var r=f.getBoundingClientRect();return {rect:{x:r.x,y:r.y,w:r.width,h:r.height}};}),
       images:Array.prototype.map.call(document.querySelectorAll('img[data-asset]'),function(i){
         var r=i.getBoundingClientRect();
         return {asset:i.dataset.asset,role:i.dataset.role,rect:{x:r.x,y:r.y,w:r.width,h:r.height},natural:{w:i.naturalWidth,h:i.naturalHeight},ok:i.complete&&i.naturalWidth>0};
@@ -150,26 +169,30 @@ export function buildCreative(input: CreativeInput): BuiltCreative {
     ? `<div class="frame ${t.layout}"><div class="chrome"><i></i><i></i><i></i></div><img data-asset="${esc(input.screenshot!.assetId)}" data-role="screenshot" alt="${esc(input.screenshot!.alt)}" src="${input.screenshot!.dataUri}"></div>`
     : "";
 
+  const heroOn = Boolean(input.hero && input.logo && !hasShot);
+  const heroH = { story: 360, portrait: 300, square: 250, landscape: 220 }[input.size];
+  const hero = heroOn ? `<img data-asset="${esc(input.logo!.assetId)}" data-role="logo" class="hero" alt="${esc(input.logo!.alt)}" src="${input.logo!.dataUri}" style="height:${heroH}px;width:auto">` : "";
+
   const headMax = input.family === "cta" ? m.head[0] + 8 : m.head[0];
   const headline = txt("headline", input.headline.text, input.headline.src, { max: headMax, min: m.head[1], boxH: m.head[2], cls: "headline" });
   // The landscape link-card showcase gives the screenshot the space; its supporting line stays in the caption instead of overflowing the card.
   const dropSubhead = input.family === "screenshot_showcase" && landscape;
   const subhead = input.subhead && !dropSubhead ? txt("subhead", input.subhead.text, input.subhead.src, { max: m.sub[0], min: m.sub[1], boxH: m.sub[2], cls: "subhead" }) : "";
   const body = input.body ? txt("body", input.body.text, input.body.src, { max: m.sub[0], min: m.sub[1], boxH: m.sub[2], cls: "subhead" }) : "";
-  const labelFor = (text: string) => txt("label", text, { kind: "label" }, { max: 30, min: 24, boxH: 44, cls: "kicker" });
-  const badge = input.badge ? txt("badge", input.badge.text, input.badge.src, { max: landscape ? 28 : 38, min: 24, boxH: landscape ? 56 : 70, cls: "badge" }) : "";
-  const productLabel = txt("product", input.productName, { kind: "product" }, { max: landscape ? 28 : 36, min: 24, boxH: landscape ? 44 : 56, cls: "pname" });
+  const labelFor = (text: string) => txt("label", text, { kind: "label" }, { max: 32, min: 26, boxH: 46, cls: "kicker" });
+  const badge = input.badge ? txt("badge", input.badge.text, input.badge.src, { max: landscape ? 30 : 38, min: landscape ? 26 : 28, boxH: landscape ? 56 : 70, cls: "badge" }) : "";
+  const productLabel = txt("product", input.productName, { kind: "product" }, { max: landscape ? 28 : 36, min: 26, boxH: landscape ? 44 : 56, cls: "pname" });
 
   const ctaBtn = input.cta
-    ? `<div class="cta">${txt("cta", input.cta.text, { kind: "cta" }, { max: m.ctaPx, min: 24, boxH: m.ctaPx * 2 + 20, cls: "btn" })}${txt("url", hostPath(input.cta.url), { kind: "url" }, { max: landscape ? 24 : 28, min: 24, boxH: 44, cls: "urlLabel" })}</div>`
+    ? `<div class="cta">${txt("cta", input.cta.text, { kind: "cta" }, { max: m.ctaPx, min: landscape ? 26 : 28, boxH: m.ctaPx * 2 + 20, cls: "btn" })}${txt("url", hostPath(input.cta.url), { kind: "url" }, { max: landscape ? 28 : 30, min: landscape ? 26 : 28, boxH: 46, cls: "urlLabel" })}</div>`
     : "";
 
   let main = "";
   const stepsHtml = (input.steps ?? [])
-    .map((s, i) => `<li><span class="num">${i + 1}</span>${txt("step", s.text, s.src, { max: Math.max(m.sub[0] - 4, m.sub[1] + 2), min: m.sub[1], boxH: Math.round(m.sub[2] * 0.6), cls: "step" })}</li>`)
+    .map((s, i) => `<li><span class="num">${i + 1}</span>${txt("step", s.text, s.src, { max: m.sub[0] + 10, min: m.sub[1], boxH: Math.round(m.sub[2] * 0.9), cls: "step" })}</li>`)
     .join("");
   const colsHtml = (input.columns ?? [])
-    .map((c) => `<div class="card">${txt("label", c.label.text, c.label.src, { max: landscape ? 28 : 40, min: 24, boxH: landscape ? 80 : 120, cls: "colLabel" })}${txt("column", c.text.text, c.text.src, { max: landscape ? 26 : 36, min: 24, boxH: landscape ? 140 : 300, cls: "colText" })}</div>`)
+    .map((c) => `<div class="card">${txt("label", c.label.text, c.label.src, { max: landscape ? 30 : 40, min: landscape ? 26 : 28, boxH: landscape ? 80 : 120, cls: "colLabel" })}${txt("column", c.text.text, c.text.src, { max: landscape ? 30 : 36, min: landscape ? 26 : 28, boxH: landscape ? 140 : 300, cls: "colText" })}</div>`)
     .join("");
 
   switch (input.family) {
@@ -197,7 +220,8 @@ export function buildCreative(input: CreativeInput): BuiltCreative {
       main = `${headline}${subhead}`;
   }
 
-  const row = landscape && (hasShot || input.family === "comparison");
+  if (hero) main = landscape ? `${hero}<div style="flex:1 1 0;display:flex;flex-direction:column;gap:${m.gap}px;min-width:0;justify-content:center">${main}</div>` : `${hero}${main}`;
+  const row = landscape && (hasShot || input.family === "comparison" || heroOn);
   const css = `
 ${fontsCss(t)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -206,6 +230,7 @@ html,body{width:${m.w}px;height:${m.h}px;background:${t.bg1}}
   background:linear-gradient(135deg,${t.bg1},${t.bg2});color:${t.fg};font-family:'Inter',sans-serif}
 .top{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:${m.logoH}px;flex:0 0 auto}
 .logo{display:block;object-fit:contain}
+.hero{display:block;flex:0 0 auto;object-fit:contain;border-radius:22%;align-self:${input.family === "cta" ? "center" : "flex-start"};box-shadow:0 0 0 6px rgba(255,255,255,.14),0 24px 60px rgba(0,0,0,.45),0 0 90px ${t.accent}66}
 .pname{font-weight:700;color:${t.muted};flex:1 1 0;min-width:0;text-align:right;white-space:nowrap}
 .main{position:relative;z-index:2;flex:1 1 0;min-height:0;display:flex;flex-direction:${row ? "row" : "column"};justify-content:center;gap:${m.gap}px;${input.family === "cta" ? "align-items:center;text-align:center;" : ""}${row ? "align-items:center;" : ""}}
 .main>*{min-width:0}
@@ -240,7 +265,7 @@ ${t.layout === "editorial" ? `.d1{left:${m.padX}px;right:${m.padX}px;top:${Math.
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"><style>${css}</style></head><body>
 <div class="canvas" data-size="${input.size}" data-family="${input.family}" data-layout="${t.layout}">
 <div class="deco d1"></div><div class="deco d2"></div>
-<div class="top">${logo || productLabel}${logo ? productLabel : ""}</div>
+<div class="top">${heroOn ? productLabel : logo || productLabel}${!heroOn && logo ? productLabel : ""}</div>
 <div class="main">${row && hasShot ? `<div style="flex:1 1 0;display:flex;flex-direction:column;gap:${m.gap}px;min-width:0">${main.replace(frame, "")}</div>${frame}` : main}</div>
 <div class="foot">${ctaBtn}</div>
 </div><script>${FIT_AND_MEASURE}</script></body></html>`;
