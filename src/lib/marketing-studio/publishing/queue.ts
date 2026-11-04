@@ -76,6 +76,12 @@ type CopyContext = { caption: string; headline: string | null; ctaText: string |
  */
 export async function videoCopyContext(db: StudioDb, productId: string, videoId: string): Promise<CopyContext | undefined> {
   const [v] = await db.select({ storyboard: ms.msVideos.storyboard }).from(ms.msVideos).where(and(eq(ms.msVideos.id, videoId), eq(ms.msVideos.productId, productId))).limit(1);
+  // A product demo video: the post says what the voiceover says (the first two spoken lines) and links to the demo's own call to action.
+  const demo = v?.storyboard as { kind?: string; transcript?: Array<{ caption?: string; text?: string }>; cta?: { text?: string; url?: string } } | undefined;
+  if (demo?.kind === "demo" && demo.cta?.url && demo.transcript?.length) {
+    const caption = demo.transcript.slice(0, 2).map((l) => l.caption || l.text || "").filter(Boolean).join(" ");
+    return { caption, headline: demo.transcript[0]?.caption ?? null, ctaText: demo.cta.text ?? null, ctaUrl: demo.cta.url, campaignId: null, family: "demo" };
+  }
   const scenes = (v?.storyboard as { scenes?: Array<{ type?: string; headline?: string; subhead?: string }> } | undefined)?.scenes ?? [];
   const card = scenes.find((x) => x.type === "card" && x.subhead);
   if (!card) return undefined;
