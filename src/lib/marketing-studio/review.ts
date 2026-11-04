@@ -11,7 +11,7 @@ import type { OwnerScope } from "./scope";
 import type { DemoRecord } from "./video/demo/types";
 import type { CardScene, Storyboard } from "./video/types";
 
-export const PILOT_SLUGS = ["drinkknird", "rentalnoodle", "scribblezap"] as const;
+export const PILOT_SLUGS = ["drinkknird", "rentalnoodle", "scribblezap", "mibblemeadow"] as const;
 export const REPRESENTATIVE_COUNT = 4;
 
 type Check = { id: string; ok: boolean; severity?: string; detail?: string };
