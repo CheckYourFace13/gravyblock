@@ -1,5 +1,5 @@
-// Needs a scratch database with the schema pushed:
-//   STUDIO_TEST_DATABASE_URL=postgresql://... npx tsx --test src/lib/marketing-studio/__tests__/db.test.ts
+// Run the whole suite on a disposable database with:  npm run test:studio  (scripts/marketing-test.mts: in-memory, name contains "test", schema pushed, gone afterwards).
+// To use your own scratch database instead, push the schema and set STUDIO_TEST_DATABASE_URL=postgresql://.../<name containing test>.
 // Optional role test (proves the least-privilege role cannot touch anything but ms_ tables):
 //   STUDIO_TEST_ROLE_URL=postgresql://gb_studio:...@127.0.0.1:5432/<db>
 import "./setup";

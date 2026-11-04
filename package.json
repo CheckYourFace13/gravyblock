@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint",
     "db:server": "node scripts/start-pglite-server.mjs",
+    "test:studio": "tsx scripts/marketing-test.mts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "node scripts/apply-migration.mjs",

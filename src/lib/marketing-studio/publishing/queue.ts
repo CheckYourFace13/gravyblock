@@ -18,6 +18,7 @@ import { StudioAccessError } from "../scope";
 import { safeJoin } from "../storage";
 import { assertCreativeFresh, staleMarkFor } from "../video/stale";
 import { ADAPTERS, type Deps } from "./adapters";
+import { assertRolloutOrder } from "./first-post";
 import { evaluateHealth, tokensForPublish, usable } from "./connections";
 import { buildExportBundle } from "./export";
 import { applyUtmToCaption, foreignLinks, utmIdFor, withUtm } from "../measurement/utm";
@@ -97,7 +98,9 @@ export async function createPublication(
   input: { creativeId?: string; videoId?: string; platform: string; mode?: "direct" | "export"; connectionId?: string | null; caption?: string; title?: string | null; maxAttempts?: number },
   db: StudioDb = requireStudioDb(),
 ): Promise<{ publication: Publication; duplicate: boolean }> {
-  await requireProduct(scope, productId, db);
+  const product = await requireProduct(scope, productId, db);
+  // Rollout order: Mibble Meadow can only be prepared for a direct post once the first ScribbleZap post has proven the whole loop.
+  if ((input.mode ?? "export") === "direct") await assertRolloutOrder(db, product, input.platform);
   const spec = specFor(input.platform);
   if (!spec) throw new Error("Unknown platform");
   await assertCreativeFresh(db, input.videoId);

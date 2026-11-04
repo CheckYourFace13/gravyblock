@@ -48,3 +48,4 @@ next-env.d.ts
 .claude/
 *.zip
 GRAVYBLOCK_FULL_HANDOFF_FOR_CLAUDE.md
+.pglite-test/
