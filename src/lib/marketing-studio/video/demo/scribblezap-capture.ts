@@ -22,10 +22,14 @@ export const SZ_PLATE = { w: 390, h: 780 };
 
 /** Which stretch of the stored recording each scene plays, in seconds from the start of the recording. */
 export const SZ_WINDOWS: Array<{ scene: string; fromSec: number; toSec: number; what: string }> = [
-  { scene: "cut", fromSec: 22.2, toSec: 28.2, what: "level 2: cuts with a combo burst" },
-  { scene: "hold", fromSec: 1.5, toSec: 7.5, what: "level 1: tap and hold, the pen draws the first cut" },
-  { scene: "claim", fromSec: 8.2, toSec: 14.6, what: "level 1: the cut that fills past the goal, then LEVEL 1 CLEAR" },
-  { scene: "ideas", fromSec: 41.0, toSec: 51.0, what: "level 3: more cuts and combos" },
+  { scene: "hook", fromSec: 32.4, toSec: 36.8, what: "level 2: a cut with the game's big-cut burst" },
+  { scene: "pen", fromSec: 0.3, toSec: 4.5, what: "level 1: the PEN UNLOCKED tip card, then tap and hold draws the first cut" },
+  { scene: "sunset", fromSec: 113.0, toSec: 117.0, what: "level 5: the sunset-themed Mastery stage (95 percent fill)" },
+  { scene: "clear", fromSec: 129.8, toSec: 134.6, what: "after level 5: BASICS MASTERED, Neon board unlocked" },
+  { scene: "unlock", fromSec: 137.0, toSec: 142.8, what: "TENNIS BALL UNLOCKED card, then the first Tennis Ball board (level 6)" },
+  { scene: "tennis", fromSec: 166.2, toSec: 170.2, what: "level 7: Tennis Ball gameplay with a combo burst" },
+  { scene: "home", fromSec: 235.6, toSec: 239.6, what: "the game's home screen with Daily Challenge and Endless Run" },
+  { scene: "daily", fromSec: 252.4, toSec: 256.4, what: "Daily Challenge: the dark triangular board with the spinning gem and a CLUTCH reward" },
 ];
 
 type Frame = { t: number; f: string };
@@ -52,6 +56,10 @@ export const HUD_EVENT_PATTERNS: Array<[string, RegExp]> = [
   ["level clear", /LEVEL \d+ CLEAR/],
   ["three stars", /★ ★ ★/],
   ["zaps earned", /\+\d ZAPS/],
+  ["unlock card", /UNLOCKED/],
+  ["new ball", /TENNIS BALL UNLOCKED/],
+  ["new obstacle", /NEW OBSTACLE|SPINNING GEM/],
+  ["daily challenge", /DAILY CHALK|DAILY CHALLENGE/],
   ["fill meter", /\d+% \/ \d+%/],
 ];
 

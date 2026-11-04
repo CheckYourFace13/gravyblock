@@ -63,7 +63,9 @@ export const DEMO_SPECS: Record<string, DemoSpec> = {
     qaExtra: (m) => {
       const g = m.gameplay;
       if (!g) return {};
-      const fps = Math.min(...g.windows.map((w) => w.capturedFps));
+      // smoothness is measured where the game is moving; windows that are mostly a still card (unlock, home) have no active seconds
+      const moving = g.windows.filter((w) => w.capturedFps > 0);
+      const fps = moving.length ? Math.min(...moving.map((w) => w.capturedFps)) : 0;
       return {
         interaction: { ok: g.windows.length >= 3 && g.levelsCleared >= 1, detail: `real gameplay from the game's own tester, played by scripted touch input: ${g.windows.length} windows from ${g.levelsCleared} cleared level(s); nothing drawn or synthesised` },
         gameplay: { minFps: fps, hudEvents: g.hudEvents, levelsCleared: g.levelsCleared, windows: g.windows.length },
