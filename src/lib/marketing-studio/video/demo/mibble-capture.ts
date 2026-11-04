@@ -28,8 +28,8 @@ export const MB_WINDOWS: Array<{ scene: string; from: number; to: number; what: 
   { scene: "cheer", from: 1039, to: 1135, what: "after level 2: the fox's celebration screen" },
   { scene: "grow", from: 2715, to: 2810, what: "level 6 (a 5 by 5 board): marks, then every animal placed" },
   { scene: "fresh", from: 2300, to: 2385, what: "level 5: a differently shaped board in new colours" },
-  { scene: "stars", from: 2449, to: 2545, what: "after level 5: the panda's celebration screen with three stars" },
-  { scene: "home", from: 150, to: 238, what: "the splash with its running animals, then the home screen with Play, Daily Meadow and Endless Meadow" },
+  { scene: "stars", from: 2449, to: 2580, what: "after level 5: the panda's celebration screen with three stars" },
+  { scene: "home", from: 130, to: 238, what: "the splash with its running animals, then the home screen with Play, Daily Meadow and Endless Meadow" },
 ];
 
 type Ev = { frame: number; kind: string; level?: number | string; size?: number };
