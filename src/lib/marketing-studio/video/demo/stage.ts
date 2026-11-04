@@ -5,7 +5,7 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { CANVAS, SCREEN_SCALE, TRANSITION_MS, WIN, type Timeline } from "./types";
+import { CANVAS, PLATE_CSS_W, TRANSITION_MS, WIN, type Timeline } from "./types";
 
 function fontFace(family: string, pkg: string, file: string, weight: number): string {
   const b64 = readFileSync(path.join(process.cwd(), "node_modules", "@fontsource", pkg, "files", file)).toString("base64");
@@ -15,7 +15,7 @@ function fontFace(family: string, pkg: string, file: string, weight: number): st
 // Plain JavaScript run inside the page. No template literals or ${} in here: it is embedded in a TypeScript string.
 const ENGINE = String.raw`
 (function(){
-var TL=window.__TL, CFG=window.__CFG, W=CFG.w, H=CFG.h, WIN=CFG.win, S=CFG.S, TR=CFG.tr;
+var TL=window.__TL, CFG=window.__CFG, W=CFG.w, H=CFG.h, WIN=CFG.win, S=CFG.S, TR=CFG.tr; var pending=[];
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function lerp(a,b,p){return a+(b-a)*p;}
 function eio(p){p=clamp(p,0,1);return p<0.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;}
@@ -38,6 +38,7 @@ var scenes=TL.scenes.map(function(sc,i){
     o.win=el('div','win',stage);
     o.cam=el('div','cam',o.win); o.cam.style.width=px(pl.w*S); o.cam.style.height=px(pl.h*S);
     o.imgs={};
+    if(sc.clip){o.clipImg=el('img','plateimg',o.cam);o.clipImg.style.width=px(pl.w*S);o.clipImg.style.height=px(pl.h*S);o.clipIdx=-1;}
     Object.keys(pl.states).forEach(function(k){var im=el('img','plateimg',o.cam);im.src=pl.states[k];im.style.width=px(pl.w*S);im.style.height=px(pl.h*S);im.style.display='none';o.imgs[k]=im;});
     o.dim=el('div','dim',o.win); o.spot=el('div','spot',o.win); o.chip=el('div','chip',o.win);
     o.ripple=el('div','ripple',o.win); o.cur=el('div','cursor',o.win);
@@ -90,6 +91,7 @@ function seek(t){
         var cur=sc.states&&sc.states[0]?sc.states[0].state:null;
         (sc.states||[]).forEach(function(s){if(lt>=s.at)cur=s.state;});
         Object.keys(o.imgs).forEach(function(k){o.imgs[k].style.display=(k===cur)?'block':'none';});
+        if(o.clipImg){var fi=clamp(Math.floor((lt+sc.clip.from)/1000*sc.clip.fps),0,sc.clip.frames.length-1);if(fi!==o.clipIdx){o.clipIdx=fi;o.clipImg.src=sc.clip.frames[fi];pending.push(o.clipImg.decode?o.clipImg.decode().catch(function(){}):Promise.resolve());}}
         // camera
         var cam=sampleKeys(sc.camera,lt,['cx','cy','zoom'])||{cx:o.pl.w/2,cy:WIN.h/S/2,zoom:1};
         var z=cam.zoom,vw=o.pl.w/z,vh=WIN.h/S/z;
@@ -175,11 +177,12 @@ function seek(t){
     }
   });
 }
-window.__seek=seek;
+window.__seek=function(t){pending=[];seek(t);return Promise.all(pending);};
 window.__ready=Promise.all([].slice.call(document.images).map(function(i){return i.decode?i.decode().catch(function(){}):Promise.resolve();})).then(function(){return document.fonts.ready;});
 })();`;
 
 export function buildStageHtml(tl: Timeline): string {
+  const win = tl.win ?? WIN;
   const css = `
 ${fontFace("Inter", "inter", "inter-latin-400-normal.woff2", 400)}${fontFace("Inter", "inter", "inter-latin-700-normal.woff2", 700)}${fontFace("Inter", "inter", "inter-latin-800-normal.woff2", 800)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -199,7 +202,7 @@ html,body{width:${CANVAS.w}px;height:${CANVAS.h}px;background:${tl.brand.dark};o
 .head{position:absolute;left:0;right:0;top:34px;color:#fff;font-weight:800;font-size:84px;line-height:1.02;letter-spacing:-.025em;text-shadow:0 6px 30px rgba(0,0,0,.35)}
 .hw{display:inline-block;white-space:pre;will-change:transform}
 .kick{position:absolute;left:0;top:0;color:${tl.brand.accent};font-weight:800;font-size:30px;letter-spacing:.16em;text-transform:uppercase}
-.win{position:absolute;left:${WIN.x}px;top:${WIN.y}px;width:${WIN.w}px;height:${WIN.h}px;border-radius:${WIN.r}px;overflow:hidden;background:#fff;box-shadow:0 40px 100px rgba(0,0,0,.55),0 0 0 3px rgba(255,255,255,.18);z-index:3;transform-origin:50% 50%}
+.win{position:absolute;left:${win.x}px;top:${win.y}px;width:${win.w}px;height:${win.h}px;border-radius:${win.r}px;overflow:hidden;background:#fff;box-shadow:0 40px 100px rgba(0,0,0,.55),0 0 0 3px rgba(255,255,255,.18);z-index:3;transform-origin:50% 50%}
 .cam{position:absolute;left:0;top:0}
 .plateimg{position:absolute;left:0;top:0;display:block}
 .spot{position:absolute;display:none;border:6px solid ${tl.brand.accent};border-radius:26px;z-index:4;pointer-events:none}
@@ -219,6 +222,6 @@ html,body{width:${CANVAS.w}px;height:${CANVAS.h}px;background:${tl.brand.dark};o
 .eurl{position:relative;color:#fff;font-weight:700;font-size:56px;letter-spacing:.01em}
 `;
   const safe = JSON.stringify(tl).replace(/</g, "\\u003c");
-  const cfg = JSON.stringify({ w: CANVAS.w, h: CANVAS.h, win: WIN, S: SCREEN_SCALE, tr: TRANSITION_MS });
+  const cfg = JSON.stringify({ w: CANVAS.w, h: CANVAS.h, win, S: win.w / PLATE_CSS_W, tr: TRANSITION_MS });
   return `<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body><div id="stage"></div><script>window.__TL=${safe};window.__CFG=${cfg};</script><script>${ENGINE}</script></body></html>`;
 }

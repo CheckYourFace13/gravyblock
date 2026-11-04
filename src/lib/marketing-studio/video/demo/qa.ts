@@ -76,6 +76,10 @@ export type DemoQaInput = {
   mixFile: string;
   /** The product's own site, used to prove every source page and the call to action belong to it. Defaults to RentalNoodle. */
   site?: { origin: string; ctaText: string; ctaHost: string };
+  /** Replaces the typed-into-live-interfaces check for products whose primary visual is real gameplay. */
+  interaction?: { ok: boolean; detail: string };
+  /** Real gameplay provenance and smoothness, checked when the primary visual is gameplay footage. */
+  gameplay?: { minFps: number; hudEvents: string[]; levelsCleared: number; windows: number };
 };
 
 const RN_SITE = { origin: "https://rentalnoodle.com", ctaText: "Start Managing Free", ctaHost: "rentalnoodle.com" };
@@ -168,7 +172,8 @@ export async function runDemoQa(i: DemoQaInput): Promise<DemoQaResult> {
   // 5. motion: the product screen must keep moving
   const wH = 118;
   const wW = 96;
-  const winVf = `crop=${WIN.w}:${WIN.h}:${WIN.x}:${WIN.y},scale=${wW}:${wH}`;
+  const W0 = i.timeline.win ?? WIN;
+  const winVf = `crop=${W0.w}:${W0.h}:${W0.x}:${W0.y},scale=${wW}:${wH}`;
   const fpsA = 10;
   const screenEnd = Math.max(1, (i.endStartMs - 300) / 1000);
   const win = await rawGray(i.file, winVf, wW, wH, fpsA, 0, screenEnd);
@@ -191,7 +196,14 @@ export async function runDemoQa(i: DemoQaInput): Promise<DemoQaResult> {
   metrics.productScreenShare = +share.toFixed(2);
   add("real_product_screens", share >= 0.75, `${Math.round(share * 100)}% of the video is the real product interface (needs 75%)`);
   const interactive = Object.values(i.manifest.plates).filter((p) => Object.keys(p.states).length >= 3).length;
-  add("genuine_interaction", interactive >= 2, `${interactive} real interfaces were interacted with live (typed into, with the result changing)`);
+  if (i.interaction) add("genuine_interaction", i.interaction.ok, i.interaction.detail);
+  else add("genuine_interaction", interactive >= 2, `${interactive} real interfaces were interacted with live (typed into, with the result changing)`);
+  if (i.gameplay) {
+    const g = i.gameplay;
+    metrics.gameplayCaptureFps = g.minFps;
+    add("gameplay_smooth", g.minFps >= 45, `the real gameplay was captured at ${g.minFps.toFixed(0)} fps or better in every window used (needs 45)`);
+    add("gameplay_is_real", g.levelsCleared >= 1 && g.hudEvents.length >= 3, `${g.levelsCleared} level(s) cleared in the footage and ${g.hudEvents.length} real in-game events seen in the game's own HUD text: ${g.hudEvents.slice(0, 5).join(", ")}`);
+  }
   const thin = screenScenes.filter((s) => s.motion.length < 3).map((s) => s.id);
   add("every_scene_moves", thin.length === 0, thin.length ? `scenes with too little motion: ${thin.join(", ")}` : "every product scene has at least three kinds of motion");
   const sc = i.timeline.scenes.filter((s) => s.kind === "screen");

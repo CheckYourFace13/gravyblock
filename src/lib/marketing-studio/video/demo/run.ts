@@ -172,6 +172,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
     endStartMs: endScene.start,
     mixFile: path.join(workDir, "mix.wav"),
     site: spec.site,
+    ...(spec.qaExtra?.(manifest) ?? {}),
   });
   return { file: outFile, record, qa, stats: { captureMs, voiceMs, renderMs: rendered.wallMs, frames: rendered.frames }, manifest };
 }

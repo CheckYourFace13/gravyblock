@@ -4,6 +4,9 @@
  * public interface, a script with sources, and a timeline. The old slideshow pipeline is not an option for production video.
  */
 import { captureDrinkKnirdPlates, DK_ORIGIN } from "./drinkknird-plates";
+import { captureScribbleZapPlates, SZ_ORIGIN } from "./scribblezap-capture";
+import { SZ_CLAIMS, SZ_CTA, SZ_FACTS, SZ_NARRATION, SZ_ON_SCREEN, SZ_SCENE_META, SZ_TITLE, szBuildTimeline, szLayoutLines } from "./scribblezap";
+import type { DemoQaInput } from "./qa";
 import { DK_CLAIMS, DK_CTA, DK_FACTS, DK_NARRATION, DK_ON_SCREEN, DK_SCENE_META, DK_TITLE, dkBuildTimeline, dkLayoutLines, type BuiltDkDemo } from "./drinkknird";
 import { capturePlates } from "./plates";
 import { buildTimeline, CLAIMS, CTA, DEMO_FACTS, layoutLines, NARRATION, ON_SCREEN, SCENE_META, TITLE, type LineTime } from "./rentalnoodle";
@@ -23,6 +26,8 @@ export type DemoSpec = {
   capture: (outDir: string, logoFile: string) => Promise<Manifest>;
   layout: (durMs: Record<string, number>) => Record<string, LineTime>;
   build: (manifest: Manifest, lt: Record<string, LineTime>) => BuiltDkDemo;
+  /** Extra QA inputs for products whose primary visual is real gameplay. */
+  qaExtra?: (manifest: Manifest) => Pick<DemoQaInput, "interaction" | "gameplay">;
 };
 
 export const DEMO_SPECS: Record<string, DemoSpec> = {
@@ -40,6 +45,30 @@ export const DEMO_SPECS: Record<string, DemoSpec> = {
     capture: capturePlates,
     layout: layoutLines,
     build: buildTimeline,
+  },
+  scribblezap: {
+    slug: "scribblezap",
+    productName: "ScribbleZap",
+    site: { origin: SZ_ORIGIN, ctaText: SZ_CTA.text, ctaHost: "scribblezap.com" },
+    title: SZ_TITLE,
+    cta: SZ_CTA,
+    narration: SZ_NARRATION,
+    claims: SZ_CLAIMS,
+    facts: SZ_FACTS,
+    onScreen: SZ_ON_SCREEN,
+    sceneMeta: SZ_SCENE_META,
+    capture: captureScribbleZapPlates,
+    layout: szLayoutLines,
+    build: szBuildTimeline,
+    qaExtra: (m) => {
+      const g = m.gameplay;
+      if (!g) return {};
+      const fps = Math.min(...g.windows.map((w) => w.capturedFps));
+      return {
+        interaction: { ok: g.windows.length >= 3 && g.levelsCleared >= 1, detail: `real gameplay from the game's own tester, played by scripted touch input: ${g.windows.length} windows from ${g.levelsCleared} cleared level(s); nothing drawn or synthesised` },
+        gameplay: { minFps: fps, hudEvents: g.hudEvents, levelsCleared: g.levelsCleared, windows: g.windows.length },
+      };
+    },
   },
   drinkknird: {
     slug: "drinkknird",

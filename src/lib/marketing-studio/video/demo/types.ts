@@ -28,7 +28,18 @@ export type PlateManifest = {
   states: Record<string, PlateState>;
   rects: Record<string, Rect>;
 };
-export type Manifest = { capturedAt: string; viewport: { w: number; h: number; dpr: number }; plates: Record<string, PlateManifest>; logo: string };
+/** Provenance of real gameplay footage: every frame comes from a screencast of the real game, nothing is drawn or synthesised. */
+export type GameplayMeta = {
+  source: string;
+  capturedAt: string;
+  method: string;
+  /** measured frame rate of the screencast inside each window used in the video */
+  windows: Array<{ scene: string; fromSec: number; toSec: number; capturedFps: number }>;
+  /** events seen in the game's own HUD text during the used windows */
+  hudEvents: string[];
+  levelsCleared: number;
+};
+export type Manifest = { capturedAt: string; viewport: { w: number; h: number; dpr: number }; plates: Record<string, PlateManifest>; logo: string; gameplay?: GameplayMeta; /** numbered gameplay frame sequences (30 fps), by scene */ clips?: Record<string, { frames: string[]; fps: number; fromSec: number }> };
 
 // ---- plan ---------------------------------------------------------------------------------------------------------------
 
@@ -67,12 +78,16 @@ export type StageScene = {
   cursor?: CursorKey[];
   spots?: SpotKey[];
   headline?: { text: string; from: number; to: number };
+  /** real gameplay: a numbered frame sequence played at real speed (30 fps), starting `from` ms into the footage */
+  clip?: { frames: string[]; fps: number; from: number };
   kicker?: string;
   end_card?: { headline: string; button: string; url: string };
 };
 export type CaptionGroup = { from: number; to: number; words: WordTime[] };
 export type Timeline = {
   durationMs: number;
+  /** where the product screen sits; defaults to WIN */
+  win?: { x: number; y: number; w: number; h: number; r: number };
   brand: { name: string; accent: string; dark: string; light: string; logo: string; /** optional palette; defaults are the RentalNoodle look */ palette?: { blobs: [string, string]; endFrom: string; endMid: string; endTo: string; button: string; ripple: string } };
   plates: Record<string, { w: number; h: number; states: Record<string, string> }>;
   scenes: StageScene[];
