@@ -94,7 +94,7 @@ describe("YouTube OAuth: redirect URI, scopes, state", () => {
     const s = makeYoutubeState("11111111-1111-4111-8111-111111111111", "iscreamstudio", "nonce1", 1000);
     assert.deepEqual(readYoutubeState(s, "nonce1", 2000), { productId: "11111111-1111-4111-8111-111111111111", expected: "iscreamstudio" });
     assert.equal(readYoutubeState(s, "other-nonce", 2000), null);
-    assert.equal(readYoutubeState(s, "nonce1", 1000 + 11 * 60_000), null, "expired");
+    assert.equal(readYoutubeState(s, "nonce1", 1000 + 31 * 60_000), null, "expired");
     assert.equal(readYoutubeState(s.replace(/.$/, "x"), "nonce1", 2000), null, "tampered signature");
     const [payload] = s.split(".");
     const forged = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(payload, "base64url").toString()), c: "someone-else" })).toString("base64url");

@@ -18,6 +18,6 @@ export async function GET(req: Request) {
   if (!/^@?[A-Za-z0-9._ -]{3,100}$/.test(channel)) return new Response("Give the exact channel handle or name you are connecting (3 to 100 letters, numbers, spaces, dots, dashes).", { status: 400 });
   const nonce = randomBytes(16).toString("hex");
   const res = new Response(null, { status: 302, headers: { location: youtubeAuthorizeUrl(makeYoutubeState(productId, channel, nonce)), "cache-control": "private, no-store" } });
-  res.headers.append("set-cookie", `ms_yt_nonce=${nonce}; Path=/api/admin/marketing-studio/connect/youtube; HttpOnly; Secure; SameSite=Lax; Max-Age=600`);
+  res.headers.append("set-cookie", `ms_yt_nonce=${nonce}; Path=/api/admin/marketing-studio/connect/youtube; HttpOnly; Secure; SameSite=Lax; Max-Age=1800`);
   return res;
 }

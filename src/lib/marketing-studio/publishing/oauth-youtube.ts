@@ -34,7 +34,7 @@ export const YOUTUBE_FIRST = {
  */
 export const pinnedChannelId = () => process.env.MARKETING_YOUTUBE_CHANNEL_ID?.trim() || "UCWfKcCO0cZAIipELtpWHMmQ";
 
-const STATE_TTL_MS = 10 * 60_000;
+const STATE_TTL_MS = 30 * 60_000;
 const SKEW_MS = 120_000;
 
 export function youtubeOAuthConfigured(): boolean {
