@@ -20,6 +20,7 @@ import { channelLabel, channelMatches, collectYoutubeCounts, verifyYoutubeVideo,
 process.env.MARKETING_GOOGLE_CLIENT_ID = "123456789-abc.apps.googleusercontent.com";
 process.env.MARKETING_GOOGLE_CLIENT_SECRET = "GOCSPX-test-secret-value-0000";
 process.env.NEXT_PUBLIC_SITE_URL = "https://gravyblock.com";
+process.env.MARKETING_YOUTUBE_CHANNEL_ID = "UC_iscream_studio_001";
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
 const CH = { id: "UC_iscream_studio_001", snippet: { title: "iScream Studio", customUrl: "@iscreamstudio" } };
@@ -240,12 +241,13 @@ describe("YouTube connection, storage, queue gates and measurement (database)", 
   test("OAuth completion refuses, and stores nothing, for the wrong channel, no channel, several channels, missing scopes or no refresh token", async () => {
     const p = await product("Refuse Game");
     const cases: Array<[string, Parameters<typeof google>[0], string, RegExp]> = [
-      ["another channel on the same Google account", { channels: [{ id: "UC_personal", snippet: { title: "Chris Personal", customUrl: "@chrisp" } }] }, "iscreamstudio", /not the expected/],
+      ["another channel on the same Google account", { channels: [{ id: "UC_personal", snippet: { title: "Chris Personal", customUrl: "@chrisp" } }] }, "iscreamstudio", /not the expected|pinned to/],
       ["no channel", { channels: [] }, "iscreamstudio", /no YouTube channel/],
       ["two channels", { channels: [CH, { id: "UC2", snippet: { title: "Other", customUrl: "@other" } }] }, "iscreamstudio", /exactly one channel/],
       ["upload scope only", { grant: { scope: YT_SCOPE_UPLOAD } }, "iscreamstudio", /did not include/],
       ["no refresh token", { grant: { refresh_token: undefined } }, "iscreamstudio", /refresh token/],
       ["no expected channel", {}, "  ", /No expected channel/],
+      ["same name and handle but not the pinned channel id", { channels: [{ id: "UC_lookalike_000002", snippet: { title: "iScream Studio", customUrl: "@iscreamstudio" } }] }, "iscreamstudio", /not the iScream Studio channel GravyBlock is pinned to/],
     ];
     for (const [label, opts, expected, re] of cases) {
       await assert.rejects(completeYoutubeOAuth(INTERNAL_SCOPE, "admin", { productId: p, code: "c", expectedChannel: expected }, { fetch: google(opts).f }), re, label);

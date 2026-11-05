@@ -23,10 +23,16 @@ import { channelLabel, channelMatches, exchangeCode, fetchOwnChannel, refreshAcc
 export const YOUTUBE_FIRST = {
   brand: "iScream Studio",
   /** the umbrella channel for every iScream Studio game; individual videos stay product-first */
-  expectedHandle: "iscreamstudio",
+  expectedHandle: "iScreamStudioInc",
   /** first candidates once the connection is proven, in this order. Nothing is uploaded by the connection itself. */
   order: ["scribblezap", "mibblemeadow"] as const,
 };
+
+/**
+ * The exact channel id of the iScream Studio channel (verified in YouTube Studio: name "iScream Studio", handle @iScreamStudioInc, a Brand Account
+ * channel). A connection is only ever made to this id; the handle or name typed at connect time must match as well. Overridable for tests.
+ */
+export const pinnedChannelId = () => process.env.MARKETING_YOUTUBE_CHANNEL_ID?.trim() || "UCWfKcCO0cZAIipELtpWHMmQ";
 
 const STATE_TTL_MS = 10 * 60_000;
 const SKEW_MS = 120_000;
@@ -92,6 +98,7 @@ export async function completeYoutubeOAuth(scope: OwnerScope, actor: string, inp
   if (!own.ok) throw new Error(`Could not read the YouTube channel: ${own.reason}. Nothing was connected.`);
   if (own.channels.length !== 1) throw new Error(own.channels.length === 0 ? "This Google account has no YouTube channel behind that sign-in. Nothing was connected." : `Could not choose exactly one channel (${own.channels.map((c) => c.title).join(", ")}). Nothing was connected.`);
   const ch = own.channels[0];
+  if (ch.id !== pinnedChannelId()) throw new Error(`The channel you authorized is "${ch.title}" (id ${ch.id}), which is not the iScream Studio channel GravyBlock is pinned to. Nothing was connected.`);
   if (!channelMatches(ch, input.expectedChannel)) throw new Error(`The channel you authorized is "${ch.title}"${ch.handle ? ` (${ch.handle})` : ""}, not the expected "${input.expectedChannel}". GravyBlock will not use it. Nothing was connected.`);
 
   const tokens: TokenBundle = { accessToken: g.accessToken, refreshToken: g.refreshToken, accessExpiresAt: Date.now() + g.expiresInSec * 1000 };
@@ -140,6 +147,7 @@ export async function verifyYoutubeConnection(scope: OwnerScope, actor: string, 
     out.push({ name: "the token belongs to exactly one channel", ok: Boolean(ch), detail: own.channels.map((c) => c.title).join(", ") || "none" });
     if (ch) {
       out.push({ name: "it is the channel this connection was made for (same id)", ok: ch.id === conn.externalAccountId, detail: `${ch.title} (${ch.id})` });
+      out.push({ name: "it is the pinned iScream Studio channel id", ok: ch.id === pinnedChannelId(), detail: ch.id === pinnedChannelId() ? "matches" : `got ${ch.id}` });
       out.push({ name: `it is the expected channel "${expectedChannel}"`, ok: channelMatches(ch, expectedChannel), detail: ch.handle ?? ch.title });
     }
   } catch (e) {

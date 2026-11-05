@@ -246,7 +246,7 @@ export async function PublishingSections({ productId }: { productId: string }) {
               <input type="hidden" name="productId" value={productId} />
               <label>
                 Exact channel handle or name you are connecting (required; any other channel is refused)
-                <input name="channel" required defaultValue="iscreamstudio" className={input} />
+                <input name="channel" required defaultValue="@iScreamStudioInc" className={input} />
               </label>
               <button className={btn}>Connect with YouTube</button>
             </form>
