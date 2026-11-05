@@ -19,7 +19,16 @@ touch "$ENV_FILE"
 sed -i '/^MARKETING_GOOGLE_CLIENT_ID=/d;/^MARKETING_GOOGLE_CLIENT_SECRET=/d' "$ENV_FILE"
 printf 'MARKETING_GOOGLE_CLIENT_ID=%s\nMARKETING_GOOGLE_CLIENT_SECRET=%s\n' "$CLIENT_ID" "$CLIENT_SECRET" >> "$ENV_FILE"
 chmod 600 "$ENV_FILE"
+# The marketing worker and the ops scripts read their own env file; they need the same client to renew YouTube tokens and upload.
+WORKER_ENV="${WORKER_ENV:-/etc/gravyblock-marketing.env}"
+if [[ -f "$WORKER_ENV" ]]; then
+  sed -i '/^MARKETING_GOOGLE_CLIENT_/d' "$WORKER_ENV"
+  printf 'MARKETING_GOOGLE_CLIENT_ID=%s\nMARKETING_GOOGLE_CLIENT_SECRET=%s\n' "$CLIENT_ID" "$CLIENT_SECRET" >> "$WORKER_ENV"
+  chown root:gbstudio "$WORKER_ENV"
+  chmod 640 "$WORKER_ENV"
+fi
 unset CLIENT_SECRET
 export PATH="/home/deploy/.nvm/versions/node/v20.20.2/bin:$PATH"
 pm2 restart gravyblock >/dev/null
-echo "Saved. The Connect with YouTube button on the product page is now active."
+if [[ -f "$WORKER_ENV" ]]; then pm2 restart gravyblock-marketing-worker --update-env >/dev/null; fi
+echo "Saved. The Connect with YouTube button on the product page is now active, and the marketing worker has the same client."

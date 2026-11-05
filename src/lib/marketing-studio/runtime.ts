@@ -99,11 +99,12 @@ export async function recordUsage(resource: string, amount: number, opts: { prod
 export async function usageSummary(db: StudioDb = requireStudioDb()) {
   const month = new Date().toISOString().slice(0, 7);
   const rows = await db
-    .select({ resource: ms.msUsage.resource, total: sql<number>`coalesce(sum(${ms.msUsage.amount}),0)::int` })
+    // bigint: a month of byte-sized resources (for example render output) sums past the 32-bit integer range, which made this query, and with it the whole dashboard, fail
+    .select({ resource: ms.msUsage.resource, total: sql<string>`coalesce(sum(${ms.msUsage.amount}),0)::bigint` })
     .from(ms.msUsage)
     .where(sql`${ms.msUsage.period} like ${month + "%"}`)
     .groupBy(ms.msUsage.resource);
-  return Object.fromEntries(rows.map((r) => [r.resource, r.total])) as Record<string, number>;
+  return Object.fromEntries(rows.map((r) => [r.resource, Number(r.total)])) as Record<string, number>;
 }
 
 // ---- Queue ---------------------------------------------------------------------------------------------------------
