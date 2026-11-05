@@ -44,7 +44,9 @@ describe("platform registry honesty", () => {
       for (const p of ["instagram", "youtube", "tiktok"] as const) {
         const r = await ADAPTERS[p].publish({ platform: p, externalAccountId: "x", media: { kind: "video", bytes: Buffer.from("x"), mime: "video/mp4", fileName: "a.mp4" }, caption: "c", accessToken: "t" }, { fetch: globalThis.fetch });
         assert.equal(r.ok, false);
-        assert.ok(!r.ok && r.unsupported && /export/i.test(r.reason));
+        // YouTube has a real adapter now (youtube.test.ts); without the owner's upload settings it still refuses before any network call
+        if (p === "youtube") assert.ok(!r.ok && !r.retryable && /settings are missing/.test(r.reason));
+        else assert.ok(!r.ok && r.unsupported && /export/i.test(r.reason));
       }
       assert.equal(calls, 0);
     } finally {

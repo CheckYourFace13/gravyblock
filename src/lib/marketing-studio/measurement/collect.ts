@@ -11,12 +11,14 @@ import { StudioAccessError, type OwnerScope } from "../scope";
 import { requireProduct } from "../repository";
 import type { Deps } from "../publishing/adapters";
 import { evaluateHealth, tokensForPublish, usable } from "../publishing/connections";
+import { youtubeTokensForCall } from "../publishing/oauth-youtube";
+import { collectYoutubeCounts } from "../publishing/youtube-api";
 import { collectFacebookMetrics } from "./facebook-insights";
-import { completeSet, estimated, mergeSets, type Metric, type MetricKey, type MetricSet } from "./metrics";
+import { completeSet, confirmed, estimated, mergeSets, unknown, type Metric, type MetricKey, type MetricSet } from "./metrics";
 
 export type Snapshot = typeof ms.msPublicationMetrics.$inferSelect;
 
-export async function recordSnapshot(db: StudioDb, publicationId: string, productId: string, source: "facebook_graph" | "attribution" | "manual", set: MetricSet): Promise<Snapshot> {
+export async function recordSnapshot(db: StudioDb, publicationId: string, productId: string, source: "facebook_graph" | "youtube_data_api" | "attribution" | "manual", set: MetricSet): Promise<Snapshot> {
   const [row] = await db.insert(ms.msPublicationMetrics).values({ publicationId, productId, source, metrics: completeSet(set) }).returning();
   return row;
 }
@@ -34,11 +36,27 @@ export async function collectForPublication(scope: OwnerScope, actor: string, pr
   const [p] = await db.select().from(ms.msPublications).where(and(eq(ms.msPublications.id, publicationId), eq(ms.msPublications.productId, productId))).limit(1);
   if (!p) throw new StudioAccessError();
   if (p.status !== "published" || !p.externalPostId) return { collected: false, reason: "only a published post has measurements", unknownMetrics: [] };
-  if (p.platform !== "facebook") return { collected: false, reason: `${p.platform} measurement is not available until direct publishing for it is approved`, unknownMetrics: [] };
+  if (p.platform !== "facebook" && p.platform !== "youtube") return { collected: false, reason: `${p.platform} measurement is not available until direct publishing for it is approved`, unknownMetrics: [] };
   const [conn] = p.connectionId ? await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.id, p.connectionId), eq(ms.msConnections.productId, productId))).limit(1) : [];
   if (!conn) return { collected: false, reason: "no connection", unknownMetrics: [] };
   const h = evaluateHealth(conn);
   if (!usable(h)) return { collected: false, reason: `connection is ${h}`, unknownMetrics: [] };
+  if (p.platform === "youtube") {
+    const t = await youtubeTokensForCall(scope, actor, productId, conn.id, deps, db);
+    const yt = await collectYoutubeCounts({ videoId: p.externalPostId, accessToken: t.accessToken }, deps);
+    if (yt.authFailure) await db.update(ms.msConnections).set({ healthStatus: "error", status: "error", healthDetail: "YouTube rejected the token while collecting metrics." }).where(eq(ms.msConnections.id, conn.id));
+    const why = yt.detail[0] ?? "not reported by YouTube";
+    const set: MetricSet = {
+      views: yt.views !== null ? confirmed(yt.views) : unknown(why),
+      reactions: yt.likes !== null ? confirmed(yt.likes, "likes (YouTube has no other reactions)") : unknown(why),
+      comments: yt.comments !== null ? confirmed(yt.comments) : unknown(why),
+    };
+    const snap = await recordSnapshot(db, p.id, productId, "youtube_data_api", set);
+    const full = completeSet(set);
+    const unknownMetrics = (Object.keys(full) as MetricKey[]).filter((k) => full[k].status === "unknown");
+    await audit(db, { actor, action: "metrics.collect", entity: "publication", entityId: p.id, productId, detail: { platform: "youtube", unknown: unknownMetrics.length, problems: yt.detail.slice(0, 4) } });
+    return { collected: true, unknownMetrics, snapshotId: snap.id };
+  }
   const [asset] = await db.select({ mimeType: ms.msAssets.mimeType }).from(ms.msAssets).where(eq(ms.msAssets.id, p.assetId)).limit(1);
   const tokens = await tokensForPublish(scope, actor, productId, conn.id, db);
   const out = await collectFacebookMetrics({ externalId: p.externalPostId, kind: asset?.mimeType === "video/mp4" ? "video" : "image", accessToken: tokens.accessToken }, deps);
@@ -60,11 +78,11 @@ export async function collectDueMetrics(scope: OwnerScope, deps: Deps = { fetch 
   const pubs = await db
     .select()
     .from(ms.msPublications)
-    .where(and(eq(ms.msPublications.status, "published"), eq(ms.msPublications.platform, "facebook"), gt(ms.msPublications.publishedAt, new Date(now.getTime() - THIRTY_DAYS))))
+    .where(and(eq(ms.msPublications.status, "published"), inArray(ms.msPublications.platform, ["facebook", "youtube"]), gt(ms.msPublications.publishedAt, new Date(now.getTime() - THIRTY_DAYS))))
     .orderBy(desc(ms.msPublications.publishedAt))
     .limit(25);
   if (!pubs.length) return { checked: 0, collected: 0 };
-  const last = await db.select({ publicationId: ms.msPublicationMetrics.publicationId, at: ms.msPublicationMetrics.collectedAt }).from(ms.msPublicationMetrics).where(and(inArray(ms.msPublicationMetrics.publicationId, pubs.map((p) => p.id)), eq(ms.msPublicationMetrics.source, "facebook_graph")));
+  const last = await db.select({ publicationId: ms.msPublicationMetrics.publicationId, at: ms.msPublicationMetrics.collectedAt }).from(ms.msPublicationMetrics).where(and(inArray(ms.msPublicationMetrics.publicationId, pubs.map((p) => p.id)), inArray(ms.msPublicationMetrics.source, ["facebook_graph", "youtube_data_api"])));
   const newest = new Map<string, number>();
   for (const r of last) newest.set(r.publicationId, Math.max(newest.get(r.publicationId) ?? 0, r.at.getTime()));
   const due = pubs.filter((p) => now.getTime() - (newest.get(p.id) ?? 0) >= SIX_HOURS).slice(0, 5);

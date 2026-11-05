@@ -6,14 +6,17 @@
  */
 import { and, eq, inArray } from "drizzle-orm";
 import { audit } from "../audit";
-import { revealSecretForPlatformCall, encryptSecret, storeConnection, type ConnectionSummary } from "../credentials";
+import { decryptSecret, revealSecretForPlatformCall, encryptSecret, storeConnection, type ConnectionSummary } from "../credentials";
 import type { Platform } from "../config";
 import { ms, requireStudioDb, type StudioDb } from "../db";
 import { requireProduct } from "../repository";
 import { StudioAccessError, type OwnerScope } from "../scope";
 import { specFor } from "./platforms";
+import type { Deps } from "./adapters";
+import { revokeAtGoogle } from "./youtube-api";
 
-export type TokenBundle = { accessToken: string; refreshToken?: string };
+/** accessExpiresAt (epoch ms) is set for short-lived access tokens that are renewed from the refresh token (YouTube). */
+export type TokenBundle = { accessToken: string; refreshToken?: string; accessExpiresAt?: number };
 export type Health = "unknown" | "ok" | "expiring" | "expired" | "error" | "revoked";
 
 const DAY = 86_400_000;
@@ -82,10 +85,20 @@ export async function refreshConnectionHealth(scope: OwnerScope, productId: stri
  * Revocation overwrites the stored token with a placeholder, so the secret is gone even from the database, and stops every pending
  * publication that depended on the connection.
  */
-export async function revokeAccount(scope: OwnerScope, actor: string, productId: string, connectionId: string, db: StudioDb = requireStudioDb()): Promise<{ cancelled: number }> {
+export async function revokeAccount(scope: OwnerScope, actor: string, productId: string, connectionId: string, db: StudioDb = requireStudioDb(), deps: Deps = { fetch }): Promise<{ cancelled: number }> {
   await requireProduct(scope, productId, db);
   const [c] = await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.id, connectionId), eq(ms.msConnections.productId, productId))).limit(1);
   if (!c) throw new StudioAccessError();
+  // A Google grant is also voided at Google (best effort; our own copy is destroyed below either way).
+  let googleRevoked: boolean | null = null;
+  if (c.platform === "youtube" && c.status !== "revoked") {
+    try {
+      const b = JSON.parse(decryptSecret(c.secretCiphertext, c.keyId)) as TokenBundle;
+      googleRevoked = await revokeAtGoogle(deps.fetch, b.refreshToken ?? b.accessToken);
+    } catch {
+      googleRevoked = false;
+    }
+  }
   const wiped = encryptSecret("revoked");
   await db
     .update(ms.msConnections)
@@ -96,7 +109,7 @@ export async function revokeAccount(scope: OwnerScope, actor: string, productId:
     .set({ status: "revoked", failureReason: "The connection was revoked before this was published.", updatedAt: new Date() })
     .where(and(eq(ms.msPublications.connectionId, connectionId), inArray(ms.msPublications.status, ["draft", "approval_required", "approved", "scheduled"])))
     .returning({ id: ms.msPublications.id });
-  await audit(db, { actor, action: "connection.revoke", entity: "connection", entityId: connectionId, productId, detail: { platform: c.platform, cancelledPublications: pending.length } });
+  await audit(db, { actor, action: "connection.revoke", entity: "connection", entityId: connectionId, productId, detail: { platform: c.platform, cancelledPublications: pending.length, ...(googleRevoked === null ? {} : { googleRevoked }) } });
   return { cancelled: pending.length };
 }
 

@@ -17,7 +17,8 @@ import type { OwnerScope } from "../scope";
 import { StudioAccessError } from "../scope";
 import { safeJoin } from "../storage";
 import { assertCreativeFresh, staleMarkFor } from "../video/stale";
-import { ADAPTERS, type Deps } from "./adapters";
+import { ADAPTERS, type Deps, type PublishInput } from "./adapters";
+import { youtubeTokensForCall } from "./oauth-youtube";
 import { assertRolloutOrder } from "./first-post";
 import { evaluateHealth, tokensForPublish, usable } from "./connections";
 import { buildExportBundle } from "./export";
@@ -31,6 +32,10 @@ export const MIN_GAP_MS = 30 * 60_000;
 
 export const LIVE_SETTING = "publishing_live_enabled";
 export const approvedSetting = (platform: string) => `platform_approved_${platform}`;
+/** YouTube is opt-in per product: a video only goes to the channel when the owner has selected YouTube for that product. */
+export const youtubeEnabledSetting = (productId: string) => `youtube_enabled_${productId}`;
+/** The owner's explicit made-for-kids declaration for a product's YouTube videos. Absent means undeclared, and uploads are refused. */
+export const youtubeKidsSetting = (productId: string) => `youtube_made_for_kids_${productId}`;
 
 async function mediaFor(db: StudioDb, p: { creativeId?: string | null; videoId?: string | null }, productId: string) {
   if (p.creativeId) {
@@ -128,6 +133,7 @@ export async function createPublication(
     // Platform approval comes first, so the operator is told to export instead of being told about a connection that could never help.
     const attestedFirst = await getSetting<boolean>(approvedSetting(input.platform), false, db);
     if (spec.direct !== "available_with_healthy_connection" && !attestedFirst) throw new Error(`Direct posting is not available: ${spec.approvalNote} Use an export bundle instead.`);
+    if (input.platform === "youtube" && !(await getSetting<boolean>(youtubeEnabledSetting(productId), false, db))) throw new Error("YouTube has not been selected for this product. Marketing Studio only sends a product's videos to YouTube when the owner enables it for that product. Use an export bundle instead.");
     if (!input.connectionId) throw new Error("A direct post needs a connection; use an export bundle if none is connected");
     const [conn] = await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.id, input.connectionId), eq(ms.msConnections.productId, productId), eq(ms.msConnections.platform, input.platform))).limit(1);
     if (!conn) throw new StudioAccessError();
@@ -305,16 +311,24 @@ export async function runDuePublications(scope: OwnerScope, deps: Deps = { fetch
       const since = new Date(now.getTime() - 24 * 3_600_000);
       const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(ms.msPublications).where(and(eq(ms.msPublications.platform, p.platform), eq(ms.msPublications.productId, p.productId), eq(ms.msPublications.status, "published"), gt(ms.msPublications.publishedAt, since)));
       if (n >= spec.rateLimit.ourCap24h) blockers.push(`daily cap of ${spec.rateLimit.ourCap24h} posts reached`);
+      let youtube: PublishInput["youtube"];
+      if (p.platform === "youtube") {
+        const kids = await getSetting<boolean | null>(youtubeKidsSetting(p.productId), null, db);
+        if (!(await getSetting<boolean>(youtubeEnabledSetting(p.productId), false, db))) blockers.push("YouTube is not selected for this product");
+        if (typeof kids !== "boolean") blockers.push("the owner has not declared whether this product's videos are made for kids");
+        youtube = { madeForKids: typeof kids === "boolean" ? kids : null, privacy: "public" };
+      }
       if (blockers.length) {
         res.blocked++;
         await finish({ status: "failed", failureReason: `Blocked before sending: ${blockers.join("; ")}` }, "publication.blocked", { blockers });
         continue;
       }
-      const tokens = await tokensForPublish(scope, "studio-worker", p.productId, conn!.id, db);
+      // YouTube access tokens last an hour: renew from the refresh token first (stored encrypted); other platforms use the stored token as is.
+      const tokens = p.platform === "youtube" ? await youtubeTokensForCall(scope, "studio-worker", p.productId, conn!.id, deps, db) : await tokensForPublish(scope, "studio-worker", p.productId, conn!.id, db);
       const [asset] = await db.select().from(ms.msAssets).where(eq(ms.msAssets.id, p.assetId)).limit(1);
       const bytes = await fs.readFile(safeJoin(STUDIO_DIRS.media, ...asset.storagePath.split("/")));
       const out = await ADAPTERS[p.platform as keyof typeof ADAPTERS].publish(
-        { platform: p.platform as never, externalAccountId: conn!.externalAccountId ?? "", media: { kind: asset.mimeType === "video/mp4" ? "video" : "image", bytes, mime: asset.mimeType, fileName: `${p.id}.${asset.mimeType === "video/mp4" ? "mp4" : "png"}` }, caption: p.caption, title: p.title, accessToken: tokens.accessToken },
+        { platform: p.platform as never, externalAccountId: conn!.externalAccountId ?? "", media: { kind: asset.mimeType === "video/mp4" ? "video" : "image", bytes, mime: asset.mimeType, fileName: `${p.id}.${asset.mimeType === "video/mp4" ? "mp4" : "png"}` }, caption: p.caption, title: p.title, accessToken: tokens.accessToken, youtube },
         deps,
       );
       if (out.ok) {

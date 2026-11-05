@@ -3,6 +3,7 @@ import { listConnections } from "@/lib/marketing-studio/credentials";
 import { ms, requireStudioDb } from "@/lib/marketing-studio/db";
 import { evaluateHealth } from "@/lib/marketing-studio/publishing/connections";
 import { facebookOAuthConfigured } from "@/lib/marketing-studio/publishing/oauth-facebook";
+import { youtubeOAuthConfigured } from "@/lib/marketing-studio/publishing/oauth-youtube";
 import { PLATFORM_SPECS } from "@/lib/marketing-studio/publishing/platforms";
 import { approvedSetting, LIVE_SETTING, listPublications } from "@/lib/marketing-studio/publishing/queue";
 import { getSetting } from "@/lib/marketing-studio/runtime";
@@ -236,7 +237,23 @@ export async function PublishingSections({ productId }: { productId: string }) {
           ) : (
             <p className="mt-1 text-amber-800">Not available yet: the Studio Meta app id and secret are not configured on the web server.</p>
           )}
-          <p className="mt-2 text-zinc-500">Requests only: pages_show_list, pages_read_engagement, pages_manage_posts, read_insights. Instagram, YouTube and TikTok stay export-only until each platform approves direct posting.</p>
+          <p className="mt-2 text-zinc-500">Requests only: pages_show_list, pages_read_engagement, pages_manage_posts, read_insights. Instagram and TikTok stay export-only until each platform approves direct posting.</p>
+        </div>
+        <div className="mt-3 rounded-xl border border-zinc-200 p-3 text-xs">
+          <p className="font-semibold text-zinc-900">Connect the YouTube channel (official Google sign-in, nothing is typed or pasted)</p>
+          {youtubeOAuthConfigured() ? (
+            <form action="/api/admin/marketing-studio/connect/youtube/start" method="get" className="mt-2 flex flex-wrap items-end gap-2">
+              <input type="hidden" name="productId" value={productId} />
+              <label>
+                Exact channel handle or name you are connecting (required; any other channel is refused)
+                <input name="channel" required defaultValue="iscreamstudio" className={input} />
+              </label>
+              <button className={btn}>Connect with YouTube</button>
+            </form>
+          ) : (
+            <p className="mt-1 text-amber-800">Not available yet: the Studio Google OAuth client id and secret are not configured on the web server.</p>
+          )}
+          <p className="mt-2 text-zinc-500">Requests only: youtube.upload (upload) and youtube.readonly (identify the channel, confirm the uploaded video, read its public counts). Uploads go only to the channel shown on the connection above; videos are sent to YouTube only for products where the owner has enabled it, and direct upload stays off until the platform approval is attested.</p>
         </div>
         <details className="mt-3">
           <summary className="cursor-pointer text-xs font-semibold text-zinc-700">Register a connection (token from the platform; minimal scopes only)</summary>

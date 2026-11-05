@@ -1,6 +1,7 @@
 /**
  * Platform adapters. Facebook Pages has a real Graph API implementation (it can only ever run through the publish gate with live
- * publishing switched on, and is tested against a stubbed fetch). Instagram, YouTube and TikTok adapters deliberately do NOT call
+ * publishing switched on, and is tested against a stubbed fetch). The YouTube adapter (youtube-api.ts) is real too but stays behind the
+ * platform-approval gate. Instagram and TikTok adapters deliberately do NOT call
  * any API: their direct publishing needs platform approval or an audit that has not happened, so they refuse and point to the export
  * bundle instead of pretending to work. Independent of the website publishing stack and of the older Facebook helper in
  * src/lib/integrations (which takes plaintext tokens from site configuration).
@@ -8,6 +9,7 @@
 import type { Platform } from "../config";
 import type { MediaKind } from "./platforms";
 import { PLATFORM_SPECS } from "./platforms";
+import { youtubeAdapter, type YoutubeUploadExtras } from "./youtube-api";
 
 export type PublishInput = {
   platform: Platform;
@@ -16,6 +18,8 @@ export type PublishInput = {
   caption: string;
   title?: string | null;
   accessToken: string;
+  /** YouTube only: visibility and the owner's made-for-kids declaration. */
+  youtube?: YoutubeUploadExtras;
 };
 
 export type PublishResult =
@@ -102,6 +106,6 @@ function notApproved(platform: Platform): Adapter {
 export const ADAPTERS: Record<Platform, Adapter> = {
   facebook: facebookAdapter,
   instagram: notApproved("instagram"),
-  youtube: notApproved("youtube"),
+  youtube: youtubeAdapter,
   tiktok: notApproved("tiktok"),
 };
