@@ -53,6 +53,20 @@ export async function revokeAtGoogle(fetchFn: typeof fetch, token: string): Prom
   }
 }
 
+/** Google's own description of an access token (scopes, audience client, seconds left), for diagnostics only. Never includes the token. */
+async function tokenSummary(fetchFn: typeof fetch, accessToken: string): Promise<string | null> {
+  try {
+    const res = await fetchFn(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`, { method: "GET" });
+    const t = (await res.json().catch(() => ({}))) as { scope?: string; aud?: string; azp?: string; expires_in?: string; error_description?: string };
+    if (!res.ok) return `tokeninfo says ${(t.error_description ?? `HTTP ${res.status}`).slice(0, 60)}`;
+    const scopes = (t.scope ?? "").split(" ").map((s) => s.split("/").pop()).join(",");
+    const clientOk = (t.aud ?? t.azp ?? "") === process.env.MARKETING_GOOGLE_CLIENT_ID?.trim();
+    return `scopes ${scopes}; issued to this client ${clientOk}; ${t.expires_in ?? "?"}s left`;
+  } catch {
+    return null;
+  }
+}
+
 export type OwnChannel = { id: string; title: string; handle: string | null };
 
 /** The channel this token uploads to. Google binds a token to the single channel chosen at consent, so mine=true returns exactly that one. */
@@ -60,7 +74,12 @@ export async function fetchOwnChannel(fetchFn: typeof fetch, accessToken: string
   try {
     const res = await fetchFn(`${API}/channels?part=snippet&mine=true&maxResults=5`, { method: "GET", headers: { authorization: `Bearer ${accessToken}` } });
     const b = (await res.json().catch(() => ({}))) as GErr & { items?: Array<{ id?: string; snippet?: { title?: string; customUrl?: string } }> };
-    if (!res.ok || b.error) return { ok: false, reason: errMessage(b).slice(0, 200) || `HTTP ${res.status}`, auth: res.status === 401 || res.status === 403 };
+    if (!res.ok || b.error) {
+      // Say exactly what Google said (status, reason, the WWW-Authenticate hint) and what the token itself is, so a refusal can be diagnosed without any secret appearing.
+      const hint = res.headers.get("www-authenticate")?.replace(/Bearer\s*/i, "").slice(0, 120);
+      const info = await tokenSummary(fetchFn, accessToken);
+      return { ok: false, reason: `HTTP ${res.status}${errReason(b) ? ` ${errReason(b)}` : ""}: ${errMessage(b).slice(0, 160) || "no message"}${hint ? ` [${hint}]` : ""}${info ? ` (token: ${info})` : ""}`, auth: res.status === 401 || res.status === 403 };
+    }
     return { ok: true, channels: (b.items ?? []).filter((i) => i.id).map((i) => ({ id: i.id!, title: i.snippet?.title ?? "", handle: i.snippet?.customUrl ?? null })) };
   } catch (e) {
     return { ok: false, reason: `network error: ${e instanceof Error ? e.message.slice(0, 160) : "request failed"}`, auth: false };
