@@ -61,7 +61,15 @@ async function tokenSummary(fetchFn: typeof fetch, accessToken: string): Promise
     if (!res.ok) return `tokeninfo says ${(t.error_description ?? `HTTP ${res.status}`).slice(0, 60)}`;
     const scopes = (t.scope ?? "").split(" ").map((s) => s.split("/").pop()).join(",");
     const clientOk = (t.aud ?? t.azp ?? "") === process.env.MARKETING_GOOGLE_CLIENT_ID?.trim();
-    return `scopes ${scopes}; issued to this client ${clientOk}; ${t.expires_in ?? "?"}s left`;
+    // A public lookup with the same bearer separates "the token is bad" from "the token is fine but its identity has no channel (youtubeSignupRequired)".
+    let probe = "";
+    try {
+      const p = await fetchFn(`${API}/channels?part=id&forHandle=%40youtube`, { method: "GET", headers: { authorization: `Bearer ${accessToken}` } });
+      probe = `; public lookup with this token HTTP ${p.status}`;
+    } catch {
+      probe = "";
+    }
+    return `scopes ${scopes}; issued to this client ${clientOk}; ${t.expires_in ?? "?"}s left${probe}`;
   } catch {
     return null;
   }

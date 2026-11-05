@@ -12,7 +12,7 @@ import { closeStudioDb, ms, requireStudioDb } from "../../src/lib/marketing-stud
 import { collectForPublication, currentMetrics } from "../../src/lib/marketing-studio/measurement/collect";
 import { evaluateHealth, usable } from "../../src/lib/marketing-studio/publishing/connections";
 import { firstPostProven, prePublishChecks, recordFirstPostProven, type Check } from "../../src/lib/marketing-studio/publishing/first-post";
-import { youtubeCallbackUrl, YOUTUBE_FIRST, youtubeOAuthConfigured, youtubeTokensForCall, verifyYoutubeConnection } from "../../src/lib/marketing-studio/publishing/oauth-youtube";
+import { reverifyYoutubeConnection, youtubeCallbackUrl, YOUTUBE_FIRST, youtubeOAuthConfigured, youtubeTokensForCall, verifyYoutubeConnection } from "../../src/lib/marketing-studio/publishing/oauth-youtube";
 import { approvedSetting, approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../../src/lib/marketing-studio/publishing/queue";
 import { verifyYoutubeVideo, YT_SCOPES } from "../../src/lib/marketing-studio/publishing/youtube-api";
 import { listProducts } from "../../src/lib/marketing-studio/repository";
@@ -37,6 +37,16 @@ async function main() {
   console.log(`redirect URI registered with Google must be exactly: ${youtubeCallbackUrl()}`);
   console.log(`scopes requested: ${YT_SCOPES.join(" ")}`);
   console.log(`platform approval attested (direct upload allowed): ${attested}`);
+
+  if (args.includes("--reverify")) {
+    // Re-check an authorization that was kept unverified (channel read failed right after consent). No new sign-in needed. Nothing is uploaded.
+    for (const slug of YOUTUBE_FIRST.order) {
+      const p = products.find((x) => x.slug === slug);
+      if (!p) continue;
+      const r = await reverifyYoutubeConnection(INTERNAL_SCOPE, ACTOR, p.id, YOUTUBE_FIRST.expectedHandle, { fetch }, db);
+      console.log(`${p.name}: ${r.promoted ? "VERIFIED and connected" : "not verified"}: ${r.reason}${r.channel ? ` [${r.channel.title} ${r.channel.handle ?? ""} ${r.channel.id}]` : ""}`);
+    }
+  }
 
   const select = arg("--select");
   if (select) {

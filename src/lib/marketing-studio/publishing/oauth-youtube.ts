@@ -11,9 +11,9 @@
  * token is renewed from the refresh token just before a call, and the new ciphertext replaces the old one.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 import { audit } from "../audit";
-import { encryptSecret, revealSecretForPlatformCall } from "../credentials";
+import { encryptSecret, revealSecretForPlatformCall, storeConnection } from "../credentials";
 import { ms, requireStudioDb, type StudioDb } from "../db";
 import type { OwnerScope } from "../scope";
 import type { Deps } from "./adapters";
@@ -79,6 +79,44 @@ export function youtubeAuthorizeUrl(state: string): string {
   return u.toString();
 }
 
+const UNVERIFIED = "unverified-";
+
+async function quarantine(scope: OwnerScope, actor: string, productId: string, g: { accessToken: string; refreshToken?: string; expiresInSec: number }, reason: string, db: StudioDb = requireStudioDb()) {
+  await db.delete(ms.msConnections).where(and(eq(ms.msConnections.productId, productId), eq(ms.msConnections.platform, "youtube"), like(ms.msConnections.externalAccountId, `${UNVERIFIED}%`)));
+  const tokens: TokenBundle = { accessToken: g.accessToken, refreshToken: g.refreshToken, accessExpiresAt: Date.now() + g.expiresInSec * 1000 };
+  const row = await storeConnection(scope, actor, productId, { platform: "youtube", accountLabel: "Unverified YouTube authorization", secret: JSON.stringify(tokens), scopes: [YT_SCOPE_UPLOAD, YT_SCOPE_READ], externalAccountId: `${UNVERIFIED}${Date.now().toString(36)}`, tokenExpiresAt: null }, db);
+  await db.update(ms.msConnections).set({ status: "error", healthStatus: "error", healthDetail: `Not verified: ${reason.slice(0, 280)}` }).where(eq(ms.msConnections.id, row.id));
+  await audit(db, { actor, action: "connection.quarantine", entity: "connection", entityId: row.id, productId, detail: { platform: "youtube", reason: reason.slice(0, 200) } });
+}
+
+export type ReverifyResult = { promoted: boolean; reason: string; channel?: { id: string; title: string; handle: string | null } };
+
+/**
+ * Re-runs the channel check for a kept-unverified authorization (renewing the access token from the refresh token first). Only an authorization whose token
+ * belongs to exactly the pinned channel, matching the expected handle, becomes a normal healthy connection; anything else stays unusable.
+ */
+export async function reverifyYoutubeConnection(scope: OwnerScope, actor: string, productId: string, expectedChannel: string, deps: Deps, db: StudioDb = requireStudioDb()): Promise<ReverifyResult> {
+  const [row] = await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.productId, productId), eq(ms.msConnections.platform, "youtube"), like(ms.msConnections.externalAccountId, `${UNVERIFIED}%`))).limit(1);
+  if (!row) return { promoted: false, reason: "no kept-unverified YouTube authorization for this product" };
+  let tokens: TokenBundle;
+  try {
+    tokens = await youtubeTokensForCall(scope, actor, productId, row.id, deps, db);
+  } catch (e) {
+    return { promoted: false, reason: e instanceof Error ? e.message.slice(0, 200) : "token renewal failed" };
+  }
+  const own = await fetchOwnChannel(deps.fetch, tokens.accessToken);
+  if (!own.ok) return { promoted: false, reason: own.reason };
+  if (own.channels.length !== 1) return { promoted: false, reason: own.channels.length ? `token belongs to several channels (${own.channels.map((c) => c.title).join(", ")})` : "the token's identity has no YouTube channel" };
+  const ch = own.channels[0];
+  if (ch.id !== pinnedChannelId()) return { promoted: false, reason: `token belongs to "${ch.title}" (${ch.id}), not the pinned iScream Studio channel`, channel: ch };
+  if (!channelMatches(ch, expectedChannel)) return { promoted: false, reason: `channel "${ch.title}" does not match "${expectedChannel}"`, channel: ch };
+  const clash = await db.select({ id: ms.msConnections.id }).from(ms.msConnections).where(and(eq(ms.msConnections.productId, productId), eq(ms.msConnections.platform, "youtube"), eq(ms.msConnections.externalAccountId, ch.id)));
+  if (clash.length) return { promoted: false, reason: "this channel is already connected to this product", channel: ch };
+  await db.update(ms.msConnections).set({ externalAccountId: ch.id, accountLabel: channelLabel(ch), status: "connected", healthStatus: "ok", healthDetail: null, lastCheckedAt: new Date() }).where(eq(ms.msConnections.id, row.id));
+  await audit(db, { actor, action: "connection.verified", entity: "connection", entityId: row.id, productId, detail: { platform: "youtube", channelId: ch.id } });
+  return { promoted: true, reason: "verified", channel: ch };
+}
+
 export type YoutubeOAuthOutcome = { connectionId: string; channelId: string; channelTitle: string; channelHandle: string | null; grantedScopes: string[] };
 
 /**
@@ -95,7 +133,12 @@ export async function completeYoutubeOAuth(scope: OwnerScope, actor: string, inp
   if (!g.refreshToken) throw new Error("Google did not return a refresh token, so uploads could not continue after the first hour. Remove GravyBlock's access at myaccount.google.com/permissions and connect again. Nothing was connected.");
 
   const own = await fetchOwnChannel(deps.fetch, g.accessToken);
-  if (!own.ok) throw new Error(`Could not read the YouTube channel: ${own.reason}. Nothing was connected.`);
+  if (!own.ok) {
+    // Google accepted the consent but the channel could not be read. Keep the authorization, encrypted and UNUSABLE, so the check can be repeated on the server
+    // (after a fix) without the owner signing in again. It becomes a normal connection only if re-verification passes (reverifyYoutubeConnection).
+    await quarantine(scope, actor, input.productId, g, own.reason, db);
+    throw new Error(`Could not read the YouTube channel: ${own.reason}. The authorization was kept unverified and unusable so it can be re-checked on the server; nothing is connected.`);
+  }
   if (own.channels.length !== 1) throw new Error(own.channels.length === 0 ? "This Google account has no YouTube channel behind that sign-in. Nothing was connected." : `Could not choose exactly one channel (${own.channels.map((c) => c.title).join(", ")}). Nothing was connected.`);
   const ch = own.channels[0];
   if (ch.id !== pinnedChannelId()) throw new Error(`The channel you authorized is "${ch.title}" (id ${ch.id}), which is not the iScream Studio channel GravyBlock is pinned to. Nothing was connected.`);

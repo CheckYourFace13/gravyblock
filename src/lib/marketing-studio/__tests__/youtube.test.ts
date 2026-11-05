@@ -12,8 +12,8 @@ import { setSetting } from "../runtime";
 import { INTERNAL_SCOPE } from "../scope";
 import { collectForPublication } from "../measurement/collect";
 import type { PublishInput } from "../publishing/adapters";
-import { connectAccount, revokeAccount, type TokenBundle } from "../publishing/connections";
-import { completeYoutubeOAuth, makeYoutubeState, readYoutubeState, verifyYoutubeConnection, youtubeAuthorizeUrl, youtubeCallbackUrl, youtubeOAuthConfigured, youtubeTokensForCall, YOUTUBE_FIRST } from "../publishing/oauth-youtube";
+import { connectAccount, evaluateHealth, revokeAccount, usable, type TokenBundle } from "../publishing/connections";
+import { completeYoutubeOAuth, reverifyYoutubeConnection, makeYoutubeState, readYoutubeState, verifyYoutubeConnection, youtubeAuthorizeUrl, youtubeCallbackUrl, youtubeOAuthConfigured, youtubeTokensForCall, YOUTUBE_FIRST } from "../publishing/oauth-youtube";
 import { approvedSetting, approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../publishing/queue";
 import { channelLabel, channelMatches, collectYoutubeCounts, verifyYoutubeVideo, youtubeAdapter, YT_SCOPE_READ, YT_SCOPE_UPLOAD } from "../publishing/youtube-api";
 
@@ -253,6 +253,30 @@ describe("YouTube connection, storage, queue gates and measurement (database)", 
       await assert.rejects(completeYoutubeOAuth(INTERNAL_SCOPE, "admin", { productId: p, code: "c", expectedChannel: expected }, { fetch: google(opts).f }), re, label);
     }
     assert.equal((await connections(p)).length, 0);
+  });
+
+  test("a channel read that Google refuses right after consent keeps the authorization encrypted and unusable, and re-verification promotes it only when it is exactly the pinned channel", async () => {
+    const p = await product("Quarantine Game");
+    const refused = google({ channels: undefined });
+    const deny = (async (url: string | URL | Request, init?: RequestInit) => (String(url).includes("/youtube/v3/channels") ? json({ error: { code: 401, message: "Unauthorized", errors: [{ reason: "youtubeSignupRequired" }] } }, 401) : refused.f(url, init))) as typeof fetch;
+    await assert.rejects(completeYoutubeOAuth(INTERNAL_SCOPE, "admin", { productId: p, code: "c", expectedChannel: "iscreamstudio" }, { fetch: deny }), /HTTP 401 youtubeSignupRequired: Unauthorized.*kept unverified and unusable/);
+    const [kept] = await connections(p);
+    assert.deepEqual([kept.status, kept.healthStatus], ["error", "error"]);
+    assert.match(kept.externalAccountId ?? "", /^unverified-/);
+    assert.ok(!JSON.stringify(kept).includes(REFRESH), "kept authorization is ciphertext");
+    assert.equal(evaluateHealth(kept), "error", "never usable for publishing");
+    // still wrong identity: stays unusable
+    const wrong = await reverifyYoutubeConnection(INTERNAL_SCOPE, "t", p, "iscreamstudio", { fetch: google({ channels: [{ id: "UC_other", snippet: { title: "Chris Personal", customUrl: "@chris" } }] }).f }, db());
+    assert.equal(wrong.promoted, false);
+    assert.equal((await connections(p))[0].healthStatus, "error");
+    const none = await reverifyYoutubeConnection(INTERNAL_SCOPE, "t", p, "iscreamstudio", { fetch: google({ channels: [] }).f }, db());
+    assert.match(none.reason, /no YouTube channel/);
+    // the right channel: promoted without any new sign-in
+    const good = await reverifyYoutubeConnection(INTERNAL_SCOPE, "t", p, "iscreamstudio", { fetch: google().f }, db());
+    assert.deepEqual([good.promoted, good.channel?.id], [true, CH.id]);
+    const [now] = await connections(p);
+    assert.deepEqual([now.externalAccountId, now.healthStatus, now.accountLabel], [CH.id, "ok", "iScream Studio (@iscreamstudio)"]);
+    assert.ok(usable(evaluateHealth(now)));
   });
 
   test("access tokens are renewed from the refresh token, stored encrypted in place, and a refused refresh marks the connection in error", async () => {
