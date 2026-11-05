@@ -26,6 +26,8 @@ export const FIRST_SOCIAL = {
 };
 
 export const FIRST_POST_PROVEN = "publication.first_post_proven";
+/** The same proof, per platform: the Facebook loop and the YouTube loop are proven separately. */
+export const FIRST_PROVEN_ACTION = { facebook: FIRST_POST_PROVEN, youtube: "publication.first_youtube_upload_proven" } as const;
 
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 const PHONE = /(?:\+?\d[\s().-]?){9,}\d/;
@@ -93,18 +95,18 @@ export function prePublishChecks(i: {
 }
 
 /** Has this product's first post gone out, been confirmed live by Meta, and had its first measurement stored? */
-export async function firstPostProven(db: StudioDb, productId: string): Promise<boolean> {
-  const rows = await db.select({ id: ms.msAuditEvents.id }).from(ms.msAuditEvents).where(and(eq(ms.msAuditEvents.action, FIRST_POST_PROVEN), eq(ms.msAuditEvents.productId, productId))).limit(1);
+export async function firstPostProven(db: StudioDb, productId: string, platform: keyof typeof FIRST_PROVEN_ACTION = "facebook"): Promise<boolean> {
+  const rows = await db.select({ id: ms.msAuditEvents.id }).from(ms.msAuditEvents).where(and(eq(ms.msAuditEvents.action, FIRST_PROVEN_ACTION[platform]), eq(ms.msAuditEvents.productId, productId))).limit(1);
   return rows.length > 0;
 }
 
-export async function recordFirstPostProven(db: StudioDb, actor: string, productId: string, publicationId: string, detail: Record<string, unknown>) {
-  await audit(db, { actor, action: FIRST_POST_PROVEN, entity: "publication", entityId: publicationId, productId, detail });
+export async function recordFirstPostProven(db: StudioDb, actor: string, productId: string, publicationId: string, detail: Record<string, unknown>, platform: keyof typeof FIRST_PROVEN_ACTION = "facebook") {
+  await audit(db, { actor, action: FIRST_PROVEN_ACTION[platform], entity: "publication", entityId: publicationId, productId, detail });
 }
 
 /** Mibble Meadow follows only after ScribbleZap's first post proved the complete loop. Throws with the reason otherwise. */
 export async function assertRolloutOrder(db: StudioDb, product: { id: string; slug: string }, platform: string): Promise<void> {
-  if (platform !== FIRST_SOCIAL.platform || product.slug !== FIRST_SOCIAL.order[1]) return;
+  if ((platform !== "facebook" && platform !== "youtube") || product.slug !== FIRST_SOCIAL.order[1]) return;
   const [first] = await db.select({ id: ms.msProducts.id }).from(ms.msProducts).where(sql`${ms.msProducts.slug} = ${FIRST_SOCIAL.order[0]}`).limit(1);
-  if (!first || !(await firstPostProven(db, first.id))) throw new Error("Mibble Meadow waits until ScribbleZap's first post has been published, verified live on Meta, and measured; the rollout order has not been satisfied yet.");
+  if (!first || !(await firstPostProven(db, first.id, platform))) throw new Error(`Mibble Meadow waits until ScribbleZap's first ${platform === "youtube" ? "upload has been published, verified live on YouTube, and measured" : "post has been published, verified live on Meta, and measured"}; the rollout order has not been satisfied yet.`);
 }

@@ -14,7 +14,7 @@ import { collectForPublication } from "../measurement/collect";
 import type { PublishInput } from "../publishing/adapters";
 import { connectAccount, revokeAccount, type TokenBundle } from "../publishing/connections";
 import { completeYoutubeOAuth, makeYoutubeState, readYoutubeState, verifyYoutubeConnection, youtubeAuthorizeUrl, youtubeCallbackUrl, youtubeOAuthConfigured, youtubeTokensForCall, YOUTUBE_FIRST } from "../publishing/oauth-youtube";
-import { approvedSetting, approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, youtubeEnabledSetting, youtubeKidsSetting } from "../publishing/queue";
+import { approvedSetting, approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../publishing/queue";
 import { channelLabel, channelMatches, collectYoutubeCounts, verifyYoutubeVideo, youtubeAdapter, YT_SCOPE_READ, YT_SCOPE_UPLOAD } from "../publishing/youtube-api";
 
 process.env.MARKETING_GOOGLE_CLIENT_ID = "123456789-abc.apps.googleusercontent.com";
@@ -318,26 +318,40 @@ describe("YouTube connection, storage, queue gates and measurement (database)", 
     assert.equal(noDecl.uploads(), 0);
     assert.match((await row(publication.id)).failureReason ?? "", /made for kids/);
 
-    // declared: a fresh publication uploads once
+    // declared but no explicit visibility: still blocked, nothing leaves, and there is no default
     await setSetting(youtubeKidsSetting(p), false, "t");
+    const vNoPrivacy = await video(p);
+    const noPriv = (await createPublication(INTERNAL_SCOPE, "t", p, { videoId: vNoPrivacy.id, platform: "youtube", mode: "direct", connectionId: c.id })).publication;
+    await approvePublication(INTERNAL_SCOPE, "t", p, noPriv.id);
+    await schedulePublication(INTERNAL_SCOPE, "t", p, noPriv.id, new Date(Date.now() - 1000));
+    const noPrivCalls = google();
+    assert.equal((await runDuePublications(INTERNAL_SCOPE, { fetch: noPrivCalls.f }, db())).blocked, 1);
+    assert.equal(noPrivCalls.uploads(), 0);
+    assert.match((await row(noPriv.id)).failureReason ?? "", /explicit YouTube visibility/);
+
+    // visibility chosen: a fresh publication uploads once, as private
+    await setSetting(youtubePrivacySetting(p), "private", "t");
     const v2 = await video(p);
     const second = (await createPublication(INTERNAL_SCOPE, "t", p, { videoId: v2.id, platform: "youtube", mode: "direct", connectionId: c.id })).publication;
     await approvePublication(INTERNAL_SCOPE, "t", p, second.id);
     await schedulePublication(INTERNAL_SCOPE, "t", p, second.id, new Date(Date.now() - 1000));
-    const g = google({ video: { id: "vid_ABC123xyz", snippet: { channelId: CH.id }, status: { uploadStatus: "processed", privacyStatus: "public" }, statistics: { viewCount: "7", likeCount: "1", commentCount: "0" } } });
+    const g = google({ video: { id: "vid_ABC123xyz", snippet: { channelId: CH.id }, status: { uploadStatus: "processed", privacyStatus: "private" }, statistics: { viewCount: "7", likeCount: "1", commentCount: "0" } } });
     const results = await Promise.all([runDuePublications(INTERNAL_SCOPE, { fetch: g.f }, db()), runDuePublications(INTERNAL_SCOPE, { fetch: g.f }, db())]);
     assert.equal(g.uploads(), 1, "exactly one upload even with two workers");
     assert.equal(results.reduce((s, r) => s + r.published, 0), 1);
     const done = await row(second.id);
     assert.deepEqual([done.status, done.externalPostId, done.externalUrl], ["published", "vid_ABC123xyz", "https://www.youtube.com/watch?v=vid_ABC123xyz"]);
     const meta = JSON.parse(g.calls.find((x) => x.url.includes("/upload/youtube/v3/videos"))!.body);
-    assert.deepEqual([meta.status.privacyStatus, meta.status.selfDeclaredMadeForKids], ["public", false]);
+    assert.deepEqual([meta.status.privacyStatus, meta.status.selfDeclaredMadeForKids], ["private", false], "the visibility the owner chose, never a default");
 
     // external verification and measurement come from YouTube's own listing
     const [tokensNow] = await connections(p);
     const bundle = JSON.parse(decryptSecret(tokensNow.secretCiphertext, tokensNow.keyId)) as TokenBundle;
     const vr = await verifyYoutubeVideo({ videoId: done.externalPostId!, channelId: tokensNow.externalAccountId!, accessToken: bundle.accessToken }, { fetch: g.f });
-    assert.equal(vr.live, true);
+    assert.equal(vr.live, false, "a private video does not count as live when public was required");
+    assert.match(vr.reason ?? "", /not public/);
+    const vrPrivate = await verifyYoutubeVideo({ videoId: done.externalPostId!, channelId: tokensNow.externalAccountId!, accessToken: bundle.accessToken, requirePublic: false }, { fetch: g.f });
+    assert.deepEqual([vrPrivate.live, vrPrivate.privacy, vrPrivate.onExpectedChannel], [true, "private", true]);
     const col = await collectForPublication(INTERNAL_SCOPE, "t", p, done.id, { fetch: g.f }, db());
     assert.equal(col.collected, true);
     const [snap] = await db().select().from(ms.msPublicationMetrics).where(eq(ms.msPublicationMetrics.publicationId, done.id));
@@ -346,6 +360,18 @@ describe("YouTube connection, storage, queue gates and measurement (database)", 
     assert.deepEqual([m.views.value, m.views.status, m.reactions.value, m.comments.value], [7, "confirmed", 1, 0]);
     assert.equal(m.reach.status, "unknown", "what YouTube data does not give stays unknown");
     await setSetting(LIVE_SETTING, false, "t");
+  });
+
+  test("rollout order on YouTube: Mibble Meadow waits for ScribbleZap's proven upload; the Facebook proof does not count", async () => {
+    const { assertRolloutOrder, recordFirstPostProven } = await import("../publishing/first-post");
+    const sz = await createProduct(INTERNAL_SCOPE, "t", { name: "ScribbleZap", kind: "mobile_game" });
+    const mb = await createProduct(INTERNAL_SCOPE, "t", { name: "Mibble Meadow", kind: "mobile_game", slug: "mibblemeadow" });
+    await assert.rejects(assertRolloutOrder(db(), mb, "youtube"), /waits until ScribbleZap's first upload/);
+    await recordFirstPostProven(db(), "t", sz.id, crypto.randomUUID(), { test: true }, "facebook");
+    await assert.rejects(assertRolloutOrder(db(), mb, "youtube"), /waits until/, "a proven Facebook post does not unlock YouTube");
+    await recordFirstPostProven(db(), "t", sz.id, crypto.randomUUID(), { test: true }, "youtube");
+    await assertRolloutOrder(db(), mb, "youtube");
+    await assertRolloutOrder(db(), sz, "youtube");
   });
 
   test("a product that is not selected, or deselected after scheduling, never reaches YouTube", async () => {

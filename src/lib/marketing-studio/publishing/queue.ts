@@ -36,6 +36,8 @@ export const approvedSetting = (platform: string) => `platform_approved_${platfo
 export const youtubeEnabledSetting = (productId: string) => `youtube_enabled_${productId}`;
 /** The owner's explicit made-for-kids declaration for a product's YouTube videos. Absent means undeclared, and uploads are refused. */
 export const youtubeKidsSetting = (productId: string) => `youtube_made_for_kids_${productId}`;
+/** The explicit visibility for a product's YouTube uploads: "private", "unlisted" or "public". There is no default; absent means the upload is blocked. */
+export const youtubePrivacySetting = (productId: string) => `youtube_privacy_${productId}`;
 
 async function mediaFor(db: StudioDb, p: { creativeId?: string | null; videoId?: string | null }, productId: string) {
   if (p.creativeId) {
@@ -316,7 +318,9 @@ export async function runDuePublications(scope: OwnerScope, deps: Deps = { fetch
         const kids = await getSetting<boolean | null>(youtubeKidsSetting(p.productId), null, db);
         if (!(await getSetting<boolean>(youtubeEnabledSetting(p.productId), false, db))) blockers.push("YouTube is not selected for this product");
         if (typeof kids !== "boolean") blockers.push("the owner has not declared whether this product's videos are made for kids");
-        youtube = { madeForKids: typeof kids === "boolean" ? kids : null, privacy: "public" };
+        const privacy = await getSetting<string | null>(youtubePrivacySetting(p.productId), null, db);
+        if (privacy !== "private" && privacy !== "unlisted" && privacy !== "public") blockers.push("the owner has not set an explicit YouTube visibility (private, unlisted or public) for this product");
+        youtube = { madeForKids: typeof kids === "boolean" ? kids : null, privacy: privacy === "private" || privacy === "unlisted" || privacy === "public" ? privacy : "private" };
       }
       if (blockers.length) {
         res.blocked++;

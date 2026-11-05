@@ -39,3 +39,13 @@ runuser -u gbstudio -- tsx --env-file=/etc/gravyblock-marketing.env scripts/ops/
 ```
 
 Read-only. Verifies the connected channel live and shows what is missing. It has no upload command.
+
+## Explicit visibility and the controlled first upload
+
+- Visibility is never defaulted: `youtube_privacy_<productId>` must be `private`, `unlisted` or `public`, or the upload is blocked. Record it with `marketing-youtube.ts --select <slug> --made-for-kids yes|no --privacy private|unlisted|public`.
+- One controlled path, same shape as the first Facebook post: `marketing-youtube.ts` (status, verifies the channel live) then `--prepare` (prepares the single upload as approval required and runs the checklist, sends nothing) then `--publish --confirm-first-upload scribblezap` (the only command that uploads: approve, schedule, live publishing on only for the run, verify on YouTube, measure, record the YouTube loop as proven). Mibble Meadow is refused on YouTube until ScribbleZap's YouTube loop is proven (the Facebook proof does not count).
+- A private upload is verified with visibility not required to be public; a public upload must read back as public.
+
+## Owner effort
+
+`node scripts/ops/install-google-client.mjs` (run on this PC) reads the client JSON downloaded from Google Cloud, rejects it unless its redirect URI is exactly the registered one, sends id and secret to the VPS over ssh without printing them, restarts the web app, and overwrites and deletes the JSON. Nothing is pasted anywhere.
