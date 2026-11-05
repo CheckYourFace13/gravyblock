@@ -1,14 +1,20 @@
-// Runs the whole Marketing Studio test suite against a disposable database: an in-memory PGlite server on a free localhost port, addressed as
-// "gravyblock_studio_test" (the suites refuse any database whose name lacks "test"), with the current schema pushed into it. Nothing here ever
-// reads or writes a configured database: DATABASE_URL and MARKETING_DATABASE_URL are overwritten for the child processes, and the script refuses
-// to run against anything that is not localhost with "test" in its name. The database vanishes when the script ends.
+// Runs the whole Marketing Studio test suite against a disposable, real, multi-connection PostgreSQL: a throwaway cluster (embedded-postgres,
+// a devDependency) initialised in a temp folder and bound to 127.0.0.1 on a free port, holding one database named "gravyblock_studio_test"
+// (the suites refuse any database whose name lacks "test") with the current schema pushed into it. Real Postgres means the concurrency tests
+// run on genuinely parallel connections. Nothing here ever reads or writes a configured database: DATABASE_URL and MARKETING_DATABASE_URL
+// are overwritten for the child processes, and the script refuses to run against anything that is not localhost with "test" in its name.
+// The cluster and its files are deleted when the script ends.
 //   npm run test:studio
 import { spawn } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
 import net from "node:net";
-import { PGlite } from "@electric-sql/pglite";
-import { createServer } from "pglite-server";
+import os from "node:os";
+import path from "node:path";
+import EmbeddedPostgres from "embedded-postgres";
 
 const NAME = "gravyblock_studio_test";
+const USER = "studio_test";
+const PASSWORD = "studio_test_pw";
 
 function freePort(): Promise<number> {
   return new Promise<number>((resolve, reject) => {
@@ -28,31 +34,29 @@ function assertDisposable(url: string) {
 }
 
 const port = await freePort();
-const url = `postgresql://postgres:postgres@127.0.0.1:${port}/${NAME}`;
+const url = `postgresql://${USER}:${PASSWORD}@127.0.0.1:${port}/${NAME}`;
 assertDisposable(url);
 
-const db = new PGlite();
-await db.waitReady;
-const server = createServer(db);
-await new Promise<void>((r) => server.listen(port, "127.0.0.1", () => r()));
-console.log(`disposable test database ${NAME} on 127.0.0.1:${port} (in memory)`);
+const dir = mkdtempSync(path.join(os.tmpdir(), "gb-studio-test-pg-"));
+const pg = new EmbeddedPostgres({ databaseDir: path.join(dir, "data"), user: USER, password: PASSWORD, port, persistent: false, postgresFlags: ["-c", "listen_addresses=127.0.0.1", "-c", "max_connections=60", "-c", "fsync=off"], onLog: () => {}, onError: () => {} });
 
-const env = { ...process.env, DATABASE_URL: url, MARKETING_DATABASE_URL: url, STUDIO_TEST_DATABASE_URL: url, /* the PGlite wire server serves one connection at a time */ MARKETING_DB_POOL_MAX: "1" };
+const env = { ...process.env, DATABASE_URL: url, MARKETING_DATABASE_URL: url, STUDIO_TEST_DATABASE_URL: url, MARKETING_DB_POOL_MAX: process.env.MARKETING_DB_POOL_MAX ?? "8" };
 const npx = process.platform === "win32" ? "npx.cmd" : "npx";
 let code = 1;
 try {
+  await pg.initialise();
+  await pg.start();
+  await pg.createDatabase(NAME);
+  console.log(`disposable test database ${NAME} on 127.0.0.1:${port} (real PostgreSQL, multi-connection, deleted afterward)`);
   const run = (args: string[]) => new Promise<number>((resolve) => spawn(npx, args, { env, stdio: "inherit", shell: process.platform === "win32" }).on("exit", (c) => resolve(c ?? 1)));
-  // the current schema (async spawn: this process hosts the database, so its event loop must stay free)
+  // the current schema
   if ((await run(["drizzle-kit", "push", "--force"])) !== 0) throw new Error("applying the current schema failed");
-  // async, not spawnSync: this process hosts the database, so its event loop must stay free while the tests run
-  code = await new Promise<number>((resolve) => {
-    const child = spawn(npx, ["tsx", "--test", "--test-concurrency=1", ...(process.argv.length > 2 ? process.argv.slice(2) : ["src/lib/marketing-studio/__tests__/*.test.ts"])], { env, stdio: "inherit", shell: process.platform === "win32" });
-    child.on("exit", (c) => resolve(c ?? 1));
-  });
+  // test FILES run one after another (they share the database); the concurrency tests inside them overlap on separate connections
+  code = await run(["tsx", "--test", "--test-concurrency=1", ...(process.argv.length > 2 ? process.argv.slice(2) : ["src/lib/marketing-studio/__tests__/*.test.ts"])]);
 } catch (e) {
   console.error(e instanceof Error ? e.message : e);
 } finally {
-  server.close?.();
-  await db.close().catch(() => {});
+  await pg.stop().catch(() => {});
+  rmSync(dir, { recursive: true, force: true });
 }
 process.exit(code);

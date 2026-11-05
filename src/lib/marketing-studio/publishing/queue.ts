@@ -197,13 +197,18 @@ export async function schedulePublication(scope: OwnerScope, actor: string, prod
   if (Number.isNaN(when.getTime())) throw new Error("Invalid time");
   const lo = new Date(when.getTime() - MIN_GAP_MS);
   const hi = new Date(when.getTime() + MIN_GAP_MS);
-  const clash = await db
-    .select({ id: ms.msPublications.id })
-    .from(ms.msPublications)
-    .where(and(eq(ms.msPublications.productId, productId), eq(ms.msPublications.platform, p.platform), ne(ms.msPublications.id, id), inArray(ms.msPublications.status, ["scheduled", "publishing"]), gt(ms.msPublications.scheduledFor, lo), lte(ms.msPublications.scheduledFor, hi)));
-  if (clash.length) throw new Error(`Schedule conflict: another ${p.platform} post for this product is within ${MIN_GAP_MS / 60000} minutes of that time`);
-  const res = await db.update(ms.msPublications).set({ status: "scheduled", scheduledFor: when, nextAttemptAt: when, updatedAt: new Date() }).where(and(eq(ms.msPublications.id, id), eq(ms.msPublications.status, "approved"))).returning({ id: ms.msPublications.id });
-  if (!res.length) throw new Error("This publication changed while scheduling; reload and try again");
+  // The gap check and the write must be one atomic step per product and platform: two simultaneous requests would otherwise both see no
+  // neighbour and both schedule. A transaction-scoped advisory lock serializes them; the loser then sees the winner's row and is refused.
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`ms-schedule|${productId}|${p.platform}`}))`);
+    const clash = await tx
+      .select({ id: ms.msPublications.id })
+      .from(ms.msPublications)
+      .where(and(eq(ms.msPublications.productId, productId), eq(ms.msPublications.platform, p.platform), ne(ms.msPublications.id, id), inArray(ms.msPublications.status, ["scheduled", "publishing"]), gt(ms.msPublications.scheduledFor, lo), lte(ms.msPublications.scheduledFor, hi)));
+    if (clash.length) throw new Error(`Schedule conflict: another ${p.platform} post for this product is within ${MIN_GAP_MS / 60000} minutes of that time`);
+    const res = await tx.update(ms.msPublications).set({ status: "scheduled", scheduledFor: when, nextAttemptAt: when, updatedAt: new Date() }).where(and(eq(ms.msPublications.id, id), eq(ms.msPublications.status, "approved"))).returning({ id: ms.msPublications.id });
+    if (!res.length) throw new Error("This publication changed while scheduling; reload and try again");
+  });
   await audit(db, { actor, action: "publication.schedule", entity: "publication", entityId: id, productId, detail: { when: when.toISOString() } });
 }
 

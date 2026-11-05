@@ -40,13 +40,21 @@ export async function reconcileGameLaunchState(db: StudioDb, scope: OwnerScope =
     for (const v of videos) {
       const sb = v.storyboard as { ctaPhase?: string; stale?: StaleMark };
       if (sb.ctaPhase === "store_live" || sb.stale) continue;
-      const history = await db.select({ id: ms.msPublications.id }).from(ms.msPublications).where(and(eq(ms.msPublications.videoId, v.id), inArray(ms.msPublications.status, HISTORICAL))).limit(1);
-      if (history.length) {
+      const hasHistory = async () => (await db.select({ id: ms.msPublications.id }).from(ms.msPublications).where(and(eq(ms.msPublications.videoId, v.id), inArray(ms.msPublications.status, HISTORICAL))).limit(1)).length > 0;
+      if (await hasHistory()) {
         report.skipped.push(`${v.id} (already public, left untouched)`);
         continue;
       }
       const mark: StaleMark = { reason: "made before the game was live, so it carries the pre-launch follow call to action", at: (opts.now ?? new Date()).toISOString(), livePhase: "store_live", storeUrl: dest.url };
       await db.update(ms.msVideos).set({ storyboard: { ...sb, stale: mark } }).where(eq(ms.msVideos.id, v.id));
+      // Race with a sending worker: it may have claimed a post between the history check above and the mark becoming visible. Ordering makes
+      // both outcomes safe: a worker that claims after the mark is committed sees it and blocks; a worker that claimed before it is seen here,
+      // and that post is history, so the mark comes off again and the video is left exactly as it was.
+      if (await hasHistory()) {
+        await db.update(ms.msVideos).set({ storyboard: sb }).where(eq(ms.msVideos.id, v.id));
+        report.skipped.push(`${v.id} (went public while being checked, left untouched)`);
+        continue;
+      }
       const cancelled = await db
         .update(ms.msPublications)
         .set({ status: "cancelled", failureReason: "Cancelled: the video is stale (the game went live; its pre-launch call to action is out of date)", updatedAt: new Date() })
