@@ -11,10 +11,10 @@ import { PLATE_CSS_W, TRANSITION_MS, type CameraKey, type Claim, type Manifest, 
 
 export const SZ_TITLE = "ScribbleZap: one cut, big payoff";
 /**
- * Until a verified store listing is live the call to action is an invitation, never a download prompt (the game is not out). language-qa.ts
+ * Until a verified store listing is live the call to action is a product-focused invitation to the ScribbleZap game page, never a download prompt and never "follow the studio". language-qa.ts
  * rejects "coming soon" and store wording for games, and the run refuses an old spec once a verified store link exists.
  */
-export const SZ_CTA = { text: "Follow iScream Studio", url: "https://iscreamstudio.com/games/scribblezap/", display: "scribblezap.com" };
+export const SZ_CTA = { text: "Check out ScribbleZap", url: "https://iscreamstudio.com/games/scribblezap/", display: "scribblezap.com" };
 
 /**
  * Each voice line owns one or more footage beats. A beat is one stretch of real footage (see SZ_WINDOWS); a line's time is shared equally by
@@ -40,7 +40,7 @@ export const SZ_NARRATION: NarrationLine[] = [
   { id: "L3b", sceneId: "lvl4", spoken: "Think you've got it? Now try this one.", claims: ["c-target", "c-world"] },
   { id: "L4", sceneId: "clear", spoken: "Clear a board. Unlock something new.", claims: ["c-unlock"] },
   { id: "L5", sceneId: "home", spoken: "A fresh Daily Challenge every day, plus Endless Run for more.", claims: ["c-daily", "c-run"] },
-  { id: "L6", sceneId: "end", spoken: "How far can you get? Follow I Scream Studio for the launch.", caption: "How far can you get? Follow iScream Studio for the launch.", claims: ["c-target", "c-launch"] },
+  { id: "L6", sceneId: "end", spoken: "How far can you get? Check out Scribble Zap.", caption: "How far can you get? Check out ScribbleZap.", claims: ["c-target", "c-page"] },
 ];
 
 const P = "public";
@@ -53,7 +53,7 @@ export const SZ_CLAIMS: Claim[] = [
   { id: "c-daily", text: "A new Daily Challenge arrives on your local date.", facts: ["A new challenge on your local date"], sources: [{ plate: P, quote: "Daily Challenge" }, { plate: P, quote: "A new challenge on your local date" }] },
   { id: "c-run", text: "There is an Endless Run mode with upgrades for longer sessions.", facts: ["An Endless Run mode with upgrades for longer sessions"], sources: [{ plate: P, quote: "An Endless Run mode with upgrades for longer sessions" }] },
   { id: "c-target", text: "Every board has a fill target to beat (for example 60 percent FILL on the first board).", facts: ["60% FILL"], sources: [{ plate: T, quote: "60% FILL" }, { plate: P, quote: "keep filling until the page is yours" }] },
-  { id: "c-launch", text: "The game is not out yet: the Google Play and App Store listings are both marked Coming Soon on its page.", facts: ["Google Play — Coming Soon"], sources: [{ plate: P, quote: "Google Play — Coming Soon" }, { plate: P, quote: "App Store — Coming Soon" }] },
+  { id: "c-page", text: "ScribbleZap has its own public game page, which the call to action points to.", facts: ["claim the side without the enemy on it, and keep filling until the page is yours"], sources: [{ plate: P, quote: "keep filling until the page is yours" }] },
 ];
 
 export const SZ_FACTS: Array<{ plate: string; value: string }> = [
@@ -81,7 +81,7 @@ export const SZ_ON_SCREEN: Array<{ sceneId: string; kind: "headline" | "label" |
   { sceneId: "clear", kind: "headline", text: "Unlock more.", claim: "c-unlock" },
   { sceneId: "home", kind: "headline", text: "Daily + Endless", claim: "c-daily" },
   { sceneId: "end", kind: "headline", text: "How far can you get?", claim: "c-target" },
-  { sceneId: "end", kind: "cta", text: "Follow iScream Studio", claim: "c-launch" },
+  { sceneId: "end", kind: "cta", text: "Check out ScribbleZap", claim: "c-page" },
 ];
 
 const four = (a: string, b: string, c: string, d: string) => [a, b, c, d];
@@ -95,7 +95,7 @@ export const SZ_SCENE_META: Record<string, { plate?: string; purpose: string; mo
   daily: { plate: "play", purpose: "A different board and a hazard: the Daily Challenge's dark triangular board with its spinning-gem obstacle.", motion: four("real gameplay on the Daily Challenge board", "the spinning-gem obstacle drifts and spins", "the game's own CLUTCH reward", "camera drifts across the board"), note: "Footage of the private web tester (Daily Challenge)." },
   clear: { plate: "play", purpose: "Celebration: the game's own BASICS MASTERED card with its Neon board unlock.", motion: four("the game's own clear card with stars and confetti", "the unlock banner animates in", "slow camera push", "kinetic headline"), note: "Footage of the private web tester (after level 5)." },
   home: { plate: "play", purpose: "Beyond the levels: the game's own home screen with its Daily Challenge and Endless Run cards.", motion: four("the game's own start screen with its animated background", "the Daily Challenge and Endless Run cards", "slow camera push", "kinetic headline"), note: "Footage of the private web tester (home screen)." },
-  end: { purpose: "Call to action: an invitation to follow iScream Studio for the launch (the game is not on a store yet).", motion: ["logo and headline spring in", "call to action button pulses"], note: "Branded end card; no gameplay is claimed here and nothing implies a download." },
+  end: { purpose: "Call to action: an invitation to check out ScribbleZap on its own game page (no download is implied).", motion: ["logo and headline spring in", "call to action button pulses"], note: "Branded end card; no gameplay is claimed here and nothing implies a download." },
 };
 
 // ---- timing ------------------------------------------------------------------------------------------------------------------------
