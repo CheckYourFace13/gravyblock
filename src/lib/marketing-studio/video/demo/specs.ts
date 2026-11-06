@@ -78,7 +78,7 @@ export const DEMO_SPECS: Record<string, DemoSpec> = {
     kind: "game",
     slug: "scribblezap",
     productName: "ScribbleZap",
-    site: { origin: SZ_ORIGIN, ctaText: SZ_CTA.text, ctaHost: "iscream studio" },
+    site: { origin: SZ_ORIGIN, ctaText: SZ_CTA.text, ctaHost: "scribblezap" },
     title: SZ_TITLE,
     cta: SZ_CTA,
     narration: SZ_NARRATION,

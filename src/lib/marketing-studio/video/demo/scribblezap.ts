@@ -40,7 +40,7 @@ export const SZ_NARRATION: NarrationLine[] = [
   { id: "L3b", sceneId: "lvl4", spoken: "Think you've got it? Now try this one.", claims: ["c-target", "c-world"] },
   { id: "L4", sceneId: "clear", spoken: "Clear a board. Unlock something new.", claims: ["c-unlock"] },
   { id: "L5", sceneId: "home", spoken: "A fresh Daily Challenge every day, plus Endless Run for more.", claims: ["c-daily", "c-run"] },
-  { id: "L6", sceneId: "end", spoken: "How far can you get? Check out Scribble Zap.", caption: "How far can you get? Check out ScribbleZap.", claims: ["c-target", "c-page"] },
+  { id: "L6", sceneId: "end", spoken: "How far can you get? Come find out. Check out Scribble Zap.", caption: "How far can you get? Come find out. Check out ScribbleZap.", claims: ["c-target", "c-page"] },
 ];
 
 const P = "public";
