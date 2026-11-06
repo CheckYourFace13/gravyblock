@@ -13,7 +13,7 @@ import { collectForPublication, currentMetrics } from "../../src/lib/marketing-s
 import { evaluateHealth, revokeAccount, usable } from "../../src/lib/marketing-studio/publishing/connections";
 import { firstPostProven, prePublishChecks, recordFirstPostProven, type Check } from "../../src/lib/marketing-studio/publishing/first-post";
 import { reverifyYoutubeConnection, youtubeCallbackUrl, YOUTUBE_FIRST, youtubeOAuthConfigured, youtubeTokensForCall, verifyYoutubeConnection } from "../../src/lib/marketing-studio/publishing/oauth-youtube";
-import { approvedSetting, approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../../src/lib/marketing-studio/publishing/queue";
+import { approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../../src/lib/marketing-studio/publishing/queue";
 import { verifyYoutubeVideo, YT_SCOPES } from "../../src/lib/marketing-studio/publishing/youtube-api";
 import { listProducts } from "../../src/lib/marketing-studio/repository";
 import { getSetting, setSetting } from "../../src/lib/marketing-studio/runtime";
@@ -32,11 +32,9 @@ const show = (checks: Check[]) => checks.forEach((c) => console.log(`  ${c.ok ? 
 async function main() {
   const db = requireStudioDb();
   const products = await listProducts(INTERNAL_SCOPE, db);
-  const attested = await getSetting<boolean>(approvedSetting("youtube"), false, db);
   console.log(`Google OAuth client configured on the server: ${youtubeOAuthConfigured()}`);
   console.log(`redirect URI registered with Google must be exactly: ${youtubeCallbackUrl()}`);
   console.log(`scopes requested: ${YT_SCOPES.join(" ")}`);
-  console.log(`platform approval attested (direct upload allowed): ${attested}`);
 
   if (args.includes("--reverify")) {
     // Re-check an authorization that was kept unverified (channel read failed right after consent). No new sign-in needed. Nothing is uploaded.
@@ -127,7 +125,6 @@ async function main() {
     { name: "YouTube is selected for this product", ok: await getSetting<boolean>(youtubeEnabledSetting(target.id), false, db), detail: "" },
     { name: "made-for-kids declaration set by the owner", ok: typeof kids === "boolean", detail: kids === null ? "not set" : String(kids) },
     { name: "explicit visibility set by the owner", ok: privacy === "private" || privacy === "unlisted" || privacy === "public", detail: privacy ?? "not set" },
-    { name: "platform approval attested (direct upload allowed)", ok: attested, detail: attested ? "" : "not attested yet" },
   ];
   console.log("\nOWNER GATES");
   show(gates);
