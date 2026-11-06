@@ -27,7 +27,8 @@ const SECRET = "EAAB-super-secret-page-token-123456";
 describe("platform registry honesty", () => {
   test("only Facebook Pages claims direct posting without a platform approval; the others require one", () => {
     assert.equal(PLATFORM_SPECS.facebook.direct, "available_with_healthy_connection");
-    for (const p of ["instagram", "youtube", "tiktok"] as const) assert.equal(PLATFORM_SPECS[p].direct, "requires_platform_approval", p);
+    for (const p of ["instagram", "tiktok"] as const) assert.equal(PLATFORM_SPECS[p].direct, "requires_platform_approval", p);
+    assert.equal(PLATFORM_SPECS.youtube.direct, "available_with_healthy_connection");
   });
   test("every platform declares scopes, limits, approval notes and export notes", () => {
     for (const s of Object.values(PLATFORM_SPECS)) {

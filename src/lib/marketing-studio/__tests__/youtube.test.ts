@@ -319,13 +319,11 @@ describe("YouTube connection, storage, queue gates and measurement (database)", 
     assert.ok(wrongName.some((x) => !x.ok && /expected channel/.test(x.name)));
   });
 
-  test("uploads are opt-in per product, need the platform attestation, a made-for-kids declaration and a verified channel; then one upload happens and is verified and measured", async () => {
+  test("uploads are opt-in per product, need a made-for-kids declaration and a verified channel; then one upload happens and is verified and measured", async () => {
     const p = await product("Publish Game");
     const c = await connect(p);
     const v = await video(p);
-    // nothing selected, nothing attested
-    await assert.rejects(createPublication(INTERNAL_SCOPE, "t", p, { videoId: v.id, platform: "youtube", mode: "direct", connectionId: c.id }), /approval|not available/i);
-    await setSetting(approvedSetting("youtube"), true, "t");
+    // nothing selected (no platform attestation is needed any more: Google lifted the private-only restriction on 2 Nov 2026)
     await assert.rejects(createPublication(INTERNAL_SCOPE, "t", p, { videoId: v.id, platform: "youtube", mode: "direct", connectionId: c.id }), /has not been selected for this product/);
     // export stays available regardless
     assert.equal((await createPublication(INTERNAL_SCOPE, "t", p, { videoId: v.id, platform: "youtube", mode: "export" })).publication.mode, "export");

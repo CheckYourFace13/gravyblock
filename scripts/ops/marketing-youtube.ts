@@ -7,10 +7,10 @@
 // Owner decisions are recorded as configuration only (nothing is sent):
 //   ... marketing-youtube.ts --select scribblezap --made-for-kids no --privacy private
 //   runuser -u gbstudio -- tsx --env-file=/etc/gravyblock-marketing.env scripts/ops/marketing-youtube.ts [...]
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, like, sql } from "drizzle-orm";
 import { closeStudioDb, ms, requireStudioDb } from "../../src/lib/marketing-studio/db";
 import { collectForPublication, currentMetrics } from "../../src/lib/marketing-studio/measurement/collect";
-import { evaluateHealth, usable } from "../../src/lib/marketing-studio/publishing/connections";
+import { evaluateHealth, revokeAccount, usable } from "../../src/lib/marketing-studio/publishing/connections";
 import { firstPostProven, prePublishChecks, recordFirstPostProven, type Check } from "../../src/lib/marketing-studio/publishing/first-post";
 import { reverifyYoutubeConnection, youtubeCallbackUrl, YOUTUBE_FIRST, youtubeOAuthConfigured, youtubeTokensForCall, verifyYoutubeConnection } from "../../src/lib/marketing-studio/publishing/oauth-youtube";
 import { approvedSetting, approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../../src/lib/marketing-studio/publishing/queue";
@@ -46,6 +46,21 @@ async function main() {
       const r = await reverifyYoutubeConnection(INTERNAL_SCOPE, ACTOR, p.id, YOUTUBE_FIRST.expectedHandle, { fetch }, db);
       console.log(`${p.name}: ${r.promoted ? "VERIFIED and connected" : "not verified"}: ${r.reason}${r.channel ? ` [${r.channel.title} ${r.channel.handle ?? ""} ${r.channel.id}]` : ""}`);
     }
+  }
+
+  if (args.includes("--remove-unverified")) {
+    // Revoke at Google and remove ONLY kept-unverified rows (never a connected one), then show what is left.
+    const stale = await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.platform, "youtube"), like(ms.msConnections.externalAccountId, "unverified-%")));
+    for (const row of stale) {
+      await revokeAccount(INTERNAL_SCOPE, ACTOR, row.productId, row.id, db, { fetch });
+      const [after] = await db.select({ detail: ms.msAuditEvents.detail }).from(ms.msAuditEvents).where(and(eq(ms.msAuditEvents.entityId, row.id), eq(ms.msAuditEvents.action, "connection.revoke"))).limit(1);
+      console.log(`revoked ${row.externalAccountId}; Google revoked: ${JSON.stringify((after?.detail as { googleRevoked?: boolean } | undefined)?.googleRevoked ?? null)}`);
+      await db.delete(ms.msConnections).where(and(eq(ms.msConnections.id, row.id), like(ms.msConnections.externalAccountId, "unverified-%")));
+      console.log(`removed row ${row.externalAccountId}`);
+    }
+    const left = await db.select({ label: ms.msConnections.accountLabel, ext: ms.msConnections.externalAccountId, status: ms.msConnections.status, health: ms.msConnections.healthStatus }).from(ms.msConnections).where(eq(ms.msConnections.platform, "youtube"));
+    console.log(`YouTube connections now: ${left.length}`);
+    left.forEach((c) => console.log(`  ${c.label} ${c.ext} status ${c.status} health ${c.health}`));
   }
 
   const select = arg("--select");

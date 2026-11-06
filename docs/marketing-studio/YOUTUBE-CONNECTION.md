@@ -19,7 +19,7 @@ Prep only. Nothing is uploaded by the connection, and the upload path stays clos
 ## Gates before any upload
 
 1. A healthy connection with both scopes.
-2. Platform approval attested (`platform_approved_youtube`). Unaudited API projects are reported to have uploads locked private until a YouTube API compliance audit passes (VERIFY).
+2. No platform attestation is needed: Google lifted the private-only restriction on unverified API projects on 2 November 2026. The owner still declares made-for-kids and an explicit visibility.
 3. YouTube explicitly selected for the product (`youtube_enabled_<productId>`). Videos are never sent to YouTube automatically.
 4. The owner's made-for-kids declaration for the product (`youtube_made_for_kids_<productId>`); undeclared means refused.
 5. Normal queue rules: owner-approved fresh video, approval, schedule, live publishing on, daily cap, one worker wins the claim.
