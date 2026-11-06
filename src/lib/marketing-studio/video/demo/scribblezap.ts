@@ -62,7 +62,6 @@ export const SZ_FACTS: Array<{ plate: string; value: string }> = [
   { plate: P, value: "New balls, hazards, and drawing tools show up one idea at a time." },
   { plate: P, value: "A new challenge on your local date" },
   { plate: P, value: "An Endless Run mode with upgrades for longer sessions" },
-  { plate: P, value: "Google Play — Coming Soon" },
   // facts read from the game's own screens (the private tester page), as it displayed them while played
   { plate: T, value: "NICE CUT!" },
   { plate: T, value: "60% FILL" },
