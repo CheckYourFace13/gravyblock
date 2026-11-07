@@ -26,7 +26,7 @@ export const embedKey = (productId: string) => `video_embed_${productId}`;
 export const REVIEW_PREFIX = "video_review_";
 
 export type ReviewStatus = "unlisted_live" | "changes_requested" | "approved_pending_public" | "approved_public" | "superseded";
-export type ReviewEvent = "EMAIL_SENT" | "VIEWED" | "APPROVED" | "CHANGES_REQUESTED" | "REPLACEMENT_RENDERING" | "REPLACEMENT_READY" | "PUBLIC" | "FAILED";
+export type ReviewEvent = "REVERTED_TO_UNLISTED" | "EMAIL_SENT" | "VIEWED" | "APPROVED" | "CHANGES_REQUESTED" | "REPLACEMENT_RENDERING" | "REPLACEMENT_READY" | "PUBLIC" | "FAILED";
 export type ReviewState = {
   /** Every step of the review is recorded here. An email being SENT is never an owner decision. */
   events?: Array<{ at: string; event: ReviewEvent; detail?: string }>;
@@ -233,8 +233,13 @@ export async function approveReview(scope: OwnerScope, actor: string, publicatio
     if (res.needsScope) throw new NeedsVisibilityScopeError(`Approval recorded, but YouTube refused the visibility change (${res.reason}). The video is still unlisted. Re-authorize the channel and approve again.`);
     throw new Error(`Approval recorded, but changing visibility failed: ${res.reason}. The video is still unlisted.`);
   }
-  const v = await verifyYoutubeVideo({ videoId: r.videoId, channelId: conn.externalAccountId ?? "", accessToken: t.accessToken, requirePublic: true }, deps);
-  if (!v.live) throw new Error(`Visibility was changed but YouTube does not confirm it as public: ${v.reason ?? "unknown"}. Check the video.`);
+  // YouTube can take a moment to report a visibility change it has just accepted, so confirm with a few short retries before calling it unconfirmed.
+  let v = await verifyYoutubeVideo({ videoId: r.videoId, channelId: conn.externalAccountId ?? "", accessToken: t.accessToken, requirePublic: true }, deps);
+  for (let i = 0; i < 4 && !v.live && v.onExpectedChannel; i++) {
+    await new Promise((res) => setTimeout(res, 1500));
+    v = await verifyYoutubeVideo({ videoId: r.videoId, channelId: conn.externalAccountId ?? "", accessToken: t.accessToken, requirePublic: true }, deps);
+  }
+  if (!v.live) throw new Error(`YouTube accepted the change to public but has not confirmed it yet: ${v.reason ?? "unknown"}. The video may already be public; check it, then approve again to finish the record.`);
   const fresh = (await getReview(db, publicationId)) ?? state;
   state = { ...fresh, status: "approved_public", publicAt: new Date().toISOString(), events: [...(fresh.events ?? []), { at: new Date().toISOString(), event: "PUBLIC" as const }] };
   await setSetting(reviewKey(publicationId), state, actor, db, { audited: false });

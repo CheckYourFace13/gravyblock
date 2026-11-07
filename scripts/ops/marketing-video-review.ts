@@ -12,7 +12,7 @@ import { collectForPublication } from "../../src/lib/marketing-studio/measuremen
 import { verifyYoutubeConnection, YOUTUBE_FIRST, youtubeTokensForCall } from "../../src/lib/marketing-studio/publishing/oauth-youtube";
 import { approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, setPublicationCopy, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../../src/lib/marketing-studio/publishing/queue";
 import { requestOwnerEmail } from "../../src/lib/marketing-studio/publishing/review-notify";
-import { listReviews, requestChanges } from "../../src/lib/marketing-studio/publishing/video-review";
+import { getReview, listReviews, requestChanges, reviewKey } from "../../src/lib/marketing-studio/publishing/video-review";
 import { prepareUnlistedReview } from "../../src/lib/marketing-studio/publishing/review-upload";
 import { listJobs, queueReplacement } from "../../src/lib/marketing-studio/publishing/review-replacement";
 
@@ -65,6 +65,36 @@ async function main() {
     if (!pub) throw new Error("No such publication");
     const col = await collectForPublication(INTERNAL_SCOPE, ACTOR, pub.productId, pub.id, undefined, db);
     console.log(col.collected ? "measurement snapshot stored" : `not collected: ${col.reason}`);
+    return;
+  }
+  const queueFor = arg("--queue-replacement");
+  if (queueFor) {
+    // A change request that was stored before the replacement queue existed: queue its replacement from the stored note, unchanged.
+    const cur = await getReview(db, queueFor);
+    if (!cur || cur.status !== "changes_requested" || !cur.changesNote) throw new Error("That review has no stored change request to replace");
+    const job = await queueReplacement(db, "review-operator", cur);
+    console.log(`replacement job for ${cur.productName}: ${job.status}
+owner note (exact): ${job.note}`);
+    return;
+  }
+  const setUnlisted = arg("--set-unlisted");
+  if (setUnlisted) {
+    // Puts a video back to UNLISTED on the owner's written instruction, on the SAME video, and reopens its review.
+    const cur = await getReview(db, setUnlisted);
+    if (!cur) throw new Error("No such review");
+    const c1 = await youtubeConnectionFor(db, cur.productId);
+    if (!c1) throw new Error("No healthy YouTube connection");
+    const t1 = await youtubeTokensForCall(INTERNAL_SCOPE, ACTOR, c1.productId, c1.id, { fetch }, db);
+    const res = await setYoutubeVisibility({ videoId: cur.videoId, accessToken: t1.accessToken, privacy: "unlisted" }, { fetch });
+    if (!res.ok) throw new Error(`Could not change visibility: ${res.reason}`);
+    const live = await fetchYoutubeLiveMetadata({ videoId: cur.videoId, accessToken: t1.accessToken }, { fetch });
+    console.log(`video ${cur.videoId} visibility now ${live.privacy}`);
+    if (live.privacy !== "unlisted") throw new Error("YouTube does not show it as unlisted yet");
+    const { approvedAt: _a, publicAt: _p, ...rest } = cur;
+    void _a;
+    void _p;
+    await setSetting(reviewKey(setUnlisted), { ...rest, status: "unlisted_live", events: [...(cur.events ?? []), { at: new Date().toISOString(), event: "REVERTED_TO_UNLISTED", detail: "owner instruction: keep unlisted awaiting review" }] }, "review-operator", db);
+    console.log("review reopened: unlisted_live");
     return;
   }
   const record = arg("--record-changes");
