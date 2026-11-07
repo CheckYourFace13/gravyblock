@@ -57,6 +57,12 @@ export async function readBodyLimited(req: Request, maxBytes: number): Promise<B
 /** Multipart overhead allowance on top of the file limit. */
 export const MAX_UPLOAD_REQUEST_BYTES = LIMITS.maxUploadBytes + 64 * 1024;
 
+/** A redirect that also sets a cookie. Response.redirect() has immutable headers, so this builds the response by hand. */
+export function redirectWithCookie(path: string, cookie: string): Response {
+  const base = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000";
+  return new Response(null, { status: 303, headers: { location: new URL(path, base).toString(), "set-cookie": cookie } });
+}
+
 export function redirectTo(path: string): Response {
   const base = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000";
   return Response.redirect(new URL(path, base).toString(), 303);

@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { notFoundResponse, redirectTo, studioApiAuthorized } from "@/lib/marketing-studio/http";
+import { notFoundResponse, redirectTo, redirectWithCookie, studioApiAuthorized } from "@/lib/marketing-studio/http";
 import { completeYoutubeOAuth, readYoutubeState, youtubeOAuthConfigured } from "@/lib/marketing-studio/publishing/oauth-youtube";
 import { INTERNAL_SCOPE } from "@/lib/marketing-studio/scope";
 
@@ -20,9 +20,8 @@ export async function GET(req: Request) {
   if (!code) return back(state.productId, "Google did not return an authorization code. Nothing was connected.");
   try {
     const out = await completeYoutubeOAuth(INTERNAL_SCOPE, "admin", { productId: state.productId, code, expectedChannel: state.expected }, { fetch });
-    const res = back(state.productId, `Connected YouTube channel: ${out.channelTitle}${out.channelHandle ? ` (${out.channelHandle})` : ""}, channel id ${out.channelId}`);
-    res.headers.append("set-cookie", "ms_yt_nonce=; Path=/api/admin/marketing-studio/connect/youtube; Max-Age=0");
-    return res;
+    const msg = `Connected YouTube channel: ${out.channelTitle}${out.channelHandle ? ` (${out.channelHandle})` : ""}, channel id ${out.channelId}`;
+    return redirectWithCookie(`/admin/marketing-studio/products/${state.productId}?connect=${encodeURIComponent(msg.slice(0, 240))}`, "ms_yt_nonce=; Path=/api/admin/marketing-studio/connect/youtube; Max-Age=0");
   } catch (e) {
     return back(state.productId, e instanceof Error ? e.message : "Connection failed. Nothing was connected.");
   }
