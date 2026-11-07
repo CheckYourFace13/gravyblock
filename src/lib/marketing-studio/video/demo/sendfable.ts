@@ -15,7 +15,7 @@ export const SF_NARRATION: NarrationLine[] = [
   { id: "L1", sceneId: "goals", spoken: "Staring at a blank email?", claims: ["c-goals"] },
   { id: "L2", sceneId: "goals", spoken: "Pick a goal, like {promo}promoting a sale or {back}bringing customers back, and SendFable suggests the template and the subject line.", claims: ["c-goals"] },
   { id: "L3", sceneId: "scribe", spoken: "Or let {scribe}Scribe turn your website updates into a ready draft. {none}Nothing sends until you say so.", claims: ["c-scribe"] },
-  { id: "L4", sceneId: "confidence", spoken: "Before it goes out, {sc}Send Confidence flags problems, like a missing unsubscribe link.", claims: ["c-confidence"] },
+  { id: "L4", sceneId: "builder", spoken: "Build it with simple blocks, check the {mob}phone preview, and {sc}Send Confidence flags problems, like a missing unsubscribe link.", claims: ["c-builder"] },
   { id: "L5", sceneId: "pricing", spoken: "Start free: {c}five hundred contacts, {e}a thousand emails a month.", caption: "Start free: 500 contacts, 1,000 emails a month.", claims: ["c-free"] },
   { id: "L6", sceneId: "end", spoken: "Email and text, without the headache. Start free at sendfable dot com.", caption: "Email and text, without the headache. Start free at sendfable.com.", claims: ["c-cta"] },
 ];
@@ -23,7 +23,7 @@ export const SF_NARRATION: NarrationLine[] = [
 export const SF_CLAIMS: Claim[] = [
   { id: "c-goals", text: "SendFable's goal picker suggests a template, a subject and a next step for a chosen goal such as promoting a sale or event or bringing customers back.", facts: ["Pick a goal. We suggest a template, subject, and next step, then you finish in your account."], sources: [{ plate: "goals", quote: "Not sure what to write?" }, { plate: "goals", quote: "Pick a goal. We suggest a template, subject, and next step" }, { plate: "goals", quote: "Promote a sale or event" }, { plate: "goals", quote: "Bring customers back" }, { plate: "goals", quote: "This weekend only" }] },
   { id: "c-scribe", text: "Scribe uses content posted on the site to create a campaign that looks like the business, and nothing sends until the owner chooses Send now or schedules it.", facts: ["SendFable uses that content to create a campaign that looks like your business.", "Nothing sends until you choose Send now or schedule it."], sources: [{ plate: "scribe", quote: "SendFable uses that content to create a campaign that looks like your business." }, { plate: "scribe", quote: "Nothing sends until you choose Send now or schedule it." }] },
-  { id: "c-confidence", text: "Send Confidence checks a campaign before it is sent and flags problems such as a missing unsubscribe link.", facts: ["Before you launch, we flag missing unsubscribes, weak links, and common footguns."], sources: [{ plate: "confidence", quote: "Send Confidence" }, { plate: "confidence", quote: "Unsubscribe link present" }, { plate: "confidence", quote: "we flag missing unsubscribes, weak links, and common footguns" }] },
+  { id: "c-builder", text: "The email builder previews a campaign on desktop and mobile, and Send Confidence flags problems such as a missing unsubscribe link before sending.", facts: ["Drag blocks, drop in your brand colors, and preview on phone and desktop.", "Before you launch, we flag missing unsubscribes, weak links, and common footguns."], sources: [{ plate: "builder", quote: "Desktop" }, { plate: "builder", quote: "Mobile" }, { plate: "builder", quote: "Send Confidence" }, { plate: "builder", quote: "preview on phone and desktop" }, { plate: "builder", quote: "we flag missing unsubscribes, weak links, and common footguns" }] },
   { id: "c-free", text: "The Free plan includes up to 500 contacts and up to 1,000 emails a month, and needs no credit card.", facts: ["Up to 500 contacts", "Up to 1,000 emails/month", "No credit card · Cancel anytime"], sources: [{ plate: "pricing", quote: "Up to 500 contacts" }, { plate: "pricing", quote: "Up to 1,000 emails/month" }, { plate: "pricing", quote: "No credit card" }] },
   { id: "c-cta", text: "SendFable describes itself as email and text marketing without the marketing-software headache, with a Start free call to action.", facts: ["Email and text marketing without the marketing-software headache"], sources: [{ plate: "goals", quote: "Email and text marketing without the marketing-software headache" }, { plate: "goals", quote: "Start free" }] },
 ];
@@ -33,7 +33,8 @@ export const SF_FACTS: Array<{ plate: string; value: string }> = [
   { plate: "goals", value: "Pick a goal. We suggest a template, subject, and next step, then you finish in your account." },
   { plate: "scribe", value: "SendFable uses that content to create a campaign that looks like your business." },
   { plate: "scribe", value: "Nothing sends until you choose Send now or schedule it." },
-  { plate: "confidence", value: "Before you launch, we flag missing unsubscribes, weak links, and common footguns." },
+  { plate: "builder", value: "Drag blocks, drop in your brand colors, and preview on phone and desktop." },
+  { plate: "builder", value: "Before you launch, we flag missing unsubscribes, weak links, and common footguns." },
   { plate: "pricing", value: "Up to 500 contacts" },
   { plate: "pricing", value: "Up to 1,000 emails/month" },
   { plate: "pricing", value: "No credit card · Cancel anytime" },
@@ -46,8 +47,9 @@ export const SF_ON_SCREEN: Array<{ sceneId: string; kind: "headline" | "label" |
   { sceneId: "goals", kind: "label", text: "Suggested subject", claim: "c-goals" },
   { sceneId: "scribe", kind: "headline", text: "Your updates, drafted", claim: "c-scribe" },
   { sceneId: "scribe", kind: "label", text: "You choose when it sends", claim: "c-scribe" },
-  { sceneId: "confidence", kind: "headline", text: "Check before you send", claim: "c-confidence" },
-  { sceneId: "confidence", kind: "label", text: "Send Confidence", claim: "c-confidence" },
+  { sceneId: "builder", kind: "headline", text: "Check before you send", claim: "c-builder" },
+  { sceneId: "builder", kind: "label", text: "Phone preview", claim: "c-builder" },
+  { sceneId: "builder", kind: "label", text: "Send Confidence", claim: "c-builder" },
   { sceneId: "pricing", kind: "headline", text: "Free to start", claim: "c-free" },
   { sceneId: "pricing", kind: "label", text: "500 contacts", claim: "c-free" },
   { sceneId: "pricing", kind: "label", text: "1,000 emails a month", claim: "c-free" },
@@ -57,9 +59,9 @@ export const SF_ON_SCREEN: Array<{ sceneId: string; kind: "headline" | "label" |
 
 export const SF_SCENE_META: Record<string, { plate?: string; purpose: string; motion: string[]; note: string }> = {
   goals: { plate: "goals", purpose: "Hook and first demonstration: the blank-email problem, then the page's own goal picker, really clicked.", motion: ["touch cursor taps Promote a sale or event, then Bring customers back", "the suggested subject and template change with each goal", "camera moves from the goal chips to the suggestion", "focus highlight on the suggested subject"], note: "Real states of the sendfable.com goal picker, produced by clicking its chips on the live page." },
-  scribe: { plate: "scribe", purpose: "The standout feature: Scribe drafts a campaign from website content and nothing sends until the owner chooses.", motion: ["camera scrolls down the page's own Scribe example", "focus highlight on the drafted campaign, then on the owner's choice"], note: "Real capture of the Scribe section of sendfable.com (the page labels its example a fictional cafe)." },
-  confidence: { plate: "confidence", purpose: "Trust: a pre-send check that catches problems like a missing unsubscribe link.", motion: ["camera pushes in on the Send Confidence card", "focus highlight on the checks"], note: "Real capture of the Send Confidence card in the How it works section of sendfable.com." },
-  pricing: { plate: "pricing", purpose: "Removes the risk: the Free plan, what it includes, no credit card.", motion: ["camera moves to the Free plan", "focus highlight on contacts, then emails"], note: "Real capture of the Free plan on sendfable.com." },
+  scribe: { plate: "scribe", purpose: "The standout feature: Scribe drafts a campaign from website content and nothing sends until the owner chooses.", motion: ["camera scrolls down the page's own Scribe example", "focus highlight on the drafted campaign", "focus highlight on the owner's choice with a label", "headline springs in and out"], note: "Real capture of the Scribe section of sendfable.com (the page labels its example a fictional cafe)." },
+  builder: { plate: "builder", purpose: "Trust and ease: build with blocks, check the phone preview, and let Send Confidence flag problems before sending.", motion: ["touch cursor taps Mobile, then Desktop on the preview toggle", "the email preview switches between the phone and desktop views", "camera moves from the preview toggle to the Send Confidence panel", "focus highlight on the Send Confidence panel"], note: "Real states of the sendfable.com email builder preview, produced by clicking its Desktop and Mobile buttons on the live page." },
+  pricing: { plate: "pricing", purpose: "Removes the risk: the Free plan and what it includes.", motion: ["camera moves from the pricing heading to the Free plan", "focus highlight on contacts with a label", "focus highlight on emails with a label", "headline springs in and out"], note: "Real capture of the Free plan on sendfable.com." },
   end: { purpose: "Call to action.", motion: ["logo and headline spring in", "call to action button pulses"], note: "Branded end card; no product screen is claimed." },
 };
 
@@ -99,7 +101,7 @@ export function sfBuildTimeline(manifest: Manifest, lt: Record<string, LineTime>
     return lt[line].start + spokenWords[line][idx].from;
   };
 
-  const order = ["goals", "scribe", "confidence", "pricing"];
+  const order = ["goals", "scribe", "builder", "pricing"];
   const lastEnd = (scene: string) => Math.max(...SF_NARRATION.filter((l) => l.sceneId === scene).map((l) => lt[l.id].end));
   const win: Record<string, { s: number; e: number }> = {};
   order.forEach((id, i) => {
@@ -166,23 +168,38 @@ export function sfBuildTimeline(manifest: Manifest, lt: Record<string, LineTime>
     scenes.push({ id: "scribe", kind: "screen", start: S, end: win.scribe.e, plate: "scribe", states: [{ at: 0, state: "s0" }], camera, spots, headline: { text: "Your updates, drafted", from: 60, to: Math.max(1500, tScribe - 80) } });
   }
 
-  // ---- send confidence ----
+  // ---- builder ----
   {
-    const P = plate("confidence");
-    const S = win.confidence.s;
+    const P = plate("builder");
+    const S = win.builder.s;
     const r = (abs: number) => Math.max(0, abs - S);
-    const E = win.confidence.e - S;
+    const E = win.builder.e - S;
+    const tMob = r(mt("L4", "mob"));
     const tSc = r(mt("L4", "sc"));
+    const mobC = center(P.rects.mobile);
+    const togC = center(P.rects.toggles);
+    const scoreC = center(P.rects.score);
+    const states = [{ at: 0, state: "s0" }, { at: tMob + 120, state: "mob" }, { at: tSc - 700, state: "desk" }];
+    const cursor: CursorKey[] = ascending([
+      { t: 250, x: 330, y: mobC[1] - 100 },
+      { t: tMob - 280, x: mobC[0], y: mobC[1] },
+      { t: tMob, x: mobC[0], y: mobC[1], tap: true },
+      { t: tSc - 1000, x: togC[0] - 40, y: togC[1] },
+      { t: tSc - 700, x: togC[0] - 40, y: togC[1], tap: true },
+      { t: tSc - 200, x: scoreC[0] + 60, y: scoreC[1] },
+      { t: E - 300, x: scoreC[0] + 60, y: scoreC[1], hide: true },
+    ]);
     const camera: CameraKey[] = ascending([
-      { t: 0, cx: 195, cy: center(P.rects.head)[1] + 110, zoom: 1.0 },
-      { t: tSc - 300, cx: 195, cy: center(P.rects.checks)[1] - 20, zoom: 1.08 },
-      { t: E, cx: 195, cy: center(P.rects.checks)[1] - 16, zoom: 1.1 },
+      { t: 0, cx: 195, cy: togC[1] + 80, zoom: 1.0 },
+      { t: tMob - 400, cx: 195, cy: togC[1] + 110, zoom: 1.06 },
+      { t: tSc - 300, cx: 195, cy: scoreC[1] - 20, zoom: 1.08 },
+      { t: E, cx: 195, cy: scoreC[1] - 16, zoom: 1.08 },
     ], 220);
     const spots: SpotKey[] = [
-      { from: tSc - 100, to: Math.max(tSc + 1400, E - 900), rect: P.rects.checks, label: "Send Confidence" },
-      { from: Math.max(tSc + 1500, E - 800), to: E - 250, rect: P.rects.unsub },
+      { from: tMob - 120, to: tSc - 800, rect: P.rects.toggles, label: "Phone preview" },
+      { from: tSc - 100, to: E - 250, rect: P.rects.score, label: "Send Confidence" },
     ];
-    scenes.push({ id: "confidence", kind: "screen", start: S, end: win.confidence.e, plate: "confidence", states: [{ at: 0, state: "s0" }], camera, spots, headline: { text: "Check before you send", from: 60, to: Math.max(1500, tSc - 120) } });
+    scenes.push({ id: "builder", kind: "screen", start: S, end: win.builder.e, plate: "builder", states, camera, cursor, spots, headline: { text: "Check before you send", from: 60, to: Math.max(1500, tMob - 160) } });
   }
 
   // ---- pricing ----
@@ -215,7 +232,7 @@ export function sfBuildTimeline(manifest: Manifest, lt: Record<string, LineTime>
     captions.push(...groupCaptions(words, lt[l.id].start));
   }
   const plates: Timeline["plates"] = {};
-  for (const id of ["goals", "scribe", "confidence", "pricing"]) {
+  for (const id of ["goals", "scribe", "builder", "pricing"]) {
     const p = plate(id);
     plates[id] = { w: PLATE_CSS_W, h: p.h, states: Object.fromEntries(Object.entries(p.states).map(([k, s]) => [k, s.file])) };
   }

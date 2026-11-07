@@ -49,7 +49,9 @@ export async function captureSendFablePlates(outDir: string, logoFile: string): 
       return file;
     };
     const plate = async (id: string, h: number, states: PlateManifest["states"], rects: PlateManifest["rects"]) => {
-      plates[id] = { id, url: SF_ORIGIN + "/", title: await page.title(), capturedAt: new Date().toISOString(), text, w: VIEW.w, h, states, rects };
+      // The text includes what each clicked state of this plate showed, so a quote taken from a state (a suggested subject) is checked against real page text.
+      const seen = Object.values(states).map((x) => x.result ?? "").join(" ");
+      plates[id] = { id, url: SF_ORIGIN + "/", title: await page.title(), capturedAt: new Date().toISOString(), text: `${text} ${seen}`, w: VIEW.w, h, states, rects };
     };
     const chip = (name: string) => page.locator("main button", { hasText: new RegExp(`^\\s*${name}\\s*$`) }).first();
     const bottomOf = (r: Rect) => r[1] + r[3];
@@ -96,16 +98,34 @@ export async function captureSendFablePlates(outDir: string, logoFile: string): 
       await plate("scribe", h, { s0: { file: await shot("scribe.jpg", { y: y0, h }), label: "Scribe example: content, drafted campaign, you choose" } }, { head: off(head), content: off(content), look: off(look), choose: off(choose) });
     }
 
-    // ---- Send Confidence: step three of the page's own "How it works" ------------------------------------------------------
+    // ---- email builder: the real Desktop and Mobile preview buttons, with the Send Confidence panel -----------------------
     {
-      const head = await rectByText(page, "Send your story", { maxExtra: 5 });
-      const last = await rectByText(page, "One link looks thin", { maxExtra: 40 });
-      const unsub = await rectByText(page, "Unsubscribe link present", { maxExtra: 10 });
-      const score = await rectByText(page, "Ready to send", { maxExtra: 5 });
+      const sec = page.locator("main section").filter({ hasText: "Design that stays out of your way." }).first();
+      const bb = async (loc: ReturnType<typeof sec.locator>): Promise<Rect> => {
+        const b = await loc.first().boundingBox();
+        if (!b) throw new Error("capture: builder element not found");
+        const sy = await page.evaluate(() => window.scrollY);
+        return [round(b.x), round(b.y + sy), round(b.width), round(b.height)];
+      };
+      const head = await rectByText(page, "Design that stays out of your way.", { maxExtra: 5 });
+      const desk = sec.getByRole("button", { name: "Desktop", exact: true });
+      const mob = sec.getByRole("button", { name: "Mobile", exact: true });
+      const toggles = union(await bb(desk), await bb(mob));
+      const preview = await bb(sec.getByText(/Fresh pastries, a new pour/));
+      const score = await bb(sec.getByText("Demo score"));
+      const label = await bb(sec.getByText("Send Confidence", { exact: true }));
       const y0 = Math.max(0, Math.round(head[1] - 40));
-      const h = Math.round(bottomOf(last) + 60 - y0);
+      const h = Math.round(Math.max(bottomOf(score), bottomOf(preview)) + 60 - y0);
       const off = (r: Rect): Rect => [r[0], round(r[1] - y0), r[2], r[3]];
-      await plate("confidence", h, { s0: { file: await shot("confidence.jpg", { y: y0, h }), label: "Send Confidence check before sending" } }, { head: off(head), checks: off(union(score, last)), unsub: off(unsub), score: off(score) });
+      const states: PlateManifest["states"] = {};
+      states.s0 = { file: await shot("builder-s0.jpg", { y: y0, h }), label: "Builder preview: Desktop" };
+      await mob.click();
+      await page.waitForTimeout(350);
+      states.mob = { file: await shot("builder-mob.jpg", { y: y0, h }), label: "Builder preview: Mobile" };
+      await desk.click();
+      await page.waitForTimeout(350);
+      states.desk = { file: await shot("builder-desk.jpg", { y: y0, h }), label: "Builder preview: back to Desktop" };
+      await plate("builder", h, states, { head: off(head), toggles: off(toggles), mobile: off(await bb(mob)), preview: off(preview), score: off(union(label, score)), card: off(union(toggles, preview, score)) });
     }
 
     // ---- pricing: the Free plan ----------------------------------------------------------------------------------------
