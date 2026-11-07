@@ -16,7 +16,7 @@ import { staleMarkFor } from "../video/stale";
 import { verifyYoutubeConnection, YOUTUBE_FIRST, youtubeTokensForCall } from "./oauth-youtube";
 import { approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, setPublicationCopy, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "./queue";
 import { requestOwnerEmail } from "./review-notify";
-import { getReview, recordUnlistedReview, reviewUploadChecks, type Check } from "./video-review";
+import { getReview, recordUnlistedReview, reviewKey, reviewUploadChecks, type Check } from "./video-review";
 import { verifyYoutubeVideo } from "./youtube-api";
 import { connectionAllowedFor, shareYoutubeConnection, youtubeConnectionFor } from "./youtube-share";
 
@@ -34,6 +34,11 @@ export type UploadOptions = {
   library?: { position: number; of: number; roleLabel: string };
   /** Only this video (a replacement); otherwise the latest QA-passed demo. */
   videoRowId?: string;
+  /**
+   * "unlisted" (the default) is the review upload. "public" is ONLY for a video the owner has already approved: it is published directly with no review
+   * email, and the product's standing upload visibility goes back to unlisted afterwards.
+   */
+  visibility?: "unlisted" | "public";
   /** Actually upload. Without it only the checks run. */
   upload: boolean;
   log?: (m: string) => void;
@@ -64,7 +69,8 @@ export async function prepareUnlistedReview(db: StudioDb, o: UploadOptions): Pro
 
   if (o.madeForKids) await setSetting(youtubeKidsSetting(product.id), o.madeForKids === "yes", "owner-directive", db);
   await setSetting(youtubeEnabledSetting(product.id), true, "owner-directive", db);
-  await setSetting(youtubePrivacySetting(product.id), "unlisted", "owner-directive", db);
+  const visibility = o.visibility ?? "unlisted";
+  await setSetting(youtubePrivacySetting(product.id), visibility, "owner-directive", db);
   const kids = await getSetting<boolean | null>(youtubeKidsSetting(product.id), null, db);
 
   const wanted = o.videoRowId
@@ -73,6 +79,7 @@ export async function prepareUnlistedReview(db: StudioDb, o: UploadOptions): Pro
   const video = wanted[0];
   if (!video) throw new Error(`${product.name} has no QA-passed demo video waiting`);
   const record = video.storyboard as DemoRecord;
+  if (visibility === "public" && video.status !== "approved") throw new Error("Only a video the owner has already approved may be published directly.");
   if (video.status === "ready_for_review") {
     // The owner directed the unlisted review upload; this approval lets the file go to YouTube as UNLISTED only. Public still needs the owner's own approval.
     await reviewVideo(INTERNAL_SCOPE, "owner-directed-unlisted-review", product.id, video.id, "approved", db);
@@ -93,13 +100,14 @@ export async function prepareUnlistedReview(db: StudioDb, o: UploadOptions): Pro
     privacy: await getSetting<string | null>(youtubePrivacySetting(product.id), null, db),
     kids,
     otherYoutubePublications: others.length,
+    expectedPrivacy: visibility,
   });
   const resumed = publication.status === "published" && Boolean(publication.externalPostId);
   if (resumed) log("this video was already uploaded by an earlier attempt: resuming at verification");
   if (resumed) checks.length = 0;
   log("\nPRE-UPLOAD CHECKLIST");
   checks.forEach((c) => log(`  ${c.ok ? "PASS" : "FAIL"}  ${c.name}${c.detail ? `: ${c.detail}` : ""}`));
-  log(`\nTITLE: ${publication.title}\nDESCRIPTION:\n${publication.caption}\nVISIBILITY: unlisted   MADE FOR KIDS: ${kids}\npublication ${publication.id} (${publication.status})${duplicate ? " [existing]" : ""}`);
+  log(`\nTITLE: ${publication.title}\nDESCRIPTION:\n${publication.caption}\nVISIBILITY: ${visibility}   MADE FOR KIDS: ${kids}\npublication ${publication.id} (${publication.status})${duplicate ? " [existing]" : ""}`);
   if (checks.some((c) => !c.ok)) return { ok: false, blocked: "a pre-upload check failed", checks };
   if (!o.upload) return { ok: true, checks, publicationId: publication.id };
 
@@ -120,9 +128,11 @@ export async function prepareUnlistedReview(db: StudioDb, o: UploadOptions): Pro
   if (after.status !== "published" || !after.externalPostId) return { ok: false, blocked: `upload did not complete: ${after.failureReason ?? after.status}`, checks };
 
   const t = await youtubeTokensForCall(INTERNAL_SCOPE, ACTOR, conn.productId, conn.id, { fetch }, db);
-  const v = await verifyYoutubeVideo({ videoId: after.externalPostId, channelId: conn.externalAccountId ?? "", accessToken: t.accessToken, requirePublic: false }, { fetch });
+  const v = await verifyYoutubeVideo({ videoId: after.externalPostId, channelId: conn.externalAccountId ?? "", accessToken: t.accessToken, requirePublic: visibility === "public" }, { fetch });
   log(`live check: channel match ${v.onExpectedChannel}, upload ${v.uploadStatus}, visibility ${v.privacy}${v.permalink ? `, ${v.permalink}` : ""}${v.reason ? ` (${v.reason})` : ""}`);
-  if (!v.live || v.privacy !== "unlisted") return { ok: false, blocked: "not verified as unlisted on the expected channel; no email sent", publicationId: after.id, videoId: after.externalPostId, checks };
+  // The standing default for later uploads of this product is always the unlisted review.
+  await setSetting(youtubePrivacySetting(product.id), "unlisted", "owner-directive", db);
+  if (!v.live || v.privacy !== visibility) return { ok: false, blocked: `not verified as ${visibility} on the expected channel; no email sent`, publicationId: after.id, videoId: after.externalPostId, checks };
   const col = await collectForPublication(INTERNAL_SCOPE, ACTOR, product.id, after.id, undefined, db);
   log(`measurement: ${col.collected ? "first snapshot stored" : `not yet (${col.reason})`}`);
 
@@ -147,6 +157,14 @@ export async function prepareUnlistedReview(db: StudioDb, o: UploadOptions): Pro
     ...(o.library ? { library: o.library } : {}),
   }, o.placement ?? "Near the top of the product's home page.");
   log("review state and website embed details stored");
+  if (visibility === "public") {
+    // Already approved by the owner: record it as approved and public, with the history, and send no review email.
+    const st = (await getReview(db, after.id))!;
+    const now = new Date().toISOString();
+    await setSetting(reviewKey(after.id), { ...st, status: "approved_public", approvedAt: now, publicAt: now, approvalNote: "The owner approved this exact video earlier; it was published directly on the owner's instruction (2026-11-08).", events: [{ at: now, event: "APPROVED" as const, detail: "approved earlier by the owner" }, { at: now, event: "PUBLIC" as const }] }, ACTOR, db, { audited: false });
+    log("published directly (owner-approved video): recorded as approved and public; no review email");
+    return { ok: true, publicationId: after.id, videoId: after.externalPostId, emailed: false, checks };
+  }
   const mail = await requestOwnerEmail(after.id);
   log(`owner email: ${JSON.stringify(mail)}`);
   return { ok: true, publicationId: after.id, videoId: after.externalPostId, emailed: mail.sent, checks };

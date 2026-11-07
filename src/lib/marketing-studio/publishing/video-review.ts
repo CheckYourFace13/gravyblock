@@ -89,6 +89,8 @@ export function reviewUploadChecks(i: {
   facts: Array<{ id: string; verified: boolean }>;
   connectionAllowed: boolean;
   privacy: string | null;
+  /** unlisted for a review upload (the default); public only for a video the owner already approved */
+  expectedPrivacy?: "unlisted" | "public";
   kids: boolean | null;
   otherYoutubePublications: number;
 }): Check[] {
@@ -101,7 +103,7 @@ export function reviewUploadChecks(i: {
     { name: "the call to action is product-focused and the link goes to the product's own site", ok: Boolean(i.productHost) && host(p.ctaUrl) === i.productHost && Boolean(v.record.cta.text), detail: `${v.record.cta.text} -> ${host(p.ctaUrl) ?? "none"}` },
     { name: "the post belongs to this product and a connection it may use", ok: p.productId === i.productId && i.connectionAllowed, detail: "" },
     { name: "made-for-kids declared by the owner", ok: typeof i.kids === "boolean", detail: i.kids === null ? "not set" : String(i.kids) },
-    { name: "review visibility is UNLISTED (never private, never public before approval)", ok: i.privacy === "unlisted", detail: i.privacy ?? "not set" },
+    { name: i.expectedPrivacy === "public" ? "visibility is PUBLIC, and the owner already approved this exact video" : "review visibility is UNLISTED (never private, never public before approval)", ok: i.privacy === (i.expectedPrivacy ?? "unlisted") && (i.expectedPrivacy !== "public" || v.status === "approved"), detail: i.privacy ?? "not set" },
     { name: "no email address in the title, description or video text", ok: !EMAIL.test(text), detail: "" },
     { name: "no phone number in the description", ok: !PHONE.test(p.caption.replace(/utm_[a-z_]+=[a-z0-9_]+/gi, "")), detail: "" },
     { name: "no personal name in the title, description or video text", ok: !/\bchris\b/i.test(text), detail: "" },

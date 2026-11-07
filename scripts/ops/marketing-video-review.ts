@@ -148,7 +148,8 @@ owner note (exact): ${job.note}`);
     intended: arg("--intended") ?? undefined,
     placement: arg("--placement") ?? undefined,
     videoRowId: arg("--video") ?? undefined,
-    upload: args.includes("--upload-unlisted"),
+    visibility: args.includes("--publish-approved") ? "public" : "unlisted",
+    upload: args.includes("--upload-unlisted") || args.includes("--publish-approved"),
     log: (m) => console.log(m),
   });
   if (!out.ok) {
@@ -156,7 +157,8 @@ owner note (exact): ${job.note}`);
     process.exitCode = 6;
     return;
   }
-  if (!args.includes("--upload-unlisted")) console.log("PREPARED: nothing was sent. Add --upload-unlisted to upload it as UNLISTED for owner review.");
+  if (!args.includes("--upload-unlisted") && !args.includes("--publish-approved")) console.log("PREPARED: nothing was sent. Add --upload-unlisted to upload it as UNLISTED for owner review.");
+  else if (args.includes("--publish-approved")) console.log(`PUBLISHED (owner-approved video): https://www.youtube.com/watch?v=${out.videoId}`);
   else console.log(`UNLISTED REVIEW READY: https://www.youtube.com/watch?v=${out.videoId}\nNothing is public. The owner decides from the review email.`);
 }
 
