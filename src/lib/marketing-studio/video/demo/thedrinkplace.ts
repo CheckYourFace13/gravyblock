@@ -132,7 +132,7 @@ export function tdpBuildTimeline(manifest: Manifest, lt: Record<string, LineTime
       { t: tType - 500, cx: 195, cy: inC[1] + 90, zoom: 1.06 },
       { t: tRes, cx: 195, cy: center(a)[1] + 40, zoom: 1.06 },
       { t: Math.max(tRes + 800, E - 1200), cx: 195, cy: center(b)[1], zoom: 1.08 },
-      { t: E, cx: 195, cy: center(b)[1] + 4, zoom: 1.08 },
+      { t: E, cx: 195, cy: center(b)[1] + 34, zoom: 1.11 },
     ], 220);
     const spots: SpotKey[] = [
       { from: tType - 200, to: tRes - 450, rect: P.rects.input, label: spotA.label },
@@ -155,7 +155,7 @@ export function tdpBuildTimeline(manifest: Manifest, lt: Record<string, LineTime
       { t: 0, cx: 195, cy: center(P.rects.title)[1] + 120, zoom: 1.0 },
       { t: tWhat - 300, cx: 195, cy: center(P.rects.what)[1] + 60, zoom: 1.05 },
       { t: tIng - 300, cx: 195, cy: center(P.rects.ingredients)[1] + 20, zoom: 1.07 },
-      { t: E, cx: 195, cy: center(P.rects.how)[1] - 30, zoom: 1.07 },
+      { t: E, cx: 195, cy: center(P.rects.how)[1] + 10, zoom: 1.1 },
     ], 220);
     const spots: SpotKey[] = [
       { from: tWhat - 100, to: tIng - 350, rect: P.rects.what },
@@ -175,8 +175,8 @@ export function tdpBuildTimeline(manifest: Manifest, lt: Record<string, LineTime
     const camera: CameraKey[] = ascending([
       { t: 0, cx: 195, cy: center(P.rects.head)[1] + 140, zoom: 1.0 },
       { t: tV - 300, cx: 195, cy: center(P.rects.venue)[1] - 40, zoom: 1.05 },
-      { t: tSrc - 300, cx: 195, cy: center(P.rects.source)[1] - 20, zoom: 1.08 },
-      { t: E, cx: 195, cy: center(P.rects.source)[1] - 16, zoom: 1.08 },
+      { t: tSrc - 300, cx: 195, cy: center(P.rects.source)[1] - 40, zoom: 1.06 },
+      { t: E, cx: 195, cy: center(P.rects.source)[1] + 30, zoom: 1.11 },
     ], 220);
     const spots: SpotKey[] = [
       { from: tV - 120, to: tSrc - 350, rect: P.rects.venue },
