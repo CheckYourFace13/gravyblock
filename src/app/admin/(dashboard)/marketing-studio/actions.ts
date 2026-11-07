@@ -23,6 +23,8 @@ import { connectAccount, refreshConnectionHealth, revokeAccount } from "@/lib/ma
 import { approvePublication, cancelPublication, createPublication, markPublicationDeleted, schedulePublication } from "@/lib/marketing-studio/publishing/queue";
 import { collectForPublication } from "@/lib/marketing-studio/measurement/collect";
 import { getSetting, setKillSwitch } from "@/lib/marketing-studio/runtime";
+import { requireStudioDb } from "@/lib/marketing-studio/db";
+import { approveReview, requestChanges } from "@/lib/marketing-studio/publishing/video-review";
 import { createVideoFromProduct, reviewVideo } from "@/lib/marketing-studio/video/queue";
 import { importRemoteImage } from "@/lib/marketing-studio/remote-import";
 
@@ -298,5 +300,23 @@ export async function collectMetricsAction(fd: FormData) {
   const id = s(fd, "productId");
   await guarded(`${base}/insights`, async () => {
     await collectForPublication(scope, actor, id, s(fd, "publicationId"));
+  });
+}
+
+// ---- Video review: unlisted on YouTube, owner approves (same video becomes public) or requests changes ------------------------
+
+export async function approveVideoReviewAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "publicationId");
+  await guarded(`${base}/video-review/${id}`, async () => {
+    await approveReview(scope, actor, id, { fetch }, requireStudioDb(), s(fd, "note"));
+  });
+}
+
+export async function requestVideoChangesAction(fd: FormData) {
+  const { actor } = await requireStudioAccess();
+  const id = s(fd, "publicationId");
+  await guarded(`${base}/video-review/${id}`, async () => {
+    await requestChanges(actor, id, s(fd, "note"), requireStudioDb());
   });
 }

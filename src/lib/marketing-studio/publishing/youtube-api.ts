@@ -13,6 +13,12 @@ import type { Adapter, Deps, PublishResult } from "./adapters";
 export const YT_SCOPE_UPLOAD = "https://www.googleapis.com/auth/youtube.upload";
 export const YT_SCOPE_READ = "https://www.googleapis.com/auth/youtube.readonly";
 export const YT_SCOPES = [YT_SCOPE_UPLOAD, YT_SCOPE_READ] as const;
+/**
+ * videos.update (changing an unlisted review video to public) is not covered by youtube.upload or youtube.readonly; Google requires the `youtube` scope for it.
+ * It is requested at authorization but is NOT required for uploads or measurement, so an older connection keeps working; it is only needed for the owner's
+ * approve-and-make-public action. It cannot delete videos through this code (no delete call is made with it).
+ */
+export const YT_SCOPE_MANAGE = "https://www.googleapis.com/auth/youtube";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const REVOKE_URL = "https://oauth2.googleapis.com/revoke";
@@ -175,6 +181,32 @@ export const youtubeAdapter: Adapter = {
     }
   },
 };
+
+export type VisibilityResult = { ok: true; privacy: string } | { ok: false; reason: string; needsScope: boolean };
+
+/**
+ * Changes the visibility of an EXISTING video (same video id, same URL, no re-upload). YouTube resets any status field that is left out of an
+ * update, so the current status is read first and sent back unchanged apart from privacyStatus.
+ */
+export async function setYoutubeVisibility(input: { videoId: string; accessToken: string; privacy: "public" | "unlisted" | "private" }, deps: Deps): Promise<VisibilityResult> {
+  try {
+    const cur = await deps.fetch(`${API}/videos?part=status&id=${encodeURIComponent(input.videoId)}`, { method: "GET", headers: { authorization: `Bearer ${input.accessToken}` } });
+    const cb = (await cur.json().catch(() => ({}))) as GErr & { items?: Array<{ status?: { embeddable?: boolean; license?: string; publicStatsViewable?: boolean; selfDeclaredMadeForKids?: boolean } }> };
+    const s = cb.items?.[0]?.status;
+    if (!cur.ok || !s) return { ok: false, reason: errMessage(cb).slice(0, 200) || `could not read the video's current status (HTTP ${cur.status})`, needsScope: false };
+    const res = await deps.fetch(`${API}/videos?part=status`, {
+      method: "PUT",
+      headers: { authorization: `Bearer ${input.accessToken}`, "content-type": "application/json; charset=UTF-8" },
+      body: JSON.stringify({ id: input.videoId, status: { privacyStatus: input.privacy, embeddable: s.embeddable ?? true, license: s.license ?? "youtube", publicStatsViewable: s.publicStatsViewable ?? true, selfDeclaredMadeForKids: s.selfDeclaredMadeForKids ?? false } }),
+    });
+    const b = (await res.json().catch(() => ({}))) as GErr & { status?: { privacyStatus?: string } };
+    if (res.ok) return { ok: true, privacy: b.status?.privacyStatus ?? input.privacy };
+    const reason = errReason(b);
+    return { ok: false, reason: errMessage(b).slice(0, 200) || `HTTP ${res.status}`, needsScope: res.status === 403 && (reason === "insufficientPermissions" || /insufficient|scope/i.test(errMessage(b))) };
+  } catch (e) {
+    return { ok: false, reason: `network error: ${e instanceof Error ? e.message.slice(0, 160) : "request failed"}`, needsScope: false };
+  }
+}
 
 // ---- external verification and measurement ----------------------------------------------------------------------------------------------
 

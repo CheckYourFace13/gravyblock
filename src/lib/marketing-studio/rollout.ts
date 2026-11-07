@@ -99,3 +99,29 @@ export const GAME_CAPTURE = {
 } as const;
 
 export const ROLLOUT_PLAN = { version: 4, acquisitionQueue: ACQUISITION_QUEUE, gamePause: GAME_ACQUISITION_PAUSE, gameCreative: GAME_CREATIVE_RULES, firstSocialSetup: FIRST_SOCIAL_SETUP, deferredAccounts: DEFERRED_ACCOUNTS, ownerIdentity: OWNER_IDENTITY, decidedAt: "2026-11-07", order: ROLLOUT_ORDER, social: SOCIAL_STRATEGY, paid: PAID_ACQUISITION, gameCapture: GAME_CAPTURE, videoQualityReference: "RentalNoodle" } as const;
+
+/**
+ * DEFAULT VIDEO REVIEW FLOW (owner directive 2026-11-07), for website and app marketing videos. Implemented in publishing/video-review.ts.
+ * Nothing becomes public without the owner's approval until reliability is explicitly upgraded later.
+ */
+export const VIDEO_REVIEW_WORKFLOW = {
+  steps: ["create", "qa", "upload to YouTube as UNLISTED", "verify the live video", "email the owner with a review link", "owner approves or requests changes", "approved video switches from unlisted to PUBLIC (same video id, no re-upload)", "measurement continues"],
+  reviewVisibility: "unlisted",
+  neverForReview: "private",
+  sameVideoOnApproval: true,
+  autoPublishWithoutApproval: false,
+  changesRequested: "the current video stays unlisted; a corrected replacement is made, supersedes the old version, and its review link is emailed",
+  embeds: "recorded per product (video_embed_<productId>) with a privacy-enhanced youtube-nocookie embed; Studio only recommends placement and never edits a House Account website",
+  appliesTo: ACQUISITION_QUEUE,
+  decidedAt: "2026-11-07",
+} as const;
+
+/** FUTURE GravyBlock video library (owner directive 2026-11-07): several purposeful videos, not one generic trailer. Planning only; nothing is produced or placed by this list. */
+export const GRAVYBLOCK_VIDEO_LIBRARY = {
+  principle: "Many useful videos, each answering one question. Usable on the iScream Studio YouTube channel and embedded where it helps on gravyblock.com.",
+  videos: ["what GravyBlock does", "the autonomous growth loop", "Business Truth", "SEO, search and local growth", "Marketing Studio", "reporting and proof", "onboarding", "pricing and value", "FAQs and objections", "feature-specific demos", "proof and results clips"],
+  studioMay: ["create", "publish through the unlisted review flow", "measure"],
+  studioMayNot: "modify gravyblock.com. Site placement is normal intentional development under the House Account no-site-write rule.",
+  everyVideoUses: "the unlisted review, email and approval flow",
+  decidedAt: "2026-11-07",
+} as const;

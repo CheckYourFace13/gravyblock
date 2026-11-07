@@ -21,6 +21,7 @@ import { ADAPTERS, type Deps, type PublishInput } from "./adapters";
 import { youtubeTokensForCall } from "./oauth-youtube";
 import { assertRolloutOrder } from "./first-post";
 import { GAME_PAUSE_MESSAGE, gameAcquisitionPaused } from "./pause";
+import { connectionAllowedFor } from "./youtube-share";
 import { evaluateHealth, tokensForPublish, usable } from "./connections";
 import { buildExportBundle } from "./export";
 import { applyUtmToCaption, foreignLinks, utmIdFor, withUtm } from "../measurement/utm";
@@ -139,8 +140,9 @@ export async function createPublication(
     if (spec.direct !== "available_with_healthy_connection" && !attestedFirst) throw new Error(`Direct posting is not available: ${spec.approvalNote} Use an export bundle instead.`);
     if (input.platform === "youtube" && !(await getSetting<boolean>(youtubeEnabledSetting(productId), false, db))) throw new Error("YouTube has not been selected for this product. Marketing Studio only sends a product's videos to YouTube when the owner enables it for that product. Use an export bundle instead.");
     if (!input.connectionId) throw new Error("A direct post needs a connection; use an export bundle if none is connected");
-    const [conn] = await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.id, input.connectionId), eq(ms.msConnections.productId, productId), eq(ms.msConnections.platform, input.platform))).limit(1);
-    if (!conn) throw new StudioAccessError();
+    const [conn] = await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.id, input.connectionId), eq(ms.msConnections.platform, input.platform))).limit(1);
+    // The connection is the product's own, or (YouTube) one the owner shared with it; nothing else.
+    if (!conn || !(await connectionAllowedFor(db, conn, productId))) throw new StudioAccessError();
     const attested = await getSetting<boolean>(approvedSetting(input.platform), false, db);
     const blockers = directBlockers(input.platform, conn, attested);
     if (blockers.length) throw new Error(`Direct posting is not available: ${blockers.join("; ")}. Use an export bundle instead.`);
@@ -330,7 +332,8 @@ export async function runDuePublications(scope: OwnerScope, deps: Deps = { fetch
         continue;
       }
       // Gate: connection, platform approval, tenant, daily cap.
-      const [conn] = p.connectionId ? await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.id, p.connectionId), eq(ms.msConnections.productId, p.productId))).limit(1) : [];
+      const [connRow] = p.connectionId ? await db.select().from(ms.msConnections).where(eq(ms.msConnections.id, p.connectionId)).limit(1) : [];
+      const conn = connRow && (await connectionAllowedFor(db, connRow, p.productId)) ? connRow : undefined;
       const attested = await getSetting<boolean>(approvedSetting(p.platform), false, db);
       const blockers = directBlockers(p.platform, conn ?? null, attested, now);
       const spec = specFor(p.platform)!;
@@ -352,7 +355,7 @@ export async function runDuePublications(scope: OwnerScope, deps: Deps = { fetch
         continue;
       }
       // YouTube access tokens last an hour: renew from the refresh token first (stored encrypted); other platforms use the stored token as is.
-      const tokens = p.platform === "youtube" ? await youtubeTokensForCall(scope, "studio-worker", p.productId, conn!.id, deps, db) : await tokensForPublish(scope, "studio-worker", p.productId, conn!.id, db);
+      const tokens = p.platform === "youtube" ? await youtubeTokensForCall(scope, "studio-worker", conn!.productId, conn!.id, deps, db) : await tokensForPublish(scope, "studio-worker", p.productId, conn!.id, db);
       const [asset] = await db.select().from(ms.msAssets).where(eq(ms.msAssets.id, p.assetId)).limit(1);
       const bytes = await fs.readFile(safeJoin(STUDIO_DIRS.media, ...asset.storagePath.split("/")));
       const out = await ADAPTERS[p.platform as keyof typeof ADAPTERS].publish(

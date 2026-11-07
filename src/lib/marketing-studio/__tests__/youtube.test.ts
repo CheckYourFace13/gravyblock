@@ -15,7 +15,7 @@ import type { PublishInput } from "../publishing/adapters";
 import { connectAccount, evaluateHealth, revokeAccount, usable, type TokenBundle } from "../publishing/connections";
 import { completeYoutubeOAuth, reverifyYoutubeConnection, makeYoutubeState, readYoutubeState, verifyYoutubeConnection, youtubeAuthorizeUrl, youtubeCallbackUrl, youtubeOAuthConfigured, youtubeTokensForCall, YOUTUBE_FIRST } from "../publishing/oauth-youtube";
 import { approvedSetting, approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../publishing/queue";
-import { channelLabel, channelMatches, collectYoutubeCounts, verifyYoutubeVideo, youtubeAdapter, YT_SCOPE_READ, YT_SCOPE_UPLOAD } from "../publishing/youtube-api";
+import { channelLabel, channelMatches, collectYoutubeCounts, verifyYoutubeVideo, youtubeAdapter, YT_SCOPE_MANAGE, YT_SCOPE_READ, YT_SCOPE_UPLOAD } from "../publishing/youtube-api";
 
 process.env.MARKETING_GOOGLE_CLIENT_ID = "123456789-abc.apps.googleusercontent.com";
 process.env.MARKETING_GOOGLE_CLIENT_SECRET = "GOCSPX-test-secret-value-0000";
@@ -71,7 +71,7 @@ const input = (over: Partial<PublishInput> = {}): PublishInput => ({
 });
 
 describe("YouTube OAuth: redirect URI, scopes, state", () => {
-  test("the production redirect URI is exact and the authorize URL asks for offline access with only the two declared scopes", () => {
+  test("the production redirect URI is exact and the authorize URL asks for offline access with only the declared scopes (upload, read, and the visibility permission for approve-and-make-public)", () => {
     assert.equal(youtubeCallbackUrl(), "https://gravyblock.com/api/admin/marketing-studio/connect/youtube/callback");
     const u = new URL(youtubeAuthorizeUrl("STATE"));
     assert.equal(u.origin + u.pathname, "https://accounts.google.com/o/oauth2/v2/auth");
@@ -80,7 +80,7 @@ describe("YouTube OAuth: redirect URI, scopes, state", () => {
     assert.match(u.searchParams.get("prompt") ?? "", /consent/);
     assert.equal(u.searchParams.get("response_type"), "code");
     assert.equal(u.searchParams.get("include_granted_scopes"), "false");
-    assert.deepEqual(u.searchParams.get("scope")!.split(" ").sort(), [YT_SCOPE_READ, YT_SCOPE_UPLOAD].sort());
+    assert.deepEqual(u.searchParams.get("scope")!.split(" ").sort(), [YT_SCOPE_READ, YT_SCOPE_UPLOAD, YT_SCOPE_MANAGE].sort());
     assert.ok(!u.toString().includes("GOCSPX"), "the client secret never appears in the browser URL");
     assert.equal(u.searchParams.get("client_id"), process.env.MARKETING_GOOGLE_CLIENT_ID);
     assert.ok(youtubeOAuthConfigured());

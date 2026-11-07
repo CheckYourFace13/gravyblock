@@ -18,7 +18,7 @@ import { ms, requireStudioDb, type StudioDb } from "../db";
 import type { OwnerScope } from "../scope";
 import type { Deps } from "./adapters";
 import { connectAccount, type TokenBundle } from "./connections";
-import { channelLabel, channelMatches, exchangeCode, fetchOwnChannel, refreshAccessToken, YT_SCOPES, YT_SCOPE_READ, YT_SCOPE_UPLOAD } from "./youtube-api";
+import { channelLabel, channelMatches, exchangeCode, fetchOwnChannel, refreshAccessToken, YT_SCOPES, YT_SCOPE_MANAGE, YT_SCOPE_READ, YT_SCOPE_UPLOAD } from "./youtube-api";
 
 export const YOUTUBE_FIRST = {
   brand: "iScream Studio",
@@ -70,7 +70,7 @@ export function youtubeAuthorizeUrl(state: string): string {
   u.searchParams.set("client_id", process.env.MARKETING_GOOGLE_CLIENT_ID!.trim());
   u.searchParams.set("redirect_uri", youtubeCallbackUrl());
   u.searchParams.set("response_type", "code");
-  u.searchParams.set("scope", YT_SCOPES.join(" "));
+  u.searchParams.set("scope", [...YT_SCOPES, YT_SCOPE_MANAGE].join(" "));
   // offline + consent: Google only returns a refresh token on the first consent unless it is asked for again, and uploads happen while nobody is signed in
   u.searchParams.set("access_type", "offline");
   u.searchParams.set("prompt", "consent select_account");
@@ -146,8 +146,8 @@ export async function completeYoutubeOAuth(scope: OwnerScope, actor: string, inp
 
   const tokens: TokenBundle = { accessToken: g.accessToken, refreshToken: g.refreshToken, accessExpiresAt: Date.now() + g.expiresInSec * 1000 };
   // Only the declared scopes are recorded. The connection has no calendar expiry: the refresh token renews the access token as needed.
-  const summary = await connectAccount(scope, actor, input.productId, { platform: "youtube", accountLabel: channelLabel(ch), externalAccountId: ch.id, tokens, scopes: [YT_SCOPE_UPLOAD, YT_SCOPE_READ], tokenExpiresAt: null }, db);
-  return { connectionId: summary.id, channelId: ch.id, channelTitle: ch.title, channelHandle: ch.handle, grantedScopes: g.scopes.filter((s) => (YT_SCOPES as readonly string[]).includes(s)) };
+  const summary = await connectAccount(scope, actor, input.productId, { platform: "youtube", accountLabel: channelLabel(ch), externalAccountId: ch.id, tokens, scopes: [YT_SCOPE_UPLOAD, YT_SCOPE_READ, ...(g.scopes.includes(YT_SCOPE_MANAGE) ? [YT_SCOPE_MANAGE] : [])], tokenExpiresAt: null }, db);
+  return { connectionId: summary.id, channelId: ch.id, channelTitle: ch.title, channelHandle: ch.handle, grantedScopes: g.scopes.filter((s) => (YT_SCOPES as readonly string[]).includes(s) || s === YT_SCOPE_MANAGE) };
 }
 
 /**
