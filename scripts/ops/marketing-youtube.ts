@@ -68,10 +68,13 @@ async function main() {
     // Read-only audit of an uploaded video: live YouTube metadata against what was approved, and what the application stored. Changes nothing.
     const p = products.find((x) => x.slug === auditSlug);
     if (!p) throw new Error(`No Studio product ${auditSlug}`);
-    const pubs = await db.select().from(ms.msPublications).where(and(eq(ms.msPublications.productId, p.id), eq(ms.msPublications.platform, "youtube")));
+    const all = await db.select().from(ms.msPublications).where(and(eq(ms.msPublications.productId, p.id), eq(ms.msPublications.platform, "youtube")));
+    // A replacement keeps the flawed version on the channel as a superseded, unlisted video: only the current one is audited.
+    const superseded = new Set((await listReviews(db)).filter((r) => r.status === "superseded").map((r) => r.publicationId));
+    const pubs = all.filter((x) => !superseded.has(x.id) && x.status !== "cancelled");
     const pub = pubs.find((x) => x.status === "published");
     const expectPrivacy = arg("--expect-privacy") ?? "public";
-    const checks: Check[] = [{ name: "exactly one YouTube publication exists for this product", ok: pubs.length === 1, detail: `${pubs.length} (${pubs.map((x) => `${x.id.slice(0, 8)} ${x.status}`).join(", ")})` }];
+    const checks: Check[] = [{ name: "exactly one current YouTube publication exists for this product", ok: pubs.length === 1, detail: `${pubs.length} current (${pubs.map((x) => `${x.id.slice(0, 8)} ${x.status}`).join(", ")}); ${all.length - pubs.length} superseded or cancelled` }];
     if (pub && pub.externalPostId) {
       const conn = await youtubeConnectionFor(db, p.id);
       if (!conn) throw new Error("No healthy YouTube connection to read with");
