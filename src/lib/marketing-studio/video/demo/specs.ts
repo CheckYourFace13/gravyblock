@@ -3,6 +3,8 @@
  * product, real motion, claims tied to verified facts and live page quotes). Adding a product means writing one spec: a capture of its real
  * public interface, a script with sources, and a timeline. The old slideshow pipeline is not an option for production video.
  */
+import { captureSendFablePlates, SF_ORIGIN } from "./sendfable-capture";
+import { SF_CLAIMS, SF_CTA, SF_FACTS, SF_NARRATION, SF_ON_SCREEN, SF_SCENE_META, SF_TITLE, sfBuildTimeline, sfLayoutLines } from "./sendfable";
 import { captureDrinkKnirdPlates, DK_ORIGIN } from "./drinkknird-plates";
 import { captureScribbleZapPlates, SZ_ORIGIN } from "./scribblezap-capture";
 import { captureMibblePlates, MB_ORIGIN } from "./mibble-capture";
@@ -35,6 +37,21 @@ export type DemoSpec = {
 };
 
 export const DEMO_SPECS: Record<string, DemoSpec> = {
+  sendfable: {
+    slug: "sendfable",
+    productName: "SendFable",
+    site: { origin: SF_ORIGIN, ctaText: SF_CTA.text, ctaHost: "sendfable.com" },
+    title: SF_TITLE,
+    cta: SF_CTA,
+    narration: SF_NARRATION,
+    claims: SF_CLAIMS,
+    facts: SF_FACTS,
+    onScreen: SF_ON_SCREEN,
+    sceneMeta: SF_SCENE_META,
+    capture: captureSendFablePlates,
+    layout: sfLayoutLines,
+    build: sfBuildTimeline,
+  },
   rentalnoodle: {
     slug: "rentalnoodle",
     productName: "RentalNoodle",

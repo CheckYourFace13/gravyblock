@@ -4,9 +4,9 @@ import { DEFERRED_ACCOUNTS, FIRST_SOCIAL_SETUP, PAID_ACQUISITION, ROLLOUT_ORDER,
 
 describe("rollout plan", () => {
   test("games first, then the owner's website and app order", () => {
-    assert.deepEqual(ROLLOUT_ORDER.slice(0, 3), ["ScribbleZap", "Mibble Meadow", "SendFable"]);
+    assert.deepEqual(ROLLOUT_ORDER.slice(0, 3), ["SendFable", "TheDrinkPlace", "RentalNoodle"]);
     assert.equal(ROLLOUT_ORDER.length, 14);
-    assert.equal(ROLLOUT_ORDER.at(-1), "iScream Studio");
+    assert.equal(ROLLOUT_ORDER.at(-1), "Mibble Meadow");
     assert.equal(new Set(ROLLOUT_ORDER).size, ROLLOUT_ORDER.length);
   });
   test("the first social setup is the minimum three items and everything else is deferred", () => {

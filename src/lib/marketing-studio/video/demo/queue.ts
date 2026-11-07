@@ -7,6 +7,7 @@ import { enqueue } from "../../runtime";
 import type { OwnerScope } from "../../scope";
 
 import { assertVideosNotFrozen, videoExpansion } from "../freeze";
+import { GAME_PAUSE_MESSAGE, gameAcquisitionPaused } from "../../publishing/pause";
 import { DEMO_SPECS } from "./specs";
 
 /** The owner-approved reference product, which may always have its demo. */
@@ -22,6 +23,7 @@ const LIVE = ["queued", "rendering", "ready_for_review", "approved"];
 export async function createDemoVideo(scope: OwnerScope, actor: string, productId: string, db: StudioDb = requireStudioDb(), opts: { queue?: boolean; /** a launch-transition replacement may sit beside an earlier video that is already public (history) */ replaceStale?: boolean } = {}) {
   const product = await requireProduct(scope, productId, db);
   if (!DEMO_PILOT_SLUGS.includes(product.slug)) throw new Error(`${product.name} has no demo video spec: without real captured product interaction or real gameplay it stays TEASER_ONLY`);
+  if (!opts.replaceStale && (await gameAcquisitionPaused(db, product))) throw new Error(GAME_PAUSE_MESSAGE);
   // Anything beyond the approved reference needs the owner-approved expansion gate (and no freeze).
   if (product.slug !== DEMO_REFERENCE_SLUG) {
     await assertVideosNotFrozen(db);

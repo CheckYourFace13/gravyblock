@@ -291,7 +291,7 @@ describe("video freeze and the single demo (database)", { skip: !HAVE_DB }, () =
 
 describe("demo specs", () => {
   test("only products with real captured interaction have a spec", () => {
-    assert.deepEqual(Object.keys(DEMO_SPECS).sort(), ["drinkknird", "mibblemeadow", "rentalnoodle", "scribblezap"]);
+    assert.deepEqual(Object.keys(DEMO_SPECS).sort(), ["drinkknird", "mibblemeadow", "rentalnoodle", "scribblezap", "sendfable"]);
     assert.throws(() => demoSpecFor("neonwarzone"), /TEASER_ONLY/);
   });
   test("DrinkKnird: every line has a claim, every claim has sources, every on-screen text has a claim, no unsupported wording", () => {

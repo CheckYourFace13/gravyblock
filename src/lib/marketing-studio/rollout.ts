@@ -6,8 +6,24 @@
 
 export const ROLLOUT_GAMES = ["ScribbleZap", "Mibble Meadow"] as const;
 export const ROLLOUT_SITES_APPS = ["SendFable", "TheDrinkPlace", "RentalNoodle", "DrinkKnird", "MicStage", "LeaguePour", "OutbreakThreat", "GravyBlock", "BoatingChicago", "VenueSprocket", "SeeStew", "iScream Studio"] as const;
-/** Games go first, then websites and apps, in this order. RentalNoodle stays the owner-approved video quality reference but is no longer first. */
-export const ROLLOUT_ORDER: readonly string[] = [...ROLLOUT_GAMES, ...ROLLOUT_SITES_APPS];
+/**
+ * ACTIVE ACQUISITION QUEUE (owner directive 2026-11-07): websites and apps that can convert traffic today come first, in this exact order. Games wait,
+ * because they have no verified live install destination. RentalNoodle stays the owner-approved video quality reference.
+ */
+export const ACQUISITION_QUEUE: readonly string[] = ROLLOUT_SITES_APPS;
+export const ROLLOUT_ORDER: readonly string[] = [...ROLLOUT_SITES_APPS, ...ROLLOUT_GAMES];
+
+/**
+ * PERMANENT RULE (owner, 2026-11-07): a game with no verified live install destination is not prioritized for repeated acquisition campaigns over
+ * products that can convert traffic today. Existing public posts stay live. It lifts by itself for a game the moment Product Truth holds a verified
+ * Google Play or App Store listing (see gameAcquisitionPaused in publishing/pause.ts).
+ */
+export const GAME_ACQUISITION_PAUSE = {
+  setting: "game_acquisition_paused",
+  rule: "No new game videos or game publications until a verified live store listing exists for that game. Existing public posts stay live.",
+  preserved: ["ScribbleZap YouTube Short ZWK2ZSyjxv0 (public, stays live)"],
+  mibbleMeadow: "Not connected or published to YouTube; approved-direction video and capture assets stay ready.",
+} as const;
 
 export const SOCIAL_PLATFORMS_IN_SCOPE = ["facebook", "instagram", "tiktok", "youtube"] as const;
 /** Explicitly out of scope by owner decision. */
@@ -82,4 +98,4 @@ export const GAME_CAPTURE = {
   "Mibble Meadow": { feasible: true, source: "the real 0.1.23 APK's own project files (a Godot 4.7.2 game, Android only)", method: "an Android emulator is blocked on the VPS (no hardware virtualization, ARM-only libraries), so the project files extracted from the APK run read-only in the matching official Godot 4.7.2 desktop engine inside a disposable no-network container, Movie Maker mode at 30 fps, real mouse input tied to rendered frames", measured: "2026-11-04: level 1 solved with real taps, ending on the game's own completion card; UI, layout, art, text and rules match the Android build's screenshots; known non-material differences: haptics, audio and the Android safe-area and GPU path were not exercised" },
 } as const;
 
-export const ROLLOUT_PLAN = { version: 3, gameCreative: GAME_CREATIVE_RULES, firstSocialSetup: FIRST_SOCIAL_SETUP, deferredAccounts: DEFERRED_ACCOUNTS, ownerIdentity: OWNER_IDENTITY, decidedAt: "2026-11-04", order: ROLLOUT_ORDER, social: SOCIAL_STRATEGY, paid: PAID_ACQUISITION, gameCapture: GAME_CAPTURE, videoQualityReference: "RentalNoodle" } as const;
+export const ROLLOUT_PLAN = { version: 4, acquisitionQueue: ACQUISITION_QUEUE, gamePause: GAME_ACQUISITION_PAUSE, gameCreative: GAME_CREATIVE_RULES, firstSocialSetup: FIRST_SOCIAL_SETUP, deferredAccounts: DEFERRED_ACCOUNTS, ownerIdentity: OWNER_IDENTITY, decidedAt: "2026-11-07", order: ROLLOUT_ORDER, social: SOCIAL_STRATEGY, paid: PAID_ACQUISITION, gameCapture: GAME_CAPTURE, videoQualityReference: "RentalNoodle" } as const;
