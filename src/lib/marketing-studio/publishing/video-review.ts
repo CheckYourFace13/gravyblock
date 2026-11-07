@@ -9,6 +9,7 @@
 import { and, eq, like } from "drizzle-orm";
 import { audit } from "../audit";
 import { ms, type StudioDb } from "../db";
+import { updateAngle } from "../library-store";
 import { getSetting, setSetting } from "../runtime";
 import type { OwnerScope } from "../scope";
 import type { DemoRecord } from "../video/demo/types";
@@ -32,6 +33,8 @@ export type ReviewState = {
   events?: Array<{ at: string; event: ReviewEvent; detail?: string }>;
   /** Which video of the product's three this is, shown at the top of the review email so the owner knows why it exists. */
   library?: { position: number; of: number; roleLabel: string };
+  /** The demo script this video came from: "<slug>" or "<slug>:<angle>". */
+  specId?: string;
   /** Fingerprint of the script this video was made from, so a replacement is only rendered once something actually changed. */
   specHash?: string;
   status: ReviewStatus;
@@ -184,7 +187,8 @@ export async function listReviews(db: StudioDb): Promise<ReviewState[]> {
 export async function recordUnlistedReview(db: StudioDb, actor: string, r: Omit<ReviewState, "status" | "watchUrl" | "uploadedAt" | "events">, placement: string): Promise<ReviewState> {
   const state: ReviewState = { ...r, status: "unlisted_live", watchUrl: watchUrlFor(r.videoId), uploadedAt: new Date().toISOString() };
   for (const old of await listReviews(db)) {
-    if (old.productId === r.productId && old.publicationId !== r.publicationId && (old.status === "unlisted_live" || old.status === "changes_requested")) {
+    // A new version supersedes only an earlier version of the SAME script; a product's other library videos are separate reviews.
+    if (old.productId === r.productId && old.publicationId !== r.publicationId && (old.specId ?? "") === (r.specId ?? "") && (old.status === "unlisted_live" || old.status === "changes_requested")) {
       await setSetting(reviewKey(old.publicationId), { ...old, status: "superseded", supersededBy: r.publicationId }, actor, db);
       await audit(db, { actor, action: "video_review.superseded", entity: "publication", entityId: old.publicationId, productId: r.productId, detail: { by: r.publicationId } });
     }
@@ -195,6 +199,11 @@ export async function recordUnlistedReview(db: StudioDb, actor: string, r: Omit<
   const existing = await getSetting<EmbedEntry[]>(embedKey(r.productId), [], db);
   await setSetting(embedKey(r.productId), [...existing.filter((x) => x.publicationId !== r.publicationId), entry], actor, db);
   await audit(db, { actor, action: "video_review.unlisted_live", entity: "publication", entityId: r.publicationId, productId: r.productId, detail: { videoId: r.videoId } });
+  // the library angle for this script now points at the newest unlisted version (unless it is already public)
+  if (r.specId) {
+    const [prod] = await db.select({ slug: ms.msProducts.slug }).from(ms.msProducts).where(eq(ms.msProducts.id, r.productId)).limit(1);
+    if (prod) await updateAngle(db, actor, prod.slug, (a) => a.specId === r.specId && a.status !== "public", { status: "unlisted_review", youtubeId: r.videoId, publicationId: r.publicationId, videoRowId: r.videoRowId, publicationUrl: state.watchUrl });
+  }
   return state;
 }
 
@@ -253,6 +262,8 @@ export async function approveReview(scope: OwnerScope, actor: string, publicatio
   const entries = await getSetting<EmbedEntry[]>(embedKey(r.productId), [], db);
   await setSetting(embedKey(r.productId), entries.map((e) => (e.publicationId === publicationId ? { ...e, visibility: "public" as const } : e)), actor, db, { audited: false });
   await audit(db, { actor, action: "video_review.made_public", entity: "publication", entityId: publicationId, productId: r.productId, detail: { videoId: r.videoId, sameVideoId: true } });
+  const [prodRow] = await db.select({ slug: ms.msProducts.slug }).from(ms.msProducts).where(eq(ms.msProducts.id, r.productId)).limit(1);
+  if (prodRow) await updateAngle(db, actor, prodRow.slug, (a) => a.publicationId === publicationId || a.youtubeId === r.videoId, { status: "public", approval: "owner_approved", publicationUrl: watchUrlFor(r.videoId) });
   await collectForPublication(scope, actor, r.productId, publicationId, deps, db).catch(() => undefined);
   return state;
 }

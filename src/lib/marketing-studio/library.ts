@@ -31,6 +31,10 @@ export type AngleEntry = {
   youtubeId?: string;
   publicationId?: string;
   publicationUrl?: string;
+  /** the demo script that makes this video ("<slug>:<angle>"), once it has been written */
+  specId?: string;
+  /** the YouTube title and description to use once it is made */
+  yt?: { title: string; description: string };
   /** latest measured numbers when the video is public, each marked by how well it is known */
   performance?: Record<string, { value: number | null; status: string }>;
 };

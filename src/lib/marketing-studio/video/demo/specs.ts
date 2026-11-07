@@ -6,6 +6,8 @@
 import { captureTheDrinkPlacePlates, TDP_ORIGIN } from "./thedrinkplace-capture";
 import { TDP_CLAIMS, TDP_CTA, TDP_FACTS, TDP_NARRATION, TDP_ON_SCREEN, TDP_SCENE_META, TDP_TITLE, tdpBuildTimeline, tdpLayoutLines } from "./thedrinkplace";
 import { captureSendFablePlates, SF_ORIGIN } from "./sendfable-capture";
+import { captureSendFableChannelsPlates } from "./sendfable-channels-capture";
+import { SFC_CLAIMS, SFC_CTA, SFC_FACTS, SFC_NARRATION, SFC_ON_SCREEN, SFC_SCENE_META, SFC_TITLE, sfcBuildTimeline, sfcLayoutLines } from "./sendfable-channels";
 import { SF_CLAIMS, SF_CTA, SF_FACTS, SF_NARRATION, SF_ON_SCREEN, SF_SCENE_META, SF_TITLE, sfBuildTimeline, sfLayoutLines } from "./sendfable";
 import { captureDrinkKnirdPlates, DK_ORIGIN } from "./drinkknird-plates";
 import { captureScribbleZapPlates, SZ_ORIGIN } from "./scribblezap-capture";
@@ -32,6 +34,8 @@ export type DemoSpec = {
   capture: (outDir: string, logoFile: string) => Promise<Manifest>;
   layout: (durMs: Record<string, number>) => Record<string, LineTime>;
   build: (manifest: Manifest, lt: Record<string, LineTime>) => BuiltDkDemo;
+  /** The library angle this spec makes (for example "channels"). The default spec of a product has none and is keyed by the slug alone. */
+  angle?: string;
   /** Games are held to the fun-first creative-language QA and may not use a pre-launch CTA once a verified store listing is live. */
   kind?: "game";
   /** Extra QA inputs for products whose primary visual is real gameplay. */
@@ -39,6 +43,22 @@ export type DemoSpec = {
 };
 
 export const DEMO_SPECS: Record<string, DemoSpec> = {
+  "sendfable:channels": {
+    slug: "sendfable",
+    angle: "channels",
+    productName: "SendFable",
+    site: { origin: SF_ORIGIN, ctaText: SFC_CTA.text, ctaHost: "sendfable.com" },
+    title: SFC_TITLE,
+    cta: SFC_CTA,
+    narration: SFC_NARRATION,
+    claims: SFC_CLAIMS,
+    facts: SFC_FACTS,
+    onScreen: SFC_ON_SCREEN,
+    sceneMeta: SFC_SCENE_META,
+    capture: captureSendFableChannelsPlates,
+    layout: sfcLayoutLines,
+    build: sfcBuildTimeline,
+  },
   thedrinkplace: {
     slug: "thedrinkplace",
     productName: "TheDrinkPlace",

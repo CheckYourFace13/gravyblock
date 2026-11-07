@@ -8,6 +8,7 @@ import { angleKey, checkDistinct, consumes, hasVerifiedProductUrl, ROLE_LABEL, t
 import { DISTRIBUTION_BY_FUNNEL, EXISTING, PLAN_PRODUCTS, PLANNED, REJECTED_CANDIDATES, toEntry } from "../../src/lib/marketing-studio/library-plan";
 import { currentMetrics } from "../../src/lib/marketing-studio/measurement/collect";
 import { embedFor, listReviews, watchUrlFor } from "../../src/lib/marketing-studio/publishing/video-review";
+import { getAngles } from "../../src/lib/marketing-studio/library-store";
 import { listProducts } from "../../src/lib/marketing-studio/repository";
 import { setSetting } from "../../src/lib/marketing-studio/runtime";
 import { INTERNAL_SCOPE } from "../../src/lib/marketing-studio/scope";
@@ -87,6 +88,12 @@ async function main() {
         rejected.push({ title: e.title, slug: e.slug, conflicts: gate.conflicts });
       }
       entries.push(e);
+    }
+    // Re-running this must never undo progress: an angle whose video is already in production, in review or public keeps its stored state.
+    const stored = await getAngles(db, p.slug);
+    for (let i = 0; i < entries.length; i++) {
+      const s = stored.find((x) => x.id === entries[i].id);
+      if (s && !entries[i].existing && ["in_production", "ready_for_review", "unlisted_review", "approved", "public"].includes(s.status)) entries[i] = s;
     }
     library[p.slug] = entries;
     // 4. the call-to-action link must be a real, reachable page on the product's own site

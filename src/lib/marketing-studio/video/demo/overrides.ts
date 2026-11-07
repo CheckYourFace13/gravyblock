@@ -19,14 +19,15 @@ export async function saveOverrides(db: StudioDb, actor: string, productId: stri
 }
 
 /** The fingerprint of a product's video as it would render now, with the owner's accepted edits applied. */
-export async function effectiveSpecHash(db: StudioDb, productId: string, slug: string): Promise<string> {
+export async function effectiveSpecHash(db: StudioDb, productId: string, specId: string): Promise<string> {
   const ov = await getOverrides(db, productId);
-  return specFingerprint(applyOverridesToSpec(demoSpecFor(slug), ov), { lexicon: ov.lexicon, pace: ov.paceFactor });
+  return specFingerprint(applyOverridesToSpec(demoSpecFor(specId), ov), { lexicon: ov.lexicon, pace: ov.paceFactor });
 }
 
 /** The spec with the owner's call-to-action edits applied. The end card, the on-screen button, the record and QA all follow the same wording and address. */
 export function applyOverridesToSpec(spec: DemoSpec, ov: VideoOverrides): DemoSpec {
-  if (!ov.ctaText && !ov.ctaUrl) return spec;
+  // A call-to-action edit belongs to the product's default video; the other angles keep their own call to action.
+  if ((!ov.ctaText && !ov.ctaUrl) || spec.angle) return spec;
   const text = ov.ctaText ?? spec.cta.text;
   const url = ov.ctaUrl ?? spec.cta.url;
   return {

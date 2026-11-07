@@ -32,11 +32,12 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
   const product = products.find((p) => p.id === job.productId);
   if (!product) return { status: "gone" };
   const slug = product.slug;
+  const specId = review.specId ?? slug;
 
   // 1. understand the note, once. A request that cannot be applied safely is blocked here and the owner is told why.
   let cur = job;
   if (!cur.understood) {
-    const spec = demoSpecFor(slug);
+    const spec = demoSpecFor(specId);
     const facts = (await listFacts(INTERNAL_SCOPE, product.id, db)).filter((f) => f.status === "current" && f.verifiedAt).map((f) => ({ key: f.factKey, value: f.factValue }));
     const productHost = product.publicUrl ? new URL(product.publicUrl).host.replace(/^www\./, "") : "";
     const current = await getOverrides(db, product.id);
@@ -56,7 +57,7 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
 
   // 2. render, QA, upload unlisted, supersede, email
   const deps: ReplacementDeps = {
-    currentSpecHash: (s) => effectiveSpecHash(db, product.id, s),
+    currentSpecHash: () => effectiveSpecHash(db, product.id, specId),
     slugFor: async () => slug,
     render: async () => {
       const demos = await db.select().from(ms.msVideos).where(and(eq(ms.msVideos.productId, product.id), sql`${ms.msVideos.storyboard}->>'kind' = 'demo'`, gte(ms.msVideos.createdAt, new Date(cur.queuedAt)))).orderBy(sql`${ms.msVideos.createdAt} desc`);
@@ -72,7 +73,7 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
         await db.update(ms.msVideos).set({ status: "queued", error: null }).where(eq(ms.msVideos.id, stuck.id));
         video = { ...stuck, status: "queued" };
       }
-      if (!video) video = await createDemoVideo(INTERNAL_SCOPE, "review-worker", product.id, db, { queue: false, replaceStale: true });
+      if (!video) video = await createDemoVideo(INTERNAL_SCOPE, "review-worker", product.id, db, { queue: false, replaceStale: true, specId });
       log(`rendering replacement video ${video.id}`);
       const r = await renderDemoVideoJob({ videoId: video.id }, INTERNAL_SCOPE, db);
       if (r.status !== "ready_for_review") return { ok: false as const, reason: `QA did not pass: ${r.failed.join("; ") || r.status}` };
@@ -83,7 +84,7 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
       const placement = embeds.find((e) => e.publicationId === prev.publicationId)?.recommendedPlacement;
       // the same copy as the version being replaced, with its tracked link turned back into the plain destination (a new publication gets its own tracking id)
       const description = prev.description.split(prev.ctaUrl).join(prev.ctaUrl.split("?")[0]);
-      const out = await prepareUnlistedReview(db, { slug, videoRowId, title: prev.title, description, intended: prev.intendedUse, placement, upload: true, log });
+      const out = await prepareUnlistedReview(db, { slug, specId, videoRowId, title: prev.title, description, intended: prev.intendedUse, placement, upload: true, log });
       if (!out.ok || !out.publicationId || !out.videoId) throw new Error(out.blocked ?? "the upload did not complete");
       return { publicationId: out.publicationId, videoId: out.videoId, emailed: Boolean(out.emailed) };
     },

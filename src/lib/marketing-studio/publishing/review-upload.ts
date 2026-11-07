@@ -24,6 +24,8 @@ const ACTOR = "video-review-operator";
 
 export type UploadOptions = {
   slug: string;
+  /** The demo script this video came from ("<slug>" or "<slug>:<angle>"); defaults to the product's own. */
+  specId?: string;
   shareFrom?: string;
   madeForKids?: "yes" | "no";
   title?: string;
@@ -153,7 +155,8 @@ export async function prepareUnlistedReview(db: StudioDb, o: UploadOptions): Pro
     ctaText: record.cta.text,
     ctaUrl: after.ctaUrl ?? record.cta.url,
     intendedUse: o.intended ?? "Organic YouTube Short, a website embed and a future paid video asset.",
-    specHash: await effectiveSpecHash(db, product.id, o.slug),
+    specHash: await effectiveSpecHash(db, product.id, o.specId ?? o.slug),
+    specId: o.specId ?? o.slug,
     ...(o.library ? { library: o.library } : {}),
   }, o.placement ?? "Near the top of the product's home page.");
   log("review state and website embed details stored");

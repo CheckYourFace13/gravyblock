@@ -159,6 +159,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
     kind: "demo",
     classification: "PRODUCT_DEMO",
     title: spec.title,
+    specId: spec.angle ? `${spec.slug}:${spec.angle}` : spec.slug,
     durationMs: timeline.durationMs,
     transcript: NARRATION.map((l) => ({ id: l.id, sceneId: l.sceneId, text: parseSpoken(l.spoken).words.join(" "), caption: l.caption ?? parseSpoken(l.spoken).words.join(" "), startMs: lineTimes[l.id].start, endMs: lineTimes[l.id].end })),
     scenes: sceneRows,
@@ -217,7 +218,7 @@ export async function renderDemoVideoJob(input: { videoId?: string }, scope: Own
   const dir = path.join(STUDIO_DIRS.tmp, `demo-${video.id}`);
   try {
     const t0 = Date.now();
-    const made = await produceDemo({ slug: product.slug, db, scope, workDir: dir, writeFacts: true });
+    const made = await produceDemo({ slug: (video.storyboard as { specId?: string } | null)?.specId ?? product.slug, db, scope, workDir: dir, writeFacts: true });
     const stored = await storeVideoFile(scope, "studio-worker", video.productId, made.file, { width: 1080, height: 1920, name: `${made.record.title}.mp4` }, db);
     const status = made.qa.passed ? "ready_for_review" : "qa_failed";
     await db

@@ -41,6 +41,8 @@ async function main() {
       const host = new URL(site.home).host.replace(/^www\./, "");
       const ctx = await handle.browser.newContext({ viewport: { width: 1280, height: 900 }, userAgent: "GravyBlockStudioProductTruth" });
       await ctx.route("**/*", (route) => (route.request().method() === "GET" ? route.continue() : route.abort()));
+      // the TypeScript runner wraps named functions in a helper the page does not have
+      await ctx.addInitScript("window.__name = function (f) { return f; };");
       const page = await ctx.newPage();
       const facts: Fact[] = [];
       let meta: { title: string; description: string; theme: string; icons: string[] } | null = null;

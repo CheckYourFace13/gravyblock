@@ -19,6 +19,7 @@ import { INTERNAL_SCOPE } from "@/lib/marketing-studio/scope";
 import { SIZE_KEYS, type SizeKey } from "@/lib/marketing-studio/creative/theme";
 import { renderDemoVideoJob } from "@/lib/marketing-studio/video/demo/run";
 import { runReviewReplacement } from "@/lib/marketing-studio/publishing/review-pipeline";
+import { runLibraryVideo } from "@/lib/marketing-studio/library-production";
 import { renderVideoJob, runBenchmarkJob } from "@/lib/marketing-studio/video/jobs";
 import { closeStudioDb, getStudioDb } from "@/lib/marketing-studio/db";
 import {
@@ -41,7 +42,7 @@ import { cleanupTmp, ensureStorageDirs, measureStudioUsage } from "@/lib/marketi
 const WORKER_ID = `marketing-${process.pid}-${randomUUID().slice(0, 8)}`;
 const JOB_TIMEOUT_MS = 60_000;
 /** Heavy jobs get a longer hard limit; at the limit the real child processes are killed, not just abandoned. */
-const HEAVY_TIMEOUT_MS: Record<string, number> = { render_creatives: 10 * 60_000, render_video: 15 * 60_000, render_demo_video: 30 * 60_000, benchmark_video: 20 * 60_000, review_replacement: 45 * 60_000 };
+const HEAVY_TIMEOUT_MS: Record<string, number> = { render_creatives: 10 * 60_000, render_video: 15 * 60_000, render_demo_video: 30 * 60_000, benchmark_video: 20 * 60_000, review_replacement: 45 * 60_000, library_video: 45 * 60_000 };
 const MAX_JOBS_PER_LOOP = 3;
 const LOG_FILE = path.join(STUDIO_DIRS.logs, "worker.log");
 const LOG_MAX_BYTES = 5 * 1024 * 1024;
@@ -106,6 +107,12 @@ async function runJob(job: Job): Promise<Record<string, unknown>> {
       const input = job.input as { publicationId?: string };
       if (!input.publicationId) throw new Error("review_replacement needs a publicationId");
       return { ...(await runReviewReplacement(getStudioDb()!, { publicationId: input.publicationId, attempt: job.attempts, maxAttempts: job.maxAttempts }, (m) => void log(m))) };
+    }
+    case "library_video": {
+      // One planned library video: duplicate gate, render, QA, upload UNLISTED, review email. Never publishes.
+      const input = job.input as { specId?: string };
+      if (!input.specId) throw new Error("library_video needs a specId");
+      return { ...(await runLibraryVideo(getStudioDb()!, { specId: input.specId, attempt: job.attempts, maxAttempts: job.maxAttempts }, (m) => void log(m))) };
     }
     case "benchmark_video":
       return { ...(await runBenchmarkJob(job.input as { targetSeconds?: number; label?: string })) };

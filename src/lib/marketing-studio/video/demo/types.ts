@@ -104,6 +104,8 @@ export type DemoRecord = {
   version: 2;
   kind: "demo";
   classification: "PRODUCT_DEMO";
+  /** which script made this video: "<slug>" or "<slug>:<angle>" */
+  specId?: string;
   title: string;
   durationMs: number;
   transcript: Array<{ id: string; sceneId: string; text: string; caption: string; startMs: number; endMs: number }>;
