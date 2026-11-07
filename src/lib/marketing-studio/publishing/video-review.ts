@@ -159,7 +159,7 @@ export async function getReview(db: StudioDb, publicationId: string): Promise<Re
 
 export async function listReviews(db: StudioDb): Promise<ReviewState[]> {
   const rows = await db.select().from(ms.msSettings).where(like(ms.msSettings.key, `${REVIEW_PREFIX}%`));
-  return rows.map((r) => r.value as ReviewState);
+  return rows.map((r) => r.value as ReviewState).filter((r) => r && typeof r.publicationId === "string" && typeof r.videoId === "string");
 }
 
 /** Stores the review state and the website embed details once the unlisted upload is verified. Supersedes any earlier version for the same product. */

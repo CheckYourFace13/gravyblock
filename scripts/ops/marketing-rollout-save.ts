@@ -1,7 +1,8 @@
 // Persists the rollout order, social strategy and paid-acquisition roadmap (spend disabled) in ms_settings. Idempotent. Creates, connects, spends and publishes nothing.
 //   runuser -u gbstudio -- tsx --env-file=/etc/gravyblock-marketing.env scripts/ops/marketing-rollout-save.ts
 import { audit } from "../../src/lib/marketing-studio/audit";
-import { closeStudioDb, requireStudioDb } from "../../src/lib/marketing-studio/db";
+import { eq } from "drizzle-orm";
+import { closeStudioDb, ms, requireStudioDb } from "../../src/lib/marketing-studio/db";
 import { ACQUISITION_QUEUE, GAME_ACQUISITION_PAUSE, GRAVYBLOCK_VIDEO_LIBRARY, ROLLOUT_PLAN, VIDEO_REVIEW_WORKFLOW } from "../../src/lib/marketing-studio/rollout";
 import { setSetting } from "../../src/lib/marketing-studio/runtime";
 
@@ -13,7 +14,9 @@ async function main() {
   await setSetting("paid_acquisition", { status: "roadmap_only", spendEnabled: false, totalApprovedBudgetCents: 0 }, ACTOR, db);
   await setSetting("acquisition_queue", { order: ACQUISITION_QUEUE, active: true, decidedAt: "2026-11-07" }, ACTOR, db);
   await setSetting(GAME_ACQUISITION_PAUSE.setting, true, ACTOR, db);
-  await setSetting("video_review_workflow", VIDEO_REVIEW_WORKFLOW, ACTOR, db);
+  await setSetting("video_workflow_default", VIDEO_REVIEW_WORKFLOW, ACTOR, db);
+  // an earlier key name collided with the per-publication review prefix
+  await db.delete(ms.msSettings).where(eq(ms.msSettings.key, "video_review_workflow"));
   await setSetting("video_library_gravyblock", GRAVYBLOCK_VIDEO_LIBRARY, ACTOR, db);
   await audit(db, { actor: ACTOR, action: "rollout.saved", entity: "setting", entityId: "rollout_plan", detail: { order: ROLLOUT_PLAN.order, paidSpendEnabled: false } });
   console.log(`rollout order saved (${ROLLOUT_PLAN.order.length} brands): ${ROLLOUT_PLAN.order.join(" > ")}\npaid acquisition: roadmap only, spend disabled, approved budget 0`);
