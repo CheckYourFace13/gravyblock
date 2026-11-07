@@ -68,6 +68,7 @@ async function main() {
     if (!p) throw new Error(`No Studio product ${auditSlug}`);
     const pubs = await db.select().from(ms.msPublications).where(and(eq(ms.msPublications.productId, p.id), eq(ms.msPublications.platform, "youtube")));
     const pub = pubs.find((x) => x.status === "published");
+    const expectPrivacy = arg("--expect-privacy") ?? "public";
     const checks: Check[] = [{ name: "exactly one YouTube publication exists for this product", ok: pubs.length === 1, detail: `${pubs.length} (${pubs.map((x) => `${x.id.slice(0, 8)} ${x.status}`).join(", ")})` }];
     if (pub && pub.externalPostId) {
       const conn = (await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.productId, p.id), eq(ms.msConnections.platform, "youtube")))).find((c) => usable(evaluateHealth(c)));
@@ -86,7 +87,7 @@ async function main() {
         { name: "live title equals stored approved title", ok: live.title === pub.title, detail: JSON.stringify(live.title) },
         { name: "live description equals stored approved description", ok: (live.description ?? "").trim() === want, detail: `${(live.description ?? "").length} chars` },
         { name: "live description holds the tracked URL", ok: Boolean(pub.ctaUrl) && (live.description ?? "").includes(pub.ctaUrl ?? "\0"), detail: pub.ctaUrl ?? "" },
-        { name: "visibility is public", ok: live.privacy === "public", detail: live.privacy ?? "unknown" },
+        { name: `visibility is ${expectPrivacy}`, ok: live.privacy === expectPrivacy, detail: live.privacy ?? "unknown" },
         { name: "made for kids is NO", ok: kidsLive === false, detail: `madeForKids ${live.madeForKids}, selfDeclared ${live.selfDeclaredMadeForKids}` },
         { name: "channel id is the pinned iScream Studio channel", ok: live.channelId === pinnedChannelId(), detail: live.channelId ?? "unknown" },
       );
