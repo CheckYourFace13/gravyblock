@@ -181,6 +181,28 @@ export async function createPublication(
   return { publication: row, duplicate: false };
 }
 
+/**
+ * Owner-written title and description for a publication that has not been sent. The link keeps the publication's own tracked URL
+ * (same campaign tags and id): the description may carry the plain call-to-action URL and it is swapped for the tagged one.
+ */
+export async function setPublicationCopy(scope: OwnerScope, actor: string, productId: string, id: string, copy: { title: string; description: string }, db: StudioDb = requireStudioDb()): Promise<Publication> {
+  const p = await load(db, scope, productId, id);
+  if (p.status !== "approval_required" && p.status !== "draft") throw new Error(`The copy of a ${p.status} publication cannot be changed`);
+  if (!p.ctaUrl) throw new Error("This publication has no tracked call-to-action link to keep");
+  const plain = p.ctaUrl.split("?")[0];
+  const caption = copy.description.trim().split(plain).join(p.ctaUrl);
+  const title = copy.title.trim();
+  const stray = foreignLinks(caption, new URL(plain).host);
+  if (stray.length) throw new Error(`The description links somewhere other than the product's own call to action: ${stray[0]}`);
+  if (!caption.includes(p.ctaUrl)) throw new Error("The description must contain the tracked call-to-action link");
+  const { info } = await mediaFor(db, { videoId: p.videoId }, productId);
+  const problems = validateForPlatform(p.platform, info, { caption, title, ctaUrl: p.ctaUrl });
+  if (problems.length) throw new Error(`Cannot use this copy for ${specFor(p.platform)?.label ?? p.platform}: ${problems.join("; ")}`);
+  const [row] = await db.update(ms.msPublications).set({ title, caption, formatted: formatPayload(p.platform, info, { caption, title }), updatedAt: new Date() }).where(eq(ms.msPublications.id, id)).returning();
+  await audit(db, { actor, action: "publication.copy_set", entity: "publication", entityId: id, productId, detail: { titleLength: title.length, captionLength: caption.length } });
+  return row;
+}
+
 async function load(db: StudioDb, scope: OwnerScope, productId: string, id: string): Promise<Publication> {
   await requireProduct(scope, productId, db);
   const [p] = await db.select().from(ms.msPublications).where(and(eq(ms.msPublications.id, id), eq(ms.msPublications.productId, productId))).limit(1);

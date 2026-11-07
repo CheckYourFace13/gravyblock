@@ -13,7 +13,7 @@ import { collectForPublication, currentMetrics } from "../../src/lib/marketing-s
 import { evaluateHealth, revokeAccount, usable } from "../../src/lib/marketing-studio/publishing/connections";
 import { firstPostProven, prePublishChecks, recordFirstPostProven, type Check } from "../../src/lib/marketing-studio/publishing/first-post";
 import { reverifyYoutubeConnection, youtubeCallbackUrl, YOUTUBE_FIRST, youtubeOAuthConfigured, youtubeTokensForCall, verifyYoutubeConnection } from "../../src/lib/marketing-studio/publishing/oauth-youtube";
-import { approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../../src/lib/marketing-studio/publishing/queue";
+import { approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, setPublicationCopy, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../../src/lib/marketing-studio/publishing/queue";
 import { verifyYoutubeVideo, YT_SCOPES } from "../../src/lib/marketing-studio/publishing/youtube-api";
 import { listProducts } from "../../src/lib/marketing-studio/repository";
 import { getSetting, setSetting } from "../../src/lib/marketing-studio/runtime";
@@ -141,6 +141,12 @@ async function main() {
     return;
   }
   const { publication, duplicate } = await createPublication(INTERNAL_SCOPE, ACTOR, target.id, { videoId: video.id, platform: "youtube", mode: "direct", connectionId: conn.id }, db);
+  const newTitle = arg("--title");
+  const newDescription = arg("--description");
+  if (newTitle && newDescription && publication.status !== "published") {
+    Object.assign(publication, await setPublicationCopy(INTERNAL_SCOPE, ACTOR, target.id, publication.id, { title: newTitle, description: newDescription.replace(/\\n/g, "\n") }, db));
+    console.log("owner-written title and description applied (tracked link kept)");
+  }
   const facts = (await db.select().from(ms.msProductFacts).where(eq(ms.msProductFacts.productId, target.id))).filter((f) => f.status === "current");
   const done = await db.select({ id: ms.msPublications.id }).from(ms.msPublications).where(and(eq(ms.msPublications.productId, target.id), eq(ms.msPublications.platform, "youtube"), eq(ms.msPublications.status, "published")));
   const checks = prePublishChecks({
