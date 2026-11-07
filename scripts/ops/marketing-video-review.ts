@@ -33,6 +33,14 @@ async function main() {
     for (const r of await listReviews(db)) console.log(`${r.productName}: ${r.status}  ${r.watchUrl}  publication ${r.publicationId}  emailed ${r.emailedAt ?? "no"}${r.publicAt ? `  public ${r.publicAt}` : ""}`);
     return;
   }
+  const collect = arg("--collect");
+  if (collect) {
+    const [pub] = await db.select().from(ms.msPublications).where(eq(ms.msPublications.id, collect)).limit(1);
+    if (!pub) throw new Error("No such publication");
+    const col = await collectForPublication(INTERNAL_SCOPE, ACTOR, pub.productId, pub.id, undefined, db);
+    console.log(col.collected ? "measurement snapshot stored" : `not collected: ${col.reason}`);
+    return;
+  }
   const resend = arg("--resend-email");
   if (resend) {
     console.log("owner email:", JSON.stringify(await requestOwnerEmail(resend)));

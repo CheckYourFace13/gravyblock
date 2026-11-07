@@ -11,6 +11,7 @@ import { StudioAccessError, type OwnerScope } from "../scope";
 import { requireProduct } from "../repository";
 import type { Deps } from "../publishing/adapters";
 import { evaluateHealth, tokensForPublish, usable } from "../publishing/connections";
+import { connectionAllowedFor } from "../publishing/youtube-share";
 import { youtubeTokensForCall } from "../publishing/oauth-youtube";
 import { collectYoutubeCounts } from "../publishing/youtube-api";
 import { collectFacebookMetrics } from "./facebook-insights";
@@ -37,12 +38,14 @@ export async function collectForPublication(scope: OwnerScope, actor: string, pr
   if (!p) throw new StudioAccessError();
   if (p.status !== "published" || !p.externalPostId) return { collected: false, reason: "only a published post has measurements", unknownMetrics: [] };
   if (p.platform !== "facebook" && p.platform !== "youtube") return { collected: false, reason: `${p.platform} measurement is not available until direct publishing for it is approved`, unknownMetrics: [] };
-  const [conn] = p.connectionId ? await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.id, p.connectionId), eq(ms.msConnections.productId, productId))).limit(1) : [];
+  const [connRow] = p.connectionId ? await db.select().from(ms.msConnections).where(eq(ms.msConnections.id, p.connectionId)).limit(1) : [];
+  // the product's own connection, or the shared iScream Studio channel connection the owner allowed it to use
+  const conn = connRow && (await connectionAllowedFor(db, connRow, productId)) ? connRow : undefined;
   if (!conn) return { collected: false, reason: "no connection", unknownMetrics: [] };
   const h = evaluateHealth(conn);
   if (!usable(h)) return { collected: false, reason: `connection is ${h}`, unknownMetrics: [] };
   if (p.platform === "youtube") {
-    const t = await youtubeTokensForCall(scope, actor, productId, conn.id, deps, db);
+    const t = await youtubeTokensForCall(scope, actor, conn.productId, conn.id, deps, db);
     const yt = await collectYoutubeCounts({ videoId: p.externalPostId, accessToken: t.accessToken }, deps);
     if (yt.authFailure) await db.update(ms.msConnections).set({ healthStatus: "error", status: "error", healthDetail: "YouTube rejected the token while collecting metrics." }).where(eq(ms.msConnections.id, conn.id));
     const why = yt.detail[0] ?? "not reported by YouTube";
