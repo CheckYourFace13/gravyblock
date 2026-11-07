@@ -180,8 +180,8 @@ export const youtubeAdapter: Adapter = {
 
 type VideoItem = {
   id?: string;
-  snippet?: { channelId?: string; title?: string };
-  status?: { uploadStatus?: string; privacyStatus?: string; failureReason?: string; rejectionReason?: string };
+  snippet?: { channelId?: string; title?: string; description?: string };
+  status?: { uploadStatus?: string; privacyStatus?: string; failureReason?: string; rejectionReason?: string; madeForKids?: boolean; selfDeclaredMadeForKids?: boolean };
   statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
 };
 
@@ -212,7 +212,19 @@ export async function verifyYoutubeVideo(input: { videoId: string; channelId: st
   return { live: problems.length === 0, permalink: `https://www.youtube.com/watch?v=${input.videoId}`, privacy, uploadStatus, onExpectedChannel, reason: problems.length ? problems.join("; ") : undefined };
 }
 
-export type YoutubeCounts = { views: number | null; likes: number | null; comments: number | null; exists: boolean; authFailure: boolean; detail: string[] };
+export type YoutubeLiveMetadata = { exists: boolean; channelId: string | null; title: string | null; description: string | null; privacy: string | null; madeForKids: boolean | null; selfDeclaredMadeForKids: boolean | null; reason?: string };
+
+/** Read-only: the video's live title, description, channel, visibility and made-for-kids flags exactly as YouTube holds them. */
+export async function fetchYoutubeLiveMetadata(input: { videoId: string; accessToken: string }, deps: Deps): Promise<YoutubeLiveMetadata> {
+  const none = { channelId: null, title: null, description: null, privacy: null, madeForKids: null, selfDeclaredMadeForKids: null };
+  const r = await listVideo(deps.fetch, input.videoId, input.accessToken);
+  if (!r.ok) return { exists: false, ...none, reason: r.reason };
+  if (!r.item) return { exists: false, ...none, reason: "YouTube does not list a video with that id" };
+  const s = r.item.status;
+  return { exists: true, channelId: r.item.snippet?.channelId ?? null, title: r.item.snippet?.title ?? null, description: r.item.snippet?.description ?? null, privacy: s?.privacyStatus ?? null, madeForKids: s?.madeForKids ?? null, selfDeclaredMadeForKids: s?.selfDeclaredMadeForKids ?? null };
+}
+
+export type YoutubeCounts ={ views: number | null; likes: number | null; comments: number | null; exists: boolean; authFailure: boolean; detail: string[] };
 
 /** Public counts for one uploaded video. A count YouTube withholds (for example hidden likes) is null, never zero. */
 export async function collectYoutubeCounts(input: { videoId: string; accessToken: string }, deps: Deps): Promise<YoutubeCounts> {

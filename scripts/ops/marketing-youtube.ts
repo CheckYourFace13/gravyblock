@@ -12,9 +12,9 @@ import { closeStudioDb, ms, requireStudioDb } from "../../src/lib/marketing-stud
 import { collectForPublication, currentMetrics } from "../../src/lib/marketing-studio/measurement/collect";
 import { evaluateHealth, revokeAccount, usable } from "../../src/lib/marketing-studio/publishing/connections";
 import { firstPostProven, prePublishChecks, recordFirstPostProven, type Check } from "../../src/lib/marketing-studio/publishing/first-post";
-import { reverifyYoutubeConnection, youtubeCallbackUrl, YOUTUBE_FIRST, youtubeOAuthConfigured, youtubeTokensForCall, verifyYoutubeConnection } from "../../src/lib/marketing-studio/publishing/oauth-youtube";
+import { pinnedChannelId, reverifyYoutubeConnection, youtubeCallbackUrl, YOUTUBE_FIRST, youtubeOAuthConfigured, youtubeTokensForCall, verifyYoutubeConnection } from "../../src/lib/marketing-studio/publishing/oauth-youtube";
 import { approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, setPublicationCopy, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../../src/lib/marketing-studio/publishing/queue";
-import { verifyYoutubeVideo, YT_SCOPES } from "../../src/lib/marketing-studio/publishing/youtube-api";
+import { fetchYoutubeLiveMetadata, verifyYoutubeVideo, YT_SCOPES } from "../../src/lib/marketing-studio/publishing/youtube-api";
 import { listProducts } from "../../src/lib/marketing-studio/repository";
 import { getSetting, setSetting } from "../../src/lib/marketing-studio/runtime";
 import { INTERNAL_SCOPE } from "../../src/lib/marketing-studio/scope";
@@ -59,6 +59,44 @@ async function main() {
     const left = await db.select({ label: ms.msConnections.accountLabel, ext: ms.msConnections.externalAccountId, status: ms.msConnections.status, health: ms.msConnections.healthStatus }).from(ms.msConnections).where(eq(ms.msConnections.platform, "youtube"));
     console.log(`YouTube connections now: ${left.length}`);
     left.forEach((c) => console.log(`  ${c.label} ${c.ext} status ${c.status} health ${c.health}`));
+  }
+
+  const auditSlug = arg("--audit-live");
+  if (auditSlug) {
+    // Read-only audit of an uploaded video: live YouTube metadata against what was approved, and what the application stored. Changes nothing.
+    const p = products.find((x) => x.slug === auditSlug);
+    if (!p) throw new Error(`No Studio product ${auditSlug}`);
+    const pubs = await db.select().from(ms.msPublications).where(and(eq(ms.msPublications.productId, p.id), eq(ms.msPublications.platform, "youtube")));
+    const pub = pubs.find((x) => x.status === "published");
+    const checks: Check[] = [{ name: "exactly one YouTube publication exists for this product", ok: pubs.length === 1, detail: `${pubs.length} (${pubs.map((x) => `${x.id.slice(0, 8)} ${x.status}`).join(", ")})` }];
+    if (pub && pub.externalPostId) {
+      const conn = (await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.productId, p.id), eq(ms.msConnections.platform, "youtube")))).find((c) => usable(evaluateHealth(c)));
+      if (!conn) throw new Error("No healthy YouTube connection to read with");
+      const t = await youtubeTokensForCall(INTERNAL_SCOPE, ACTOR, p.id, conn.id, { fetch }, db);
+      const live = await fetchYoutubeLiveMetadata({ videoId: pub.externalPostId, accessToken: t.accessToken }, { fetch });
+      const cur = await currentMetrics(db, pub.id);
+      const want = (pub.caption ?? "").trim();
+      const kidsLive = live.selfDeclaredMadeForKids ?? live.madeForKids;
+      checks.push(
+        { name: "stored as published", ok: pub.status === "published", detail: pub.status },
+        { name: "external video id stored", ok: Boolean(pub.externalPostId), detail: pub.externalPostId },
+        { name: "external url stored", ok: Boolean(pub.externalUrl), detail: pub.externalUrl ?? "missing" },
+        { name: "first measurement snapshot stored", ok: cur.snapshots >= 1, detail: `${cur.snapshots} snapshot(s)` },
+        { name: "video exists on YouTube", ok: live.exists, detail: live.reason ?? "" },
+        { name: "live title equals stored approved title", ok: live.title === pub.title, detail: JSON.stringify(live.title) },
+        { name: "live description equals stored approved description", ok: (live.description ?? "").trim() === want, detail: `${(live.description ?? "").length} chars` },
+        { name: "live description holds the tracked URL", ok: Boolean(pub.ctaUrl) && (live.description ?? "").includes(pub.ctaUrl ?? "\0"), detail: pub.ctaUrl ?? "" },
+        { name: "visibility is public", ok: live.privacy === "public", detail: live.privacy ?? "unknown" },
+        { name: "made for kids is NO", ok: kidsLive === false, detail: `madeForKids ${live.madeForKids}, selfDeclared ${live.selfDeclaredMadeForKids}` },
+        { name: "channel id is the pinned iScream Studio channel", ok: live.channelId === pinnedChannelId(), detail: live.channelId ?? "unknown" },
+      );
+      console.log(`\nLIVE TITLE: ${live.title}\nLIVE DESCRIPTION:\n${live.description}`);
+    } else checks.push({ name: "a published publication with an external id exists", ok: false, detail: "none" });
+    console.log("\nLIVE AUDIT (read-only)");
+    show(checks);
+    console.log(checks.every((c) => c.ok) ? "AUDIT PASSED" : "AUDIT FAILED");
+    if (!checks.every((c) => c.ok)) process.exitCode = 10;
+    return;
   }
 
   const select = arg("--select");
