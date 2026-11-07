@@ -32,7 +32,7 @@ describe("video review workflow", () => {
     assert.ok(at("<img") < at(links.approve) && at(links.approve) < at(links.changes), "thumbnail first, then approve, then request changes");
     for (const detail of ["Duration", "CTA destination", "Intended use", "Proposed public title", "Proposed public description"]) assert.ok(at(links.changes) < at(detail), `${detail} comes after the buttons`);
     assert.ok(m.html.includes("APPROVE &amp; MAKE PUBLIC") && m.html.includes("REQUEST CHANGES"));
-    assert.ok(m.html.includes("/api/video-review/thumb/ABCdef12345"), "the thumbnail is a normal image on our own host, with a play button drawn in");
+    assert.ok(m.html.includes("/api/video-review/thumb/ABCdef12345?v=2"), "the thumbnail is a normal image on our own host, with a play button drawn in");
     assert.ok(!/<iframe|<video/i.test(m.html), "no player is embedded in email");
     assert.ok(m.html.indexOf(`href="${state.watchUrl}"`) < at(links.approve), "the thumbnail links to the unlisted video");
     // plain-text version keeps the same order

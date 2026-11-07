@@ -114,7 +114,7 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 export const siteBase = () => (process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com").replace(/\/$/, "");
 export const reviewPageUrl = (publicationId: string) => `${siteBase()}/admin/marketing-studio/video-review/${publicationId}`;
 export const reviewLinkUrl = (token: string) => `${siteBase()}/video-review/${token}`;
-export const thumbUrlFor = (videoId: string) => `${siteBase()}/api/video-review/thumb/${videoId}`;
+export const thumbUrlFor = (videoId: string) => `${siteBase()}/api/video-review/thumb/${videoId}?v=2`;
 
 export type ReviewLinks = { approve: string; changes: string };
 

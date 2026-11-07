@@ -30,18 +30,20 @@ export async function GET(_req: Request, ctx: { params: Promise<{ videoId: strin
   const { videoId } = await ctx.params;
   if (!/^[A-Za-z0-9_-]{11}$/.test(videoId) || !(await isReviewedVideo(requireStudioDb(), videoId))) return notFoundResponse();
   const src = await frame(videoId);
-  let base: sharp.Sharp;
+  const card = { create: { width: W, height: H, channels: 3 as const, background: { r: 12, g: 12, b: 18 } } };
+  let base: Buffer;
   if (src) {
     const meta = await sharp(src).metadata();
     const sw = meta.width ?? 1280;
     const sh = meta.height ?? 720;
-    // A Short is a 9:16 picture centered in a 16:9 frame with black bars: keep only the picture.
+    // A Short is a 9:16 picture centered in a 16:9 frame: keep only the picture and center it on the dark card.
     const cw = Math.min(sw, Math.round((sh * 9) / 16));
-    const picture = await sharp(src).extract({ left: Math.round((sw - cw) / 2), top: 0, width: cw, height: sh }).resize({ height: H, fit: "cover" }).jpeg({ quality: 88 }).toBuffer();
-    base = sharp({ create: { width: W, height: H, channels: 3, background: { r: 12, g: 12, b: 18 } } }).composite([{ input: picture, gravity: "center" }]);
+    const picture = await sharp(src).extract({ left: Math.round((sw - cw) / 2), top: 0, width: cw, height: sh }).resize({ height: H }).jpeg({ quality: 88 }).toBuffer();
+    // composite() replaces any earlier composite list on the same pipeline, so the picture is rendered to a buffer before the play button goes on.
+    base = await sharp(card).composite([{ input: picture, gravity: "center" }]).jpeg({ quality: 88 }).toBuffer();
   } else {
-    base = sharp({ create: { width: W, height: H, channels: 3, background: { r: 12, g: 12, b: 18 } } });
+    base = await sharp(card).jpeg().toBuffer();
   }
-  const out = await base.composite([{ input: play, top: 0, left: 0 }]).jpeg({ quality: 85 }).toBuffer();
+  const out = await sharp(base).composite([{ input: play, top: 0, left: 0 }]).jpeg({ quality: 85 }).toBuffer();
   return new Response(new Uint8Array(out), { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=3600" } });
 }
