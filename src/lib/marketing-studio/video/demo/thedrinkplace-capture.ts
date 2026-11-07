@@ -33,6 +33,26 @@ async function cardAround(page: Page, anchorText: string, needle: string): Promi
   return [round(r[0]), round(r[1]), round(r[2]), round(r[3])];
 }
 
+/** Box of the smallest element inside a rectangle whose text starts with `prefix`. */
+async function rectInside(page: Page, within: Rect, prefix: string): Promise<Rect> {
+  const r = await page.evaluate(
+    ({ within, prefix }) => {
+      const els = [...document.querySelectorAll("main *")].filter((e) => {
+        const b = e.getBoundingClientRect();
+        const y = b.y + window.scrollY;
+        return (e.textContent || "").trim().startsWith(prefix) && y >= within[1] - 2 && y + b.height <= within[1] + within[3] + 2 && b.width > 0;
+      });
+      const e = els.sort((a, b) => (a.textContent || "").length - (b.textContent || "").length)[0];
+      if (!e) return null;
+      const b = e.getBoundingClientRect();
+      return [b.x, b.y + window.scrollY, b.width, b.height];
+    },
+    { within, prefix },
+  );
+  if (!r) throw new Error(`capture: no "${prefix}" line inside the venue card`);
+  return [round(r[0]), round(r[1]), round(r[2]), round(r[3])];
+}
+
 export async function captureTheDrinkPlacePlates(outDir: string, logoFile: string): Promise<Manifest> {
   await mkdir(outDir, { recursive: true });
   const handle = await launchBrowser();
@@ -93,7 +113,7 @@ export async function captureTheDrinkPlacePlates(outDir: string, logoFile: strin
       const qb = await q.boundingBox();
       if (!qb) throw new Error("capture: search box not found");
       const sy = await page.evaluate(() => window.scrollY);
-      const y0 = Math.max(0, Math.round(qb.y + sy - 150));
+      const y0 = Math.max(0, Math.round(qb.y + sy - 110));
       const h = 900;
       const states: PlateManifest["states"] = {};
       states.s0 = { file: await shot(`${id}-s0.jpg`, { y: y0, h }), label: "Search page as it opens" };
@@ -105,7 +125,8 @@ export async function captureTheDrinkPlacePlates(outDir: string, logoFile: strin
       await page.waitForURL(/\/search\?/, { timeout: 30_000 });
       await page.waitForLoadState("networkidle");
       await page.addStyleTag({ content: "*{animation:none !important;transition:none !important}" });
-      await page.waitForTimeout(500);
+      await page.waitForFunction(() => /\b(Drinks|Products|Brands)\b/.test(document.querySelector("main")?.innerText ?? ""), undefined, { timeout: 30_000 });
+      await page.waitForTimeout(900);
       states.results = { file: await shot(`${id}-results.jpg`, { y: y0, h }), label: `Results for ${query}`, result: await mainText() };
       const extra = await rectsFor(y0);
       await plate(id, `/search?q=${encodeURIComponent(query)}`, h, states, { input: inputRect, ...extra });
@@ -140,7 +161,7 @@ export async function captureTheDrinkPlacePlates(outDir: string, logoFile: strin
       const head = await rectByText(page, "Find near you", { maxExtra: 3 });
       const note = await rectByText(page, "A place listed here is a sourced menu observation", { maxExtra: 200 });
       const venue = await cardAround(page, "View place", "Source:");
-      const source = await rectByText(page, "Source:", { maxExtra: 80 });
+      const source = await rectInside(page, venue, "Source:");
       const y0 = Math.max(0, Math.round(head[1] - 60));
       const h = Math.round(venue[1] + venue[3] + 50 - y0);
       const o = off(y0);

@@ -44,7 +44,7 @@ export const TDP_ON_SCREEN: Array<{ sceneId: string; kind: "headline" | "label" 
   { sceneId: "search1", kind: "label", text: "Related cocktails", claim: "c-search" },
   { sceneId: "search2", kind: "headline", text: "Or a bottle?", claim: "c-bottle" },
   { sceneId: "search2", kind: "label", text: "Product and brand", claim: "c-bottle" },
-  { sceneId: "drink", kind: "headline", text: "What it is, how to make it", claim: "c-drink" },
+  { sceneId: "drink", kind: "headline", text: "What's in it?", claim: "c-drink" },
   { sceneId: "drink", kind: "label", text: "Ingredients", claim: "c-drink" },
   { sceneId: "where", kind: "headline", text: "Seen on a menu", claim: "c-where" },
   { sceneId: "where", kind: "label", text: "Source and date", claim: "c-where" },
@@ -161,7 +161,7 @@ export function tdpBuildTimeline(manifest: Manifest, lt: Record<string, LineTime
       { from: tWhat - 100, to: tIng - 350, rect: P.rects.what },
       { from: tIng - 150, to: E - 250, rect: P.rects.ingredients, label: "Ingredients" },
     ];
-    scenes.push({ id: "drink", kind: "screen", start: S, end: win.drink.e, plate: "drink", states: [{ at: 0, state: "s0" }], camera, spots, headline: { text: "What it is, how to make it", from: 60, to: Math.max(1500, tWhat - 100) } });
+    scenes.push({ id: "drink", kind: "screen", start: S, end: win.drink.e, plate: "drink", states: [{ at: 0, state: "s0" }], camera, spots, headline: { text: "What's in it?", from: 60, to: Math.max(1500, tWhat - 100) } });
   }
 
   // ---- where it was seen ----
