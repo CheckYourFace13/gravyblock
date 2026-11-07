@@ -6,7 +6,8 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { StudioDb } from "../db";
-import { buildReviewEmail, getReview, markEmailed, OWNER_REVIEW_EMAIL, siteBase } from "./video-review";
+import { signReviewToken } from "./review-token";
+import { buildReviewEmail, getReview, markEmailed, OWNER_REVIEW_EMAIL, reviewLinkUrl, siteBase } from "./video-review";
 
 const WINDOW_MS = 5 * 60_000;
 const sign = (key: string, publicationId: string, ts: string) => createHmac("sha256", key).update(`review-notify.${ts}.${publicationId}`).digest("hex");
@@ -30,7 +31,9 @@ export async function sendReviewEmail(db: StudioDb, publicationId: string, fetch
   if (r.status !== "unlisted_live") return { sent: false, reason: `the video is ${r.status}, not waiting for review` };
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { sent: false, reason: "mail is not configured on the app" };
-  const mail = buildReviewEmail(r);
+  const key = process.env.MARKETING_SECRET_KEY;
+  if (!key) return { sent: false, reason: "no Studio secret on the app" };
+  const mail = buildReviewEmail(r, { approve: reviewLinkUrl(signReviewToken(publicationId, "approve", key)), changes: reviewLinkUrl(signReviewToken(publicationId, "changes", key)) });
   const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
   const res = await fetchFn("https://api.resend.com/emails", {
     method: "POST",

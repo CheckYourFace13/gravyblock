@@ -2,6 +2,7 @@ import "./setup";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { signedNotifyHeaders, verifyNotifySignature } from "../publishing/review-notify";
+import { signReviewToken, TOKEN_TTL_MS, verifyReviewToken } from "../publishing/review-token";
 import { buildReviewEmail, embedFor, OWNER_REVIEW_EMAIL, reviewUploadChecks, type ReviewState } from "../publishing/video-review";
 import { setYoutubeVisibility } from "../publishing/youtube-api";
 
@@ -23,11 +24,43 @@ const state: ReviewState = {
 };
 
 describe("video review workflow", () => {
-  test("the owner email carries every required field, the review link and both actions, and is addressed to the owner only", () => {
-    const m = buildReviewEmail(state);
-    for (const need of [state.productName, state.title, state.watchUrl, "33.1 seconds", state.ctaUrl, "Start free", state.description.split("\n")[0], state.intendedUse, "action=approve", "action=changes", "UNLISTED"]) assert.ok(m.text.includes(need) || m.html.includes(need), `missing ${need}`);
+  test("the owner email puts the video, the plain link and both decision buttons before any detail, and is addressed to the owner only", () => {
+    const links = { approve: "https://gravyblock.com/video-review/APPROVE_TOKEN", changes: "https://gravyblock.com/video-review/CHANGES_TOKEN" };
+    const m = buildReviewEmail(state, links);
+    const at = (needle: string) => m.html.indexOf(needle);
+    assert.ok(at("<img") > 0 && at(state.watchUrl) > 0 && at(links.approve) > 0 && at(links.changes) > 0);
+    assert.ok(at("<img") < at(links.approve) && at(links.approve) < at(links.changes), "thumbnail first, then approve, then request changes");
+    for (const detail of ["Duration", "CTA destination", "Intended use", "Proposed public title", "Proposed public description"]) assert.ok(at(links.changes) < at(detail), `${detail} comes after the buttons`);
+    assert.ok(m.html.includes("APPROVE &amp; MAKE PUBLIC") && m.html.includes("REQUEST CHANGES"));
+    assert.ok(m.html.includes("/api/video-review/thumb/ABCdef12345"), "the thumbnail is a normal image on our own host, with a play button drawn in");
+    assert.ok(!/<iframe|<video/i.test(m.html), "no player is embedded in email");
+    assert.ok(m.html.indexOf(`href="${state.watchUrl}"`) < at(links.approve), "the thumbnail links to the unlisted video");
+    // plain-text version keeps the same order
+    const tx = (needle: string) => m.text.indexOf(needle);
+    assert.ok(tx(state.watchUrl) < tx(links.approve) && tx(links.approve) < tx("Duration"));
+    for (const need of [state.productName, state.title, "33.1 seconds", state.ctaUrl, state.intendedUse, state.description.split("\n")[0]]) assert.ok(m.text.includes(need), `missing ${need}`);
     assert.match(OWNER_REVIEW_EMAIL, /@gravyblock\.com$/);
     assert.ok(!m.html.includes(OWNER_REVIEW_EMAIL) && !m.text.includes(OWNER_REVIEW_EMAIL), "the owner address is never inside the message");
+  });
+
+  test("review tokens are bound to one publication and one decision, expire, and cannot be forged", () => {
+    const key = "token-key";
+    const now = 1_800_000_000_000;
+    const a = signReviewToken("pub-1", "approve", key, now);
+    const ok = verifyReviewToken(a, key, now + 1000);
+    assert.ok(ok.ok && ok.claims.p === "pub-1" && ok.claims.a === "approve");
+    const c = signReviewToken("pub-1", "changes", key, now);
+    const cc = verifyReviewToken(c, key, now + 1000);
+    assert.ok(cc.ok && cc.claims.a === "changes");
+    assert.notEqual(a, signReviewToken("pub-1", "approve", key, now), "every token has its own id");
+    assert.deepEqual(verifyReviewToken(a, key, now + TOKEN_TTL_MS + 1), { ok: false, reason: "expired" });
+    assert.deepEqual(verifyReviewToken(a, "other-key", now + 1000), { ok: false, reason: "invalid" });
+    assert.deepEqual(verifyReviewToken(`${a}x`, key, now + 1000), { ok: false, reason: "invalid" });
+    const [payload, sig] = a.split(".");
+    const forged = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(payload, "base64url").toString()), a: "changes" })).toString("base64url");
+    assert.deepEqual(verifyReviewToken(`${forged}.${sig}`, key, now + 1000), { ok: false, reason: "invalid" }, "changing the decision breaks the signature");
+    assert.deepEqual(verifyReviewToken("", key), { ok: false, reason: "invalid" });
+    assert.deepEqual(verifyReviewToken(a, undefined), { ok: false, reason: "invalid" });
   });
 
   test("website embeds use the privacy-enhanced youtube-nocookie domain and escape the title", () => {

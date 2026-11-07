@@ -26,7 +26,12 @@ export const embedKey = (productId: string) => `video_embed_${productId}`;
 export const REVIEW_PREFIX = "video_review_";
 
 export type ReviewStatus = "unlisted_live" | "changes_requested" | "approved_pending_public" | "approved_public" | "superseded";
+export type ReviewEvent = "EMAIL_SENT" | "VIEWED" | "APPROVED" | "CHANGES_REQUESTED" | "REPLACEMENT_RENDERING" | "REPLACEMENT_READY" | "PUBLIC" | "FAILED";
 export type ReviewState = {
+  /** Every step of the review is recorded here. An email being SENT is never an owner decision. */
+  events?: Array<{ at: string; event: ReviewEvent; detail?: string }>;
+  /** Fingerprint of the script this video was made from, so a replacement is only rendered once something actually changed. */
+  specHash?: string;
   status: ReviewStatus;
   publicationId: string;
   productId: string;
@@ -108,25 +113,31 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 export const siteBase = () => (process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com").replace(/\/$/, "");
 export const reviewPageUrl = (publicationId: string) => `${siteBase()}/admin/marketing-studio/video-review/${publicationId}`;
+export const reviewLinkUrl = (token: string) => `${siteBase()}/video-review/${token}`;
+export const thumbUrlFor = (videoId: string) => `${siteBase()}/api/video-review/thumb/${videoId}`;
 
-/** The owner email: everything needed to decide without opening Marketing Studio, plus the approve and request-changes actions. */
-export function buildReviewEmail(r: ReviewState): { subject: string; html: string; text: string } {
-  const page = reviewPageUrl(r.publicationId);
-  const approve = `${page}?action=approve`;
-  const changes = `${page}?action=changes`;
+export type ReviewLinks = { approve: string; changes: string };
+
+/**
+ * The owner email. Order: product and title, the video thumbnail with a play button (links to the unlisted video), the plain link, the two decision
+ * buttons, and only then the details. A YouTube player is never embedded (email clients do not run one); the thumbnail is a normal image that links out.
+ */
+export function buildReviewEmail(r: ReviewState, links: ReviewLinks): { subject: string; html: string; text: string } {
   const dur = r.durationSec ? `${r.durationSec.toFixed(1)} seconds` : "unknown";
-  const subject = `Video ready for review: ${r.productName}, ${r.title}`.slice(0, 150);
+  const subject = `Review: ${r.productName}, ${r.title}`.slice(0, 150);
   const rows: Array<[string, string]> = [
-    ["Product", r.productName],
-    ["Video title (as proposed for public)", r.title],
     ["Duration", dur],
     ["CTA destination", `${r.ctaText} -> ${r.ctaUrl}`],
     ["Intended use", r.intendedUse],
   ];
   const text = [
-    `A ${r.productName} video is live on YouTube as UNLISTED and verified. Nothing is public yet.`,
+    `${r.productName}: ${r.title}`,
     "",
-    `Watch it: ${r.watchUrl}`,
+    `Watch (unlisted): ${r.watchUrl}`,
+    "",
+    `APPROVE AND MAKE PUBLIC: ${links.approve}`,
+    `REQUEST CHANGES: ${links.changes}`,
+    "",
     ...rows.map(([k, v]) => `${k}: ${v}`),
     "",
     "Proposed public title:",
@@ -135,21 +146,21 @@ export function buildReviewEmail(r: ReviewState): { subject: string; html: strin
     "Proposed public description:",
     r.description,
     "",
-    `Approve and make public (same video, same link): ${approve}`,
-    `Request changes: ${changes}`,
-    "",
-    "Unlisted means anyone with the link can watch; it stays out of channel pages, search and recommendations until you approve.",
+    "The video is UNLISTED: anyone with the link can watch it, and it stays out of channel pages, search and recommendations until you approve. Approving switches this same video to public.",
   ].join("\n");
-  const btn = (href: string, label: string, bg: string) => `<a href="${esc(href)}" style="display:inline-block;padding:10px 18px;border-radius:999px;background:${bg};color:#fff;text-decoration:none;font-weight:600;margin-right:8px">${esc(label)}</a>`;
-  const html = `<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:620px;color:#18181b;line-height:1.5">
-<h2 style="margin:0 0 4px">Video ready for review</h2>
-<p style="margin:0 0 14px;color:#52525b">${esc(r.productName)} is live on YouTube as <b>UNLISTED</b> and verified. Nothing is public yet.</p>
-<p style="margin:0 0 14px"><a href="${esc(r.watchUrl)}" style="font-size:16px;font-weight:600">Watch the video on YouTube</a><br><span style="color:#71717a;font-size:13px">${esc(r.watchUrl)}</span></p>
-<table style="border-collapse:collapse;width:100%;font-size:14px">${rows.map(([k, v]) => `<tr><td style="padding:6px 10px 6px 0;color:#71717a;vertical-align:top;white-space:nowrap">${esc(k)}</td><td style="padding:6px 0">${esc(v)}</td></tr>`).join("")}</table>
+  const button = (href: string, label: string, bg: string) =>
+    `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 12px"><tr><td align="center" bgcolor="${bg}" style="border-radius:12px"><a href="${esc(href)}" style="display:block;padding:18px 12px;font-size:18px;font-weight:700;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif">${esc(label)}</a></td></tr></table>`;
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;color:#18181b;line-height:1.5">
+<p style="margin:0 0 2px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:#71717a">${esc(r.productName)}</p>
+<h1 style="margin:0 0 14px;font-size:22px;line-height:1.25">${esc(r.title)}</h1>
+<a href="${esc(r.watchUrl)}" style="display:block;text-decoration:none"><img src="${esc(thumbUrlFor(r.videoId))}" alt="Play the video: ${esc(r.title)}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border-radius:12px;border:0"></a>
+<p style="margin:10px 0 18px;font-size:14px;word-break:break-all"><a href="${esc(r.watchUrl)}" style="color:#2563eb">${esc(r.watchUrl)}</a></p>
+${button(links.approve, "APPROVE & MAKE PUBLIC", "#15803d")}
+${button(links.changes, "REQUEST CHANGES", "#3f3f46")}
+<table style="border-collapse:collapse;width:100%;font-size:14px;margin-top:22px">${rows.map(([k, v]) => `<tr><td style="padding:6px 12px 6px 0;color:#71717a;vertical-align:top;white-space:nowrap">${esc(k)}</td><td style="padding:6px 0">${esc(v)}</td></tr>`).join("")}</table>
 <h3 style="margin:18px 0 4px;font-size:14px">Proposed public title</h3><p style="margin:0">${esc(r.title)}</p>
 <h3 style="margin:14px 0 4px;font-size:14px">Proposed public description</h3><p style="margin:0;white-space:pre-wrap;background:#f4f4f5;padding:10px 12px;border-radius:8px;font-size:13px">${esc(r.description)}</p>
-<p style="margin:20px 0 8px">${btn(approve, "Approve and make public", "#16a34a")}${btn(changes, "Request changes", "#52525b")}</p>
-<p style="margin:0;color:#71717a;font-size:12px">Approving switches this same video from unlisted to public (same link, no re-upload). Both buttons open a confirmation page behind your admin sign-in. Unlisted means anyone with the link can watch, and the video stays out of channel pages, search and recommendations until you approve.</p></div>`;
+<p style="margin:18px 0 0;color:#71717a;font-size:12px">The video is unlisted: anyone with the link can watch it, and it stays out of channel pages, search and recommendations until you approve. Approving switches this same video to public, with no re-upload.</p></div>`;
   return { subject, html, text };
 }
 
@@ -163,7 +174,7 @@ export async function listReviews(db: StudioDb): Promise<ReviewState[]> {
 }
 
 /** Stores the review state and the website embed details once the unlisted upload is verified. Supersedes any earlier version for the same product. */
-export async function recordUnlistedReview(db: StudioDb, actor: string, r: Omit<ReviewState, "status" | "watchUrl" | "uploadedAt">, placement: string): Promise<ReviewState> {
+export async function recordUnlistedReview(db: StudioDb, actor: string, r: Omit<ReviewState, "status" | "watchUrl" | "uploadedAt" | "events">, placement: string): Promise<ReviewState> {
   const state: ReviewState = { ...r, status: "unlisted_live", watchUrl: watchUrlFor(r.videoId), uploadedAt: new Date().toISOString() };
   for (const old of await listReviews(db)) {
     if (old.productId === r.productId && old.publicationId !== r.publicationId && (old.status === "unlisted_live" || old.status === "changes_requested")) {
@@ -180,10 +191,17 @@ export async function recordUnlistedReview(db: StudioDb, actor: string, r: Omit<
   return state;
 }
 
+/** Appends a step to the review's history. */
+export async function trackEvent(db: StudioDb, actor: string, publicationId: string, event: ReviewEvent, detail?: string): Promise<void> {
+  const r = await getReview(db, publicationId);
+  if (!r) return;
+  await setSetting(reviewKey(publicationId), { ...r, events: [...(r.events ?? []), { at: new Date().toISOString(), event, ...(detail ? { detail: detail.slice(0, 300) } : {}) }] }, actor, db, { audited: false });
+}
+
 export async function markEmailed(db: StudioDb, actor: string, publicationId: string): Promise<void> {
   const r = await getReview(db, publicationId);
   if (!r) return;
-  await setSetting(reviewKey(publicationId), { ...r, emailedAt: new Date().toISOString() }, actor, db, { audited: false });
+  await setSetting(reviewKey(publicationId), { ...r, emailedAt: new Date().toISOString(), events: [...(r.events ?? []), { at: new Date().toISOString(), event: "EMAIL_SENT" as const }] }, actor, db, { audited: false });
   await audit(db, { actor, action: "video_review.emailed", entity: "publication", entityId: publicationId, productId: r.productId, detail: { to: "owner" } });
 }
 
@@ -207,6 +225,7 @@ export async function approveReview(scope: OwnerScope, actor: string, publicatio
   let state: ReviewState = { ...r, status: "approved_pending_public", approvedAt, ...(note ? { approvalNote: note.slice(0, 500) } : {}) };
   await setSetting(reviewKey(publicationId), state, actor, db, { audited: false });
   await audit(db, { actor, action: "video_review.approved", entity: "publication", entityId: publicationId, productId: r.productId, detail: { videoId: r.videoId } });
+  if (!r.approvedAt) await trackEvent(db, actor, publicationId, "APPROVED");
   if (!((conn.scopes as string[]) ?? []).includes(YT_SCOPE_MANAGE)) throw new NeedsVisibilityScopeError("Approval recorded, but the video is still unlisted: this YouTube connection was authorized before the permission to change visibility existed. Re-authorize the channel once (Connect with YouTube) or switch the video to Public in YouTube Studio, then approve again.");
   const t = await youtubeTokensForCall(scope, actor, conn.productId, conn.id, deps, db);
   const res = await setYoutubeVisibility({ videoId: r.videoId, accessToken: t.accessToken, privacy: "public" }, deps);
@@ -216,12 +235,13 @@ export async function approveReview(scope: OwnerScope, actor: string, publicatio
   }
   const v = await verifyYoutubeVideo({ videoId: r.videoId, channelId: conn.externalAccountId ?? "", accessToken: t.accessToken, requirePublic: true }, deps);
   if (!v.live) throw new Error(`Visibility was changed but YouTube does not confirm it as public: ${v.reason ?? "unknown"}. Check the video.`);
-  state = { ...state, status: "approved_public", publicAt: new Date().toISOString() };
+  const fresh = (await getReview(db, publicationId)) ?? state;
+  state = { ...fresh, status: "approved_public", publicAt: new Date().toISOString(), events: [...(fresh.events ?? []), { at: new Date().toISOString(), event: "PUBLIC" as const }] };
   await setSetting(reviewKey(publicationId), state, actor, db, { audited: false });
   const entries = await getSetting<EmbedEntry[]>(embedKey(r.productId), [], db);
   await setSetting(embedKey(r.productId), entries.map((e) => (e.publicationId === publicationId ? { ...e, visibility: "public" as const } : e)), actor, db, { audited: false });
   await audit(db, { actor, action: "video_review.made_public", entity: "publication", entityId: publicationId, productId: r.productId, detail: { videoId: r.videoId, sameVideoId: true } });
-  await collectForPublication(scope, actor, r.productId, publicationId, undefined, db).catch(() => undefined);
+  await collectForPublication(scope, actor, r.productId, publicationId, deps, db).catch(() => undefined);
   return state;
 }
 
@@ -232,7 +252,7 @@ export async function requestChanges(actor: string, publicationId: string, note:
   if (r.status === "approved_public") throw new Error("This video is already public; request changes by making a new version.");
   const clean = note.trim().slice(0, 1000);
   if (!clean) throw new Error("Say what should change, so the replacement can be made.");
-  const state: ReviewState = { ...r, status: "changes_requested", changesNote: clean, changesRequestedAt: new Date().toISOString() };
+  const state: ReviewState = { ...r, status: "changes_requested", changesNote: clean, changesRequestedAt: new Date().toISOString(), events: [...(r.events ?? []), { at: new Date().toISOString(), event: "CHANGES_REQUESTED" as const, detail: clean.slice(0, 200) }] };
   await setSetting(reviewKey(publicationId), state, actor, db, { audited: false });
   await audit(db, { actor, action: "video_review.changes_requested", entity: "publication", entityId: publicationId, productId: r.productId, detail: { note: clean } });
   return state;

@@ -11,13 +11,14 @@ import { PLATE_CSS_W, TRANSITION_MS, type CameraKey, type Claim, type CursorKey,
 export const SF_TITLE = "SendFable: stuck on what to write? Pick a goal and send";
 export const SF_CTA = { text: "Start free", url: "https://sendfable.com/signup", display: "sendfable.com" };
 
+/** The voice says the name as two words ("Send Fable"); every caption and the end card keep the written brand exactly: SendFable. */
 export const SF_NARRATION: NarrationLine[] = [
   { id: "L1", sceneId: "goals", spoken: "Staring at a blank email?", claims: ["c-goals"] },
-  { id: "L2", sceneId: "goals", spoken: "Pick a goal, like {promo}promoting a sale or {back}bringing customers back, and SendFable suggests the template and the subject line.", claims: ["c-goals"] },
+  { id: "L2", sceneId: "goals", spoken: "Pick a goal, like {promo}promoting a sale or {back}bringing customers back, and Send Fable suggests the template and the subject line.", caption: "Pick a goal, like promoting a sale or bringing customers back, and SendFable suggests the template and the subject line.", claims: ["c-goals"] },
   { id: "L3", sceneId: "scribe", spoken: "Or let {scribe}Scribe turn your website updates into a ready draft. {none}Nothing sends until you say so.", claims: ["c-scribe"] },
   { id: "L4", sceneId: "builder", spoken: "Build it with simple blocks, check the {mob}phone preview, and {sc}Send Confidence flags problems, like a missing unsubscribe link.", claims: ["c-builder"] },
   { id: "L5", sceneId: "pricing", spoken: "Start free: {c}five hundred contacts, {e}a thousand emails a month.", caption: "Start free: 500 contacts, 1,000 emails a month.", claims: ["c-free"] },
-  { id: "L6", sceneId: "end", spoken: "Email and text, without the headache. Start free at sendfable dot com.", caption: "Email and text, without the headache. Start free at sendfable.com.", claims: ["c-cta"] },
+  { id: "L6", sceneId: "end", spoken: "Email and text, without the headache. Start free at send fable dot com.", caption: "Email and text, without the headache. Start free at sendfable.com.", claims: ["c-cta"] },
 ];
 
 export const SF_CLAIMS: Claim[] = [

@@ -1,0 +1,85 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { studioEnabledByEnv } from "@/lib/marketing-studio/config";
+import { requireStudioDb } from "@/lib/marketing-studio/db";
+import { openReview } from "@/lib/marketing-studio/publishing/review-flow";
+import { thumbUrlFor, watchUrlFor } from "@/lib/marketing-studio/publishing/video-review";
+import { ApproveClient } from "./approve-client";
+import { SuccessCard } from "./success-card";
+
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Video review", robots: { index: false, follow: false } };
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return <main className="mx-auto min-h-screen max-w-xl bg-zinc-50 px-4 py-8 text-zinc-900">{children}</main>;
+}
+function Note({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Shell>
+      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <h1 className="text-xl font-bold">{title}</h1>
+        <p className="mt-2 text-sm text-zinc-700">{children}</p>
+      </section>
+    </Shell>
+  );
+}
+
+/**
+ * The page behind the email buttons. Opening it only reads (and opens a short-lived transaction): the approval itself is a protected POST made by the page.
+ * It needs no dashboard sign-in, so a reviewer can act straight from the email.
+ */
+export default async function VideoReviewPage({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ e?: string }> }) {
+  if (!studioEnabledByEnv()) notFound();
+  const { token } = await params;
+  const { e } = await searchParams;
+  const r = await openReview(requireStudioDb(), token, process.env.MARKETING_SECRET_KEY);
+  if (r.kind === "invalid") return <Note title="This review link is not valid">Open the link from your most recent review email.</Note>;
+  if (r.kind === "expired") return <Note title="This review link has expired">Review links last 14 days. Ask for a fresh review email, or sign in to the dashboard.</Note>;
+  if (r.kind === "stale") return <Note title="This version is no longer waiting for a decision">It was replaced by a newer version or already handled. Use the link in your latest review email.</Note>;
+  if (r.kind === "approved") {
+    return (
+      <Shell>
+        <SuccessCard view={r.view} />
+      </Shell>
+    );
+  }
+  if (r.kind === "changes_received") {
+    return <Note title="Change request received">Your note was saved. The video stays unlisted while a corrected version is made, checked and uploaded, and you will get a new review email with the new link.</Note>;
+  }
+  const s = r.state;
+  if (r.kind === "approve_ready") {
+    return (
+      <Shell>
+        <ApproveClient token={token} txn={r.txn} productName={s.productName} title={s.title} thumbUrl={thumbUrlFor(s.videoId)} watchUrl={watchUrlFor(s.videoId)} />
+      </Shell>
+    );
+  }
+  return (
+    <Shell>
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{s.productName}</p>
+        <h1 className="mt-1 text-xl font-bold">{s.title}</h1>
+        <a href={watchUrlFor(s.videoId)} target="_blank" rel="noreferrer" className="mt-4 block overflow-hidden rounded-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={thumbUrlFor(s.videoId)} alt="Play the video" className="block w-full" />
+        </a>
+        <p className="mt-2 break-all text-sm">
+          <a className="text-blue-700 underline" href={watchUrlFor(s.videoId)} target="_blank" rel="noreferrer">
+            {watchUrlFor(s.videoId)}
+          </a>
+        </p>
+        {e ? <p className="mt-3 rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900">{e}</p> : null}
+        <form action="/api/video-review/changes" method="post" className="mt-5 space-y-3">
+          <input type="hidden" name="token" value={token} />
+          <input type="hidden" name="txn" value={r.txn} />
+          <label htmlFor="note" className="block text-base font-semibold">
+            What should we change?
+          </label>
+          <textarea id="note" name="note" required rows={6} maxLength={2000} autoFocus placeholder="Describe exactly what is wrong or what to change." className="w-full rounded-xl border border-zinc-300 p-3 text-base" />
+          <button className="w-full rounded-xl bg-zinc-900 px-5 py-3.5 text-base font-bold text-white">Submit request</button>
+          <p className="text-xs text-zinc-500">The video stays unlisted while it is corrected. You will get a new review email with the new link.</p>
+        </form>
+      </section>
+    </Shell>
+  );
+}
