@@ -16,6 +16,7 @@ import { pinnedChannelId, reverifyYoutubeConnection, youtubeCallbackUrl, YOUTUBE
 import { approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, setPublicationCopy, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../../src/lib/marketing-studio/publishing/queue";
 import { fetchYoutubeLiveMetadata, verifyYoutubeVideo, YT_SCOPES } from "../../src/lib/marketing-studio/publishing/youtube-api";
 import { youtubeConnectionFor } from "../../src/lib/marketing-studio/publishing/youtube-share";
+import { listReviews } from "../../src/lib/marketing-studio/publishing/video-review";
 import { listProducts } from "../../src/lib/marketing-studio/repository";
 import { getSetting, setSetting } from "../../src/lib/marketing-studio/runtime";
 import { INTERNAL_SCOPE } from "../../src/lib/marketing-studio/scope";
