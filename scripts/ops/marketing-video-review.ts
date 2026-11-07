@@ -13,7 +13,9 @@ import { verifyYoutubeConnection, YOUTUBE_FIRST, youtubeTokensForCall } from "..
 import { approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, setPublicationCopy, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../../src/lib/marketing-studio/publishing/queue";
 import { requestOwnerEmail } from "../../src/lib/marketing-studio/publishing/review-notify";
 import { listReviews, recordUnlistedReview, reviewUploadChecks, type Check } from "../../src/lib/marketing-studio/publishing/video-review";
-import { verifyYoutubeVideo } from "../../src/lib/marketing-studio/publishing/youtube-api";
+
+import { evaluateHealth } from "../../src/lib/marketing-studio/publishing/connections";
+import { fetchYoutubeLiveMetadata, setYoutubeVisibility, verifyYoutubeVideo } from "../../src/lib/marketing-studio/publishing/youtube-api";
 import { shareYoutubeConnection, youtubeConnectionFor, connectionAllowedFor } from "../../src/lib/marketing-studio/publishing/youtube-share";
 import { listProducts } from "../../src/lib/marketing-studio/repository";
 import { getSetting, setSetting } from "../../src/lib/marketing-studio/runtime";
@@ -31,6 +33,28 @@ async function main() {
   const db = requireStudioDb();
   if (args.includes("--status")) {
     for (const r of await listReviews(db)) console.log(`${r.productName}: ${r.status}  ${r.watchUrl}  publication ${r.publicationId}  emailed ${r.emailedAt ?? "no"}${r.publicAt ? `  public ${r.publicAt}` : ""}`);
+    return;
+  }
+  const testVis = arg("--test-visibility");
+  if (testVis) {
+    // Proves the visibility permission WITHOUT changing anything: the video is sent back its own current visibility, then re-read to confirm it did not move.
+    const p0 = (await listProducts(INTERNAL_SCOPE, db)).find((p) => p.slug === testVis);
+    if (!p0) throw new Error(`${testVis} is not a Studio product`);
+    const rev = (await listReviews(db)).filter((r) => r.productId === p0.id && r.status !== "superseded").at(-1);
+    if (!rev) throw new Error("No review video for that product");
+    const c0 = await youtubeConnectionFor(db, p0.id);
+    if (!c0) throw new Error("No healthy YouTube connection");
+    const scopes = ((c0.scopes as string[]) ?? []).map((x) => x.split("/").pop());
+    console.log(`connection ${c0.id} (${c0.accountLabel}) health ${evaluateHealth(c0)}; stored permissions: ${scopes.join(", ")}`);
+    const t0 = await youtubeTokensForCall(INTERNAL_SCOPE, ACTOR, c0.productId, c0.id, { fetch }, db);
+    console.log("refresh token works: an access token was issued");
+    const before = await fetchYoutubeLiveMetadata({ videoId: rev.videoId, accessToken: t0.accessToken }, { fetch });
+    if (!before.exists || !before.privacy) throw new Error(`Could not read the video: ${before.reason ?? "unknown"}`);
+    const r0 = await setYoutubeVisibility({ videoId: rev.videoId, accessToken: t0.accessToken, privacy: before.privacy as "public" | "unlisted" | "private" }, { fetch });
+    const after = await fetchYoutubeLiveMetadata({ videoId: rev.videoId, accessToken: t0.accessToken }, { fetch });
+    console.log(`visibility-change capability: ${r0.ok ? "PASS" : `FAIL (${r0.reason}${r0.needsScope ? "; the channel still needs the visibility permission" : ""})`}`);
+    console.log(`video ${rev.videoId} visibility before ${before.privacy}, after ${after.privacy}: ${before.privacy === after.privacy ? "unchanged" : "CHANGED"}`);
+    if (!r0.ok || before.privacy !== after.privacy) process.exitCode = 11;
     return;
   }
   const collect = arg("--collect");

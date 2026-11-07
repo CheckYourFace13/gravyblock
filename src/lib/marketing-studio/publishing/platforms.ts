@@ -82,7 +82,7 @@ export const PLATFORM_SPECS: Record<Platform, PlatformSpec> = {
     media: { image: null, video: { aspects: VERTICAL, maxSeconds: 60, note: "Shorts are vertical video. Marketing Studio keeps them at 60 seconds or less." } },
     direct: "available_with_healthy_connection",
     accountRequirements: ["A YouTube channel the connecting Google account owns or manages; the channel is chosen at Google consent and verified by id, never inferred", "youtube.readonly alongside youtube.upload: upload alone cannot identify the channel or confirm the uploaded video"],
-    auth: { type: "oauth2", requiredScopes: ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"], allowedScopes: ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"] },
+    auth: { type: "oauth2", requiredScopes: ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"], allowedScopes: ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly", "https://www.googleapis.com/auth/youtube"] },
     rateLimit: { max24h: null, ourCap24h: 3, note: "Default quota is reported as 10,000 units per day with about 1,600 per upload, so roughly 6 uploads a day (VERIFY). Do not create extra Cloud projects to multiply quota." },
     approvalNote: "No platform review blocks public uploads: Google lifted the private-only restriction on unverified API projects on 2 November 2026 (YouTube Data API revision history). Uploads still follow the YouTube API Services Terms; the owner declares made-for-kids and the visibility per product.",
     caption: { max: 5000, titleMax: 100 },

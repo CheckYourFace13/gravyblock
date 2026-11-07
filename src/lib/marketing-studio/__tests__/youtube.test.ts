@@ -238,6 +238,24 @@ describe("YouTube connection, storage, queue gates and measurement (database)", 
     assert.ok(!JSON.stringify(await db().select().from(ms.msAuditEvents)).includes(REFRESH), "tokens never reach the audit trail");
   });
 
+  test("re-authorizing the same channel updates the existing connection in place (same row id) and requires the visibility permission", async () => {
+    const p = await product("Reauth Game");
+    await completeYoutubeOAuth(INTERNAL_SCOPE, "admin", { productId: p, code: "c1", expectedChannel: "iscreamstudio" }, { fetch: google().f });
+    const [before] = await connections(p);
+    await assert.rejects(completeYoutubeOAuth(INTERNAL_SCOPE, "admin", { productId: p, code: "c2", expectedChannel: "iscreamstudio" }, { fetch: google().f }), /change a video's visibility/);
+    const [untouched] = await connections(p);
+    assert.equal(untouched.secretCiphertext, before.secretCiphertext, "a grant without the visibility permission leaves the connection exactly as it was");
+    const NEW_REFRESH = "1//new-refresh-token-dddddddd";
+    const out = await completeYoutubeOAuth(INTERNAL_SCOPE, "admin", { productId: p, code: "c3", expectedChannel: "iscreamstudio" }, { fetch: google({ grant: { scope: `${GRANT_SCOPES} ${YT_SCOPE_MANAGE}`, refresh_token: NEW_REFRESH } }).f });
+    const rows = await connections(p);
+    assert.equal(rows.length, 1, "no second connection row");
+    assert.equal(rows[0].id, before.id);
+    assert.equal(out.connectionId, before.id);
+    assert.ok((rows[0].scopes as string[]).includes(YT_SCOPE_MANAGE));
+    assert.equal(rows[0].healthStatus, "ok");
+    assert.equal((JSON.parse(decryptSecret(rows[0].secretCiphertext, rows[0].keyId)) as TokenBundle).refreshToken, NEW_REFRESH);
+  });
+
   test("OAuth completion refuses, and stores nothing, for the wrong channel, no channel, several channels, missing scopes or no refresh token", async () => {
     const p = await product("Refuse Game");
     const cases: Array<[string, Parameters<typeof google>[0], string, RegExp]> = [

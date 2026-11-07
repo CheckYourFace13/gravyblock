@@ -145,6 +145,19 @@ export async function completeYoutubeOAuth(scope: OwnerScope, actor: string, inp
   if (!channelMatches(ch, input.expectedChannel)) throw new Error(`The channel you authorized is "${ch.title}"${ch.handle ? ` (${ch.handle})` : ""}, not the expected "${input.expectedChannel}". GravyBlock will not use it. Nothing was connected.`);
 
   const tokens: TokenBundle = { accessToken: g.accessToken, refreshToken: g.refreshToken, accessExpiresAt: Date.now() + g.expiresInSec * 1000 };
+  const conn = db ?? requireStudioDb();
+  const [existing] = await conn.select().from(ms.msConnections).where(and(eq(ms.msConnections.productId, input.productId), eq(ms.msConnections.platform, "youtube"), eq(ms.msConnections.externalAccountId, ch.id))).limit(1);
+  if (existing && existing.status !== "revoked") {
+    // Re-authorization of the SAME channel updates the existing connection in place: same row id, so every share, publication and measurement link stays intact.
+    if (!g.scopes.includes(YT_SCOPE_MANAGE)) throw new Error("The new authorization did not include the permission to change a video's visibility (it was unticked on Google's screen). The existing connection was left exactly as it was.");
+    const enc = encryptSecret(JSON.stringify(tokens));
+    await conn
+      .update(ms.msConnections)
+      .set({ secretCiphertext: enc.ciphertext, keyId: enc.keyId, scopes: [YT_SCOPE_UPLOAD, YT_SCOPE_READ, YT_SCOPE_MANAGE], accountLabel: channelLabel(ch), status: "connected", healthStatus: "ok", healthDetail: null, lastCheckedAt: new Date(), authorizedBy: actor })
+      .where(eq(ms.msConnections.id, existing.id));
+    await audit(conn, { actor, action: "connection.reauthorize", entity: "connection", entityId: existing.id, productId: input.productId, detail: { platform: "youtube", channelId: ch.id, visibilityPermission: true } });
+    return { connectionId: existing.id, channelId: ch.id, channelTitle: ch.title, channelHandle: ch.handle, grantedScopes: g.scopes.filter((s) => (YT_SCOPES as readonly string[]).includes(s) || s === YT_SCOPE_MANAGE) };
+  }
   // Only the declared scopes are recorded. The connection has no calendar expiry: the refresh token renews the access token as needed.
   const summary = await connectAccount(scope, actor, input.productId, { platform: "youtube", accountLabel: channelLabel(ch), externalAccountId: ch.id, tokens, scopes: [YT_SCOPE_UPLOAD, YT_SCOPE_READ, ...(g.scopes.includes(YT_SCOPE_MANAGE) ? [YT_SCOPE_MANAGE] : [])], tokenExpiresAt: null }, db);
   return { connectionId: summary.id, channelId: ch.id, channelTitle: ch.title, channelHandle: ch.handle, grantedScopes: g.scopes.filter((s) => (YT_SCOPES as readonly string[]).includes(s) || s === YT_SCOPE_MANAGE) };
