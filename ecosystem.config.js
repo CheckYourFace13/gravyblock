@@ -54,15 +54,16 @@ module.exports = {
     {
       // Marketing Studio worker: a separate process from the web app and from the growth worker above. It runs in its own
       // systemd cgroup scope at the lowest CPU and IO priority, so a runaway job is killed by the kernel before it can
-      // starve GravyBlock, RentalNoodle, TheDrinkPlace or PostgreSQL. The limits below are PROVISIONAL placeholders for
-      // Phase 1 (which runs no heavy work); Phase 2 replaces them with values chosen from a measured benchmark.
+      // starve GravyBlock, RentalNoodle, TheDrinkPlace or PostgreSQL. The limits below were raised from the Phase 1 placeholders
+      // (640M/768M, 50% CPU) so this one process can run the owner-review replacement render (about 1.5 GB at its peak, measured). One heavy job at a time and the
+      // host resource governor still decide when a render may start; the scope ceiling stays well under the host's free memory.
       // It runs as the unprivileged `gbstudio` user and reads ONLY /etc/gravyblock-marketing.env (the four MARKETING_* values), never the
       // main .env, so it holds no Stripe, email or GravyBlock database credentials. If that user or file is not provisioned it idles.
       name: "gravyblock-marketing-worker",
       script: "bash",
       args: [
         "-c",
-        "if id gbstudio >/dev/null 2>&1 && [ -f /etc/gravyblock-marketing.env ]; then exec systemd-run --scope --quiet --collect -p MemoryHigh=640M -p MemoryMax=768M -p CPUQuota=50% -p TasksMax=128 /usr/sbin/runuser -u gbstudio -- /usr/bin/nice -n 19 /usr/bin/ionice -c 3 /home/deploy/gravyblock/node_modules/.bin/tsx --env-file=/etc/gravyblock-marketing.env src/worker/marketing.ts; fi; echo 'marketing worker not provisioned (no gbstudio user or env file): standby'; exec sleep infinity",
+        "if id gbstudio >/dev/null 2>&1 && [ -f /etc/gravyblock-marketing.env ]; then exec systemd-run --scope --quiet --collect -p MemoryHigh=1800M -p MemoryMax=2G -p CPUQuota=100% -p TasksMax=256 /usr/sbin/runuser -u gbstudio -- /usr/bin/nice -n 19 /usr/bin/ionice -c 3 /home/deploy/gravyblock/node_modules/.bin/tsx --env-file=/etc/gravyblock-marketing.env src/worker/marketing.ts; fi; echo 'marketing worker not provisioned (no gbstudio user or env file): standby'; exec sleep infinity",
       ],
       cwd: "/home/deploy/gravyblock",
       instances: 1,

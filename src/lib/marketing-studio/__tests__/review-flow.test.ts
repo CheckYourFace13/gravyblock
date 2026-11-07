@@ -2,13 +2,14 @@ import "./setup";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, before, describe, test } from "node:test";
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { closeStudioDb, ms, requireStudioDb } from "../db";
 import { createProduct } from "../repository";
 import { INTERNAL_SCOPE } from "../scope";
 import { connectAccount } from "../publishing/connections";
 import { isReviewedVideo, openReview, submitApproval, submitChanges } from "../publishing/review-flow";
 import { listJobs, runReplacementJob, type ReplacementDeps } from "../publishing/review-replacement";
+import { claimNext, reapExpired } from "../runtime";
 import { signReviewToken, TOKEN_TTL_MS } from "../publishing/review-token";
 import { getReview, recordUnlistedReview, trackEvent } from "../publishing/video-review";
 import { YT_SCOPE_MANAGE, YT_SCOPE_READ, YT_SCOPE_UPLOAD } from "../publishing/youtube-api";
@@ -165,54 +166,106 @@ describe("owner review flow: one click, scanner safe, replacement loop (database
     assert.equal((await openReview(db(), signReviewToken(r.pub.id, "approve", KEY), KEY)).kind, "stale");
   });
 
-  test("the replacement waits for the script to change, then renders, uploads a NEW unlisted video, supersedes the old one and emails a new link", async () => {
-    const r = await reviewed("Replace video");
+  /** Submits a request-changes note the way the email link does, and returns the job record. */
+  async function requestChange(r: Awaited<ReturnType<typeof reviewed>>, note: string) {
     const token = signReviewToken(r.pub.id, "changes", KEY);
     const opened = await openReview(db(), token, KEY);
-    await submitChanges(db(), { token, txn: opened.kind === "changes_form" ? opened.txn : "", note: "Fix the pronunciation." }, KEY);
-    const calls = { renders: 0, uploads: 0, emails: 0 };
-    let hash = "hash-1";
+    const txn = opened.kind === "changes_form" ? opened.txn : "";
+    const out = await submitChanges(db(), { token, txn, note }, KEY);
+    assert.ok(out.ok, JSON.stringify(out));
+    return { token, txn, job: (await listJobs(db())).find((j) => j.id === r.pub.id)! };
+  }
+  const queued = async (pubId: string) => db().select().from(ms.msMediaJobs).where(like(ms.msMediaJobs.dedupeKey, `review_replacement:${pubId}:%`));
+
+  test("submitting a change request enqueues exactly one worker job at once; resubmitting cannot create a second replacement", async () => {
+    const r = await reviewed("Queue video");
+    const { token, txn } = await requestChange(r, "The voice is slightly too fast.");
+    const rows = await queued(r.pub.id);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].kind, "review_replacement");
+    assert.equal(rows[0].weight, "heavy", "a render is a heavy job: the worker's resource governor and one-heavy-at-a-time rule apply");
+    assert.equal(rows[0].status, "queued");
+    // the same form posted again (double click, back button, retry) and a reopened link leave one job
+    await submitChanges(db(), { token, txn, note: "The voice is slightly too fast." }, KEY);
+    const again = await openReview(db(), token, KEY);
+    assert.equal(again.kind, "changes_received");
+    assert.equal((await queued(r.pub.id)).length, 1);
+    assert.equal((await listJobs(db())).filter((j) => j.id === r.pub.id).length, 1);
+  });
+
+  test("queued work is durable: a job whose worker died is requeued with its attempts kept", async () => {
+    const r = await reviewed("Durable video");
+    await requestChange(r, "The voice is slightly too fast.");
+    // the worker claims it (the same update claimNext performs), then dies without finishing: its lease runs out
+    const [mine] = await queued(r.pub.id);
+    await db().update(ms.msMediaJobs).set({ status: "running", lockedBy: "worker-that-will-die", lockedUntil: new Date(Date.now() - 60_000), attempts: 1 }).where(eq(ms.msMediaJobs.id, mine.id));
+    assert.ok((await reapExpired(db())) >= 1);
+    const [row] = await db().select().from(ms.msMediaJobs).where(eq(ms.msMediaJobs.id, mine.id));
+    assert.equal(row.status, "queued", "after a restart the work is still there");
+    assert.equal(row.attempts, 1, "and the attempt count survives");
+    assert.ok(await claimNext("replacement-worker", { allowHeavy: true }, db()), "and the worker can claim queued heavy work again");
+    assert.equal((await queued(r.pub.id)).length, 1);
+  });
+
+  const fakeDeps = (over: Partial<ReplacementDeps> = {}) => {
+    const calls = { renders: 0, uploads: 0 };
     const deps: ReplacementDeps = {
-      currentSpecHash: () => hash,
+      currentSpecHash: () => "hash-2",
       slugFor: async () => "review-product",
-      render: async () => {
-        calls.renders++;
-        return { ok: true, videoRowId: randomUUID() };
-      },
-      upload: async ({ old }) => {
+      render: async () => (calls.renders++, { ok: true as const, videoRowId: randomUUID() }),
+      upload: async () => {
         calls.uploads++;
-        const fresh = await reviewed("Replacement of Replace video");
-        calls.emails++; // the real upload ends by emailing the owner the new link
-        return { publicationId: fresh.pub.id, videoId: fresh.videoId, emailed: old.videoId !== fresh.videoId };
+        const fresh = await reviewed("Replacement video");
+        return { publicationId: fresh.pub.id, videoId: fresh.videoId, emailed: true };
       },
+      ...over,
     };
-    const job = (await listJobs(db())).find((j) => j.id === r.pub.id)!;
-    const waiting = await runReplacementJob(db(), job, (await getReview(db(), r.pub.id))!, deps);
-    assert.equal(waiting.status, "awaiting_edit", "the same script would only reproduce the flaw");
-    assert.equal(calls.renders, 0);
-    hash = "hash-2"; // the script was corrected
-    const finished = await runReplacementJob(db(), waiting, (await getReview(db(), r.pub.id))!, deps);
-    assert.equal(finished.status, "done");
-    assert.deepEqual([calls.renders, calls.uploads, calls.emails], [1, 1, 1]);
-    assert.ok(finished.newVideoId && finished.newVideoId !== r.videoId, "the replacement is a different YouTube video");
+    return { deps, calls };
+  };
+
+  test("the replacement renders, uploads a NEW unlisted video, leaves the old one superseded and unlisted, and reports the new review email", async () => {
+    const r = await reviewed("Replace video");
+    const { job } = await requestChange(r, "The voice is slightly too fast.");
+    const yt = fakeYoutube(r.videoId, r.channel);
+    const { deps, calls } = fakeDeps();
+    const out = await runReplacementJob(db(), job, (await getReview(db(), r.pub.id))!, deps, { final: false });
+    assert.equal(out.job.status, "done");
+    assert.deepEqual([calls.renders, calls.uploads], [1, 1]);
+    assert.ok(out.job.newVideoId && out.job.newVideoId !== r.videoId, "a different YouTube video");
+    assert.match(out.job.detail ?? "", /review email sent/i);
+    assert.equal(yt.state.privacy, "unlisted", "the flawed version was never made public");
+    assert.equal(yt.state.puts, 0);
     const events = (await getReview(db(), r.pub.id))?.events?.map((e) => e.event) ?? [];
-    assert.ok(events.includes("REPLACEMENT_RENDERING") && events.includes("REPLACEMENT_READY"));
-    // finishing again does nothing
-    assert.equal((await runReplacementJob(db(), finished, (await getReview(db(), r.pub.id))!, deps)).status, "done");
+    assert.ok(events.includes("CHANGES_REQUESTED") && events.includes("REPLACEMENT_RENDERING") && events.includes("REPLACEMENT_READY"));
+    // running it again changes nothing
+    const again = await runReplacementJob(db(), out.job, (await getReview(db(), r.pub.id))!, deps, { final: false });
+    assert.equal(again.job.status, "done");
     assert.equal(calls.renders, 1);
   });
 
-  test("a failed render is recorded as FAILED and nothing is uploaded", async () => {
+  test("a change that alters nothing is not rendered again: it ends as NEEDS ATTENTION and nothing is uploaded", async () => {
+    const r = await reviewed("Unchanged video");
+    const { job } = await requestChange(r, "The voice is slightly too fast.");
+    const { deps, calls } = fakeDeps({ currentSpecHash: () => "hash-1" });
+    const out = await runReplacementJob(db(), job, (await getReview(db(), r.pub.id))!, deps, { final: false });
+    assert.equal(out.job.status, "needs_attention");
+    assert.deepEqual([calls.renders, calls.uploads], [0, 0]);
+  });
+
+  test("failures retry safely, then surface as NEEDS ATTENTION only when no attempts remain; QA must pass before any upload", async () => {
     const r = await reviewed("Failing video");
-    const token = signReviewToken(r.pub.id, "changes", KEY);
-    const opened = await openReview(db(), token, KEY);
-    await submitChanges(db(), { token, txn: opened.kind === "changes_form" ? opened.txn : "", note: "Make it shorter." }, KEY);
+    const { job } = await requestChange(r, "The voice is slightly too fast.");
     let uploaded = 0;
-    const job = (await listJobs(db())).find((j) => j.id === r.pub.id)!;
-    const out = await runReplacementJob(db(), job, (await getReview(db(), r.pub.id))!, { currentSpecHash: () => "new", slugFor: async () => "x", render: async () => ({ ok: false, reason: "QA failed: motion" }), upload: async () => (uploaded++, { publicationId: "", videoId: "", emailed: false }) });
-    assert.equal(out.status, "failed");
-    assert.equal(uploaded, 0);
+    const failing = fakeDeps({ render: async () => ({ ok: false as const, reason: "QA did not pass: motion" }), upload: async () => (uploaded++, { publicationId: "", videoId: "", emailed: false }) }).deps;
+    const first = await runReplacementJob(db(), job, (await getReview(db(), r.pub.id))!, failing, { final: false });
+    assert.equal(first.retry, true);
+    assert.equal(first.job.status, "queued", "back in the queue for the next attempt");
+    const last = await runReplacementJob(db(), first.job, (await getReview(db(), r.pub.id))!, failing, { final: true });
+    assert.equal(last.retry, false);
+    assert.equal(last.job.status, "needs_attention");
+    assert.equal(uploaded, 0, "a video that did not pass QA is never uploaded");
     assert.ok((await getReview(db(), r.pub.id))?.events?.some((e) => e.event === "FAILED"));
+    assert.equal((await getReview(db(), r.pub.id))?.status, "changes_requested", "the reviewed video is untouched");
   });
 
   test("the thumbnail is only ever served for a video that has a review", async () => {

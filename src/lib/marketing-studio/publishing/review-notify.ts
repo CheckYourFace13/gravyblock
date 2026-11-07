@@ -6,6 +6,8 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { StudioDb } from "../db";
+import { getSetting } from "../runtime";
+import { jobKey } from "./review-replacement";
 import { signReviewToken } from "./review-token";
 import { buildReviewEmail, getReview, markEmailed, OWNER_REVIEW_EMAIL, reviewLinkUrl, siteBase } from "./video-review";
 
@@ -43,6 +45,41 @@ export async function sendReviewEmail(db: StudioDb, publicationId: string, fetch
   if (!res.ok) return { sent: false, reason: `the mail service answered ${res.status}` };
   await markEmailed(db, "review-notify", publicationId);
   return { sent: true };
+}
+
+/** Runs inside the app: tells the owner a change request is blocked or has run out of retries. Says what was asked, why it stopped, and that nothing was published. */
+export async function sendNoticeEmail(db: StudioDb, publicationId: string, fetchFn: typeof fetch = fetch): Promise<{ sent: boolean; reason?: string }> {
+  const [r, job] = [await getReview(db, publicationId), await getSetting<{ status?: string; detail?: string; note?: string } | null>(jobKey(publicationId), null, db)];
+  if (!r || !job || job.status !== "needs_attention") return { sent: false, reason: "no change request needs attention" };
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return { sent: false, reason: "mail is not configured on the app" };
+  const subject = `Needs attention: ${r.productName} change request`;
+  const body = [
+    `Your change request for the ${r.productName} video could not be applied automatically.`,
+    "",
+    `What you asked: ${job.note ?? ""}`,
+    `Why it stopped: ${job.detail ?? "unknown"}`,
+    "",
+    "The video you reviewed is still unlisted and nothing was published. Use Request Changes in your latest review email with a clearer or narrower note, or ask for a developer edit.",
+    "",
+    `Watch (unlisted): ${r.watchUrl}`,
+  ].join("\n");
+  const esc = (t: string) => t.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
+  const res = await fetchFn("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>", to: [OWNER_REVIEW_EMAIL], subject, text: body, html: `<div style="font-family:Arial,sans-serif;max-width:600px;white-space:pre-wrap">${esc(body)}</div>` }),
+  });
+  return res.ok ? { sent: true } : { sent: false, reason: `the mail service answered ${res.status}` };
+}
+
+/** Runs in the CLI or the worker: asks the app to tell the owner a change request needs attention. */
+export async function requestOwnerNotice(publicationId: string, fetchFn: typeof fetch = fetch): Promise<{ sent: boolean; reason?: string }> {
+  const key = process.env.MARKETING_SECRET_KEY;
+  if (!key) return { sent: false, reason: "no Studio secret in this environment" };
+  const res = await fetchFn(`${siteBase()}/api/admin/marketing-studio/video-review/notify`, { method: "POST", headers: signedNotifyHeaders(publicationId, key), body: JSON.stringify({ publicationId, notice: true }) });
+  const body = (await res.json().catch(() => ({}))) as { sent?: boolean; reason?: string };
+  return { sent: Boolean(body.sent), reason: body.sent ? undefined : (body.reason ?? `HTTP ${res.status}`) };
 }
 
 /** Runs in the CLI: asks the app to send the review email. */

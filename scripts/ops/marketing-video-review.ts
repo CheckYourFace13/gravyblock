@@ -14,7 +14,9 @@ import { approvePublication, createPublication, LIVE_SETTING, runDuePublications
 import { requestOwnerEmail } from "../../src/lib/marketing-studio/publishing/review-notify";
 import { getReview, listReviews, requestChanges, reviewKey } from "../../src/lib/marketing-studio/publishing/video-review";
 import { prepareUnlistedReview } from "../../src/lib/marketing-studio/publishing/review-upload";
-import { listJobs, queueReplacement } from "../../src/lib/marketing-studio/publishing/review-replacement";
+import { openReview, submitChanges } from "../../src/lib/marketing-studio/publishing/review-flow";
+import { signReviewToken } from "../../src/lib/marketing-studio/publishing/review-token";
+import { listJobs, queueReplacement, requeueReplacement } from "../../src/lib/marketing-studio/publishing/review-replacement";
 
 import { evaluateHealth } from "../../src/lib/marketing-studio/publishing/connections";
 import { fetchYoutubeLiveMetadata, setYoutubeVisibility, verifyYoutubeVideo } from "../../src/lib/marketing-studio/publishing/youtube-api";
@@ -75,6 +77,27 @@ async function main() {
     const job = await queueReplacement(db, "review-operator", cur);
     console.log(`replacement job for ${cur.productName}: ${job.status}
 owner note (exact): ${job.note}`);
+    return;
+  }
+  const retry = arg("--retry-replacement");
+  if (retry) {
+    // After a blocked or exhausted request was fixed (for example the script was edited by hand): put the same request back in the worker's queue.
+    const j = await requeueReplacement(db, retry);
+    console.log(`replacement job for ${j.productName} queued again (generation ${j.generation})`);
+    return;
+  }
+  const simulate = arg("--simulate-owner-request");
+  if (simulate) {
+    // Runs the owner's request-changes click through the real code (token, page transaction, protected submit, queue) with a test note. Publishes nothing.
+    const key = process.env.MARKETING_SECRET_KEY;
+    const note = arg("--note");
+    if (!key || !note) throw new Error("--simulate-owner-request needs --note and the Studio secret");
+    const token = signReviewToken(simulate, "changes", key);
+    const opened = await openReview(db, token, key);
+    if (opened.kind !== "changes_form") throw new Error(`The review is not waiting for a decision (${opened.kind})`);
+    const out = await submitChanges(db, { token, txn: opened.txn, note }, key);
+    if (!out.ok) throw new Error(out.message);
+    console.log(`request stored (status ${out.state.status}); the worker job is queued and the Marketing Studio worker will pick it up by itself`);
     return;
   }
   const setUnlisted = arg("--set-unlisted");

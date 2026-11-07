@@ -110,7 +110,7 @@ export async function usageSummary(db: StudioDb = requireStudioDb()) {
 // ---- Queue ---------------------------------------------------------------------------------------------------------
 
 export type Job = typeof ms.msMediaJobs.$inferSelect;
-export type JobKind = "noop_probe" | "storage_audit" | "cleanup_tmp" | "render_creatives" | "render_video" | "render_demo_video" | "benchmark_video";
+export type JobKind = "noop_probe" | "storage_audit" | "cleanup_tmp" | "render_creatives" | "render_video" | "render_demo_video" | "benchmark_video" | "review_replacement";
 
 /** 2, 10, 45 minutes with jitter, then dead. */
 export function backoffMs(attempt: number): number {

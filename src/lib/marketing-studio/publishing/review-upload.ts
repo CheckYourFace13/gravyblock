@@ -11,13 +11,12 @@ import { getSetting, setSetting } from "../runtime";
 import { listProducts } from "../repository";
 import type { DemoRecord } from "../video/demo/types";
 import { reviewVideo } from "../video/queue";
-import { demoSpecFor } from "../video/demo/specs";
+import { effectiveSpecHash } from "../video/demo/overrides";
 import { staleMarkFor } from "../video/stale";
 import { verifyYoutubeConnection, YOUTUBE_FIRST, youtubeTokensForCall } from "./oauth-youtube";
 import { approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, setPublicationCopy, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "./queue";
 import { requestOwnerEmail } from "./review-notify";
-import { specFingerprint } from "./review-replacement";
-import { recordUnlistedReview, reviewUploadChecks, type Check } from "./video-review";
+import { getReview, recordUnlistedReview, reviewUploadChecks, type Check } from "./video-review";
 import { verifyYoutubeVideo } from "./youtube-api";
 import { connectionAllowedFor, shareYoutubeConnection, youtubeConnectionFor } from "./youtube-share";
 
@@ -93,21 +92,26 @@ export async function prepareUnlistedReview(db: StudioDb, o: UploadOptions): Pro
     kids,
     otherYoutubePublications: others.length,
   });
+  const resumed = publication.status === "published" && Boolean(publication.externalPostId);
+  if (resumed) log("this video was already uploaded by an earlier attempt: resuming at verification");
+  if (resumed) checks.length = 0;
   log("\nPRE-UPLOAD CHECKLIST");
   checks.forEach((c) => log(`  ${c.ok ? "PASS" : "FAIL"}  ${c.name}${c.detail ? `: ${c.detail}` : ""}`));
   log(`\nTITLE: ${publication.title}\nDESCRIPTION:\n${publication.caption}\nVISIBILITY: unlisted   MADE FOR KIDS: ${kids}\npublication ${publication.id} (${publication.status})${duplicate ? " [existing]" : ""}`);
   if (checks.some((c) => !c.ok)) return { ok: false, blocked: "a pre-upload check failed", checks };
   if (!o.upload) return { ok: true, checks, publicationId: publication.id };
 
-  if (publication.status === "approval_required") await approvePublication(INTERNAL_SCOPE, ACTOR, product.id, publication.id, db);
+  if (!resumed && publication.status === "approval_required") await approvePublication(INTERNAL_SCOPE, ACTOR, product.id, publication.id, db);
   const row = (await db.select().from(ms.msPublications).where(eq(ms.msPublications.id, publication.id)))[0];
-  if (row.status === "approved") await schedulePublication(INTERNAL_SCOPE, ACTOR, product.id, publication.id, new Date(Date.now() - 1000), db);
+  if (!resumed && row.status === "approved") await schedulePublication(INTERNAL_SCOPE, ACTOR, product.id, publication.id, new Date(Date.now() - 1000), db);
   const wasLive = await getSetting<boolean>(LIVE_SETTING, false, db);
-  try {
-    await setSetting(LIVE_SETTING, true, ACTOR, db);
-    log(`run: ${JSON.stringify(await runDuePublications(INTERNAL_SCOPE, undefined, db))}`);
-  } finally {
-    await setSetting(LIVE_SETTING, wasLive, ACTOR, db);
+  if (!resumed) {
+    try {
+      await setSetting(LIVE_SETTING, true, ACTOR, db);
+      log(`run: ${JSON.stringify(await runDuePublications(INTERNAL_SCOPE, undefined, db))}`);
+    } finally {
+      await setSetting(LIVE_SETTING, wasLive, ACTOR, db);
+    }
   }
   const after = (await db.select().from(ms.msPublications).where(eq(ms.msPublications.id, publication.id)))[0];
   log(`status: ${after.status}${after.failureReason ? ` (${after.failureReason})` : ""}`);
@@ -120,6 +124,11 @@ export async function prepareUnlistedReview(db: StudioDb, o: UploadOptions): Pro
   const col = await collectForPublication(INTERNAL_SCOPE, ACTOR, product.id, after.id, undefined, db);
   log(`measurement: ${col.collected ? "first snapshot stored" : `not yet (${col.reason})`}`);
 
+  const already = await getReview(db, after.id);
+  if (already?.emailedAt) {
+    log("the review was already recorded and emailed by an earlier attempt");
+    return { ok: true, publicationId: after.id, videoId: after.externalPostId, emailed: true, checks };
+  }
   await recordUnlistedReview(db, ACTOR, {
     publicationId: after.id,
     productId: product.id,
@@ -132,7 +141,7 @@ export async function prepareUnlistedReview(db: StudioDb, o: UploadOptions): Pro
     ctaText: record.cta.text,
     ctaUrl: after.ctaUrl ?? record.cta.url,
     intendedUse: o.intended ?? "Organic YouTube Short, a website embed and a future paid video asset.",
-    specHash: specFingerprint(demoSpecFor(o.slug)),
+    specHash: await effectiveSpecHash(db, product.id, o.slug),
   }, o.placement ?? "Near the top of the product's home page.");
   log("review state and website embed details stored");
   const mail = await requestOwnerEmail(after.id);
