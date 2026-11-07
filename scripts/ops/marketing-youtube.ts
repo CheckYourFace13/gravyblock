@@ -15,6 +15,7 @@ import { firstPostProven, prePublishChecks, recordFirstPostProven, type Check } 
 import { pinnedChannelId, reverifyYoutubeConnection, youtubeCallbackUrl, YOUTUBE_FIRST, youtubeOAuthConfigured, youtubeTokensForCall, verifyYoutubeConnection } from "../../src/lib/marketing-studio/publishing/oauth-youtube";
 import { approvePublication, createPublication, LIVE_SETTING, runDuePublications, schedulePublication, setPublicationCopy, youtubeEnabledSetting, youtubeKidsSetting, youtubePrivacySetting } from "../../src/lib/marketing-studio/publishing/queue";
 import { fetchYoutubeLiveMetadata, verifyYoutubeVideo, YT_SCOPES } from "../../src/lib/marketing-studio/publishing/youtube-api";
+import { youtubeConnectionFor } from "../../src/lib/marketing-studio/publishing/youtube-share";
 import { listProducts } from "../../src/lib/marketing-studio/repository";
 import { getSetting, setSetting } from "../../src/lib/marketing-studio/runtime";
 import { INTERNAL_SCOPE } from "../../src/lib/marketing-studio/scope";
@@ -71,9 +72,9 @@ async function main() {
     const expectPrivacy = arg("--expect-privacy") ?? "public";
     const checks: Check[] = [{ name: "exactly one YouTube publication exists for this product", ok: pubs.length === 1, detail: `${pubs.length} (${pubs.map((x) => `${x.id.slice(0, 8)} ${x.status}`).join(", ")})` }];
     if (pub && pub.externalPostId) {
-      const conn = (await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.productId, p.id), eq(ms.msConnections.platform, "youtube")))).find((c) => usable(evaluateHealth(c)));
+      const conn = await youtubeConnectionFor(db, p.id);
       if (!conn) throw new Error("No healthy YouTube connection to read with");
-      const t = await youtubeTokensForCall(INTERNAL_SCOPE, ACTOR, p.id, conn.id, { fetch }, db);
+      const t = await youtubeTokensForCall(INTERNAL_SCOPE, ACTOR, conn.productId, conn.id, { fetch }, db);
       const live = await fetchYoutubeLiveMetadata({ videoId: pub.externalPostId, accessToken: t.accessToken }, { fetch });
       const cur = await currentMetrics(db, pub.id);
       const want = (pub.caption ?? "").trim();
