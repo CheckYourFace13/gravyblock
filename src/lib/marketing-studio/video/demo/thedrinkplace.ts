@@ -26,7 +26,7 @@ export const TDP_CLAIMS: Claim[] = [
   { id: "c-bottle", text: "Searching a bottle such as Buffalo Trace shows the product and its brand.", facts: ["Search drinks"], sources: [{ plate: "search2", quote: "Buffalo Trace · BOURBON" }, { plate: "search2", quote: "Products" }, { plate: "search2", quote: "Brands" }] },
   { id: "c-drink", text: "A drink page says what the drink is, lists the ingredients and explains how to make it.", facts: ["Equal parts gin, Campari, and sweet vermouth."], sources: [{ plate: "drink", quote: "What it is" }, { plate: "drink", quote: "Equal parts gin, Campari, and sweet vermouth." }, { plate: "drink", quote: "Ingredients" }, { plate: "drink", quote: "How to make it" }] },
   { id: "c-where", text: "A drink page lists venues where the drink was seen on a menu, with the source and date, and states that this does not mean the drink is in stock.", facts: ["A place listed here is a sourced menu observation with source and last-checked when available."], sources: [{ plate: "where", quote: "A place listed here is a sourced menu observation" }, { plate: "where", quote: "does not mean the drink is in stock today" }, { plate: "where", quote: "Source:" }, { plate: "where", quote: "On menu" }] },
-  { id: "c-cta", text: "TheDrinkPlace helps you find your next great drink, and it is for adults 21 or older.", facts: ["Find your next great drink.", "Confirm you are 21 or older."], sources: [{ plate: "home", quote: "Find your next great drink." }, { plate: "search1", quote: "Confirm you are 21 or older." }, { plate: "home", quote: "Search drinks" }] },
+  { id: "c-cta", text: "TheDrinkPlace helps you find your next great drink, and it is for adults 21 or older.", facts: ["Find your next great drink", "Confirm you are 21 or older."], sources: [{ plate: "home", quote: "Find your next great drink" }, { plate: "search1", quote: "Confirm you are 21 or older." }, { plate: "home", quote: "Search drinks" }] },
 ];
 
 /** Product Truth facts this video needs. Each is added only if its exact text is on the live page it cites. */
@@ -34,7 +34,7 @@ export const TDP_FACTS: Array<{ plate: string; value: string }> = [
   { plate: "search1", value: "Search drinks" },
   { plate: "drink", value: "Equal parts gin, Campari, and sweet vermouth." },
   { plate: "where", value: "A place listed here is a sourced menu observation with source and last-checked when available." },
-  { plate: "home", value: "Find your next great drink." },
+  { plate: "home", value: "Find your next great drink" },
   { plate: "search1", value: "Confirm you are 21 or older." },
 ];
 

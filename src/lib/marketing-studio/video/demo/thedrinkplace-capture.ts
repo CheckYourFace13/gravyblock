@@ -63,6 +63,9 @@ export async function captureTheDrinkPlacePlates(outDir: string, logoFile: strin
         await gate.first().click();
         await page.waitForTimeout(500);
       }
+      // The site offers to use the visitor location; declining is the privacy-preserving choice and keeps the prompt out of the shots.
+      const notNow = page.getByRole("button", { name: "Not now" });
+      if ((await notNow.count()) && (await notNow.first().isVisible())) await notNow.first().click();
       await page.waitForTimeout(400);
     };
     const shot = async (file: string, clip: { y: number; h: number }) => {

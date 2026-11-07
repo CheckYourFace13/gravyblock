@@ -18,7 +18,7 @@ const FACTS: Array<[string, string, boolean]> = [
   ["product_name", "TheDrinkPlace", true],
   ["product_type", "Drink discovery website for adults: drinks, bars and happy hours", false],
   ["tagline", "Rate it. Find it. Buy it.", true],
-  ["headline", "Find your next great drink.", true],
+  ["headline", "Find your next great drink", true],
   ["description", "Close to home or somewhere new — explore drinks, bars, and happy hours in supported destinations. Coverage varies by city.", true],
   ["description", "Discover drinks and where to enjoy or buy them. We don’t sell or ship alcohol.", true],
   ["audience", "Confirm you are 21 or older.", true],
