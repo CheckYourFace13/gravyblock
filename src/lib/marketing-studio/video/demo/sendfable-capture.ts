@@ -69,7 +69,7 @@ export async function captureSendFablePlates(outDir: string, logoFile: string): 
         chipPromo: off(await rectByText(page, "Promote a sale or event", { maxExtra: 5 })),
         chipBack: off(await rectByText(page, "Bring customers back", { maxExtra: 5 })),
       };
-      const result = async () => (await page.locator("main section", { has: chip("Share news") }).first().innerText()).replace(/\s+/g, " ");
+      const result = async () => (await page.locator("main section").filter({ hasText: "Not sure what to write?" }).first().innerText()).replace(/\s+/g, " ");
       await chip("Promote a sale or event").click();
       await page.waitForTimeout(350);
       states.g1 = { file: await shot("goals-g1.jpg", { y: y0, h }), label: "Goal chosen: Promote a sale or event", result: await result() };
