@@ -19,7 +19,8 @@ export function withUtm(url: string, input: UtmInput): string {
   // Never overwrite tags the product already uses, and never tag a link that already carries a campaign.
   if (u.searchParams.has("utm_source") || u.searchParams.has("utm_campaign")) return u.toString();
   u.searchParams.set("utm_source", slug(input.platform));
-  u.searchParams.set("utm_medium", "social");
+  // YouTube is video; the other platforms keep the social medium.
+  u.searchParams.set("utm_medium", slug(input.platform) === "youtube" ? "video" : "social");
   u.searchParams.set("utm_campaign", slug(input.campaign ?? "studio"));
   if (input.family) u.searchParams.set("utm_content", slug(input.family));
   u.searchParams.set("utm_id", utmIdFor(input.publicationId));

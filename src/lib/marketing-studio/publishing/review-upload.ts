@@ -30,6 +30,8 @@ export type UploadOptions = {
   description?: string;
   intended?: string;
   placement?: string;
+  /** Which video of the product's library this is, for the review email. */
+  library?: { position: number; of: number; roleLabel: string };
   /** Only this video (a replacement); otherwise the latest QA-passed demo. */
   videoRowId?: string;
   /** Actually upload. Without it only the checks run. */
@@ -142,6 +144,7 @@ export async function prepareUnlistedReview(db: StudioDb, o: UploadOptions): Pro
     ctaUrl: after.ctaUrl ?? record.cta.url,
     intendedUse: o.intended ?? "Organic YouTube Short, a website embed and a future paid video asset.",
     specHash: await effectiveSpecHash(db, product.id, o.slug),
+    ...(o.library ? { library: o.library } : {}),
   }, o.placement ?? "Near the top of the product's home page.");
   log("review state and website embed details stored");
   const mail = await requestOwnerEmail(after.id);

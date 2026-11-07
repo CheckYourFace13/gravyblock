@@ -22,6 +22,7 @@ import { youtubeTokensForCall } from "./oauth-youtube";
 import { assertRolloutOrder } from "./first-post";
 import { GAME_PAUSE_MESSAGE, gameAcquisitionPaused } from "./pause";
 import { connectionAllowedFor } from "./youtube-share";
+import { angleKey } from "../library";
 import { evaluateHealth, tokensForPublish, usable } from "./connections";
 import { buildExportBundle } from "./export";
 import { applyUtmToCaption, foreignLinks, utmIdFor, withUtm } from "../measurement/utm";
@@ -85,6 +86,14 @@ type CopyContext = { caption: string; headline: string | null; ctaText: string |
  * A video made straight from Product Truth has no concept row. Its copy comes from the first text card of its own storyboard (already
  * traced to verified facts by the storyboard builder and checked by video QA), and its link from a concept of the same product.
  */
+/** The library angle id of a video (utm_content), when the video is in the product's angle inventory. */
+async function libraryAngleId(db: StudioDb, productId: string, videoId: string): Promise<string | null> {
+  const [p] = await db.select({ slug: ms.msProducts.slug }).from(ms.msProducts).where(eq(ms.msProducts.id, productId)).limit(1);
+  if (!p) return null;
+  const entries = await getSetting<Array<{ id: string; videoRowId?: string }>>(angleKey(p.slug), [], db);
+  return entries.find((e) => e.videoRowId === videoId)?.id ?? null;
+}
+
 export async function videoCopyContext(db: StudioDb, productId: string, videoId: string): Promise<CopyContext | undefined> {
   const [v] = await db.select({ storyboard: ms.msVideos.storyboard }).from(ms.msVideos).where(and(eq(ms.msVideos.id, videoId), eq(ms.msVideos.productId, productId))).limit(1);
   // A product demo video: the post says what the voiceover says (the first two spoken lines) and links to the demo's own call to action.
@@ -123,7 +132,9 @@ export async function createPublication(
   if (concept?.ctaUrl) {
     // The link in the post is the product's own call to action plus privacy-safe campaign tags; any other link is refused.
     const [campaign] = concept.campaignId ? await db.select({ name: ms.msCampaigns.name }).from(ms.msCampaigns).where(eq(ms.msCampaigns.id, concept.campaignId)).limit(1) : [];
-    taggedUrl = withUtm(concept.ctaUrl, { platform: input.platform, campaign: campaign?.name ?? null, family: concept.family, publicationId });
+    // A YouTube library video is tagged by product (the campaign) and by its angle (the content), so results compare by hook and angle.
+    const angle = input.platform === "youtube" && input.videoId ? await libraryAngleId(db, productId, input.videoId) : null;
+    taggedUrl = withUtm(concept.ctaUrl, { platform: input.platform, campaign: campaign?.name ?? (input.platform === "youtube" ? product.slug : null), family: angle ?? concept.family, publicationId });
     caption = applyUtmToCaption(caption, concept.ctaUrl, taggedUrl, concept.ctaText);
     const stray = foreignLinks(caption, new URL(concept.ctaUrl).host);
     if (stray.length) throw new Error(`The caption links somewhere other than the product's own call to action: ${stray[0]}`);

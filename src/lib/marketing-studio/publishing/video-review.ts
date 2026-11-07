@@ -30,6 +30,8 @@ export type ReviewEvent = "REVERTED_TO_UNLISTED" | "EMAIL_SENT" | "VIEWED" | "AP
 export type ReviewState = {
   /** Every step of the review is recorded here. An email being SENT is never an owner decision. */
   events?: Array<{ at: string; event: ReviewEvent; detail?: string }>;
+  /** Which video of the product's three this is, shown at the top of the review email so the owner knows why it exists. */
+  library?: { position: number; of: number; roleLabel: string };
   /** Fingerprint of the script this video was made from, so a replacement is only rendered once something actually changed. */
   specHash?: string;
   status: ReviewStatus;
@@ -124,13 +126,15 @@ export type ReviewLinks = { approve: string; changes: string };
  */
 export function buildReviewEmail(r: ReviewState, links: ReviewLinks): { subject: string; html: string; text: string } {
   const dur = r.durationSec ? `${r.durationSec.toFixed(1)} seconds` : "unknown";
-  const subject = `Review: ${r.productName}, ${r.title}`.slice(0, 150);
+  const tag = r.library ? `Video ${r.library.position} of ${r.library.of}: ${r.library.roleLabel}` : "";
+  const subject = `Review${tag ? ` (${tag})` : ""}: ${r.productName}, ${r.title}`.slice(0, 150);
   const rows: Array<[string, string]> = [
     ["Duration", dur],
     ["CTA destination", `${r.ctaText} -> ${r.ctaUrl}`],
     ["Intended use", r.intendedUse],
   ];
   const text = [
+    ...(tag ? [tag.toUpperCase()] : []),
     `${r.productName}: ${r.title}`,
     "",
     `Watch (unlisted): ${r.watchUrl}`,
@@ -151,6 +155,7 @@ export function buildReviewEmail(r: ReviewState, links: ReviewLinks): { subject:
   const button = (href: string, label: string, bg: string) =>
     `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 12px"><tr><td align="center" bgcolor="${bg}" style="border-radius:12px"><a href="${esc(href)}" style="display:block;padding:18px 12px;font-size:18px;font-weight:700;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif">${esc(label)}</a></td></tr></table>`;
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;color:#18181b;line-height:1.5">
+${tag ? `<p style="margin:0 0 8px"><span style="display:inline-block;background:#eef2ff;color:#3730a3;font-size:13px;font-weight:700;padding:4px 10px;border-radius:999px">${esc(tag)}</span></p>` : ""}
 <p style="margin:0 0 2px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:#71717a">${esc(r.productName)}</p>
 <h1 style="margin:0 0 14px;font-size:22px;line-height:1.25">${esc(r.title)}</h1>
 <a href="${esc(r.watchUrl)}" style="display:block;text-decoration:none"><img src="${esc(thumbUrlFor(r.videoId))}" alt="Play the video: ${esc(r.title)}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border-radius:12px;border:0"></a>
