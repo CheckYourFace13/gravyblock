@@ -3,6 +3,8 @@
  * product, real motion, claims tied to verified facts and live page quotes). Adding a product means writing one spec: a capture of its real
  * public interface, a script with sources, and a timeline. The old slideshow pipeline is not an option for production video.
  */
+import { captureTheDrinkPlacePlates, TDP_ORIGIN } from "./thedrinkplace-capture";
+import { TDP_CLAIMS, TDP_CTA, TDP_FACTS, TDP_NARRATION, TDP_ON_SCREEN, TDP_SCENE_META, TDP_TITLE, tdpBuildTimeline, tdpLayoutLines } from "./thedrinkplace";
 import { captureSendFablePlates, SF_ORIGIN } from "./sendfable-capture";
 import { SF_CLAIMS, SF_CTA, SF_FACTS, SF_NARRATION, SF_ON_SCREEN, SF_SCENE_META, SF_TITLE, sfBuildTimeline, sfLayoutLines } from "./sendfable";
 import { captureDrinkKnirdPlates, DK_ORIGIN } from "./drinkknird-plates";
@@ -37,6 +39,21 @@ export type DemoSpec = {
 };
 
 export const DEMO_SPECS: Record<string, DemoSpec> = {
+  thedrinkplace: {
+    slug: "thedrinkplace",
+    productName: "TheDrinkPlace",
+    site: { origin: TDP_ORIGIN, ctaText: TDP_CTA.text, ctaHost: "thedrinkplace.com" },
+    title: TDP_TITLE,
+    cta: TDP_CTA,
+    narration: TDP_NARRATION,
+    claims: TDP_CLAIMS,
+    facts: TDP_FACTS,
+    onScreen: TDP_ON_SCREEN,
+    sceneMeta: TDP_SCENE_META,
+    capture: captureTheDrinkPlacePlates,
+    layout: tdpLayoutLines,
+    build: tdpBuildTimeline,
+  },
   sendfable: {
     slug: "sendfable",
     productName: "SendFable",
