@@ -135,7 +135,7 @@ function linkCandidates(d: PageDiscovery, angleTokens: Set<string>, input: Gener
     out.push({
       plan: { path: d.path, groupId: `link:${l.href}`, heading: l.destHeading || l.text, prefix: [], controls: [], clicks: [{ kind: "link", index: l.index, name: l.text, href: l.href, payoff: p1[0] }, { kind: "scroll", name: `scroll-${d.path}-${i}`, payoff: p2[0] }] },
       // a link into the product itself outranks a link to prose about it
-      score: rel * 4 + 1.5 + (SURFACE.test(`${l.text} ${l.destHeading} ${l.href}`) ? 8 : 0),
+      score: rel * 4 + 1.5 + (SURFACE.test(`${l.text} ${l.destHeading} ${l.href}`) ? 12 : 0),
       group: `link:${l.href}`,
       from: 0,
       to: 0,
@@ -398,7 +398,7 @@ export function rankedPairs(input: GeneratorInput): { pairs: Array<[Cand, Cand]>
       return "/";
     }
   })();
-  const all: Cand[] = input.discoveries.flatMap((d: PageDiscovery) => [...d.groups.flatMap((g) => candidatesFor(g, angleTokens, ctaPath, input, d.lines)), ...linkCandidates(d, angleTokens, input), ...searchCandidates(d, angleTokens, input)]).sort((a, b) => b.score - a.score);
+  const all: Cand[] = input.discoveries.flatMap((d: PageDiscovery) => [...d.groups.flatMap((g) => candidatesFor(g, angleTokens, ctaPath, input, d.lines)), ...linkCandidates(d, angleTokens, input), ...searchCandidates(d, angleTokens, input)]).filter((c) => ![c.plan.heading, ...c.plan.clicks.flatMap((k) => [k.name, k.payoff])].some((t) => BANNED.test(t))).sort((a, b) => b.score - a.score);
   if (!all.length) return { pairs: [], summary: "no demonstration", reason: "the product's public pages have no in-page control that, when used, visibly shows something new: it cannot be demonstrated with real interaction" };
   const pairs: Array<[Cand, Cand]> = [];
   for (const a of all)

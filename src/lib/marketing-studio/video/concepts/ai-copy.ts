@@ -69,8 +69,8 @@ function userPrompt(input: GeneratorInput, plans: Plan[], feedback: string[], pr
         places: pl.map((x) => ({ page: x.path, area: x.heading || "(none)", taps: x.clicks.map((c) => ({ viewer: doing(c), pageThenShows: c.payoff, ...(nearby(input, c).length ? { alsoOnThatPage: nearby(input, c) } : {}) })) })),
       })),
       hookMustUseOneOf: hookWords(plans),
-      mustNotOpenLike: input.takenHooks.slice(0, 24),
-      ...(feedback.length ? { yourPreviousDraft: previous, yourPreviousAttemptWasRejectedBecause: feedback.slice(0, 6), fixThemAll: "rewrite the draft so none of these problems remain; keep what was good", draftNumber: attempt + 1 } : {}),
+      mustNotOpenLike: input.takenHooks.slice(0, 24).concat("(the first two words of your hook must differ from the first two words of every one of these)"),
+      ...(feedback.length ? { yourPreviousDraft: previous, yourPreviousAttemptWasRejectedBecause: feedback.slice(0, 6), keepYourPick: "keep the same pick unless the demonstration itself is what was rejected", fixThemAll: "rewrite the draft so none of these problems remain; keep what was good", draftNumber: attempt + 1 } : {}),
     },
     null,
     1,
@@ -150,7 +150,7 @@ export async function aiConcept(db: StudioDb, input: GeneratorInput, opts: { att
     out.calls += 1;
     if (r.cached) out.cachedCalls += 1;
   };
-  for (let attempt = 0; attempt < (opts.attempts ?? 5); attempt++) {
+  for (let attempt = 0; attempt < (opts.attempts ?? 7); attempt++) {
     let text: string;
     try {
       const r = await askJson(db, { specId: input.specId, purpose: "copy", system: SYSTEM, user: userPrompt(input, plans, feedback, last, attempt), maxTokens: 2500, temperature: 0.8 });
