@@ -12,7 +12,7 @@ const PRICE_OUT = 0.5 / 1_000_000;
 
 export type AiResult = { text: string; micros: number; cached: boolean; model: string };
 
-export async function askJson(db: StudioDb, p: { specId: string; purpose: string; system: string; user: string; maxTokens: number; temperature?: number }): Promise<AiResult> {
+export async function askJson(db: StudioDb, p: { specId: string; purpose: string; system: string; user: string; maxTokens: number; temperature?: number; /** hidden reasoning counts against maxTokens, so it is off unless a call asks for a budget */ reasoning?: Record<string, unknown> }): Promise<AiResult> {
   const key = cacheKey(AI_MODEL, p.system, p.user);
   const hit = await getCached(db, key);
   if (hit) return { text: hit.text, micros: 0, cached: true, model: hit.model };
@@ -24,7 +24,7 @@ export async function askJson(db: StudioDb, p: { specId: string; purpose: string
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com", "X-Title": "GravyBlock Marketing Studio" },
-    body: JSON.stringify({ model: AI_MODEL, messages: [{ role: "system", content: p.system }, { role: "user", content: p.user }], max_tokens: p.maxTokens, temperature: p.temperature ?? 0.8, response_format: { type: "json_object" }, reasoning: { effort: "low" }, usage: { include: true } }),
+    body: JSON.stringify({ model: AI_MODEL, messages: [{ role: "system", content: p.system }, { role: "user", content: p.user }], max_tokens: p.maxTokens, temperature: p.temperature ?? 0.8, response_format: { type: "json_object" }, reasoning: p.reasoning ?? { enabled: false }, usage: { include: true } }),
   });
   if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as { choices?: Array<{ finish_reason?: string; message?: { content?: string; refusal?: string | null } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number } };
