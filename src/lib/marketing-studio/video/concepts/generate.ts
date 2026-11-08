@@ -97,7 +97,10 @@ function candidatesFor(g: ProbedGroup, angleTokens: Set<string>, ctaPath: string
     const rel = overlap(toks(`${g.heading} ${na} ${nb} ${fa[0]} ${fb[0]}`), angleTokens);
     // a filter whose result is a visible count ("Showing 3 of 13", "List: 12 match filters") is the product doing something the viewer can see
     const counts = /\b(showing \d+|\d+ (in view|match(es)?|results?|listings?|venues?|found|of \d+))\b/i.test(`${fa[0]} ${fb[0]}`) ? 30 : 0;
-    const score = rel * 4 + (g.path === ctaPath ? 3 : 0) + (g.heading ? 1 : 0) - i * 0.2 + counts;
+    // an empty result ("Showing 0 of 13") or a filter that changed nothing ("13 of 13") is not a payoff worth a video
+    const both = `${fa[0]} ${fb[0]}`;
+    const dull = (/showing 0/i.test(both) ? 60 : 0) + (/showing (\d+) of /i.test(both) ? 25 : 0);
+    const score = rel * 4 + (g.path === ctaPath ? 3 : 0) + (g.heading ? 1 : 0) - i * 0.2 + counts - dull;
     out.push({
       plan: { path: g.path, groupId: g.id, heading: g.heading, prefix: g.sequence.slice(0, i).map((s) => s.control), controls: g.controls, clicks: [{ kind: "click", control: a.control, name: na, payoff: fa[0] }, { kind: "click", control: b.control, name: nb, payoff: fb[0] }] },
       score,
