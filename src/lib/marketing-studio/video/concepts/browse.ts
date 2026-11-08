@@ -131,7 +131,7 @@ export type TaggedLinks = { links: Array<{ index: number; text: string; href: st
 export const tagLinks = (page: Page): Promise<TaggedLinks> => page.evaluate(LINK_SCRIPT) as Promise<TaggedLinks>;
 
 /** Visible text blocks of the page with their vertical position, so "what the viewer sees in this window" can be read back. */
-export const BLOCKS_SCRIPT = `(() => [...document.querySelectorAll("h1,h2,h3,h4,p,li,td,figcaption,dd,dt,summary,button,label")].map((e) => { const r = e.getBoundingClientRect(); const t = (e.innerText || "").replace(/\\s+/g, " ").trim(); return { x: r.x, w: r.width, y: r.y + window.scrollY, h: r.height, t, tag: e.tagName.toLowerCase() }; }).filter((b) => b.t.length >= 8 && b.t.length <= 260 && b.h > 0))()`;
+export const BLOCKS_SCRIPT = `(() => [...document.querySelectorAll("h1,h2,h3,h4,p,li,td,figcaption,dd,dt,summary,button,label")].filter((e) => !e.closest("footer, nav, header, [role=navigation], [role=contentinfo]")).map((e) => { const r = e.getBoundingClientRect(); const t = (e.innerText || "").replace(/\\s+/g, " ").trim(); return { x: r.x, w: r.width, y: r.y + window.scrollY, h: r.height, t, tag: e.tagName.toLowerCase() }; }).filter((b) => b.t.length >= 8 && b.t.length <= 260 && b.h > 0))()`;
 export type Block = { x: number; w: number; y: number; h: number; t: string; tag: string };
 export const pageBlocks = (page: Page): Promise<Block[]> => page.evaluate(BLOCKS_SCRIPT) as Promise<Block[]>;
 /** The distinct texts whose box lies inside the window [y0, y0 + h]. */
