@@ -3,7 +3,8 @@
 // standard and the duplicate gate, regenerating up to 16 variants, and (4) when the angle cannot be made well from this product, replaces it with another
 // verified angle the product CAN demonstrate. Stores the standard and every concept; renders, uploads and publishes nothing. Read-only toward every site.
 //   runuser -u gbstudio -- tsx --env-file=/etc/gravyblock-marketing.env scripts/ops/marketing-concepts-run.ts [slug] [--no-discover] [--dry]
-import { closeStudioDb, requireStudioDb } from "../../src/lib/marketing-studio/db";
+import { eq } from "drizzle-orm";
+import { closeStudioDb, ms, requireStudioDb } from "../../src/lib/marketing-studio/db";
 import { consumes, type AngleEntry } from "../../src/lib/marketing-studio/library";
 import { PLAN_PRODUCTS } from "../../src/lib/marketing-studio/library-plan";
 import { getAngles } from "../../src/lib/marketing-studio/library-store";
@@ -58,12 +59,18 @@ async function main() {
       const paths = [...new Set(["/", ...facts0.map((f) => f.sourceUrl).filter((u): u is string => Boolean(u)).map((u) => { try { return new URL(u).pathname; } catch { return ""; } }).filter(Boolean), ...angles.map((a) => { try { return new URL(a.cta.url).pathname; } catch { return ""; } })])].filter((x) => x && !/\.(png|jpg|svg|pdf)$/i.test(x));
       console.log(`discovering ${p.name} (${paths.length} pages)`);
       discoveries = await discoverProduct(p.home, paths, (m) => console.log(m));
-      if (!DRY) await setSetting(discoveryKey(p.slug), discoveries, ACTOR, db, { audited: false });
+      await setSetting(discoveryKey(p.slug), discoveries, ACTOR, db, { audited: false });
     }
     const verified = (await listFacts(INTERNAL_SCOPE, product.id, db)).filter((f) => f.status === "current" && f.verifiedAt).map((f) => f.factValue);
     const prohibited = (await listClaims(INTERNAL_SCOPE, product.id, db)).filter((c) => c.kind === "prohibited").map((c) => c.text);
     const brand = await getBrandProfile(INTERNAL_SCOPE, product.id, db);
     const usedControls = [...(HAND_WRITTEN_CONTROLS[p.slug] ?? [])];
+    // any control the product's existing videos already show or say is not shown again
+    {
+      const vids = await db.select({ sb: ms.msVideos.storyboard, status: ms.msVideos.status }).from(ms.msVideos).where(eq(ms.msVideos.productId, product.id));
+      const said = vids.filter((x) => x.status !== "superseded" && x.status !== "failed" && x.status !== "qa_failed").map((x) => x.sb as { transcript?: Array<{ text: string }>; onScreen?: Array<{ text: string }>; claims?: Array<{ sources: Array<{ quote: string }> }> } | null).flatMap((s) => [...(s?.transcript ?? []).map((t) => t.text), ...(s?.onScreen ?? []).map((o) => o.text), ...(s?.claims ?? []).flatMap((c) => c.sources.map((q) => q.quote))]).join(" | ").toLowerCase();
+      for (const d of discoveries) for (const g of d.groups) for (const c of g.controls) if (said.includes(c.name.toLowerCase())) usedControls.push(c.name);
+    }
     for (const a of todo.sort((x, y) => x.position - y.position)) {
       tally.evaluated++;
       const specId = `${p.slug}:${a.id.slice(p.slug.length + 1)}`;
@@ -120,6 +127,7 @@ async function main() {
           await setSetting(`video_angles_${p.slug}`, next, ACTOR, db, { audited: false });
           allAngles[p.slug] = next;
         }
+        if (process.argv.includes("--show")) console.log(JSON.stringify({ hook: c.hook, hookStyle: c.hookStyle, audience: c.audience, problem: c.problem, payoff: c.payoff, whyItMatters: c.whyItMatters, tone: c.tone, pacing: c.pacing, structure: c.structure, cta: c.cta, script: c.narration.map((l) => `${l.sceneId}: ${l.spoken}`), capturePlan: c.capturePlan.map((pl) => ({ page: pl.path, area: pl.heading, taps: pl.clicks.map((k) => `${k.name} => ${k.payoff}`) })), claimsUsed: c.claimsUsed, estSeconds: c.estSeconds, firstTapMs: c.estFirstTapMs, gate: c.gate?.checks.map((k) => `${k.ok ? "PASS" : "FAIL"} ${k.label}: ${k.detail}`), attempts: res.attempts.map((x) => `${x.variant}: ${x.reasons.join(" || ") || "PASS"}`) }, null, 1));
         lines.push(`${p.name} video ${a.position}: READY${replaced ? " (REPLACED)" : c.variant > 0 ? ` (variant ${c.variant})` : ""} "${c.hook}" | ${c.personality} | ${c.estSeconds}s | taps: ${clicks.join(" > ")}`);
       } else {
         tally.blocked++;

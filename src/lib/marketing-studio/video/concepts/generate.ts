@@ -7,11 +7,10 @@
 import { BANNED } from "../demo/qa";
 import { BANNED_OPENER, DOC_REGISTER, personalityFor, wordCount, type HookStyle, type Personality } from "./standard";
 import type { ClickStep, Concept, GateResult, GeneratorInput, PageDiscovery, PlatePlan, ProbedGroup } from "./types";
-import { validateConcept } from "./validate";
+import { toks, validateConcept } from "./validate";
 
 const norm = (s: string) => s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim();
 const STOP = new Set(["the", "a", "an", "and", "or", "of", "to", "for", "in", "on", "at", "is", "it", "your", "you", "with", "that", "this", "how", "what", "do", "does", "can", "from", "by", "as", "are", "be", "s", "i", "we", "our", "my"]);
-const toks = (s: string) => new Set((norm(s).match(/[a-z0-9]+/g) ?? []).filter((w) => !STOP.has(w) && w.length > 2).map((w) => w.replace(/(ing|ed|es|s)$/, "")));
 const overlap = (a: Set<string>, b: Set<string>) => {
   let n = 0;
   for (const x of a) if (b.has(x)) n++;
@@ -103,6 +102,11 @@ function hookCandidates(input: GeneratorInput, p: Personality, plates: PlatePlan
   push(input.angle.hook, p.hookStyles[0]);
   // a question the page itself asks is a real, relatable hook
   for (const pl of plates) for (const c of pl.controls) if (/\?$/.test(c.name) && wordCount(c.name) <= 10) push(c.name, "question");
+  // a hook built from what the video shows: the first controls, as the question a viewer arrives with
+  const names = plates[0]?.clicks.map((c) => c.name.replace(/[?!.]+$/, "")).filter((n) => wordCount(n) <= 3) ?? [];
+  const all3 = plates[0]?.controls.map((c) => c.name).filter((n) => wordCount(n) <= 2 && !n.includes("?")).slice(0, 3) ?? [];
+  if (all3.length === 3) push(`Need ${all3[0].toLowerCase()}, ${all3[1].toLowerCase()} or ${all3[2].toLowerCase()}?`, "question");
+  void names;
   const heading = plates[0]?.heading;
   if (!input.angle.hook.trim() && heading && wordCount(heading) <= 6) {
     push(`Ever wondered about ${heading.toLowerCase().replace(/[?.!]+$/, "")}?`, "curiosity");

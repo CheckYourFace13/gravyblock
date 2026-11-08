@@ -11,6 +11,9 @@ import { BANNED_OPENER, DESIRABILITY_CHECKS, DOC_REGISTER, HOOK_TENSION, INVITE_
 import type { Concept, GateResult, GeneratorInput } from "./types";
 
 const norm = (s: string) => s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim();
+const STOPW = new Set(["the", "a", "an", "and", "or", "of", "to", "for", "in", "on", "at", "is", "it", "your", "you", "with", "that", "this", "how", "what", "do", "does", "can", "from", "by", "as", "are", "be", "s", "i", "we", "our", "my", "even", "get", "want", "but", "not"]);
+export const toks = (s: string) => new Set((norm(s).match(/[a-z0-9]+/g) ?? []).filter((w) => !STOPW.has(w) && w.length > 2).map((w) => w.replace(/(ing|ed|es|s)$/, "")));
+const shared = (a: Set<string>, b: Set<string>) => [...a].filter((x) => b.has(x));
 const plain = (s: string) => s.replace(/\{[a-z0-9]+\}/g, "").replace(/\s+/g, " ").trim();
 
 /** The hook gate, shared by the pre- and post-render checks. */
@@ -68,6 +71,12 @@ export function validateConcept(c: Concept, input: GeneratorInput): GateResult {
   if (lineClaims.length) reasons.push(`lines without a Product Truth claim: ${lineClaims.map((l) => l.id).join(", ")}`);
   reasons.push(...scriptProblems(c.narration, c.onScreen.map((o) => o.text), input.prohibited));
 
+  // the hook must be about what the video actually shows
+  const content = toks(c.capturePlan.map((pl) => `${pl.heading} ${pl.clicks.map((k) => `${k.name} ${k.payoff}`).join(" ")}`).join(" "));
+  const hookOn = shared(toks(c.hook), content);
+  const angleOn = shared(toks(`${input.angle.title} ${input.angle.goal} ${input.angle.features.join(" ")}`), content);
+  if (hookOn.length < 1) reasons.push(`the hook is about something the video does not show ("${c.hook}" shares no word with the screens)`);
+  if (angleOn.length < 2 && input.angle.hook.trim()) reasons.push(`the demonstrated screens do not match the planned angle (only ${angleOn.length} shared word(s))`);
   // 1 first three seconds
   const hp = hookProblems(c.hook, c.productName);
   const key = openingKey(c.hook);
