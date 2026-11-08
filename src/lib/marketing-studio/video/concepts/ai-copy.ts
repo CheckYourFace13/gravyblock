@@ -23,7 +23,7 @@ Your job: choose the demonstration that makes the most compelling little story, 
 
 Craft, with the limits software will enforce:
 - Line 1 is the hook, spoken over the first screen: 4 to 6 words. A question or a bold, relatable line about the viewer's real situation that this demonstration answers. It must use at least one of the words in hookMustUseOneOf (exact word), so it is clearly about what the viewer is about to see. Never start with the product name, a greeting, "welcome", "introducing", "meet", "discover" or "today".
-- Then one line per tap, in order (4 taps, 4 lines), 12 words or fewer each. Each line says what the viewer does in a few words, then what they see, in natural spoken English with the personality described. Put the token [tap] exactly once per line, immediately before the word where the finger lands. In the FIRST step line, [tap] must be the first or second word, because the first tap has to land within about four seconds of the start.
+- Then one line per tap, in order (4 taps, 4 lines), 12 words or fewer each. Each line opens with what the viewer does, as a short imperative (Tap, Pick, Open, Try, Check, Look, Switch, Watch), then says what they see, in natural spoken English with the personality described. Put the token [tap] exactly once per line, immediately before the word where the finger lands. In the FIRST step line, [tap] must be the first or second word, because the first tap has to land within about four seconds of the start.
 - For a tap that scrolls ("scrolls further down the page") never say "scroll" or "scroll down"; say something like "keep going" or "and further down". For a link, say "open" or "jump into", not "click".
 - The seeing part may only restate or lightly paraphrase the page text shown for that tap. It must not add anything the page text does not support. Do not quote counts or figures; say what changed, not how many.
 - Total spoken length matters: hook plus four lines plus close plus invitation should be about 52 to 60 words in all, so the video runs about 25 to 30 seconds. Keep every step line short and let the screen do the talking.
@@ -43,7 +43,7 @@ type Plan = PlatePlan[];
 
 const doing = (s: Step) => (s.kind === "click" ? `taps "${s.name}"` : s.kind === "link" ? `opens the link "${s.name}"` : s.kind === "search" ? `searches for "${s.term}" and presses Enter` : "scrolls further down the page");
 
-function userPrompt(input: GeneratorInput, plans: Plan[], feedback: string[]): string {
+function userPrompt(input: GeneratorInput, plans: Plan[], feedback: string[], previous?: AiCopy, attempt = 0): string {
   const p = personalityFor(input.slug);
   const own = new Set(plans.flatMap((pl) => pl.flatMap((x) => x.clicks.flatMap((c) => `${x.heading} ${c.name} ${c.payoff}`.toLowerCase().match(/[a-z]{4,}/g) ?? []))));
   const truth = input.verifiedFacts.filter((f) => (f.toLowerCase().match(/[a-z]{4,}/g) ?? []).some((w) => own.has(w))).slice(0, 8);
@@ -61,7 +61,7 @@ function userPrompt(input: GeneratorInput, plans: Plan[], feedback: string[]): s
       })),
       hookMustUseOneOf: hookWords(plans),
       mustNotOpenLike: input.takenHooks.slice(0, 24),
-      ...(feedback.length ? { yourPreviousAttemptWasRejectedBecause: feedback.slice(0, 6), fixThemAll: true } : {}),
+      ...(feedback.length ? { yourPreviousDraft: previous, yourPreviousAttemptWasRejectedBecause: feedback.slice(0, 6), fixThemAll: "rewrite the draft so none of these problems remain; keep what was good", draftNumber: attempt + 1 } : {}),
     },
     null,
     1,
@@ -135,6 +135,7 @@ export async function aiConcept(db: StudioDb, input: GeneratorInput, opts: { att
   const plans: Plan[] = rp.pairs.slice(0, opts.pool ?? 3).map((pair) => pair.map((c, i) => ({ ...c.plan, id: `p${i + 1}` })));
   const p = personalityFor(input.slug);
   let feedback: string[] = [];
+  let last: AiCopy | undefined;
   const count = (r: { micros: number; cached: boolean }) => {
     out.micros += r.micros;
     out.calls += 1;
@@ -143,7 +144,7 @@ export async function aiConcept(db: StudioDb, input: GeneratorInput, opts: { att
   for (let attempt = 0; attempt < (opts.attempts ?? 5); attempt++) {
     let text: string;
     try {
-      const r = await askJson(db, { specId: input.specId, purpose: "copy", system: SYSTEM, user: userPrompt(input, plans, feedback), maxTokens: 2500, temperature: 0.8 });
+      const r = await askJson(db, { specId: input.specId, purpose: "copy", system: SYSTEM, user: userPrompt(input, plans, feedback, last, attempt), maxTokens: 2500, temperature: 0.8 });
       count(r);
       out.model = r.model;
       text = r.text;
@@ -178,6 +179,8 @@ export async function aiConcept(db: StudioDb, input: GeneratorInput, opts: { att
     const concept = applyCopy(built, copy);
     const gate = validateConcept(concept, input, { ai: true });
     out.copy = copy;
+    last = copy;
+    out.log.push(`draft ${attempt + 1}: ${copy.hook} / ${copy.steps.join(" / ")} / ${copy.close ?? ""} / ${copy.cta}`);
     if (!gate.ok) {
       feedback = gate.reasons;
       out.reasons = gate.reasons;
