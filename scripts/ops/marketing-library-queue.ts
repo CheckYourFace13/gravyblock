@@ -21,7 +21,7 @@ async function main() {
         waiting.push(`${p.name} video ${e.position} (${e.title}): ${product ? "script not written yet" : "not in Studio yet"}`);
         continue;
       }
-      const r = await enqueue({ kind: "library_video", weight: "heavy", priority: 2, productId: product.id, dedupeKey: `library_video:${e.specId}`, input: { specId: e.specId }, runAfter: new Date(Date.now() + order++ * 1000), maxAttempts: 3 }, db);
+      const r = await enqueue({ kind: "library_video", weight: "heavy", priority: 2, productId: product.id, dedupeKey: process.argv.includes("--retry") ? `library_video:${e.specId}:retry-${Date.now()}` : `library_video:${e.specId}`, input: { specId: e.specId }, runAfter: new Date(Date.now() + order++ * 1000), maxAttempts: 3 }, db);
       console.log(`${r.id ? "queued" : "already queued"}: ${p.name} video ${e.position} of 3, ${e.title} (${e.specId})`);
     }
   }

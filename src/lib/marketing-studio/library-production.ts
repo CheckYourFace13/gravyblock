@@ -4,11 +4,13 @@
  *   review email ("Video N of 3: role") -> the angle moves to unlisted_review. It never publishes: the owner's approval does that, on the same video.
  * Safe to run again after a crash: an existing render is reused and a half-finished upload resumes.
  */
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gt, gte, sql } from "drizzle-orm";
 import { ms, type StudioDb } from "./db";
 import { checkDistinct, consumes, ROLE_LABEL } from "./library";
 import { getAngles, updateAngle } from "./library-store";
+import { specFor } from "./publishing/platforms";
 import { prepareUnlistedReview } from "./publishing/review-upload";
+import { enqueue } from "./runtime";
 import { listProducts } from "./repository";
 import { INTERNAL_SCOPE } from "./scope";
 import { createDemoVideo } from "./video/demo/queue";
@@ -16,6 +18,16 @@ import { renderDemoVideoJob } from "./video/demo/run";
 import { demoSpecFor } from "./video/demo/specs";
 
 const ACTOR = "library-worker";
+
+/** When the product's 24-hour posting allowance for YouTube has room again. */
+async function capFreesAt(db: StudioDb, productId: string): Promise<Date> {
+  const cap = specFor("youtube")?.rateLimit.ourCap24h ?? 3;
+  const since = new Date(Date.now() - 24 * 3_600_000);
+  const rows = await db.select({ at: ms.msPublications.publishedAt }).from(ms.msPublications).where(and(eq(ms.msPublications.platform, "youtube"), eq(ms.msPublications.productId, productId), eq(ms.msPublications.status, "published"), gt(ms.msPublications.publishedAt, since))).orderBy(ms.msPublications.publishedAt);
+  const times = rows.map((r) => r.at!.getTime());
+  const idx = Math.max(0, times.length - cap);
+  return new Date((times[idx] ?? Date.now()) + 24 * 3_600_000 + 2 * 60_000);
+}
 
 export async function runLibraryVideo(db: StudioDb, input: { specId: string; attempt: number; maxAttempts: number }, log: (m: string) => void = () => {}): Promise<{ status: string; detail?: string }> {
   const spec = demoSpecFor(input.specId);
@@ -41,7 +53,7 @@ export async function runLibraryVideo(db: StudioDb, input: { specId: string; att
   };
   try {
     // 2. the video: reuse an earlier attempt's render, else make one
-    const rows = await db.select().from(ms.msVideos).where(and(eq(ms.msVideos.productId, product.id), sql`${ms.msVideos.storyboard}->>'kind' = 'demo'`, sql`coalesce(${ms.msVideos.storyboard}->>'specId', ${product.slug}) = ${input.specId}`, gte(ms.msVideos.createdAt, new Date(Date.now() - 6 * 3_600_000)))).orderBy(sql`${ms.msVideos.createdAt} desc`);
+    const rows = await db.select().from(ms.msVideos).where(and(eq(ms.msVideos.productId, product.id), sql`${ms.msVideos.storyboard}->>'kind' = 'demo'`, sql`coalesce(${ms.msVideos.storyboard}->>'specId', ${product.slug}) = ${input.specId}`, gte(ms.msVideos.createdAt, new Date(Date.now() - 48 * 3_600_000)))).orderBy(sql`${ms.msVideos.createdAt} desc`);
     let video = rows.find((v) => (v.status === "ready_for_review" || v.status === "approved") && Boolean((v.qa as { passed?: boolean } | null)?.passed));
     if (!video) {
       let q = rows.find((v) => v.status === "queued");
@@ -71,6 +83,13 @@ export async function runLibraryVideo(db: StudioDb, input: { specId: string; att
       upload: true,
       log,
     });
+    if (!out.ok && /daily cap/i.test(out.blocked ?? "")) {
+      // The product has used its posting allowance for the last 24 hours. This is not a failure: the finished video waits and the job is queued again for the moment the allowance frees.
+      const again = await capFreesAt(db, product.id);
+      await updateAngle(db, ACTOR, product.slug, (e) => e.id === entry.id, { status: "planned" });
+      await enqueue({ kind: "library_video", weight: "heavy", priority: 2, productId: product.id, dedupeKey: `library_video:${input.specId}:after-${again.getTime()}`, input: { specId: input.specId }, runAfter: again, maxAttempts: 3 }, db);
+      return { status: "deferred", detail: `posting allowance used; queued again for ${again.toISOString()}` };
+    }
     if (!out.ok || !out.publicationId || !out.videoId) return await fail(out.blocked ?? "the upload did not complete");
     await updateAngle(db, ACTOR, product.slug, (e) => e.id === entry.id, { status: "unlisted_review", approval: "pending", videoRowId: video.id, youtubeId: out.videoId, publicationId: out.publicationId, publicationUrl: `https://www.youtube.com/watch?v=${out.videoId}` });
     return { status: "unlisted_review", detail: out.emailed ? "review email sent" : "uploaded; the review email could not be sent" };
