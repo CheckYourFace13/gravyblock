@@ -274,7 +274,7 @@ export async function mixAudio(voWav: string, musicWav: string, outWav: string, 
     `[1:a]volume=0.55,afade=t=in:d=0.8,afade=t=out:st=${fadeOutStart.toFixed(2)}:d=1.8[m]`,
     "[m][vosc]sidechaincompress=threshold=0.02:ratio=10:attack=8:release=420:makeup=1[md]",
     "[vo][md]amix=inputs=2:normalize=0:duration=longest[mix]",
-    "[mix]loudnorm=I=-15:TP=-1.5:LRA=9[out]",
+    "[mix]loudnorm=I=-15:TP=-1.5:LRA=9,alimiter=limit=0.84:level=disabled[out]",
   ].join(";");
   const r = await ffmpeg(["-i", voWav, "-i", musicWav, "-filter_complex", filter, "-map", "[out]", "-ar", "48000", "-ac", "2", outWav], 120_000);
   if (r.code !== 0) throw new Error(`audio mix failed: ${r.stderr.slice(0, 300)}`);
