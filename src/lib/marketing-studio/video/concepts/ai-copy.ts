@@ -63,6 +63,7 @@ function userPrompt(input: GeneratorInput, plans: Plan[], feedback: string[], pr
       product: input.productName,
       website: new URL(input.home).host.replace(/^www\./, ""),
       audience: input.angle.audience,
+      ...(input.angle.hook ? { plannedHook: input.angle.hook, plannedHookNote: "the owner's preferred opening idea: use it, or improve it if you can do better in the same number of words" } : {}),
       problemThisVideoAnswers: input.angle.goal,
       personality: { tone: p.tone, story: p.structure, pace: p.pace >= 1.06 ? "quick and punchy" : p.pace <= 0.99 ? "unhurried" : "easy" },
       verifiedProductTruth: truth,

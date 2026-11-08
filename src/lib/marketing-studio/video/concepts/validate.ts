@@ -170,7 +170,7 @@ export function aiGrounding(c: Concept, vocabulary: Set<string>, factText: strin
   const lines = c.narration.map((l) => plain(l.spoken));
   const seen = (w: string) => vocabulary.has(w.toLowerCase());
   lines.forEach((line, i) => {
-    for (const m0 of line.match(/\d[\d,.]*/g) ?? []) { const m = m0.replace(/[.,]+$/, ""); if (m && !factText.includes(norm(m))) out.push(`a figure the product never showed: "${m}"`); }
+    for (const m0 of line.match(/\d[\d,.]*/g) ?? []) { const m = m0.replace(/[.,]+$/, ""); if (m && !factText.replace(/,/g, "").includes(norm(m).replace(/,/g, ""))) out.push(`a figure the product never showed: "${m}"`); }
     for (const re of [NUMBER_WORD, PRICE_WORD, SUPERLATIVE]) for (const m of line.match(re) ?? []) if (!seen(m)) out.push(`"${m}" is a claim the product's own pages never made`);
     if (i > 0) for (const m of line.match(CAPABILITY) ?? []) if (!seen(m)) out.push(`"${m}" names a capability the product's pages never showed`);
   });
