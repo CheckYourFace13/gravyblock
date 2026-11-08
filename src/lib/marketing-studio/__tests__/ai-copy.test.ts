@@ -117,3 +117,17 @@ describe("step alignment", () => {
     assert.deepEqual(stepAlignment(plan(["Jump into the demo and see a Wednesday night pool league.", "Keep going to a Friday night darts shootout."])), []);
   });
 });
+
+describe("demo honesty", () => {
+  test("a line about a demo page may not call it live or real", async () => {
+    const { demoHonesty } = await import("../video/concepts/validate");
+    const c = {
+      capturePlan: [{ clicks: [{ kind: "link", name: "See the demo", href: "https://x.test/demo", payoff: "Wednesday Night Pool League" }, { kind: "scroll", name: "scroll-/-0", payoff: "Friday Night Darts Shootout" }] }],
+      narration: [{ id: "L1", sceneId: "a1", spoken: "Open the demo and a live pool league is on screen.", claims: ["c-pay1a"] }, { id: "L2", sceneId: "a1", spoken: "Keep going to a darts shootout.", claims: ["c-pay1b"] }],
+    } as unknown as Concept;
+    const input = { discoveries: [{ links: [{ href: "https://x.test/demo", destHeading: "See a venue in action", top: ["Teams and scores are made up."], lower: [] }] }] } as unknown as GeneratorInput;
+    assert.equal(demoHonesty(c, input).length, 1);
+    c.narration[0].spoken = "Open the demo and a pool league is on screen.";
+    assert.deepEqual(demoHonesty(c, input), []);
+  });
+});

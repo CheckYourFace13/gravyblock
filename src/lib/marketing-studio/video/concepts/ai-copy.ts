@@ -36,6 +36,7 @@ Truth rules, which are checked by software and a second reviewer, and anything t
 - Never invent or imply a feature, capability, statistic, number, result, customer, testimonial, review, award, price, discount, free offer, availability, or superiority over anything. No "best", "fastest", "only", "instantly", "automatically", "AI", "unlimited", "always", "never".
 - Do not mention anything the viewer cannot see in the captured screens or read in the page text you were given.
 - Do not use digits or spell out numbers other than "one".
+- If a page is a demo, a sample or says its content is made up, call it a demo and never call it live, real or actual, and never imply the results belong to a real customer.
 
 Reply with JSON only: {"pick": 1, "reject": "", "hook": "...", "steps": ["...", "...", "...", "..."], "close": "...", "cta": "..."}`;
 

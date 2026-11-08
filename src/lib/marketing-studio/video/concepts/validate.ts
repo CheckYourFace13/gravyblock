@@ -128,6 +128,32 @@ export function stepAlignment(c: Concept): string[] {
 }
 
 /**
+ * A demo is not the real thing. When the page a step lands on is a demo, a sample or says its content is made up, the line for that step may not call it
+ * live, real or actual: the viewer would think they are looking at someone's real results.
+ */
+export function demoHonesty(c: Concept, input: GeneratorInput): string[] {
+  const out: string[] = [];
+  c.capturePlan.forEach((pl, pi) =>
+    pl.clicks.forEach((k, ci) => {
+      const id = `c-pay${pi + 1}${ci === 0 ? "a" : "b"}`;
+      const line = c.narration.find((l) => l.claims.includes(id));
+      if (!line) return;
+      const link = k.kind === "link" ? input.discoveries.flatMap((d) => d.links).find((l) => l.href === k.href) : undefined;
+      const text = [k.kind === "scroll" ? "" : k.name, k.kind === "link" ? k.href : "", k.payoff, ...(link ? [link.destHeading, ...link.top, ...link.lower] : [])].join(" ");
+      // scroll steps continue on the page the previous tap opened
+      const prev = k.kind === "scroll" ? pl.clicks[0] : undefined;
+      const prevLink = prev && prev.kind === "link" ? input.discoveries.flatMap((d) => d.links).find((l) => l.href === (prev as { href: string }).href) : undefined;
+      const all = `${text} ${prevLink ? [prev && prev.kind === "link" ? prev.name : "", prev && prev.kind === "link" ? prev.href : "", prevLink.destHeading, ...prevLink.top, ...prevLink.lower].join(" ") : ""}`;
+      if (/made up|fictional|sample data|example data|\bdemo\b|\bsample\b/i.test(all)) {
+        const m = plain(line.spoken).match(/\b(live|real|actual|genuine|your own)\b/i);
+        if (m) out.push(`the page for this tap is a demo (it says its content is made up), so the line must not call it "${m[0]}"`);
+      }
+    }),
+  );
+  return out;
+}
+
+/**
  * The stricter grounding for model-written copy. A model reads naturally, so ordinary words are free; what is checked is what a model is tempted to invent:
  * figures, prices and offers, superlatives, capability verbs, and customer outcomes. Each may appear only if the live product's own text used the word.
  * The hook is marketing copy and may talk about the viewer's situation (so capability words are allowed in it), but never figures, offers or superlatives.
@@ -164,7 +190,7 @@ export function validateConcept(c: Concept, input: GeneratorInput, opts: { ai?: 
   // copy may be reworded, but nothing the product never showed may be said
   const loose = ungroundedWords(spoken.slice(1, -1).concat(spoken.slice(-1)), pageVocabulary(input.discoveries), [...toks(c.productName), ...(c.productName.toLowerCase().match(/[a-z]+/g) ?? []), ...c.ctaHost.toLowerCase().split(/[.-]/)]);
   if (loose.length && !opts.ai) reasons.push(`words the product never showed: ${loose.slice(0, 5).join(", ")}`);
-  if (opts.ai) reasons.push(...aiGrounding(c, pageVocabulary(input.discoveries), factText), ...stepAlignment(c));
+  if (opts.ai) reasons.push(...aiGrounding(c, pageVocabulary(input.discoveries), factText), ...stepAlignment(c), ...demoHonesty(c, input));
   const hookOn = shared(toks(c.hook), content);
   const angleOn = shared(toks(`${input.angle.title} ${input.angle.goal} ${input.angle.features.join(" ")}`), content);
   if (hookOn.length < 1) reasons.push(`the hook is about something the video does not show ("${c.hook}" shares no word with the screens)`);
