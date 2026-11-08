@@ -101,8 +101,30 @@ export function scriptProblems(lines: Array<{ spoken: string; caption?: string }
   return out;
 }
 
+const NUMBER_WORD = /\b(two|three|four|five|six|seven|eight|nine|ten|dozen|hundred|thousand|million|percent|twice|double|triple)\b/gi;
+const PRICE_WORD = /\b(free|cheap|cheaper|cheapest|discount\w*|deals?|costs?|prices?|pricing|affordable|pay|paid|dollars?|trial|subscription|premium)\b/gi;
+const SUPERLATIVE = /\b(best|fastest|easiest|simplest|ultimate|perfect|guaranteed|unlimited|always|never|everything|number one|leading|only|instant(ly)?|automatic(ally)?)\b/gi;
+const CAPABILITY = /\b(ai|smart|personali[sz]ed|recommend\w*|compar\w+|track\w*|sav(e|es|ed|ing)|notif\w+|alerts?|sync\w*|book\w*|order\w*|buy\w*|purchas\w*|deliver\w*|reserv\w+|checkout|integrat\w+|real.?time|live|schedul\w+|remind\w*|share[sd]?|upload\w*|download\w*|export\w*|import\w*|calculat\w+|generat\w+|creat(e|es|ed|ing)|manag\w+|monitor\w*|analy[sz]\w+|forecast\w*|predict\w*|learn\w*)\b/gi;
+
+/**
+ * The stricter grounding for model-written copy. A model reads naturally, so ordinary words are free; what is checked is what a model is tempted to invent:
+ * figures, prices and offers, superlatives, capability verbs, and customer outcomes. Each may appear only if the live product's own text used the word.
+ * The hook is marketing copy and may talk about the viewer's situation (so capability words are allowed in it), but never figures, offers or superlatives.
+ */
+export function aiGrounding(c: Concept, vocabulary: Set<string>, factText: string): string[] {
+  const out: string[] = [];
+  const lines = c.narration.map((l) => plain(l.spoken));
+  const seen = (w: string) => vocabulary.has(w.toLowerCase());
+  lines.forEach((line, i) => {
+    for (const m of line.match(/\d[\d,.]*/g) ?? []) if (!factText.includes(norm(m))) out.push(`a figure the product never showed: "${m}"`);
+    for (const re of [NUMBER_WORD, PRICE_WORD, SUPERLATIVE]) for (const m of line.match(re) ?? []) if (!seen(m)) out.push(`"${m}" is a claim the product's own pages never made`);
+    if (i > 0) for (const m of line.match(CAPABILITY) ?? []) if (!seen(m)) out.push(`"${m}" names a capability the product's pages never showed`);
+  });
+  return [...new Set(out)];
+}
+
 /** Pre-render: judges the concept on paper. */
-export function validateConcept(c: Concept, input: GeneratorInput): GateResult {
+export function validateConcept(c: Concept, input: GeneratorInput, opts: { ai?: boolean } = {}): GateResult {
   const p = personalityFor(c.slug);
   const spoken = c.narration.map((l) => plain(l.spoken));
   const reasons: string[] = [];
@@ -120,7 +142,8 @@ export function validateConcept(c: Concept, input: GeneratorInput): GateResult {
   const content = toks(c.capturePlan.map((pl) => `${pl.heading} ${pl.clicks.map((k) => `${k.name} ${k.payoff} ${k.kind === "search" ? k.term : ""}`).join(" ")}`).join(" "));
   // copy may be reworded, but nothing the product never showed may be said
   const loose = ungroundedWords(spoken.slice(1, -1).concat(spoken.slice(-1)), pageVocabulary(input.discoveries), [...toks(c.productName), ...(c.productName.toLowerCase().match(/[a-z]+/g) ?? []), ...c.ctaHost.toLowerCase().split(/[.-]/)]);
-  if (loose.length) reasons.push(`words the product never showed: ${loose.slice(0, 5).join(", ")}`);
+  if (loose.length && !opts.ai) reasons.push(`words the product never showed: ${loose.slice(0, 5).join(", ")}`);
+  if (opts.ai) reasons.push(...aiGrounding(c, pageVocabulary(input.discoveries), factText));
   const hookOn = shared(toks(c.hook), content);
   const angleOn = shared(toks(`${input.angle.title} ${input.angle.goal} ${input.angle.features.join(" ")}`), content);
   if (hookOn.length < 1) reasons.push(`the hook is about something the video does not show ("${c.hook}" shares no word with the screens)`);

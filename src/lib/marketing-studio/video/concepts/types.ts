@@ -91,6 +91,8 @@ export type Concept = {
   /** estimated time of the first tap, ms */
   estFirstTapMs: number;
   gate?: { ok: boolean; checks: DesirabilityCheck[] };
+  /** present when the copy was written by the language-model step (and passed the deterministic gates and the fact-checker) */
+  ai?: { model: string; copy: Record<string, unknown> };
 };
 
 export type GeneratorInput = {

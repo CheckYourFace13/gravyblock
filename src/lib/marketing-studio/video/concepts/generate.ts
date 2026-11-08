@@ -73,7 +73,7 @@ const sentence = (f: string) => (/[.!?]$/.test(f) ? f : `${f}.`);
 
 // ---- plate candidates -------------------------------------------------------------------------------------------------------------
 
-type Cand = { plan: Omit<PlatePlan, "id">; score: number; group: string; from: number; to: number; fragments: [string[], string[]] };
+export type Cand = { plan: Omit<PlatePlan, "id">; score: number; group: string; from: number; to: number; fragments: [string[], string[]] };
 
 function candidatesFor(g: ProbedGroup, angleTokens: Set<string>, ctaPath: string, input: GeneratorInput, pageLines: string[]): Cand[] {
   const pageText = norm(pageLines.join(" "));
@@ -231,6 +231,23 @@ function shortest(plates: PlatePlan[], pair: Array<{ fragments: [string[], strin
   return plates.map((pl, i) => ({ ...pl, clicks: pl.clicks.map((c, ci) => ({ ...c, payoff: [...pair[i].fragments[ci]].slice(0, 4).sort((a, b) => wordCount(a) - wordCount(b))[0] ?? c.payoff })) as [Step, Step] }));
 }
 
+/** Estimated length and the time of the first tap for a script, from the voice pace and the personality's line gaps. */
+export function timing(narration: Concept["narration"], p: Personality): { estSeconds: number; estFirstTapMs: number } {
+  const words = narration.map((l) => wordCount((l.caption ?? l.spoken).replace(/\{[a-z0-9]+\}/g, "")));
+  const secs = words.map((w) => lineSeconds(w, p));
+  let t = 0.3;
+  const starts: number[] = [];
+  narration.forEach((l, i) => {
+    if (i > 0) t += (l.sceneId === narration[i - 1].sceneId ? p.gaps.same : l.sceneId === "end" ? p.gaps.endLead : p.gaps.scene) / 1000;
+    starts.push(t);
+    t += secs[i];
+  });
+  const total = t + 1.5;
+  const l2 = narration[1];
+  const beforeMarker = wordCount(l2.spoken.split(/\{a1\}/)[0].replace(/\{[a-z0-9]+\}/g, ""));
+  return { estSeconds: Math.round(total * 10) / 10, estFirstTapMs: Math.round((starts[1] + beforeMarker / RATE_WPS / p.pace) * 1000) };
+}
+
 export type Attempt = { variant: number; summary: string; reasons: string[] };
 
 /** compact 0 is the full script; 1 trims the second tap's lead-in; 2 also drops the closing reassurance line and picks the shortest sentences. */
@@ -308,20 +325,7 @@ export function buildConcept(input: GeneratorInput, plates: PlatePlan[], hook: {
   sceneMeta.end = { purpose: "Call to action.", motion: ["logo and headline spring in", "call to action button pulses", "music resolves"], note: "Branded end card; no product screen is claimed." };
   headlines.end = endHeadline;
 
-  // timing estimate
-  const words = narration.map((l) => wordCount((l.caption ?? l.spoken).replace(/\{[a-z0-9]+\}/g, "")));
-  const secs = words.map((w) => lineSeconds(w, p));
-  let t = 0.3;
-  const starts: number[] = [];
-  narration.forEach((l, i) => {
-    if (i > 0) t += (l.sceneId === narration[i - 1].sceneId ? p.gaps.same : l.sceneId === "end" ? p.gaps.endLead : p.gaps.scene) / 1000;
-    starts.push(t);
-    t += secs[i];
-  });
-  const total = t + 1.5;
-  const l2 = narration[1];
-  const beforeMarker = wordCount(l2.spoken.split(/\{a1\}/)[0].replace(/\{[a-z0-9]+\}/g, ""));
-  const estFirstTapMs = Math.round((starts[1] + beforeMarker / RATE_WPS / p.pace) * 1000);
+  const { estSeconds, estFirstTapMs } = timing(narration, p);
 
   const primary = hex(input.brand.primary);
   const concept: Concept = {
@@ -354,18 +358,14 @@ export function buildConcept(input: GeneratorInput, plates: PlatePlan[], hook: {
     brand: { name: input.productName, accent: primary, dark: mix(primary, 0, 0.72), light: "#faf7f2" },
     origin: input.origin,
     ctaHost: host,
-    estSeconds: Math.round(total * 10) / 10,
+    estSeconds,
     estFirstTapMs,
   };
   return concept;
 }
 
-/**
- * Generates, validates and (when a gate fails) regenerates: every variant is a different combination of demonstrations, hook and wording. Returns the first
- * concept that passes every gate, with the rejected attempts, or no concept and the reasons the angle cannot be made well from this product.
- */
-export function generateConcept(input: GeneratorInput, maxVariants = 16, want = 3): { concept?: Concept; alternates: Concept[]; attempts: Attempt[] } {
-  const p = personalityFor(input.slug);
+/** Every pair of real demonstrations the product can show, best first (different groups, or non-overlapping steps of one group, never the same control or result twice). */
+export function rankedPairs(input: GeneratorInput): { pairs: Array<[Cand, Cand]>; reason?: string; summary?: string } {
   const angleTokens = toks(`${input.angle.title} ${input.angle.goal} ${input.angle.features.join(" ")} ${input.angle.scenes.join(" ")} ${input.angle.hook} ${input.angle.coreBenefit}`);
   const ctaPath = (() => {
     try {
@@ -375,9 +375,7 @@ export function generateConcept(input: GeneratorInput, maxVariants = 16, want = 
     }
   })();
   const all: Cand[] = input.discoveries.flatMap((d: PageDiscovery) => [...d.groups.flatMap((g) => candidatesFor(g, angleTokens, ctaPath, input, d.lines)), ...linkCandidates(d, angleTokens, input), ...searchCandidates(d, angleTokens, input)]).sort((a, b) => b.score - a.score);
-  const attempts: Attempt[] = [];
-  if (!all.length) return { alternates: [], attempts: [{ variant: input.variant, summary: "no demonstration", reasons: ["the product's public pages have no in-page control that, when used, visibly shows something new: it cannot be demonstrated with real interaction"] }] };
-  // pairs of demonstrations from different groups, or from non-overlapping steps of one group
+  if (!all.length) return { pairs: [], summary: "no demonstration", reason: "the product's public pages have no in-page control that, when used, visibly shows something new: it cannot be demonstrated with real interaction" };
   const pairs: Array<[Cand, Cand]> = [];
   for (const a of all)
     for (const b of all) {
@@ -392,7 +390,20 @@ export function generateConcept(input: GeneratorInput, maxVariants = 16, want = 
     const k = `${a.group}:${a.from}|${b.group}:${b.from}`;
     return seen.has(k) ? false : (seen.add(k), true);
   });
-  if (!uniq.length) return { alternates: [], attempts: [{ variant: input.variant, summary: "one demonstration only", reasons: ["only one interactive area was found; two distinct real interactions are needed, so this concept needs another verified angle"] }] };
+  if (!uniq.length) return { pairs: [], summary: "one demonstration only", reason: "only one interactive area was found; two distinct real interactions are needed, so this concept needs another verified angle" };
+  return { pairs: uniq };
+}
+
+/**
+ * Generates, validates and (when a gate fails) regenerates: every variant is a different combination of demonstrations, hook and wording. Returns the first
+ * concept that passes every gate, with the rejected attempts, or no concept and the reasons the angle cannot be made well from this product.
+ */
+export function generateConcept(input: GeneratorInput, maxVariants = 16, want = 3): { concept?: Concept; alternates: Concept[]; attempts: Attempt[] } {
+  const p = personalityFor(input.slug);
+  const rp = rankedPairs(input);
+  const attempts: Attempt[] = [];
+  if (rp.reason) return { alternates: [], attempts: [{ variant: input.variant, summary: rp.summary ?? "no demonstration", reasons: [rp.reason] }] };
+  const uniq = rp.pairs;
 
   const passed: Concept[] = [];
   let v = input.variant;
