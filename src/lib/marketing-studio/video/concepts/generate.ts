@@ -170,7 +170,7 @@ function calcCandidates(c: ProbedCalc, angleTokens: Set<string>, input: Generato
     const rel = overlap(toks(`${c.heading} ${a.name} ${b.name} ${fa[0]} ${fb[0]}`), angleTokens);
     out.push({
       plan: { path: c.path, groupId: c.id, heading: c.heading, prefix: [], controls: [], prefixFills: c.steps.slice(0, i).map((s) => ({ field: s.field, name: s.name, value: s.value, ...(s.select ? { select: true } : {}) })), clicks: [fill(a, fa[0]), fill(b, fb[0])] },
-      score: 20 + rel * 2,
+      score: 40 + rel * 2,
       group: c.id,
       from: i,
       to: i + 1,
