@@ -44,7 +44,7 @@ async function main() {
   for (const d of discoveries) for (const g of d.groups) for (const c of g.controls) if (said.includes(c.name.toLowerCase())) usedControls.push(c.name);
   // --calc: a proof built around the product's own calculator, under its own spec id (never added to the library or the queue)
   const argOf = (n: string) => (process.argv.includes(`--${n}`) ? process.argv[process.argv.indexOf(`--${n}`) + 1] : undefined);
-  const calc = flag("calc") ? discoveries.flatMap((d) => d.calcs ?? [])[0] : undefined;
+  const calc = flag("calc") ? discoveries.flatMap((d) => d.calcs ?? [])[Number(argOf("calc")) || 0] : undefined;
   if (flag("calc") && !calc) throw new Error("no calculator was discovered for this product");
   const angle: AngleEntry = calc ? { ...a, id: `${slug}-proof-${calc.heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`, title: `${p.name}: ${calc.heading}`, hook: argOf("hook") ?? "", goal: argOf("goal") ?? `show how the real ${calc.heading.toLowerCase()} works on ${p.name}`, audience: argOf("audience") ?? a.audience, coreBenefit: argOf("benefit") ?? `see the answer instead of guessing`, features: [calc.heading, ...calc.fields.map((f) => f.label)], scenes: [], cta: { text: argOf("cta") ?? `Try the ${calc.heading.toLowerCase().replace(/ calculator$/, "")} calculator`, url: new URL(calc.path, p.home).toString() } } : argOf("hook") ? { ...a, hook: argOf("hook") as string } : a;
   const specId = `${slug}:${angle.id.slice(slug.length + 1)}`;

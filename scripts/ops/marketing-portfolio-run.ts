@@ -16,7 +16,7 @@ const DRY = process.argv.includes("--dry");
 const SKIP = new Set(["iscreamstudio"]);
 
 /** The angle entry the worker needs: the script's id and hook, the scenes shown, and the YouTube title and description (the concept's own hook, payoff lines and tracked call to action). */
-async function register(db: ReturnType<typeof requireStudioDb>, slug: string, position: number, specId: string) {
+async function register(db: ReturnType<typeof requireStudioDb>, slug: string, position: number, specId: string, replace = false) {
   const stored = await getSetting<StoredConcept | null>(conceptKey(specId), null, db);
   const c = stored?.concept;
   if (!c) return;
@@ -25,7 +25,23 @@ async function register(db: ReturnType<typeof requireStudioDb>, slug: string, po
   const yt = { title, description: `${/[?!.]$/.test(c.hook) ? c.hook : `${c.hook}?`} ${body}
 
 ${c.cta.text}: ${c.cta.url}` };
-  await updateAngle(db, ACTOR, slug, (x) => x.position === position, { specId, hook: c.hook, yt, scenes: c.capturePlan.map((pl) => pl.heading || pl.path) });
+  await updateAngle(db, ACTOR, slug, (x) => x.position === position, { specId, hook: c.hook, yt, scenes: c.capturePlan.map((pl) => pl.heading || pl.path), ...(replace ? { title: c.title, features: c.capturePlan.flatMap((pl) => pl.clicks.map((k) => ("name" in k ? k.name : ""))).filter(Boolean) } : {}) });
+}
+
+/** The planned angle cannot be shown with real taps: build a better one from the product's own discovered calculators (a verified, interactive surface), duplicate gate on. */
+async function inventFromCalculators(db: ReturnType<typeof requireStudioDb>, slug: string, position: number): Promise<boolean> {
+  for (let n = 0; n < 4; n++) {
+    const r = spawnSync("npx", ["tsx", "--env-file=/etc/gravyblock-marketing.env", "scripts/ops/marketing-concept-ai.ts", slug, String(position), "--calc", String(n), "--save", "--require-interaction", "--pool", "6"], { encoding: "utf8", timeout: 20 * 60_000 });
+    const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+    if (/no calculator was discovered/.test(out)) return false;
+    const saved = out.match(/^saved (\S+)/m);
+    if (saved) {
+      await register(db, slug, position, saved[1], true);
+      console.log(`${slug} ${position}: NEW ANGLE from calculator ${n}: ${saved[1]}`);
+      return true;
+    }
+  }
+  return false;
 }
 
 async function main() {
@@ -55,6 +71,8 @@ async function main() {
       if (saved) {
         await register(db, p.slug, a.position, saved[1]);
         console.log(`${p.slug} ${a.position}: SAVED ${saved[1]}. ${cost?.[0] ?? ""}`);
+      } else if (await inventFromCalculators(db, p.slug, a.position)) {
+        continue;
       } else {
         console.log(`${p.slug} ${a.position}: no concept. ${(out.match(/NO CONCEPT: .*/)?.[0] ?? out.split("\n").filter(Boolean).slice(-2).join(" ")).slice(0, 300)} ${cost?.[0] ?? ""}`);
       }
