@@ -10,12 +10,13 @@ import { EMPTY_STATE } from "./standard";
 
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
 
-/** A different, plausible demonstration value for a field, or null when the field should be left alone (years, codes, anything that is not a quantity). */
-export function mutateField(f: Pick<TaggedField, "type" | "value" | "options" | "min" | "max">): { value: string; select?: boolean } | null {
+/** A different, plausible demonstration value for a field (the nth candidate), or null when the field should be left alone (years, months, codes: not quantities). */
+export function mutateField(f: Pick<TaggedField, "type" | "value" | "options" | "min" | "max"> & { label?: string }, nth = 0): { value: string; select?: boolean } | null {
+  if (f.label && /^(year|month)\b/i.test(f.label.trim())) return null;
   if (f.type === "select") {
     const opts = f.options ?? [];
     const i = opts.findIndex((o) => o === f.value);
-    const next = opts.find((o, k) => k !== i && o.trim() && !/^(select|choose|--)/i.test(o));
+    const next = opts.filter((o, k) => k !== i && o.trim() && !/^(select|choose|--)/i.test(o))[nth];
     return next ? { value: next, select: true } : null;
   }
   const raw = f.value.replace(/[,$\s]/g, "");
@@ -24,9 +25,9 @@ export function mutateField(f: Pick<TaggedField, "type" | "value" | "options" | 
   if (v >= 1900 && v <= 2100 && Number.isInteger(v)) return null;
   const lo = f.min !== "" && Number.isFinite(Number(f.min)) ? Number(f.min) : -Infinity;
   const hi = f.max !== "" && Number.isFinite(Number(f.max)) ? Number(f.max) : Infinity;
-  const cands = v >= 100 ? [Math.round((v * 1.25) / 50) * 50, Math.round((v * 0.8) / 50) * 50] : [v - 3, v + 3, v - 1, v + 1];
-  const pick = cands.find((c) => c !== v && c >= lo && c <= hi && c > 0);
-  return pick === undefined ? null : { value: String(pick) };
+  const cands = v >= 100 ? [Math.round((v * 1.25) / 50) * 50, Math.round((v * 0.8) / 50) * 50, Math.round((v * 1.5) / 50) * 50] : [v - 3, v + 3, v - 1, v + 1, v - 5, v + 5];
+  const ok = cands.filter((c) => c !== v && c >= lo && c <= hi && c > 0);
+  return ok[nth] === undefined ? null : { value: String(ok[nth]) };
 }
 
 /** Really changes the inputs of a calculator, one field at a time and cumulatively, and records what the page newly shows. Read-only: a POST aborts the probe. */
@@ -34,43 +35,50 @@ async function probeCalcs(page: Page, url: string, path: string, blocked: { coun
   await openPage(page, url);
   const tf = await tagFields(page);
   if (tf.fields.length < 2) return [];
-  const rank = (f: TaggedField) => (/^\d+(\.\d+)?$/.test(f.value.replace(/[,$\s]/g, "")) && Number(f.value.replace(/[,$\s]/g, "")) >= 100 && !(Number(f.value) >= 1900 && Number(f.value) <= 2100) ? 0 : f.type === "select" ? 2 : 1);
+  const isQty = (f: TaggedField) => /^\d+(\.\d+)?$/.test(f.value.replace(/[,$\s]/g, "")) && Number(f.value.replace(/[,$\s]/g, "")) >= 100 && !(Number(f.value) >= 1900 && Number(f.value) <= 2100);
+  const rank = (f: TaggedField) => (isQty(f) ? 0 : f.type === "select" ? 2 : 1);
   const order = [...tf.fields].sort((a, b) => rank(a) - rank(b) || a.index - b.index);
   const lines = async () => new Set((await page.evaluate(() => document.body.innerText)).split("\n").map(clean).filter((l) => l.length >= 3 && l.length <= 300));
+  const set = async (f: TaggedField, value: string, select?: boolean) => {
+    const loc = page.locator(`[data-gbf="${f.index}"]`).first();
+    if (select) await loc.selectOption({ label: value }, { timeout: 4000 });
+    else await loc.fill(value, { timeout: 4000 });
+    await page.waitForTimeout(450);
+  };
   let prev = await lines();
+  const seenResults = new Set<string>();
   const steps: ProbedCalc["steps"] = [];
   const before = blocked.count;
   for (const f of order) {
     if (steps.length >= 4) break;
-    const m = mutateField(f);
-    if (!m) continue;
-    try {
-      const loc = page.locator(`[data-gbf="${f.index}"]`).first();
-      if (m.select) await loc.selectOption({ label: m.value }, { timeout: 4000 });
-      else await loc.fill(m.value, { timeout: 4000 });
-      await page.waitForTimeout(450);
-    } catch {
-      continue;
-    }
-    if (page.url() !== url) break;
-    const now = await lines();
-    const fresh = [...now].filter((l) => !prev.has(l));
-    const text = fresh.join(" | ");
-    if (!fresh.length || EMPTY_STATE.test(text) || /\bNaN\b|invalid|must be|required|infinity/i.test(text)) {
-      // this change shows nothing useful (or an error): put the field back and move on
+    // up to three different demonstration values, until one shows a result no earlier step showed
+    for (let nth = 0; nth < 3; nth++) {
+      const m = mutateField({ ...f }, nth);
+      if (!m) break;
       try {
-        const loc = page.locator(`[data-gbf="${f.index}"]`).first();
-        if (m.select) await loc.selectOption({ label: f.value }, { timeout: 3000 });
-        else await loc.fill(f.value, { timeout: 3000 });
-        await page.waitForTimeout(300);
-        prev = await lines();
+        await set(f, m.value, m.select);
       } catch {
         break;
       }
-      continue;
+      if (page.url() !== url) return [];
+      const now = await lines();
+      const fresh = [...now].filter((l) => !prev.has(l));
+      const text = fresh.join(" | ");
+      const useful = fresh.length > 0 && !EMPTY_STATE.test(text) && !/\bNaN\b|invalid|must be|required|infinity/i.test(text) && fresh.some((l) => !seenResults.has(l));
+      if (useful) {
+        steps.push({ field: f.index, name: f.label, value: m.value, ...(m.select ? { select: true } : {}), newText: text.slice(0, 480) });
+        fresh.forEach((l) => seenResults.add(l));
+        prev = now;
+        break;
+      }
+      // nothing new or an error: put the field back and try another value
+      try {
+        await set(f, f.value, f.type === "select");
+        prev = await lines();
+      } catch {
+        return [];
+      }
     }
-    steps.push({ field: f.index, name: f.label, value: m.value, ...(m.select ? { select: true } : {}), newText: text.slice(0, 480) });
-    prev = now;
   }
   if (blocked.count > before) {
     log("    calculator: discarded (it tried to send data)");
