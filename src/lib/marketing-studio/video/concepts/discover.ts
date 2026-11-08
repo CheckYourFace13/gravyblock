@@ -110,7 +110,9 @@ export async function discoverProduct(origin: string, paths: string[], log: (m: 
       await openPage(page, url);
       const tl2 = await tagLinks(page);
       const searches: ProbedSearch[] = [];
-      const terms = [...new Set(tl2.links.map((l) => l.text).filter((t) => /^[A-Za-z]{4,14}( [A-Za-z]{3,12})?$/.test(t)))].slice(0, 2);
+      // terms the page itself shows: short link labels and single-word items such as category chips or listed names
+      const UI = /^(search|sign|menu|home|login|log|more|close|filter|filters|submit|next|back|cart|help|about|contact|pricing|price|terms|privacy|apply|reset|clear|view|show|learn|read|start|find|browse|explore|today|tonight|tomorrow)$/i;
+      const terms = [...new Set([...tl2.links.map((l) => l.text), ...lines].filter((t) => /^[A-Z][a-z]{3,13}( [A-Z][a-z]{2,12})?$/.test(t) && !UI.test(t.split(" ")[0])))].slice(0, 3);
       for (const inp of tl2.inputs.slice(0, 1)) {
         for (const term of terms) {
           try {

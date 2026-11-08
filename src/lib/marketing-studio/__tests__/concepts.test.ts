@@ -156,3 +156,13 @@ describe("page scripts", () => {
     assert.ok(/\\.\(png/.test(LINK_SCRIPT), "the file-extension filter lost its escaped dot");
   });
 });
+
+describe("payoff quality", () => {
+  test("site boilerplate is never a payoff, and link labels are said as the first segment", async () => {
+    const { shortLabel, speakable: sp } = await import("../video/concepts/generate");
+    for (const t of ["Confirm you are 21 or older.", "We don't sell or ship alcohol.", "Sign in to save this place.", "Read more about our cookies today"]) assert.equal(sp(t), false, t);
+    assert.equal(sp("Songwriters share new tunes on the patio every Thursday"), true);
+    assert.equal(shortLabel("Next Door 1211 U STREET NW · Washington Happy hour Daily"), "Next Door");
+    assert.equal(shortLabel("Winterization hub →"), "Winterization hub");
+  });
+});

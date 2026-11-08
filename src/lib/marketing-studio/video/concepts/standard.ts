@@ -104,6 +104,8 @@ export const personalityFor = (slug: string): Personality => PERSONALITIES[PERSO
 
 /** Openings that are never allowed: logo-first, greeting, introduction. */
 export const BANNED_OPENER = /^\s*(welcome|introducing|meet|hi\b|hello|hey there|this is|in this video|today|say hello|presenting|discover)\b/i;
+/** Site boilerplate that is never a payoff: age gates, legal lines, sign-in prompts, cookie and newsletter text, interface labels. */
+export const BOILERPLATE = /\b(sign in|sign up|log in|log out|confirm you are|21 or older|18 or older|of legal age|we don.t sell|don.t sell or ship|ship alcohol|cookies?|privacy|terms of|terms and|subscribe|newsletter|copyright|all rights|save this|search drinks?|read more|learn more|click here|tap here|skip to|enable javascript|your browser|loading|powered by|follow us|download the app|app store|google play)\b|©/i;
 /** The register of a documentation video or a corporate explainer. */
 export const DOC_REGISTER = /\b(overview|documentation|features? include|this (page|section|screen)|home ?page|our platform|solution|comprehensive|all-in-one|seamless(ly)?|leverage|robust|streamline|empower|cutting-edge|world-class|ecosystem|scroll(ing)? down|let me show|here we (can )?see|as you can see|in this tutorial|walkthrough)\b/i;
 /** A line that sells an outcome has one of these: an action, or a result word. */

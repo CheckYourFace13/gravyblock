@@ -5,7 +5,7 @@
  * The result is judged by validate.ts; a concept that fails is rejected and the next variant is tried, up to a limit.
  */
 import { BANNED } from "../demo/qa";
-import { BANNED_OPENER, DOC_REGISTER, personalityFor, wordCount, type HookStyle, type Personality } from "./standard";
+import { BANNED_OPENER, BOILERPLATE, DOC_REGISTER, INVITE_VERB, personalityFor, wordCount, type HookStyle, type Personality } from "./standard";
 import type { Concept, GateResult, GeneratorInput, PageDiscovery, PlatePlan, ProbedGroup, Step } from "./types";
 import { toks, validateConcept } from "./validate";
 
@@ -39,7 +39,7 @@ export function speakable(f: string, prohibited: string[] = []): boolean {
   if (/[$%/@&#<>_=+*\\|{}[\]~^]|https?:|www\.|\.com\b/.test(t)) return false;
   if (/\d{3,}/.test(t)) return false;
   if (t === t.toUpperCase()) return false;
-  if (BANNED.test(t) || DOC_REGISTER.test(t) || BANNED_OPENER.test(t)) return false;
+  if (BANNED.test(t) || DOC_REGISTER.test(t) || BANNED_OPENER.test(t) || BOILERPLATE.test(t)) return false;
   if (prohibited.some((p) => norm(t).includes(norm(p)))) return false;
   return /[a-z]/.test(t);
 }
@@ -106,12 +106,25 @@ function candidatesFor(g: ProbedGroup, angleTokens: Set<string>, ctaPath: string
   return out;
 }
 
+/** A link's label as the voice says it: the first segment (before a dot separator or a street address), at most six words. */
+export function shortLabel(t: string): string {
+  const first = t.split(/ · | \| | - |\n/)[0].replace(/\s+/g, " ").trim();
+  const words = first.split(" ").filter(Boolean);
+  const cut: string[] = [];
+  for (const w of words) {
+    if (/^\d{3,}$/.test(w) || cut.length >= 6) break;
+    cut.push(w);
+  }
+  return cut.join(" ").replace(/[→>›»]+$/, "").trim();
+}
+
 function linkCandidates(d: PageDiscovery, angleTokens: Set<string>, input: GeneratorInput): Cand[] {
   const used = new Set(input.usedControls.map(norm));
   const pageText = norm(d.lines.join(" "));
   const out: Cand[] = [];
-  d.links.forEach((l, i) => {
-    if (used.has(norm(l.text)) || !pageText.includes(norm(l.text))) return;
+  d.links.forEach((l0, i) => {
+    const l = { ...l0, text: shortLabel(l0.text) };
+    if (wordCount(l.text) < 1 || l.text.length < 3 || BOILERPLATE.test(l.text) || used.has(norm(l.text)) || !pageText.includes(norm(l.text))) return;
     const p1 = fragmentsOf(l.top.join(" | "), [l.text, l.destHeading], angleTokens, input.prohibited);
     const p2 = fragmentsOf(l.lower.join(" | "), [l.text, l.destHeading], angleTokens, input.prohibited).filter((x) => !p1.slice(0, 1).some((y) => norm(y) === norm(x)));
     if (!p1.length || !p2.length) return;
@@ -200,7 +213,7 @@ function pickCta(input: GeneratorInput, plates: PlatePlan[]): { text: string; ur
   const cands: Array<{ text: string; url: string }> = [input.angle.cta];
   for (const p of platePaths) for (const c of pageOf(p)?.ctas ?? []) cands.push(c);
   for (const c of cands) {
-    if (!c.text || !onSite(c.url)) continue;
+    if (!c.text || !onSite(c.url) || wordCount(c.text) < 2 || !INVITE_VERB.test(c.text) || BOILERPLATE.test(c.text)) continue;
     const found = platePaths.find((p) => (pageOf(p)?.lines ?? []).some((l) => norm(l).includes(norm(c.text))));
     if (found) return { text: c.text, url: c.url, quotePath: found };
   }
