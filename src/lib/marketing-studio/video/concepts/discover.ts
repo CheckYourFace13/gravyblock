@@ -3,8 +3,8 @@
  * chips, toggles) are clicked in turn, and what the page newly shows after each click is recorded verbatim. Nothing is submitted or signed into, a click
  * that navigates away or tries to send data is discarded, and nothing is invented: the later script can only say what a probe actually saw.
  */
-import { openBrowsed, openPage, tagControls } from "./browse";
-import type { PageDiscovery, ProbedGroup } from "./types";
+import { openBrowsed, openPage, pageBlocks, tagControls, tagLinks, textIn } from "./browse";
+import type { PageDiscovery, ProbedGroup, ProbedLink, ProbedSearch } from "./types";
 
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
 
@@ -88,7 +88,65 @@ export async function discoverProduct(origin: string, paths: string[], log: (m: 
         }
         groups.push({ id: `${path}#${g.id}`, path, heading: g.heading, controls: ctrls, sequence });
       }
-      out.push({ path, url, title: await page.title(), lines, groups, ctas, discoveredAt: new Date().toISOString() });
+      // ---- links: really open the most promising internal links and record what the destination shows ----
+      await openPage(page, url);
+      const tl = await tagLinks(page);
+      const links: ProbedLink[] = [];
+      for (const l of tl.links.slice(0, 5)) {
+        try {
+          const res = await page.goto(l.href, { waitUntil: "domcontentloaded", timeout: 30_000 });
+          if (!res || res.status() >= 400) continue;
+          await openPage(page, l.href);
+          const blocks = await pageBlocks(page);
+          const heading = blocks.find((b) => b.tag === "h1")?.t ?? "";
+          const top = textIn(blocks, 0, 900).slice(0, 14);
+          const lower = textIn(blocks, 700, 900).filter((t) => !top.includes(t)).slice(0, 14);
+          if (top.length >= 3) links.push({ index: l.index, text: l.text, href: l.href, destTitle: await page.title(), destHeading: heading, top, lower });
+        } catch {
+          /* skip a destination that will not load */
+        }
+      }
+      // ---- searches: really search (GET only) with a term the page itself shows, then open the first result ----
+      await openPage(page, url);
+      const tl2 = await tagLinks(page);
+      const searches: ProbedSearch[] = [];
+      const terms = [...new Set(tl2.links.map((l) => l.text).filter((t) => /^[A-Za-z]{4,14}( [A-Za-z]{3,12})?$/.test(t)))].slice(0, 2);
+      for (const inp of tl2.inputs.slice(0, 1)) {
+        for (const term of terms) {
+          try {
+            await openPage(page, url);
+            await tagLinks(page);
+            const before = await page.evaluate(() => document.body.innerText.length);
+            const box = page.locator(`[data-gbs="${inp.index}"]`).first();
+            await box.fill(term, { timeout: 4000 });
+            const b0 = b.blocked.count;
+            await Promise.all([page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {}), box.press("Enter")]);
+            await page.waitForTimeout(900);
+            if (b.blocked.count > b0) continue;
+            const blocks = await pageBlocks(page);
+            const resultLines = textIn(blocks, 0, 1100).filter((t) => t.toLowerCase() !== term.toLowerCase()).slice(0, 14);
+            const after = await page.evaluate(() => document.body.innerText.length);
+            if (resultLines.length < 3 || (page.url() === url && Math.abs(after - before) < 60)) continue;
+            const resultUrl = page.url();
+            const rl = await tagLinks(page);
+            const first = rl.links.find((x) => new URL(x.href).pathname !== new URL(resultUrl).pathname);
+            let result: ProbedSearch["result"];
+            if (first) {
+              await page.goto(first.href, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => null);
+              await openPage(page, first.href).catch(() => {});
+              const db2 = await pageBlocks(page);
+              const destLines = textIn(db2, 0, 900).slice(0, 14);
+              if (destLines.length >= 3) result = { text: first.text, href: first.href, destLines };
+            }
+            searches.push({ input: inp.index, label: inp.label, term, resultUrl, resultLines, result });
+            break;
+          } catch {
+            /* try the next term */
+          }
+        }
+      }
+      log(`    ${links.length} openable link(s), ${searches.length} working search`);
+      out.push({ path, url, title: await page.title().catch(() => ""), lines, groups, links, searches, ctas, discoveredAt: new Date().toISOString() });
     }
   } finally {
     await b.close();

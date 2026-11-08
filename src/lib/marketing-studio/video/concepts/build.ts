@@ -2,127 +2,17 @@
  * Turns a stored Concept into a DemoSpec the existing renderer, voice, QA and review pipeline already accept: a generic capture that replays the concept's
  * real interaction path on the live product, and a generic timeline built from the personality profile (pace, gaps, zoom). Nothing here is product specific.
  */
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-import type { Page } from "playwright-core";
 import { captionWordsFor, groupCaptions, parseSpoken, wordTimings } from "../demo/audio";
 import type { BuiltDkDemo } from "../demo/drinkknird";
-import { round, union, VIEW } from "../demo/plates";
 import type { LineTime } from "../demo/rentalnoodle";
 import type { DemoSpec } from "../demo/specs";
-import { PLATE_CSS_W, TRANSITION_MS, type CameraKey, type CursorKey, type Manifest, type PlateManifest, type Rect, type SpotKey, type StageScene, type Timeline, type WordTime } from "../demo/types";
-import { openBrowsed, openPage, tagControls } from "./browse";
+import { PLATE_CSS_W, TRANSITION_MS, type CameraKey, type CursorKey, type Manifest, type Rect, type SpotKey, type StageScene, type Timeline, type WordTime } from "../demo/types";
+import { captureConcept } from "./capture";
 import { personalityFor } from "./standard";
 import type { Concept, PlatePlan } from "./types";
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
-
-// ---- capture -----------------------------------------------------------------------------------------------------------------------
-
-async function rectOf(page: Page, sel: string): Promise<Rect> {
-  const r = await page.evaluate((s) => {
-    const e = document.querySelector(s);
-    if (!e) return null;
-    const b = e.getBoundingClientRect();
-    return [b.x, b.y + window.scrollY, b.width, b.height];
-  }, sel);
-  if (!r) throw new Error(`capture: ${sel} not found on ${page.url()}`);
-  return [round(r[0]), round(r[1]), round(r[2]), round(r[3])];
-}
-
-const readLines = (page: Page, gid: string) =>
-  page.evaluate((id) => {
-    const el = document.querySelector(`[data-gbg="${id}"]`);
-    const root = el?.parentElement ?? el ?? document.body;
-    return ((root as HTMLElement).innerText || "").split("\n").map((l) => l.replace(/\s+/g, " ").trim()).filter((l) => l.length >= 3);
-  }, gid);
-
-async function headRect(page: Page, heading: string, fallback: Rect): Promise<Rect> {
-  if (!heading) return fallback;
-  const r = await page.evaluate((h) => {
-    const e = [...document.querySelectorAll("h1,h2,h3,h4")].find((x) => ((x as HTMLElement).innerText || "").replace(/\s+/g, " ").trim().startsWith(h));
-    if (!e) return null;
-    const b = e.getBoundingClientRect();
-    return [b.x, b.y + window.scrollY, b.width, b.height];
-  }, heading.slice(0, 60));
-  return r ? [round(r[0]), round(r[1]), round(r[2]), round(r[3])] : fallback;
-}
-
-export function captureConcept(c: Concept): DemoSpec["capture"] {
-  return async (outDir, logoFile) => {
-    await mkdir(outDir, { recursive: true });
-    const b = await openBrowsed(c.origin);
-    const capturedAt = new Date().toISOString();
-    const plates: Record<string, PlateManifest> = {};
-    try {
-      const { page } = b;
-      const click = async (idx: number) => {
-        await page.locator(`[data-gbc="${idx}"]`).first().click({ timeout: 5000 });
-        await page.waitForTimeout(420);
-      };
-      for (const pl of c.capturePlan) {
-        const url = new URL(pl.path, c.origin).toString();
-        const gid = pl.groupId.split("#").pop() as string;
-        const load = async () => {
-          await openPage(page, url);
-          const groups = await tagControls(page);
-          const g = groups.find((x) => x.id === gid);
-          if (!g) throw new Error(`capture: the control group "${pl.heading}" is no longer on ${url}`);
-          for (const cl of pl.clicks) {
-            const found = g.controls.find((x) => x.index === cl.control);
-            if (!found || norm(found.name) !== norm(cl.name)) throw new Error(`capture: control "${cl.name}" moved or changed on ${url}`);
-          }
-          for (const idx of pl.prefix) await click(idx);
-        };
-        const [a, bb] = pl.clicks;
-        // pass 1: measure every state
-        await load();
-        const box0 = await rectOf(page, `[data-gbg="${gid}"]`);
-        const cA = await rectOf(page, `[data-gbc="${a.control}"]`);
-        const head = await headRect(page, pl.heading, cA);
-        await click(a.control);
-        const boxA = await rectOf(page, `[data-gbg="${gid}"]`);
-        const cB = await rectOf(page, `[data-gbc="${bb.control}"]`);
-        await click(bb.control);
-        const boxB = await rectOf(page, `[data-gbg="${gid}"]`);
-        const top = Math.min(head[1], box0[1], cA[1]);
-        const bottom = Math.max(box0[1] + box0[3], boxA[1] + boxA[3], boxB[1] + boxB[3]);
-        const y0 = Math.max(0, Math.round(top - 50));
-        const h = Math.min(1150, Math.round(bottom + 60 - y0));
-        // pass 2: the same clicks, with a picture and the newly shown text at every state
-        await load();
-        const shot = async (file: string) => {
-          await writeFile(path.join(outDir, file), await page.screenshot({ type: "jpeg", quality: 92, fullPage: true, clip: { x: 0, y: y0, width: VIEW.w, height: h } }));
-          return file;
-        };
-        const states: PlateManifest["states"] = {};
-        let prev = new Set(await readLines(page, gid));
-        states.s0 = { file: await shot(`${pl.id}-s0.jpg`), label: `${pl.heading || "Page"}, before` };
-        const step = async (key: "a" | "b", idx: number, name: string, want: string) => {
-          await click(idx);
-          const now = await readLines(page, gid);
-          const fresh = now.filter((l) => !prev.has(l));
-          prev = new Set(now);
-          const result = fresh.map(clean).join(" | ");
-          if (!norm(result).includes(norm(want))) throw new Error(`capture: after "${name}" the page no longer shows "${want.slice(0, 50)}"`);
-          states[key] = { file: await shot(`${pl.id}-${key}.jpg`), label: `After ${name}`, result };
-        };
-        await step("a", a.control, a.name, a.payoff);
-        await step("b", bb.control, bb.name, bb.payoff);
-        const o = (r: Rect): Rect => [r[0], round(r[1] - y0), r[2], r[3]];
-        const text = await page.evaluate(() => document.body.innerText);
-        const seen = Object.values(states).map((s) => s.result ?? "").join(" ");
-        plates[pl.id] = { id: pl.id, url, title: await page.title(), capturedAt: new Date().toISOString(), text: `${text} ${seen}`, w: VIEW.w, h, states, rects: { head: o(head), box0: o(box0), cA: o(cA), cB: o(cB), boxA: o(boxA), boxB: o(boxB), both: o(union(cA, boxB)) } };
-      }
-    } finally {
-      await b.close();
-    }
-    const manifest: Manifest = { capturedAt, viewport: VIEW, plates, logo: path.basename(logoFile) };
-    await writeFile(path.join(outDir, "manifest.json"), JSON.stringify(manifest, null, 2));
-    return manifest;
-  };
-}
 
 // ---- timeline ----------------------------------------------------------------------------------------------------------------------
 
@@ -192,9 +82,9 @@ export function buildConceptTimeline(c: Concept) {
       const cursor: CursorKey[] = ascending([
         { t: 250, x: 330, y: center(rc.cA)[1] - 110 },
         { t: tA - 320, x: center(rc.cA)[0], y: center(rc.cA)[1] },
-        { t: tA, x: center(rc.cA)[0], y: center(rc.cA)[1], tap: true },
+        { t: tA, x: center(rc.cA)[0], y: center(rc.cA)[1], tap: pl.clicks[0].kind !== "scroll" },
         { t: tB - 360, x: center(rc.cB)[0], y: center(rc.cB)[1] },
-        { t: tB, x: center(rc.cB)[0], y: center(rc.cB)[1], tap: true },
+        { t: tB, x: center(rc.cB)[0], y: center(rc.cB)[1], tap: pl.clicks[1].kind !== "scroll" },
         { t: E - 300, x: center(rc.cB)[0], y: center(rc.cB)[1], hide: true },
       ]);
       const camera: CameraKey[] = ascending([
@@ -206,9 +96,9 @@ export function buildConceptTimeline(c: Concept) {
         { t: E, cx: 195, cy: center(rc.boxB)[1] + 30, zoom: p.zoom.tap + 0.02 },
       ], 220);
       const spots: SpotKey[] = [
-        { from: Math.max(0, tA - 150), to: Math.max(tA + 700, tA - 100), rect: rc.cA, label: pl.clicks[0].name },
+        { from: Math.max(0, tA - 150), to: Math.max(tA + 700, tA - 100), rect: rc.cA, ...(pl.clicks[0].kind === "scroll" ? {} : { label: pl.clicks[0].name }) },
         { from: tA + 750, to: Math.max(tA + 1400, tB - 450), rect: rc.boxA },
-        { from: Math.max(tA + 760, tB - 150), to: Math.max(tB + 700, tA + 1500), rect: rc.cB, label: pl.clicks[1].name },
+        { from: Math.max(tA + 760, tB - 150), to: Math.max(tB + 700, tA + 1500), rect: rc.cB, ...(pl.clicks[1].kind === "scroll" ? {} : { label: pl.clicks[1].name }) },
         { from: Math.max(tA + 1600, tB + 750), to: Math.max(tB + 1500, E - 250), rect: rc.boxB },
       ];
       scenes.push({ id, kind: "screen", start: S, end: win[id].e, plate: pl.id, states, camera, cursor, spots, headline: { text: c.headlines[id], from: 60, to: Math.max(1500, i === 0 ? hookEnd + 400 : tA - 150) } });

@@ -7,7 +7,7 @@ import { DESIRABILITY_CHECKS, openingKey, personalityFor, PERSONALITIES, standar
 import type { GeneratorInput, PageDiscovery } from "../video/concepts/types";
 import { evaluateRecord, hookProblems, scriptProblems } from "../video/concepts/validate";
 
-const page = (path: string, groups: PageDiscovery["groups"], lines: string[]): PageDiscovery => ({ path, url: `https://micstage.com${path}`, title: "t", lines, groups, ctas: [{ text: "Find an open mic", url: "https://micstage.com/find-open-mics" }], discoveredAt: "2026-11-08" });
+const page = (path: string, groups: PageDiscovery["groups"], lines: string[]): PageDiscovery => ({ path, url: `https://micstage.com${path}`, title: "t", lines, groups, links: [], searches: [], ctas: [{ text: "Find an open mic", url: "https://micstage.com/find-open-mics" }], discoveredAt: "2026-11-08" });
 
 const discoveries: PageDiscovery[] = [
   page(

@@ -6,7 +6,7 @@
  */
 import { BANNED } from "../demo/qa";
 import { BANNED_OPENER, DOC_REGISTER, personalityFor, wordCount, type HookStyle, type Personality } from "./standard";
-import type { ClickStep, Concept, GateResult, GeneratorInput, PageDiscovery, PlatePlan, ProbedGroup } from "./types";
+import type { Concept, GateResult, GeneratorInput, PageDiscovery, PlatePlan, ProbedGroup, Step } from "./types";
 import { toks, validateConcept } from "./validate";
 
 const norm = (s: string) => s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim();
@@ -15,6 +15,13 @@ const overlap = (a: Set<string>, b: Set<string>) => {
   let n = 0;
   for (const x of a) if (b.has(x)) n++;
   return n;
+};
+
+/** How each kind of real step is introduced, by personality. {c} is the control's or link's own label, or the search term. */
+const FRAMES = {
+  link: { game: ["Jump into {c}!", "Dive into {c}!"], food_drink: ["Tap into {c}.", "Open {c}."], history_editorial: ["Open {c}.", "Turn to {c}."], public_info: ["Open {c}."], default: ["Open {c}.", "Go to {c}."] } as Record<string, string[]> & { default: string[] },
+  search: { game: ["Search {c}!"], food_drink: ["Search {c}.", "Type {c}."], public_info: ["Search {c}."], default: ["Search {c}.", "Type {c}."] } as Record<string, string[]> & { default: string[] },
+  scroll: ["Keep going.", "Scroll on.", "And further down."],
 };
 
 export const RATE_WPS = 2.55;
@@ -53,6 +60,14 @@ export function fragmentsOf(newText: string, controlNames: string[], angleTokens
   });
 }
 
+/** The part of a verified sentence the voice says: a true leading clause, short enough to land. The claim still cites the whole sentence. */
+export function compress(f: string): string {
+  const t = f.replace(/\s+/g, " ").trim().replace(/\.+$/, "");
+  if (wordCount(t) <= 11) return t;
+  const cut = t.search(/[,;:]| - | but /);
+  return cut >= 22 ? t.slice(0, cut) : t;
+}
+
 /** Strip the closing period so a fragment can sit inside a wrapper; keep ? and !. */
 const sentence = (f: string) => (/[.!?]$/.test(f) ? f : `${f}.`);
 
@@ -80,12 +95,54 @@ function candidatesFor(g: ProbedGroup, angleTokens: Set<string>, ctaPath: string
     const rel = overlap(toks(`${g.heading} ${na} ${nb} ${fa[0]} ${fb[0]}`), angleTokens);
     const score = rel * 4 + (g.path === ctaPath ? 3 : 0) + (g.heading ? 1 : 0) - i * 0.2;
     out.push({
-      plan: { path: g.path, groupId: g.id, heading: g.heading, prefix: g.sequence.slice(0, i).map((s) => s.control), controls: g.controls, clicks: [{ control: a.control, name: na, payoff: fa[0] }, { control: b.control, name: nb, payoff: fb[0] }] },
+      plan: { path: g.path, groupId: g.id, heading: g.heading, prefix: g.sequence.slice(0, i).map((s) => s.control), controls: g.controls, clicks: [{ kind: "click", control: a.control, name: na, payoff: fa[0] }, { kind: "click", control: b.control, name: nb, payoff: fb[0] }] },
       score,
       group: g.id,
       from: i,
       to: i + 1,
       fragments: [fa, fb],
+    });
+  }
+  return out;
+}
+
+function linkCandidates(d: PageDiscovery, angleTokens: Set<string>, input: GeneratorInput): Cand[] {
+  const used = new Set(input.usedControls.map(norm));
+  const pageText = norm(d.lines.join(" "));
+  const out: Cand[] = [];
+  d.links.forEach((l, i) => {
+    if (used.has(norm(l.text)) || !pageText.includes(norm(l.text))) return;
+    const p1 = fragmentsOf(l.top.join(" | "), [l.text, l.destHeading], angleTokens, input.prohibited);
+    const p2 = fragmentsOf(l.lower.join(" | "), [l.text, l.destHeading], angleTokens, input.prohibited).filter((x) => !p1.slice(0, 1).some((y) => norm(y) === norm(x)));
+    if (!p1.length || !p2.length) return;
+    const rel = overlap(toks(`${l.text} ${l.destHeading} ${p1[0]} ${p2[0]}`), angleTokens);
+    out.push({
+      plan: { path: d.path, groupId: `link:${l.href}`, heading: l.destHeading || l.text, prefix: [], controls: [], clicks: [{ kind: "link", index: l.index, name: l.text, href: l.href, payoff: p1[0] }, { kind: "scroll", name: `scroll-${d.path}-${i}`, payoff: p2[0] }] },
+      score: rel * 4 + 1.5,
+      group: `link:${l.href}`,
+      from: 0,
+      to: 0,
+      fragments: [p1, p2],
+    });
+  });
+  return out;
+}
+
+function searchCandidates(d: PageDiscovery, angleTokens: Set<string>, input: GeneratorInput): Cand[] {
+  const out: Cand[] = [];
+  for (const s of d.searches) {
+    if (!s.result) continue;
+    const p1 = fragmentsOf(s.resultLines.join(" | "), [s.term, s.result.text], angleTokens, input.prohibited);
+    const p2 = fragmentsOf(s.result.destLines.join(" | "), [s.term, s.result.text], angleTokens, input.prohibited).filter((x) => !p1.slice(0, 1).some((y) => norm(y) === norm(x)));
+    if (!p1.length || !p2.length) continue;
+    const rel = overlap(toks(`${s.term} ${s.result.text} ${p1[0]} ${p2[0]}`), angleTokens);
+    out.push({
+      plan: { path: d.path, groupId: `search:${d.path}:${s.term}`, heading: "Search", prefix: [], controls: [], clicks: [{ kind: "search", input: s.input, name: s.label || "Search", term: s.term, payoff: p1[0] }, { kind: "link", index: -1, name: s.result.text, href: s.result.href, payoff: p2[0] }] },
+      score: rel * 4 + 3,
+      group: `search:${d.path}:${s.term}`,
+      from: 0,
+      to: 0,
+      fragments: [p1, p2],
     });
   }
   return out;
@@ -107,6 +164,11 @@ function hookCandidates(input: GeneratorInput, p: Personality, plates: PlatePlan
   const all3 = plates[0]?.controls.map((c) => c.name).filter((n) => wordCount(n) <= 2 && !n.includes("?")).slice(0, 3) ?? [];
   if (all3.length === 3) push(`Need ${all3[0].toLowerCase()}, ${all3[1].toLowerCase()} or ${all3[2].toLowerCase()}?`, "question");
   void names;
+  for (const pl of plates) {
+    const st = pl.clicks[0];
+    if (st.kind === "search") push(`Looking for ${st.term.toLowerCase()}?`, "question");
+    if (st.kind === "link") push(`What is ${st.name.toLowerCase().replace(/[?.!]+$/, "")} really like?`, "curiosity");
+  }
   const heading = plates[0]?.heading;
   if (!input.angle.hook.trim() && heading && wordCount(heading) <= 6) {
     push(`Ever wondered about ${heading.toLowerCase().replace(/[?.!]+$/, "")}?`, "curiosity");
@@ -152,7 +214,7 @@ function pickCta(input: GeneratorInput, plates: PlatePlan[]): { text: string; ur
 
 /** The shortest sentence of each tap's candidates, for the tightest cut. */
 function shortest(plates: PlatePlan[], pair: Array<{ fragments: [string[], string[]] }>): PlatePlan[] {
-  return plates.map((pl, i) => ({ ...pl, clicks: pl.clicks.map((c, ci) => ({ ...c, payoff: [...pair[i].fragments[ci]].slice(0, 4).sort((a, b) => wordCount(a) - wordCount(b))[0] ?? c.payoff })) as [ClickStep, ClickStep] }));
+  return plates.map((pl, i) => ({ ...pl, clicks: pl.clicks.map((c, ci) => ({ ...c, payoff: [...pair[i].fragments[ci]].slice(0, 4).sort((a, b) => wordCount(a) - wordCount(b))[0] ?? c.payoff })) as [Step, Step] }));
 }
 
 export type Attempt = { variant: number; summary: string; reasons: string[] };
@@ -183,26 +245,28 @@ export function buildConcept(input: GeneratorInput, plates: PlatePlan[], hook: {
     const plateId = pl.id;
     const sceneId = `a${pi + 1}`;
     const ctx = `c-ctx${pi + 1}`;
-    const ctxFact = pl.heading && wordCount(pl.heading) >= 1 && pl.heading.length >= 4 ? pl.heading : pl.clicks[0].name;
+    const ctxFact = pl.heading && pl.heading.length >= 4 ? pl.heading : pl.clicks[0].name;
     facts.push({ plate: plateId, value: ctxFact });
-    claims.push({ id: ctx, text: `The page has a "${ctxFact}" area with controls: ${pl.clicks.map((c) => c.name).join(" and ")}.`, facts: [ctxFact], sources: [{ plate: plateId, quote: ctxFact }, ...pl.clicks.map((c) => ({ plate: plateId, quote: c.name }))] });
+    claims.push({ id: ctx, text: `The product has a "${ctxFact}" area, shown with: ${pl.clicks.map((c) => c.name).join(" and ")}.`, facts: [ctxFact], sources: [{ plate: plateId, quote: ctxFact }, ...pl.clicks.filter((c) => c.kind === "click" || c.kind === "link").map((c) => ({ plate: plateId, quote: c.name }))] });
     claimsUsed.push({ id: ctx, text: `area: ${ctxFact}`, quote: ctxFact, path: pl.path });
     if (pi === 0) line(sceneId, hook.text, [ctx]);
     pl.clicks.forEach((c, ci) => {
       const id = `c-pay${pi + 1}${ci === 0 ? "a" : "b"}`;
       const frag = c.payoff;
       facts.push({ plate: plateId, value: frag });
-      claims.push({ id, text: `After tapping "${c.name}" the page shows: ${frag}`, facts: [frag], sources: [{ plate: plateId, quote: frag }, { plate: plateId, quote: c.name }] });
+      claims.push({ id, text: `After ${c.kind === "scroll" ? "scrolling" : c.kind === "search" ? `searching "${c.term}"` : `opening "${c.name}"`} the page shows: ${frag}`, facts: [frag], sources: [{ plate: plateId, quote: frag }, ...(c.kind === "click" || c.kind === "link" ? [{ plate: plateId, quote: c.name }] : [])] });
       claimsUsed.push({ id, text: `after "${c.name}"`, quote: frag, path: pl.path });
       payoff.push(frag);
-      const asks = c.name.endsWith("?");
-      const label = asks ? c.name : c.name.replace(/[?!.]+$/, "");
-      const act0 = asks ? "Ask {c}" : tpl(p.action, pi * 2 + ci + fragIdx);
-      const act = compact >= 1 && ci === 1 ? "{c}" : act0;
-      const actText = act.replace("{c}", `{${marker(pi, ci)}}${label}`);
-      const pay = tpl(p.payoff, pi * 2 + ci + fragIdx).replace("{f}", sentence(frag));
+      const k = pi * 2 + ci + fragIdx;
+      const asks = c.kind === "click" && c.name.endsWith("?");
+      const label = c.kind === "search" ? c.term : c.name.replace(/[?!.]+$/, "") + (asks ? "?" : "");
+      const frames = asks ? ["Ask {c}"] : c.kind === "link" ? FRAMES.link[p.id] ?? FRAMES.link.default : c.kind === "search" ? FRAMES.search[p.id] ?? FRAMES.search.default : c.kind === "scroll" ? FRAMES.scroll : p.action;
+      const act0 = tpl(frames, k);
+      const act = compact >= 1 && ci === 1 && c.kind === "click" ? "{c}" : act0;
+      const actText = c.kind === "scroll" ? `{${marker(pi, ci)}}${act}` : act.replace("{c}", `{${marker(pi, ci)}}${label}`);
+      const pay = tpl(p.payoff, k).replace("{f}", sentence(compress(frag)));
       line(sceneId, `${/[.!?]$/.test(actText) ? actText : `${actText}.`} ${pay}`, [ctx, id]);
-      onScreen.push({ sceneId, kind: "label", text: c.name, claim: ctx });
+      if (c.kind === "click" || c.kind === "link") onScreen.push({ sceneId, kind: "label", text: c.name, claim: ctx });
     });
     if (pi === plates.length - 1 && compact < 2) line(sceneId, tpl(p.whyLine, fragIdx), [ctx]);
     const head = pi === 0 && wordCount(hook.text) <= 7 ? hook.text : pl.heading || pl.clicks[0].name;
@@ -211,8 +275,8 @@ export function buildConcept(input: GeneratorInput, plates: PlatePlan[], hook: {
     sceneMeta[sceneId] = {
       plate: plateId,
       purpose: pi === 0 ? `Hook and first payoff: ${hook.text}` : `Second payoff: ${pl.clicks.map((c) => c.name).join(" then ")}`,
-      motion: ["touch cursor taps the real control", "the live page changes in front of you", "camera pushes in on the result", "focus highlight on the control and its result", "headline springs in and out"],
-      note: `Real states of ${input.origin}${pl.path}, captured by clicking its own controls: ${pl.clicks.map((c) => c.name).join(", ")}.`,
+      motion: [pl.clicks[0].kind === "search" ? "the real search box is used" : "touch cursor taps the real control", "the live page changes in front of you", "camera pushes in on the result", "focus highlight on the control and its result", "headline springs in and out"],
+      note: `Real states of ${input.origin}${pl.path}, captured by really using it: ${pl.clicks.map((c) => c.name).join(", ")}.`,
     };
   });
   const ctaClaim = "c-cta";
@@ -294,7 +358,7 @@ export function generateConcept(input: GeneratorInput, maxVariants = 16, want = 
       return "/";
     }
   })();
-  const all: Cand[] = input.discoveries.flatMap((d: PageDiscovery) => d.groups.flatMap((g) => candidatesFor(g, angleTokens, ctaPath, input, d.lines))).sort((a, b) => b.score - a.score);
+  const all: Cand[] = input.discoveries.flatMap((d: PageDiscovery) => [...d.groups.flatMap((g) => candidatesFor(g, angleTokens, ctaPath, input, d.lines)), ...linkCandidates(d, angleTokens, input), ...searchCandidates(d, angleTokens, input)]).sort((a, b) => b.score - a.score);
   const attempts: Attempt[] = [];
   if (!all.length) return { alternates: [], attempts: [{ variant: input.variant, summary: "no demonstration", reasons: ["the product's public pages have no in-page control that, when used, visibly shows something new: it cannot be demonstrated with real interaction"] }] };
   // pairs of demonstrations from different groups, or from non-overlapping steps of one group
@@ -329,7 +393,7 @@ export function generateConcept(input: GeneratorInput, maxVariants = 16, want = 
     const alt = Math.floor(v / (4 * uniq.length)) % 2;
     const swapped: PlatePlan[] = plates.map((pl, i) => {
       const frs = pair[i].fragments;
-      const clicks = pl.clicks.map((c, ci) => ({ ...c, payoff: frs[ci][alt] ?? frs[ci][0] })) as [ClickStep, ClickStep];
+      const clicks = pl.clicks.map((c, ci) => ({ ...c, payoff: frs[ci][alt] ?? frs[ci][0] })) as [Step, Step];
       return { ...pl, clicks };
     });
     let built: Concept | undefined;

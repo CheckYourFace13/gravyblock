@@ -7,7 +7,7 @@
  */
 import { compareAngles, type AngleEntry } from "../../library";
 import { BANNED } from "../demo/qa";
-import { BANNED_OPENER, DESIRABILITY_CHECKS, DOC_REGISTER, HOOK_TENSION, INVITE_VERB, OUTCOME_WORD, openingKey, personalityFor, wordCount, type DesirabilityCheck, type DesirabilityId } from "./standard";
+import { BANNED_OPENER, DESIRABILITY_CHECKS, DOC_REGISTER, HOOK_TENSION, INVITE_VERB, OUTCOME_WORD, openingKey, PERSONALITIES, personalityFor, wordCount, type DesirabilityCheck, type DesirabilityId } from "./standard";
 import type { Concept, GateResult, GeneratorInput } from "./types";
 
 const norm = (s: string) => s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim();
@@ -44,6 +44,49 @@ export function distinctReasons(concept: Concept, input: GeneratorInput): string
 
 const mk = (id: DesirabilityId, ok: boolean, detail: string): DesirabilityCheck => ({ id, label: DESIRABILITY_CHECKS.find((c) => c.id === id)!.label, ok, detail });
 
+/** Customer outcomes, ratings and growth numbers a script must never invent. */
+export const FAKE_OUTCOME = /\b(customers? (love|trust|swear)|rated|five.?star|testimonials?|doubled|tripled|boosts?|boosted|increases?d?|more (sales|bookings|customers|revenue|traffic|clients)|proven|top.?rated|award.?winning)\b/i;
+
+/** Words the frames themselves use (action, payoff, reassurance, call to action): safe by construction, they claim nothing about any product. */
+const FRAME_WORDS = (() => {
+  const w = new Set<string>();
+  const add = (s: string) => (s.toLowerCase().match(/[a-z']+/g) ?? []).forEach((x) => w.add(x));
+  for (const p of Object.values(PERSONALITIES)) [...p.action, ...p.payoff, ...p.whyLine, ...p.cta].forEach(add);
+  add("open go to keep going scroll on and further down search type jump into dive tap ask then now at dot com");
+  return w;
+})();
+
+/**
+ * Grounded copy. The words of every spoken line (the hook is marketing copy and is judged separately) must come from the frames, from the product's
+ * name, or from text the live product showed. Copy may be reworded, but it cannot bring in a capability, a noun or a promise the product never showed.
+ */
+export function ungroundedWords(spoken: string[], vocabulary: Set<string>, nameTokens: string[]): string[] {
+  const out: string[] = [];
+  for (const line of spoken)
+    for (const w of line.toLowerCase().match(/[a-z']+/g) ?? []) {
+      if (w.length <= 2 || FRAME_WORDS.has(w) || vocabulary.has(w) || nameTokens.includes(w)) continue;
+      out.push(w);
+    }
+  return [...new Set(out)];
+}
+
+/** The vocabulary of everything discovery saw on the product: pages, probes, links and searches. */
+export function pageVocabulary(discoveries: Array<{ lines: string[]; groups: Array<{ heading: string; controls: Array<{ name: string }>; sequence: Array<{ newText: string }> }>; links?: Array<{ text: string; destHeading: string; top: string[]; lower: string[] }>; searches?: Array<{ term: string; resultLines: string[]; result?: { text: string; destLines: string[] } }> }>): Set<string> {
+  const v = new Set<string>();
+  const add = (s: string) => (s.toLowerCase().match(/[a-z']+/g) ?? []).forEach((x) => v.add(x));
+  for (const d of discoveries) {
+    d.lines.forEach(add);
+    for (const g of d.groups) {
+      add(g.heading);
+      g.controls.forEach((c) => add(c.name));
+      g.sequence.forEach((s) => add(s.newText));
+    }
+    for (const l of d.links ?? []) [l.text, l.destHeading, ...l.top, ...l.lower].forEach(add);
+    for (const s of d.searches ?? []) [s.term, ...s.resultLines, ...(s.result ? [s.result.text, ...s.result.destLines] : [])].forEach(add);
+  }
+  return v;
+}
+
 /** The hard gates every script must pass whoever wrote it. Returns failure reasons. */
 export function scriptProblems(lines: Array<{ spoken: string; caption?: string }>, onScreen: string[], prohibited: string[]): string[] {
   const out: string[] = [];
@@ -52,6 +95,8 @@ export function scriptProblems(lines: Array<{ spoken: string; caption?: string }
   if (banned) out.push(`unsupported wording: "${banned[0]}"`);
   const doc = DOC_REGISTER.exec(text);
   if (doc) out.push(`documentation or corporate language: "${doc[0]}"`);
+  const fake = FAKE_OUTCOME.exec(text);
+  if (fake) out.push(`an outcome, rating or growth claim the product never showed: "${fake[0]}"`);
   for (const p of prohibited) if (p && norm(text).includes(norm(p))) out.push(`says something the product must not claim: "${p}"`);
   return out;
 }
@@ -64,7 +109,7 @@ export function validateConcept(c: Concept, input: GeneratorInput): GateResult {
   const checks: DesirabilityCheck[] = [];
 
   // unsupported claims and grounding
-  const factText = norm(input.discoveries.flatMap((d) => [...d.lines, ...d.groups.flatMap((g) => g.sequence.map((s) => s.newText.replace(/ \| /g, " ")))]).join(" \n "));
+  const factText = norm(input.discoveries.flatMap((d) => [...d.lines, ...d.groups.flatMap((g) => g.sequence.map((s) => s.newText.replace(/ \| /g, " "))), ...d.links.flatMap((l) => [l.text, l.destHeading, ...l.top, ...l.lower]), ...d.searches.flatMap((s) => [...s.resultLines, ...(s.result?.destLines ?? [])])]).join(" \n "));
   const ungrounded = c.claimsUsed.filter((u) => !factText.includes(norm(u.quote)));
   if (ungrounded.length) reasons.push(`unsupported claim: "${ungrounded[0].quote.slice(0, 50)}" was not seen on the live product`);
   const lineClaims = c.narration.filter((l) => l.claims.length === 0 || l.claims.some((id) => !c.claims.some((x) => x.id === id)));
@@ -72,7 +117,10 @@ export function validateConcept(c: Concept, input: GeneratorInput): GateResult {
   reasons.push(...scriptProblems(c.narration, c.onScreen.map((o) => o.text), input.prohibited));
 
   // the hook must be about what the video actually shows
-  const content = toks(c.capturePlan.map((pl) => `${pl.heading} ${pl.clicks.map((k) => `${k.name} ${k.payoff}`).join(" ")}`).join(" "));
+  const content = toks(c.capturePlan.map((pl) => `${pl.heading} ${pl.clicks.map((k) => `${k.name} ${k.payoff} ${k.kind === "search" ? k.term : ""}`).join(" ")}`).join(" "));
+  // copy may be reworded, but nothing the product never showed may be said
+  const loose = ungroundedWords(spoken.slice(1, -1).concat(spoken.slice(-1)), pageVocabulary(input.discoveries), [...toks(c.productName), ...(c.productName.toLowerCase().match(/[a-z]+/g) ?? []), ...c.ctaHost.toLowerCase().split(/[.-]/)]);
+  if (loose.length) reasons.push(`words the product never showed: ${loose.slice(0, 5).join(", ")}`);
   const hookOn = shared(toks(c.hook), content);
   const angleOn = shared(toks(`${input.angle.title} ${input.angle.goal} ${input.angle.features.join(" ")}`), content);
   if (hookOn.length < 1) reasons.push(`the hook is about something the video does not show ("${c.hook}" shares no word with the screens)`);

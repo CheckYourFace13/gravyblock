@@ -106,7 +106,12 @@ export async function runLibraryVideo(db: StudioDb, input: { specId: string; att
       const changes = rec.scenes.reduce((n, s) => n + Math.max(0, (s.sourceVisual?.states.length ?? 1) - 1), 0);
       const g = evaluateRecord({ specId: input.specId, slug: product.slug, productName: product.name, transcript: rec.transcript.map((t) => ({ text: t.text, caption: t.caption })), durationMs: rec.durationMs, firstActionMs: rec.desirability?.firstActionMs ?? (acting ? acting.startMs + 2500 : null), stateChanges: rec.desirability?.stateChanges ?? changes, interactivePlates: rec.desirability?.interactivePlates ?? rec.scenes.filter((s) => (s.sourceVisual?.states.length ?? 0) >= 3).length, verifiedClaims: rec.claims.filter((c) => c.factsVerified).length, ctaText: rec.cta.text, onScreen: rec.onScreen.map((o) => o.text), takenOpenings: taken, concept: null, prohibited: (await listClaims(INTERNAL_SCOPE, product.id, db)).filter((c) => c.kind === "prohibited").map((c) => c.text) });
       await setSetting(`video_creative_review_${input.specId.replace(/[^a-z0-9]+/gi, "_")}`, { at: new Date().toISOString(), legacy: true, ok: g.ok, reasons: g.reasons, checks: g.checks }, ACTOR, db, { audited: false });
-      log(`creative standard (written before it existed, kept as rendered): ${g.ok ? "passes all ten checks" : `flags ${g.reasons.join("; ")}`}`);
+      log(`creative standard: ${g.ok ? "passes all ten checks" : `fails: ${g.reasons.join("; ")}`}`);
+      // Nothing that is not yet owner-approved is grandfathered: a hand-written script that fails the standard is held for a rebuild, not uploaded.
+      if (!g.ok) {
+        await updateAngle(db, ACTOR, product.slug, (e) => e.id === entry.id, { status: "planned" });
+        return { status: "held", detail: `held for a rebuild under the creative standard: ${g.reasons.join("; ")}` };
+      }
     }
     // 3. upload unlisted, verify, email the owner with the library label
     const out = await prepareUnlistedReview(db, {

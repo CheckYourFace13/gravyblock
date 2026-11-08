@@ -20,22 +20,36 @@ export type PageDiscovery = {
   /** the page's visible lines, verbatim, de-duplicated */
   lines: string[];
   groups: ProbedGroup[];
+  links: ProbedLink[];
+  searches: ProbedSearch[];
   /** internal links with a visible label that look like a call to action */
   ctas: Array<{ text: string; url: string }>;
   discoveredAt: string;
 };
 
-export type ClickStep = { control: number; name: string; payoff: string };
+/** One real, read-only thing a viewer sees done on the live product. `payoff` is the page text that supports what the copy says about it. */
+export type Step =
+  | { kind: "click"; control: number; name: string; payoff: string }
+  | { kind: "link"; index: number; name: string; href: string; payoff: string }
+  | { kind: "search"; input: number; name: string; term: string; payoff: string }
+  | { kind: "scroll"; name: string; payoff: string };
+export type ClickStep = Step;
 export type PlatePlan = {
   id: string;
   path: string;
+  /** click plates: the control group and the clicks replayed silently before the shown ones */
   groupId: string;
   heading: string;
-  /** clicks replayed silently before the two shown clicks, so the page is in the state the probe saw */
   prefix: number[];
   controls: Array<{ index: number; name: string }>;
-  clicks: [ClickStep, ClickStep];
+  /** two steps, three states: before, after the first step, after the second */
+  clicks: [Step, Step];
 };
+
+/** A search box probed by really searching (GET only). */
+export type ProbedSearch = { input: number; label: string; term: string; resultUrl: string; resultLines: string[]; /** first result link on the results page */ result?: { text: string; href: string; destLines: string[] } };
+/** An internal link probed by really opening it. */
+export type ProbedLink = { index: number; text: string; href: string; destTitle: string; destHeading: string; /** the destination's first visible lines, then the lines further down */ top: string[]; lower: string[] };
 
 export type Concept = {
   version: 1;

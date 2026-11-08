@@ -92,3 +92,47 @@ export async function openPage(page: Page, url: string): Promise<void> {
 
 export type TaggedGroup = { id: string; heading: string; controls: Array<{ index: number; name: string }> };
 export const tagControls = (page: Page): Promise<TaggedGroup[]> => page.evaluate(TAG_SCRIPT) as Promise<TaggedGroup[]>;
+
+/** Runs in the page. Tags visible internal links in the main content with data-gbl and search boxes with data-gbs. */
+export const LINK_SCRIPT = `(() => {
+  document.querySelectorAll("[data-gbl],[data-gbs]").forEach((e) => { e.removeAttribute("data-gbl"); e.removeAttribute("data-gbs"); });
+  const vis = (e) => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); return r.width >= 40 && r.height >= 24 && cs.visibility !== "hidden" && cs.display !== "none"; };
+  const UNSAFE = new RegExp(${JSON.stringify(UNSAFE_LABEL.source)}, "i");
+  const here = location.pathname;
+  const seen = new Set();
+  const links = [];
+  for (const a of [...document.querySelectorAll("a[href]")]) {
+    if (a.closest("nav, header, footer, [role=navigation]")) continue;
+    let u; try { u = new URL(a.href); } catch { continue; }
+    if (u.host !== location.host || u.hash || u.pathname === here || u.search.length > 0 && u.pathname === here) continue;
+    if (/\.(png|jpe?g|svg|pdf|zip)$/i.test(u.pathname) || /login|signin|signup|sign-up|log-in|cart|checkout|account|privacy|terms|cookie|contact/i.test(u.pathname)) continue;
+    const t = (a.innerText || "").replace(/\s+/g, " ").trim();
+    if (t.length < 4 || t.length > 70 || UNSAFE.test(t) || seen.has(u.pathname) || !vis(a)) continue;
+    seen.add(u.pathname);
+    a.setAttribute("data-gbl", String(links.length));
+    links.push({ index: links.length, text: t, href: u.toString() });
+    if (links.length >= 14) break;
+  }
+  const inputs = [];
+  for (const i of [...document.querySelectorAll("input[type=search], input[type=text], input:not([type])")]) {
+    if (i.closest("nav, header, footer")) continue;
+    const f = i.closest("form");
+    if (f && (f.method || "get").toLowerCase() === "post") continue;
+    const label = (i.getAttribute("placeholder") || i.getAttribute("aria-label") || "").trim();
+    if (!/search|find|look|city|zip|name|drink|recipe/i.test(label + " " + (i.name || "")) || !vis(i) || i.disabled || i.type === "password" || i.type === "email" || i.type === "tel") continue;
+    i.setAttribute("data-gbs", String(inputs.length));
+    inputs.push({ index: inputs.length, label: label.slice(0, 60) });
+    if (inputs.length >= 2) break;
+  }
+  return { links, inputs };
+})()`;
+
+export type TaggedLinks = { links: Array<{ index: number; text: string; href: string }>; inputs: Array<{ index: number; label: string }> };
+export const tagLinks = (page: Page): Promise<TaggedLinks> => page.evaluate(LINK_SCRIPT) as Promise<TaggedLinks>;
+
+/** Visible text blocks of the page with their vertical position, so "what the viewer sees in this window" can be read back. */
+export const BLOCKS_SCRIPT = `(() => [...document.querySelectorAll("h1,h2,h3,h4,p,li,td,figcaption,dd,dt,summary,button,label")].map((e) => { const r = e.getBoundingClientRect(); const t = (e.innerText || "").replace(/\s+/g, " ").trim(); return { x: r.x, w: r.width, y: r.y + window.scrollY, h: r.height, t, tag: e.tagName.toLowerCase() }; }).filter((b) => b.t.length >= 8 && b.t.length <= 260 && b.h > 0))()`;
+export type Block = { x: number; w: number; y: number; h: number; t: string; tag: string };
+export const pageBlocks = (page: Page): Promise<Block[]> => page.evaluate(BLOCKS_SCRIPT) as Promise<Block[]>;
+/** The distinct texts whose box lies inside the window [y0, y0 + h]. */
+export const textIn = (blocks: Block[], y0: number, h: number): string[] => [...new Set(blocks.filter((b) => b.y >= y0 - 4 && b.y + Math.min(b.h, 40) <= y0 + h).map((b) => b.t))];
