@@ -68,7 +68,14 @@ async function settle(page: Page) {
   }
   await page.evaluate(() => window.scrollTo(0, 0));
   // a cookie banner never belongs in a video: take the privacy-preserving choice (this browser only, nothing is sent anywhere else)
-  await page.getByRole("button", { name: /^(reject|decline|deny)( all| optional| non-essential)?( cookies)?$/i }).first().click({ timeout: 1500 }).catch(() => {});
+  await page.getByRole("button", { name: /^(reject|decline|deny)( all| optional| non-essential)?( cookies)?$/i }).first().click({ timeout: 4000 }).catch(() => {});
+  // anything fixed to the screen that is still a cookie or consent prompt (a banner that re-renders, or one with no reject button) is hidden for the picture only
+  await page.evaluate(() => {
+    for (const e of Array.from(document.querySelectorAll("body *"))) {
+      const cs = getComputedStyle(e);
+      if ((cs.position === "fixed" || cs.position === "sticky") && /cookie|consent/i.test((e as HTMLElement).innerText || "") && (e as HTMLElement).innerText.length < 900) (e as HTMLElement).style.display = "none";
+    }
+  });
   await page.waitForTimeout(300);
 }
 
