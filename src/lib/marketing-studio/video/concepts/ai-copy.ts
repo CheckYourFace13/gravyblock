@@ -22,11 +22,11 @@ const SYSTEM = `You write the voiceover for a 25 second vertical product demo vi
 Your job: choose the demonstration that makes the most compelling little story, then write the copy. If none of the candidates is worth publishing (the results are dull, off-topic, confusing, or would not make a viewer want to try the product), set pick to 0 and explain why in reject.
 
 Craft, with the limits software will enforce:
-- Line 1 is the hook, spoken over the first screen: 4 to 7 words. A question or a bold, relatable line about the viewer's real situation that this demonstration answers. It must contain at least one concrete word from the area names or page text you were given (a place, thing or action the viewer is about to see), so it is clearly about this video. Never start with the product name, a greeting, "welcome", "introducing", "meet", "discover" or "today".
+- Line 1 is the hook, spoken over the first screen: 4 to 6 words. A question or a bold, relatable line about the viewer's real situation that this demonstration answers. It must use at least one of the words in hookMustUseOneOf (exact word), so it is clearly about what the viewer is about to see. Never start with the product name, a greeting, "welcome", "introducing", "meet", "discover" or "today".
 - Then one line per tap, in order (4 taps, 4 lines), 12 words or fewer each. Each line says what the viewer does in a few words, then what they see, in natural spoken English with the personality described. Put the token [tap] exactly once per line, immediately before the word where the finger lands. In the FIRST step line, [tap] must be the first or second word, because the first tap has to land within about four seconds of the start.
 - For a tap that scrolls ("scrolls further down the page") never say "scroll" or "scroll down"; say something like "keep going" or "and further down". For a link, say "open" or "jump into", not "click".
 - The seeing part may only restate or lightly paraphrase the page text shown for that tap. It must not add anything the page text does not support. Do not quote counts or figures; say what changed, not how many.
-- Total spoken length matters: hook plus four lines plus close plus invitation should be about 60 to 70 words, so the video runs about 25 to 30 seconds.
+- Total spoken length matters: hook plus four lines plus close plus invitation should be about 52 to 60 words in all, so the video runs about 25 to 30 seconds. Keep every step line short and let the screen do the talking.
 - Optionally a closing line of 3 to 6 words that sums up why it matters without claiming anything new. Skip it if the lines are already long.
 - The call to action: an invitation of 3 to 5 words that starts with a verb (try, find, see, plan, explore, play, check, read, make, start). Do not include the product name or the website; the address is added automatically.
 - Sound like a person who likes this product, not like a brochure. Concrete, warm, specific, a little playful where the personality allows. Vary the rhythm. No filler, no corporate words.
@@ -59,6 +59,7 @@ function userPrompt(input: GeneratorInput, plans: Plan[], feedback: string[]): s
         pick: i + 1,
         places: pl.map((x) => ({ page: x.path, area: x.heading || "(none)", taps: x.clicks.map((c) => ({ viewer: doing(c), pageThenShows: c.payoff })) })),
       })),
+      hookMustUseOneOf: hookWords(plans),
       mustNotOpenLike: input.takenHooks.slice(0, 24),
       ...(feedback.length ? { yourPreviousAttemptWasRejectedBecause: feedback.slice(0, 6), fixThemAll: true } : {}),
     },
@@ -66,6 +67,13 @@ function userPrompt(input: GeneratorInput, plans: Plan[], feedback: string[]): s
     1,
   );
 }
+
+/** Concrete words the viewer will see on screen, from the area names and control labels, so the hook is about the video. */
+const hookWords = (plans: Plan[]): string[] => {
+  const skip = new Set(["near", "with", "from", "that", "this", "your", "what", "when", "does", "showing", "verified", "confirmed"]);
+  const w = plans.flatMap((pl) => pl.flatMap((x) => [x.heading, ...x.clicks.map((c) => (c.kind === "search" ? c.term : c.name))])).flatMap((t) => t.toLowerCase().match(/[a-z]{4,}/g) ?? []);
+  return [...new Set(w)].filter((x) => !skip.has(x)).slice(0, 14);
+};
 
 const clean = (s: unknown) => (typeof s === "string" ? s.replace(/\s+/g, " ").trim() : "");
 
