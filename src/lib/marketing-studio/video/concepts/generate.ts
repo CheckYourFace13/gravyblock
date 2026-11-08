@@ -222,7 +222,8 @@ function pickCta(input: GeneratorInput, plates: PlatePlan[]): { text: string; ur
     const found = platePaths.find((p) => (pageOf(p)?.lines ?? []).some((l) => norm(l).includes(norm(c.text))));
     return { text: c.text, url: c.url, quotePath: found ?? platePaths[0], onPage: Boolean(found) };
   }
-  return null;
+  // no real invitation was planned or shown: a plain one, to the planned page when it is on the product's own site
+  return { text: `Explore ${input.productName}`, url: onSite(input.angle.cta.url) ? input.angle.cta.url : input.home, quotePath: platePaths[0], onPage: false };
 }
 
 /** The shortest sentence of each step's candidates, for the tightest cut. */
