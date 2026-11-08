@@ -33,7 +33,7 @@ export function layoutConcept(c: Concept) {
   const p = personalityFor(c.slug);
   return (durMs: Record<string, number>): Record<string, LineTime> => {
     const out: Record<string, LineTime> = {};
-    let t = 300;
+    let t = 150;
     c.narration.forEach((l, i) => {
       if (i > 0) t += l.sceneId === c.narration[i - 1].sceneId ? p.gaps.same : l.sceneId === "end" ? p.gaps.endLead : p.gaps.scene;
       const d = durMs[l.id];

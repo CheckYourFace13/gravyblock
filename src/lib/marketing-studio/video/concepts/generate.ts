@@ -277,9 +277,14 @@ function shortest(plates: PlatePlan[], pair: Array<{ fragments: [string[], strin
 
 /** Estimated length and the time of the first tap for a script, from the voice pace and the personality's line gaps. */
 export function timing(narration: Concept["narration"], p: Personality): { estSeconds: number; estFirstTapMs: number } {
-  const words = narration.map((l) => wordCount((l.caption ?? l.spoken).replace(/\{[a-z0-9]+\}/g, "")));
+  // a figure is said as several words ("$1200.00" is "twelve hundred dollars"), so it counts as several
+  const spokenCount = (text: string) => {
+    const t0 = text.replace(/\{[a-z0-9]+\}/g, "");
+    return wordCount(t0) + (t0.match(/\$?\d[\d,]*(?:\.\d+)?/g) ?? []).reduce((a, m) => a + ((m.replace(/[^0-9.]/g, "").split(".")[0].length >= 4) ? 4 : m.replace(/[^0-9.]/g, "").split(".")[0].length === 3 ? 2 : 1), 0);
+  };
+  const words = narration.map((l) => spokenCount(l.caption ?? l.spoken));
   const secs = words.map((w) => lineSeconds(w, p));
-  let t = 0.3;
+  let t = 0.15;
   const starts: number[] = [];
   narration.forEach((l, i) => {
     if (i > 0) t += (l.sceneId === narration[i - 1].sceneId ? p.gaps.same : l.sceneId === "end" ? p.gaps.endLead : p.gaps.scene) / 1000;
