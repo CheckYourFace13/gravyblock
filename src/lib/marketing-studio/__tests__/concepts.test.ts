@@ -131,7 +131,7 @@ describe("generator", () => {
 });
 
 describe("post-render gate", () => {
-  const base = { specId: "x:y", slug: "micstage", productName: "MicStage", transcript: [{ text: "Want to perform but can't find an open mic?" }, { text: "Tap Chicago. Found one. Tuesday comedy night at the corner bar." }, { text: "Then Austin. Look at that. Songwriters share new tunes." }, { text: "Pick a night and go." }, { text: "Find your stage, at micstage.com." }], durationMs: 28_000, firstActionMs: 3200, stateChanges: 4, interactivePlates: 2, verifiedClaims: 6, ctaText: "Find an open mic", onScreen: ["Browse by city"], takenOpenings: [], concept: null, prohibited: [] };
+  const base = { specId: "x:y", slug: "micstage", productName: "MicStage", transcript: [{ text: "Want to perform but can't find an open mic?" }, { text: "Tap Chicago. Found one. Tuesday comedy night at the corner bar." }, { text: "Then Austin. Look at that. Songwriters share new tunes." }, { text: "Pick a night and go." }, { text: "Find your stage, at micstage.com." }], durationMs: 28_000, firstActionMs: 2800, stateChanges: 4, interactivePlates: 2, verifiedClaims: 6, ctaText: "Find an open mic", onScreen: ["Browse by city"], takenOpenings: [], concept: null, prohibited: [] };
   test("passes a punchy video and flags a slow one and a repeated opening", () => {
     assert.equal(evaluateRecord(base).ok, true);
     const slow = evaluateRecord({ ...base, firstActionMs: 9000 });

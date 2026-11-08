@@ -206,7 +206,7 @@ export function validateConcept(c: Concept, input: GeneratorInput, opts: { ai?: 
   const hp = hookProblems(c.hook, c.productName);
   const key = openingKey(c.hook);
   const taken = input.takenHooks.some((h) => openingKey(h) === key);
-  const early = c.estFirstTapMs <= 4300;
+  const early = c.estFirstTapMs <= 2900; // owner directive 2026-11-08: the first real action lands within 3 seconds
   checks.push(mk("first_3_seconds", hp.length === 0 && !taken && early, [...hp, ...(taken ? [`the opening "${key}" is already used by another video`] : []), ...(early ? [] : [`the first tap lands at about ${(c.estFirstTapMs / 1000).toFixed(1)}s`])].join("; ") || `hook of ${wordCount(c.hook)} words over a live product screen, first tap at about ${(c.estFirstTapMs / 1000).toFixed(1)}s`));
   // 2 reason to care
   checks.push(mk("reason_to_care", HOOK_TENSION.test(c.hook) && c.problem.length >= 20 && c.audience.length >= 8, c.problem.length >= 20 ? `the problem: ${c.problem}` : "no stated problem or audience"));
@@ -271,7 +271,7 @@ export function evaluateRecord(r: RecordFacts): GateResult {
   const reasons = scriptProblems(r.transcript.map((t) => ({ spoken: t.text, caption: t.caption })), r.onScreen, r.prohibited);
   const hp = hookProblems(hook, r.productName);
   const taken = r.takenOpenings.includes(openingKey(hook));
-  const early = r.firstActionMs !== null && r.firstActionMs <= 4800;
+  const early = r.firstActionMs !== null && r.firstActionMs <= 3000; // owner directive 2026-11-08: first real action within 3 seconds
   checks.push(mk("first_3_seconds", hp.length === 0 && !taken && early, [...hp, ...(taken ? [`the opening "${openingKey(hook)}" is already used by another video`] : []), ...(early ? [] : [`first real action at ${r.firstActionMs === null ? "never" : `${(r.firstActionMs / 1000).toFixed(1)}s`}`])].join("; ") || `hook of ${wordCount(hook)} words, first real action at ${(r.firstActionMs! / 1000).toFixed(1)}s`));
   checks.push(mk("reason_to_care", HOOK_TENSION.test(hook), HOOK_TENSION.test(hook) ? `opens on a question or a "you": "${hook}"` : "the opening has no question or tension"));
   checks.push(mk("real_product_action", r.interactivePlates >= 2 && r.stateChanges >= 4, `${r.stateChanges} state changes on ${r.interactivePlates} live screens`));
