@@ -23,7 +23,7 @@ Your job: choose the demonstration that makes the most compelling little story, 
 
 Craft, with the limits software will enforce:
 - Line 1 is the hook, spoken over the first screen: 4 to 6 words. A question or a bold, relatable line about the viewer's real situation that this demonstration answers. It must use at least one of the words in hookMustUseOneOf (exact word), so it is clearly about what the viewer is about to see. Never start with the product name, a greeting, "welcome", "introducing", "meet", "discover" or "today".
-- Then one line per tap, in order (4 taps, 4 lines), 12 words or fewer each. Each line opens with what the viewer does, as a short imperative (Tap, Pick, Open, Try, Check, Look, Switch, Watch), then says what they see, in natural spoken English with the personality described. Put the token [tap] exactly once per line, immediately before the word where the finger lands. In the FIRST step line, [tap] must be the first or second word, because the first tap has to land within about four seconds of the start.
+- Then one line per tap (4 taps, 4 lines), 12 words or fewer each. steps[0] narrates tapNumber 1, steps[1] narrates tapNumber 2, steps[2] tapNumber 3, steps[3] tapNumber 4: each line is ONLY about its own tap and what that tap makes appear, never about a later or earlier tap. Do not run ahead to the demonstration of a later tap. Each line opens with what the viewer does, as a short imperative (Tap, Pick, Open, Try, Check, Look, Switch, Watch), then says what they see, in natural spoken English with the personality described. Put the token [tap] exactly once per line, immediately before the word where the finger lands. In the FIRST step line, [tap] must be the first or second word, because the first tap has to land within about four seconds of the start.
 - For a tap that scrolls ("scrolls further down the page") never say "scroll" or "scroll down"; say something like "keep going" or "and further down". For a link, say "open" or "jump into", not "click".
 - The seeing part may only restate or lightly paraphrase the page text shown for that tap (pageThenShows, and alsoOnThatPage when given: those are other things really on screen on that page). It must not add anything the page text does not support. Do not quote counts or figures; say what changed, not how many.
 - Total spoken length matters: hook plus four lines plus close plus invitation should be about 52 to 60 words in all, so the video runs about 25 to 30 seconds. Keep every step line short and let the screen do the talking.
@@ -66,7 +66,7 @@ function userPrompt(input: GeneratorInput, plans: Plan[], feedback: string[], pr
       verifiedProductTruth: truth,
       candidates: plans.map((pl, i) => ({
         pick: i + 1,
-        places: pl.map((x) => ({ page: x.path, area: x.heading || "(none)", taps: x.clicks.map((c) => ({ viewer: doing(c), pageThenShows: c.payoff, ...(nearby(input, c).length ? { alsoOnThatPage: nearby(input, c) } : {}) })) })),
+        places: pl.map((x, xi) => ({ page: x.path, area: x.heading || "(none)", taps: x.clicks.map((c, ci) => ({ tapNumber: xi * 2 + ci + 1, viewer: doing(c), pageThenShows: c.payoff, ...(nearby(input, c).length ? { alsoOnThatPage: nearby(input, c) } : {}) })) })),
       })),
       hookMustUseOneOf: hookWords(plans),
       mustNotOpenLike: input.takenHooks.slice(0, 24).concat("(the first two words of your hook must differ from the first two words of every one of these)"),
