@@ -161,8 +161,8 @@ export async function createPublication(
   } else mode = "export";
 
   const dedupeKey = `${productId}|${input.platform}|${asset.id}|${connectionId ?? "export"}`;
-  // A cancelled or revoked item may be queued again; the old row keeps its history under an archived key. Anything else is a duplicate.
-  await db.execute(sql`update ms_publications set dedupe_key = dedupe_key || '|archived|' || id::text where dedupe_key = ${dedupeKey} and status in ('cancelled', 'revoked')`);
+  // A cancelled or revoked item, or one that was stopped by a gate before anything was sent (a daily cap, a missing setting), may be queued again; the old row keeps its history under an archived key. Anything else is a duplicate.
+  await db.execute(sql`update ms_publications set dedupe_key = dedupe_key || '|archived|' || id::text where dedupe_key = ${dedupeKey} and (status in ('cancelled', 'revoked') or (status = 'failed' and failure_reason like 'Blocked before sending:%'))`);
   const [row] = await db
     .insert(ms.msPublications)
     .values({
