@@ -53,9 +53,11 @@ export function fragmentsOf(newText: string, controlNames: string[], angleTokens
     .map((s) => s.trim())
     .filter((s) => !names.has(norm(s)));
   const ok = [...new Set(parts)].filter((s) => speakable(s, prohibited) && wordCount(s) >= 5);
+  // a visible count ("List: 7 match filters", "Showing 3 of 13") is the clearest proof a filter did something
+  const COUNT = /\b(showing \d+|\d+ (in view|match(es)?|results?|listings?|venues?|found|of \d+))\b/i;
   return ok.sort((a, b) => {
-    const sa = overlap(toks(a), angleTokens) * 3 - Math.abs(a.length - 62) / 20;
-    const sb = overlap(toks(b), angleTokens) * 3 - Math.abs(b.length - 62) / 20;
+    const sa = overlap(toks(a), angleTokens) * 3 - Math.abs(a.length - 62) / 20 + (COUNT.test(a) ? 12 : 0);
+    const sb = overlap(toks(b), angleTokens) * 3 - Math.abs(b.length - 62) / 20 + (COUNT.test(b) ? 12 : 0);
     return sb - sa;
   });
 }
