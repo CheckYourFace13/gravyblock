@@ -20,8 +20,11 @@ import { youtubeTokensForCall } from "./oauth-youtube";
 import { setYoutubeVisibility, verifyYoutubeVideo, YT_SCOPE_MANAGE } from "./youtube-api";
 import { connectionAllowedFor } from "./youtube-share";
 
-/** Where review mail goes. Fixed on purpose: Studio can notify the owner and nobody else. */
-export const OWNER_REVIEW_EMAIL = "chris@gravyblock.com";
+/**
+ * Where review mail goes: the private MARKETING_REVIEW_EMAIL setting on the server (never sent to a browser, an API response, a page or a YouTube field).
+ * Fixed per deployment on purpose: Studio can notify the owner and nobody else. The default is the owner's own address.
+ */
+export const ownerReviewEmail = () => (process.env.MARKETING_REVIEW_EMAIL ?? "").trim() || "chris@iscreamstudio.com";
 export const reviewKey = (publicationId: string) => `video_review_${publicationId}`;
 export const embedKey = (productId: string) => `video_embed_${productId}`;
 export const REVIEW_PREFIX = "video_review_";

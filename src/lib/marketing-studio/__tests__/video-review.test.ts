@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { signedNotifyHeaders, verifyNotifySignature } from "../publishing/review-notify";
 import { signReviewToken, TOKEN_TTL_MS, verifyReviewToken } from "../publishing/review-token";
-import { buildReviewEmail, embedFor, OWNER_REVIEW_EMAIL, reviewUploadChecks, type ReviewState } from "../publishing/video-review";
+import { buildReviewEmail, embedFor, ownerReviewEmail, reviewUploadChecks, type ReviewState } from "../publishing/video-review";
 import { setYoutubeVisibility } from "../publishing/youtube-api";
 
 const state: ReviewState = {
@@ -39,8 +39,8 @@ describe("video review workflow", () => {
     const tx = (needle: string) => m.text.indexOf(needle);
     assert.ok(tx(state.watchUrl) < tx(links.approve) && tx(links.approve) < tx("Duration"));
     for (const need of [state.productName, state.title, "33.1 seconds", state.ctaUrl, state.intendedUse, state.description.split("\n")[0]]) assert.ok(m.text.includes(need), `missing ${need}`);
-    assert.match(OWNER_REVIEW_EMAIL, /@gravyblock\.com$/);
-    assert.ok(!m.html.includes(OWNER_REVIEW_EMAIL) && !m.text.includes(OWNER_REVIEW_EMAIL), "the owner address is never inside the message");
+    assert.match(ownerReviewEmail(), /^[^@\s]+@[^@\s]+\.[a-z]+$/i);
+    assert.ok(!m.html.includes(ownerReviewEmail()) && !m.text.includes(ownerReviewEmail()), "the owner address is never inside the message");
   });
 
   test("review tokens are bound to one publication and one decision, expire, and cannot be forged", () => {
