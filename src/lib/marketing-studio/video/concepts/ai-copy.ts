@@ -10,7 +10,7 @@
 import type { StudioDb } from "../../db";
 import { askJson, parseJson } from "./ai";
 import { AiCapReached } from "./ai-budget";
-import { buildConcept, rankedPairs, spokenHost, timing, varied } from "./generate";
+import { buildConcept, rankedPairs, SURFACE, spokenHost, timing, varied } from "./generate";
 import { personalityFor } from "./standard";
 import type { Concept, GeneratorInput, PlatePlan, Step } from "./types";
 import { validateConcept } from "./validate";
@@ -141,7 +141,9 @@ export async function aiConcept(db: StudioDb, input: GeneratorInput, opts: { att
   const out: AiOutcome = { micros: 0, calls: 0, cachedCalls: 0, reasons: [], log: [] };
   const rp = rankedPairs(input);
   if (rp.reason) return { ...out, reasons: [rp.reason] };
-  const plans: Plan[] = varied(rp.pairs, opts.pool ?? 4).map((pair) => pair.map((c, i) => ({ ...c.plan, id: `p${i + 1}` })));
+  // the strongest visual plays first: a plate that lands on the product itself (a demo, live standings, a map, a tool) opens the video, prose follows
+  const surface = (c: { plan: PlatePlan }) => c.plan.clicks.some((k) => k.kind === "link" && SURFACE.test(`${k.name} ${k.href} ${c.plan.heading}`));
+  const plans: Plan[] = varied(rp.pairs, opts.pool ?? 4).map((pair) => [...pair].sort((a, b) => Number(surface(b)) - Number(surface(a))).map((c, i) => ({ ...c.plan, id: `p${i + 1}` })));
   const p = personalityFor(input.slug);
   let feedback: string[] = [];
   let last: AiCopy | undefined;
