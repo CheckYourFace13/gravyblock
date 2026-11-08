@@ -169,11 +169,6 @@ function hookCandidates(input: GeneratorInput, p: Personality, plates: PlatePlan
     if (st.kind === "search") push(`Looking for ${st.term.toLowerCase()}?`, "question");
     if (st.kind === "link") push(`What is ${st.name.toLowerCase().replace(/[?.!]+$/, "")} really like?`, "curiosity");
   }
-  const heading = plates[0]?.heading;
-  if (!input.angle.hook.trim() && heading && wordCount(heading) <= 6) {
-    push(`Ever wondered about ${heading.toLowerCase().replace(/[?.!]+$/, "")}?`, "curiosity");
-    push(`${heading.replace(/[?.!]+$/, "")}? Watch this.`, "dare");
-  }
   return out;
 }
 

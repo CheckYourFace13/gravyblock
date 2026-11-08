@@ -145,3 +145,14 @@ describe("post-render gate", () => {
     assert.match(r.checks.find((c) => c.id === "personality_fit")!.detail, /written by hand/);
   });
 });
+
+describe("page scripts", () => {
+  test("whitespace and extension patterns survive the template string (a lone backslash-s would delete every letter s from captured text)", async () => {
+    const { BLOCKS_SCRIPT, LINK_SCRIPT, TAG_SCRIPT } = await import("../video/concepts/browse");
+    for (const s of [BLOCKS_SCRIPT, LINK_SCRIPT, TAG_SCRIPT]) {
+      assert.ok(!/replace\(\/s\+\/g/.test(s), "a whitespace pattern lost its backslash");
+      assert.ok(s.includes("replace(/" + String.fromCharCode(92) + "s+/g"), "the whitespace pattern must keep its backslash");
+    }
+    assert.ok(/\\.\(png/.test(LINK_SCRIPT), "the file-extension filter lost its escaped dot");
+  });
+});
