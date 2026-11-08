@@ -52,6 +52,7 @@ var scenes=TL.scenes.map(function(sc,i){
   }
   if(sc.headline){
     o.head=el('div','head',headBox); o.headWords=sc.headline.text.split(' ').map(function(w){var s=el('span','hw',o.head);s.textContent=w+' ';return s;});
+    {var hn=sc.headline.text.length; o.head.style.fontSize=(hn<=18?84:hn<=32?62:50)+'px';} /* the box is 176px tall: a two-line headline at 84px spilled into the phone window */
     if(sc.kicker){o.kick=el('div','kick',headBox);o.kick.textContent=sc.kicker;}
   }
   return o;

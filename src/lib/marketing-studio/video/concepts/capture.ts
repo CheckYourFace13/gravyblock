@@ -8,7 +8,7 @@ import path from "node:path";
 import type { Page } from "playwright-core";
 import { round, union, VIEW } from "../demo/plates";
 import type { Manifest, PlateManifest, Rect } from "../demo/types";
-import { openBrowsed, openPage, pageBlocks, tagControls, tagLinks, textIn, type Block } from "./browse";
+import { openBrowsed, openPage, pageBlocks, tagControls, tagFields, tagLinks, textIn, visibleText, type Block } from "./browse";
 import type { Concept, PlatePlan, Step } from "./types";
 
 const norm = (s: string) => s.toLowerCase().replace(/[‘’]/g, "'").replace(/\s+/g, " ").trim();
@@ -48,9 +48,39 @@ async function settle(page: Page) {
   await page.waitForTimeout(300);
 }
 
+/** What is really inside each screenshot, read from the page at the moment it was taken (keyed by file), so the finished video can be checked against it. */
+const lastVisible: Record<string, string> = {};
+
 async function shotAt(page: Page, outDir: string, file: string, y0: number, h: number) {
   await writeFile(path.join(outDir, file), await page.screenshot({ type: "jpeg", quality: 92, fullPage: true, clip: { x: 0, y: Math.max(0, y0), width: VIEW.w, height: h } }));
+  lastVisible[file] = await visibleText(page, Math.max(0, y0), h).catch(() => "");
   return file;
+}
+
+/** The box of the smallest element whose text contains the given line (the result a calculator shows). */
+let lastFontPx = 0;
+async function rectOfText(page: Page, needle: string): Promise<Rect | null> {
+  const r = await page.evaluate((n) => {
+    const want = n.toLowerCase().replace(/\s+/g, " ").trim();
+    let best: Element | null = null;
+    let bestLen = Infinity;
+    for (const e of Array.from(document.querySelectorAll("body *"))) {
+      if (["SCRIPT", "STYLE", "NOSCRIPT", "OPTION"].includes(e.tagName)) continue;
+      const t = ((e as HTMLElement).innerText || "").toLowerCase().replace(/\s+/g, " ").trim();
+      if (t.length < bestLen && t.includes(want)) {
+        const b = e.getBoundingClientRect();
+        if (b.width > 8 && b.height > 8) {
+          best = e;
+          bestLen = t.length;
+        }
+      }
+    }
+    if (!best) return null;
+    const b = (best as Element).getBoundingClientRect();
+    return [b.x, b.y + window.scrollY, b.width, b.height, parseFloat(getComputedStyle(best as Element).fontSize)];
+  }, needle);
+  lastFontPx = r ? r[4] : 0;
+  return r ? [round(r[0]), round(r[1]), round(r[2]), round(r[3])] : null;
 }
 
 const has = (texts: string[], want: string) => norm(texts.join(" ")).includes(norm(want));
@@ -58,6 +88,7 @@ const has = (texts: string[], want: string) => norm(texts.join(" ")).includes(no
 async function finish(page: Page, pl: PlatePlan, url: string, states: PlateManifest["states"], bodies: string[], rects: Record<string, Rect>, h: number): Promise<PlateManifest> {
   const seen = Object.values(states).map((s) => s.result ?? "").join(" ");
   rects.both = union(rects.cA, rects.boxB);
+  for (const s of Object.values(states)) s.visible = lastVisible[s.file] ?? "";
   return { id: pl.id, url, title: await page.title(), capturedAt: new Date().toISOString(), text: `${bodies.join(" ")} ${seen}`, w: VIEW.w, h, states, rects };
 }
 
@@ -128,6 +159,74 @@ async function capturePlate(page: Page, c: Concept, pl: PlatePlan, outDir: strin
     const o = (r: Rect): Rect => [r[0], round(r[1] - y0), r[2], r[3]];
     Object.assign(rects, { head: o(headR), cA: o(cA), cB: o(cB), boxA: o(boxA), boxB: o(boxB) });
     return finish(page, pl, url, states, bodies, rects, hh);
+  }
+
+  // ---- a live calculator: demonstration values go into the real fields and the result changes in place (nothing is submitted) ----
+  if (a.kind === "fill" && b.kind === "fill") {
+    type F = { field: number; name: string; value: string; select?: boolean };
+    const all: F[] = [...(pl.prefixFills ?? []), a, b];
+    const load = async () => {
+      await openPage(page, url);
+      const tf = await tagFields(page);
+      for (const st of all) {
+        const f = tf.fields.find((x) => x.index === st.field);
+        if (!f || norm(f.label) !== norm(st.name)) throw new Error(`capture: the field "${st.name}" moved or changed on ${url}`);
+      }
+    };
+    const apply = async (st: F) => {
+      const loc = page.locator(`[data-gbf="${st.field}"]`).first();
+      if (st.select) await loc.selectOption({ label: st.value }, { timeout: 5000 });
+      else await loc.fill(st.value, { timeout: 5000 });
+      await page.waitForTimeout(450);
+    };
+    const lines = async () => new Set((await page.evaluate(() => document.body.innerText)).split("\n").map(clean).filter((l) => l.length >= 3));
+    await load();
+    for (const st of pl.prefixFills ?? []) await apply(st);
+    const cA = await rectOf(page, `[data-gbf="${a.field}"]`);
+    const cB = await rectOf(page, `[data-gbf="${b.field}"]`);
+    const span = (await page.evaluate(() => {
+      const r = Array.from(document.querySelectorAll("[data-gbf]")).map((e) => e.getBoundingClientRect());
+      return [Math.min(...r.map((x) => x.top)) + window.scrollY, Math.max(...r.map((x) => x.bottom)) + window.scrollY];
+    })) as [number, number];
+    await apply(a);
+    const rA = await rectOfText(page, a.payoff);
+    const fontA = lastFontPx;
+    await apply(b);
+    const rB = await rectOfText(page, b.payoff);
+    const fontB = lastFontPx;
+    if (!rA || !rB) throw new Error("capture: the calculator's result is not on the page after the change");
+    const head = pl.heading
+      ? await page.evaluate((hh) => {
+          const e = Array.from(document.querySelectorAll("h1,h2,h3,h4")).find((x) => ((x as HTMLElement).innerText || "").replace(/\s+/g, " ").trim().startsWith(hh));
+          if (!e) return null;
+          const r = e.getBoundingClientRect();
+          return [r.x, r.y + window.scrollY, r.width, r.height];
+        }, pl.heading.slice(0, 60))
+      : null;
+    const headR: Rect = head ? [round(head[0]), round(head[1]), round(head[2]), round(head[3])] : cA;
+    const y0 = Math.max(0, Math.round(Math.min(headR[1], span[0]) - 30));
+    const yEnd = Math.max(rA[1] + rA[3], rB[1] + rB[3], span[1]) + 70;
+    const hh = Math.max(560, Math.min(1150, Math.round(yEnd - y0)));
+    await load();
+    for (const st of pl.prefixFills ?? []) await apply(st);
+    let prev = await lines();
+    states.s0 = { file: await shotAt(page, outDir, `${pl.id}-s0.jpg`, y0, hh), label: `${pl.heading || "Calculator"}, before` };
+    await body();
+    for (const [key, st] of [["a", a], ["b", b]] as const) {
+      await apply(st);
+      const now = await lines();
+      const result = [...now].filter((l) => !prev.has(l)).join(" | ");
+      prev = now;
+      if (!has([result], st.payoff)) throw new Error(`capture: after entering "${st.value}" for "${st.name}" the page no longer shows "${st.payoff.slice(0, 50)}"`);
+      states[key] = { file: await shotAt(page, outDir, `${pl.id}-${key}.jpg`, y0, hh), label: `After ${st.name} ${st.value}`, result };
+      await body();
+    }
+    const o = (r: Rect): Rect => [r[0], round(r[1] - y0), r[2], r[3]];
+    const pad = (r: Rect): Rect => [Math.max(8, r[0] - 12), r[1] - 12, Math.min(VIEW.w - 16, r[2] + 24), r[3] + 56];
+    Object.assign(rects, { head: o(headR), cA: o(cA), cB: o(cB), boxA: o(pad(rA)), boxB: o(pad(rB)) });
+    const done = await finish(page, pl, url, states, bodies, rects, hh);
+    done.meta = { resultFontPx: Math.min(fontA, fontB) };
+    return done;
   }
 
   await openPage(page, url);

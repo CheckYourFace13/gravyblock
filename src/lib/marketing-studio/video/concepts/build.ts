@@ -9,7 +9,10 @@ import type { DemoSpec } from "../demo/specs";
 import { PLATE_CSS_W, TRANSITION_MS, type CameraKey, type CursorKey, type Manifest, type Rect, type SpotKey, type StageScene, type Timeline, type WordTime } from "../demo/types";
 import { captureConcept } from "./capture";
 import { personalityFor } from "./standard";
-import type { Concept, PlatePlan } from "./types";
+import type { Concept, PlatePlan, Step } from "./types";
+
+/** What the focus label says for a step: the control, or the field with the demonstration value typed into it. */
+const stepLabel = (s: Step) => (s.kind === "fill" ? `${s.name.replace(/[:?]+$/, "")}: ${s.value}` : s.name);
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -96,9 +99,9 @@ export function buildConceptTimeline(c: Concept) {
         { t: E, cx: 195, cy: center(rc.boxB)[1] + 30, zoom: p.zoom.tap + 0.02 },
       ], 220);
       const spots: SpotKey[] = [
-        { from: Math.max(0, tA - 150), to: Math.max(tA + 700, tA - 100), rect: rc.cA, ...(pl.clicks[0].kind === "scroll" ? {} : { label: pl.clicks[0].name }) },
+        { from: Math.max(0, tA - 150), to: Math.max(tA + 700, tA - 100), rect: rc.cA, ...(pl.clicks[0].kind === "scroll" ? {} : { label: stepLabel(pl.clicks[0]) }) },
         { from: tA + 750, to: Math.max(tA + 1400, tB - 450), rect: rc.boxA },
-        { from: Math.max(tA + 760, tB - 150), to: Math.max(tB + 700, tA + 1500), rect: rc.cB, ...(pl.clicks[1].kind === "scroll" ? {} : { label: pl.clicks[1].name }) },
+        { from: Math.max(tA + 760, tB - 150), to: Math.max(tB + 700, tA + 1500), rect: rc.cB, ...(pl.clicks[1].kind === "scroll" ? {} : { label: stepLabel(pl.clicks[1]) }) },
         { from: Math.max(tA + 1600, tB + 750), to: Math.max(tB + 1500, E - 250), rect: rc.boxB },
       ];
       scenes.push({ id, kind: "screen", start: S, end: win[id].e, plate: pl.id, states, camera, cursor, spots, headline: { text: c.headlines[id], from: 60, to: Math.max(1500, i === 0 ? hookEnd + 400 : tA - 150) } });

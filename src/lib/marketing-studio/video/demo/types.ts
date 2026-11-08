@@ -15,7 +15,7 @@ export const TRANSITION_MS = 420;
 /** x, y, width, height in the plate's CSS pixels. */
 export type Rect = [number, number, number, number];
 
-export type PlateState = { file: string; label: string; /** text the live page showed in this state, kept as evidence */ result?: string };
+export type PlateState = { file: string; label: string; /** text the live page showed in this state, kept as evidence */ result?: string; /** every piece of text that is really inside this screenshot, from the page itself, for the post-render alignment check */ visible?: string };
 export type PlateManifest = {
   id: string;
   url: string;
@@ -27,6 +27,8 @@ export type PlateManifest = {
   h: number;
   states: Record<string, PlateState>;
   rects: Record<string, Rect>;
+  /** measurements taken at capture time for the framing checks (for example the font size of the result, in CSS pixels) */
+  meta?: Record<string, number>;
 };
 /** Provenance of real gameplay footage: every frame comes from a screencast of the real game, nothing is drawn or synthesised. */
 export type GameplayMeta = {

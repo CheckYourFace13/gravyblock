@@ -25,17 +25,18 @@ Craft, with the limits software will enforce:
 - Line 1 is the hook, spoken over the first screen: 4 to 6 words. A question or a bold, relatable line about the viewer's real situation that this demonstration answers. It must use at least one of the words in hookMustUseOneOf (exact word), so it is clearly about what the viewer is about to see. Never start with the product name, a greeting, "welcome", "introducing", "meet", "discover" or "today".
 - Then one line per tap (4 taps, 4 lines), 12 words or fewer each. steps[0] narrates tapNumber 1, steps[1] narrates tapNumber 2, steps[2] tapNumber 3, steps[3] tapNumber 4: each line is ONLY about its own tap and what that tap makes appear, never about a later or earlier tap. Do not run ahead to the demonstration of a later tap. Each line opens with what the viewer does, as a short imperative (Tap, Pick, Open, Try, Check, Look, Switch, Watch), then says what they see, in natural spoken English with the personality described. Put the token [tap] exactly once per line, immediately before the word where the finger lands. In the FIRST step line, [tap] must be the first or second word, because the first tap has to land within about four seconds of the start.
 - For a tap that scrolls ("scrolls further down the page") never say "scroll" or "scroll down"; say something like "keep going" or "and further down". For a link, say "open" or "jump into", not "click".
-- The seeing part may only restate or lightly paraphrase the page text shown for that tap (pageThenShows, and alsoOnThatPage when given: those are other things really on screen on that page). It must not add anything the page text does not support. Do not quote counts or figures; say what changed, not how many.
+- The seeing part may only restate or lightly paraphrase the page text shown for that tap (pageThenShows, and alsoOnThatPage when given: those are other things really on screen on that page). It must not add anything the page text does not support. Do not quote counts or figures; say what changed, not how many. The one exception is a calculator: there you may say the example values typed in the taps and the figures the page then shows, always as examples ("say rent is 2,250"), and never any other number.
 - Total spoken length matters: hook plus four lines plus close plus invitation should be about 52 to 60 words in all, so the video runs about 25 to 30 seconds. Keep every step line short and let the screen do the talking.
 - Optionally a closing line of 3 to 6 words that sums up why it matters without claiming anything new. Skip it if the lines are already long.
 - The call to action: an invitation of 3 to 5 words that starts with a verb (try, find, see, plan, explore, play, check, read, make, start). Do not include the product name or the website; the address is added automatically.
+- When the taps type values into a calculator or form, tell it as a story: the viewer's problem, put in a value, watch the calculator work it out, change another value, watch the result update. Say they are example values. Say what the result means in plain words, using only what the page shows.
 - Sound like a person who likes this product, not like a brochure. Concrete, warm, specific, a little playful where the personality allows. Vary the rhythm. No filler, no corporate words.
 - In the four step lines, avoid capability verbs the page text does not itself use (for example remind, track, save, book, order, compare, share, manage). You may use them in the hook if they describe the viewer's situation.
 
 Truth rules, which are checked by software and a second reviewer, and anything that fails them is thrown away:
 - Never invent or imply a feature, capability, statistic, number, result, customer, testimonial, review, award, price, discount, free offer, availability, or superiority over anything. No "best", "fastest", "only", "instantly", "automatically", "AI", "unlimited", "always", "never".
 - Do not mention anything the viewer cannot see in the captured screens or read in the page text you were given.
-- Do not use digits or spell out numbers other than "one".
+- Do not use digits or spell out numbers other than "one", except the example values typed into a calculator and the figures the page shows for them, written as digits.
 - If a page is a demo, a sample or says its content is made up, call it a demo and never call it live, real or actual, and never imply the results belong to a real customer.
 
 Reply with JSON only: {"pick": 1, "reject": "", "hook": "...", "steps": ["...", "...", "...", "..."], "close": "...", "cta": "..."}`;
@@ -51,7 +52,7 @@ function nearby(input: GeneratorInput, s: Step): string[] {
   return [...new Set(lines)].slice(0, 10);
 }
 
-const doing = (s: Step) => (s.kind === "click" ? `taps "${s.name}"` : s.kind === "link" ? `opens the link "${s.name}"` : s.kind === "search" ? `searches for "${s.term}" and presses Enter` : "scrolls further down the page");
+const doing = (s: Step) => (s.kind === "fill" ? (s.select ? `chooses "${s.value}" for "${s.name}"` : `types "${s.value}" into the "${s.name}" field`) : s.kind === "click" ? `taps "${s.name}"` : s.kind === "link" ? `opens the link "${s.name}"` : s.kind === "search" ? `searches for "${s.term}" and presses Enter` : "scrolls further down the page");
 
 function userPrompt(input: GeneratorInput, plans: Plan[], feedback: string[], previous?: AiCopy, attempt = 0): string {
   const p = personalityFor(input.slug);

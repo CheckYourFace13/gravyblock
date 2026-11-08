@@ -6,7 +6,7 @@
  */
 import { BANNED } from "../demo/qa";
 import { BANNED_OPENER, BOILERPLATE, EMPTY_STATE, DOC_REGISTER, INVITE_VERB, personalityFor, wordCount, type HookStyle, type Personality } from "./standard";
-import type { Concept, GateResult, GeneratorInput, PageDiscovery, PlatePlan, ProbedGroup, Step } from "./types";
+import type { Concept, GateResult, GeneratorInput, PageDiscovery, PlatePlan, ProbedCalc, ProbedGroup, Step } from "./types";
 import { toks, validateConcept } from "./validate";
 
 const norm = (s: string) => s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim();
@@ -142,6 +142,41 @@ function linkCandidates(d: PageDiscovery, angleTokens: Set<string>, input: Gener
       fragments: [p1, p2],
     });
   });
+  return out;
+}
+
+/** The lines a calculator newly showed, best result first: figures and "label: value" lines beat prose. */
+export function resultLines(newText: string): string[] {
+  const score = (l: string) => (/\d/.test(l) ? 3 : 0) + (/[:=]/.test(l) ? 2 : 0) - Math.abs(l.length - 40) / 40;
+  return newText
+    .split(" | ")
+    .map((s) => s.trim())
+    .filter((l) => l.length >= 8 && l.length <= 140 && /[a-z]/i.test(l) && !BOILERPLATE.test(l) && !EMPTY_STATE.test(l) && !BANNED.test(l) && !DOC_REGISTER.test(l))
+    .sort((a, b) => score(b) - score(a));
+}
+
+/** A live calculator is the product doing its job: input, calculation, visible result. Its plates outrank any prose. */
+function calcCandidates(c: ProbedCalc, angleTokens: Set<string>, input: GeneratorInput): Cand[] {
+  const used = new Set(input.usedControls.map(norm));
+  const out: Cand[] = [];
+  const fill = (s: ProbedCalc["steps"][number], payoff: string): Step => ({ kind: "fill", field: s.field, name: s.name, value: s.value, ...(s.select ? { select: true } : {}), payoff });
+  for (let i = 0; i + 1 < c.steps.length; i++) {
+    const a = c.steps[i];
+    const b = c.steps[i + 1];
+    if (a.field === b.field || used.has(norm(a.name)) || used.has(norm(b.name))) continue;
+    const fa = resultLines(a.newText);
+    const fb = resultLines(b.newText).filter((x) => norm(x) !== norm(fa[0] ?? ""));
+    if (!fa.length || !fb.length) continue;
+    const rel = overlap(toks(`${c.heading} ${a.name} ${b.name} ${fa[0]} ${fb[0]}`), angleTokens);
+    out.push({
+      plan: { path: c.path, groupId: c.id, heading: c.heading, prefix: [], controls: [], prefixFills: c.steps.slice(0, i).map((s) => ({ field: s.field, name: s.name, value: s.value, ...(s.select ? { select: true } : {}) })), clicks: [fill(a, fa[0]), fill(b, fb[0])] },
+      score: 20 + rel * 2,
+      group: c.id,
+      from: i,
+      to: i + 1,
+      fragments: [fa, fb],
+    });
+  }
   return out;
 }
 
@@ -294,19 +329,20 @@ export function buildConcept(input: GeneratorInput, plates: PlatePlan[], hook: {
       const id = `c-pay${pi + 1}${ci === 0 ? "a" : "b"}`;
       const frag = c.payoff;
       facts.push({ plate: plateId, value: frag });
-      claims.push({ id, text: `After ${c.kind === "scroll" ? "scrolling" : c.kind === "search" ? `searching "${c.term}"` : `opening "${c.name}"`} the page shows: ${frag}`, facts: [frag], sources: [{ plate: plateId, quote: frag }, ...(c.kind === "click" || c.kind === "link" ? [{ plate: plateId, quote: c.name }] : [])] });
+      claims.push({ id, text: `After ${c.kind === "scroll" ? "scrolling" : c.kind === "search" ? `searching "${c.term}"` : c.kind === "fill" ? `entering "${c.value}" for "${c.name}"` : `opening "${c.name}"`} the page shows: ${frag}`, facts: [frag], sources: [{ plate: plateId, quote: frag }, ...(c.kind === "click" || c.kind === "link" ? [{ plate: plateId, quote: c.name }] : [])] });
       claimsUsed.push({ id, text: `after "${c.name}"`, quote: frag, path: pl.path });
       payoff.push(frag);
       const k = pi * 2 + ci + fragIdx;
       const asks = c.kind === "click" && c.name.endsWith("?");
-      const label = c.kind === "search" ? c.term : c.name.replace(/[?!.]+$/, "") + (asks ? "?" : "");
-      const frames = asks ? ["Ask {c}"] : c.kind === "link" ? FRAMES.link[p.id] ?? FRAMES.link.default : c.kind === "search" ? FRAMES.search[p.id] ?? FRAMES.search.default : c.kind === "scroll" ? FRAMES.scroll : p.action;
+      const label = c.kind === "search" ? c.term : c.kind === "fill" ? `${c.name.replace(/[:?]+$/, "")} ${c.value}` : c.name.replace(/[?!.]+$/, "") + (asks ? "?" : "");
+      const frames = asks ? ["Ask {c}"] : c.kind === "fill" ? ["Enter {c}.", "Type {c}."] : c.kind === "link" ? FRAMES.link[p.id] ?? FRAMES.link.default : c.kind === "search" ? FRAMES.search[p.id] ?? FRAMES.search.default : c.kind === "scroll" ? FRAMES.scroll : p.action;
       const act0 = tpl(frames, k);
       const act = compact >= 1 && ci === 1 && c.kind === "click" ? "{c}" : act0;
       const actText = c.kind === "scroll" ? `{${marker(pi, ci)}}${act}` : act.replace("{c}", `{${marker(pi, ci)}}${label}`);
       const pay = tpl(p.payoff, k).replace("{f}", sentence(compress(frag)));
       line(sceneId, `${/[.!?]$/.test(actText) ? actText : `${actText}.`} ${pay}`, [ctx, id]);
       if (c.kind === "click" || c.kind === "link") onScreen.push({ sceneId, kind: "label", text: c.name, claim: ctx });
+      if (c.kind === "fill") onScreen.push({ sceneId, kind: "label", text: `${c.name.replace(/[:]+$/, "")}: ${c.value}`, claim: ctx });
     });
     if (pi === plates.length - 1 && compact < 2) line(sceneId, tpl(p.whyLine, fragIdx), [ctx]);
     const head = pi === 0 && wordCount(hook.text) <= 7 ? hook.text : pl.heading || pl.clicks[0].name;
@@ -315,7 +351,7 @@ export function buildConcept(input: GeneratorInput, plates: PlatePlan[], hook: {
     sceneMeta[sceneId] = {
       plate: plateId,
       purpose: pi === 0 ? `Hook and first payoff: ${hook.text}` : `Second payoff: ${pl.clicks.map((c) => c.name).join(" then ")}`,
-      motion: [pl.clicks[0].kind === "search" ? "the real search box is used" : "touch cursor taps the real control", "the live page changes in front of you", "camera pushes in on the result", "focus highlight on the control and its result", "headline springs in and out"],
+      motion: [pl.clicks[0].kind === "search" ? "the real search box is used" : pl.clicks[0].kind === "fill" ? "demonstration values are entered into the real calculator" : "touch cursor taps the real control", "the live page changes in front of you", "camera pushes in on the result", "focus highlight on the control and its result", "headline springs in and out"],
       note: `Real states of ${input.origin}${pl.path}, captured by really using it: ${pl.clicks.map((c) => c.name).join(", ")}.`,
     };
   });
@@ -398,7 +434,7 @@ export function rankedPairs(input: GeneratorInput): { pairs: Array<[Cand, Cand]>
       return "/";
     }
   })();
-  const all: Cand[] = input.discoveries.flatMap((d: PageDiscovery) => [...d.groups.flatMap((g) => candidatesFor(g, angleTokens, ctaPath, input, d.lines)), ...linkCandidates(d, angleTokens, input), ...searchCandidates(d, angleTokens, input)]).filter((c) => ![c.plan.heading, ...c.plan.clicks.flatMap((k) => [k.name, k.payoff])].some((t) => BANNED.test(t))).sort((a, b) => b.score - a.score);
+  const all: Cand[] = input.discoveries.flatMap((d: PageDiscovery) => [...d.groups.flatMap((g) => candidatesFor(g, angleTokens, ctaPath, input, d.lines)), ...linkCandidates(d, angleTokens, input), ...searchCandidates(d, angleTokens, input), ...(d.calcs ?? []).flatMap((c) => calcCandidates(c, angleTokens, input))]).filter((c) => ![c.plan.heading, ...c.plan.clicks.flatMap((k) => [k.name, k.payoff])].some((t) => BANNED.test(t))).sort((a, b) => b.score - a.score);
   if (!all.length) return { pairs: [], summary: "no demonstration", reason: "the product's public pages have no in-page control that, when used, visibly shows something new: it cannot be demonstrated with real interaction" };
   const pairs: Array<[Cand, Cand]> = [];
   for (const a of all)

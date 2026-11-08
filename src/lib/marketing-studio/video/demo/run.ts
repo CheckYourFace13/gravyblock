@@ -23,6 +23,7 @@ import { applyLexicon } from "../../publishing/review-intent";
 import { applyOverridesToSpec, getOverrides } from "./overrides";
 import type { DemoRecord, Manifest } from "./types";
 import { ensureSpec } from "../concepts/registry";
+import { visualChecks } from "../concepts/align";
 import { evaluateRecord } from "../concepts/validate";
 import { openingKey } from "../concepts/standard";
 
@@ -205,6 +206,8 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
   // a generated video must pass the standard; a script written by hand before it is reported, not failed (see library-production.ts)
   if (spec.concept) {
     for (const c of gate.checks) qa.checks.push({ id: `desirability_${c.id}`, ok: c.ok, severity: "fail", detail: c.detail });
+    // the finished video against what was really on screen, and the framing of every payoff
+    qa.checks.push(...(await visualChecks({ concept: spec.concept, manifest, lineTimes, timeline, platesDir })));
     qa.passed = qa.checks.every((c) => c.ok || c.severity === "warn");
   }
   return { file: outFile, record, qa, stats: { captureMs, voiceMs, renderMs: rendered.wallMs, frames: rendered.frames }, manifest };

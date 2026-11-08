@@ -71,11 +71,16 @@ export function ungroundedWords(spoken: string[], vocabulary: Set<string>, nameT
 }
 
 /** The vocabulary of everything discovery saw on the product: pages, probes, links and searches. */
-export function pageVocabulary(discoveries: Array<{ lines: string[]; groups: Array<{ heading: string; controls: Array<{ name: string }>; sequence: Array<{ newText: string }> }>; links?: Array<{ text: string; destHeading: string; top: string[]; lower: string[] }>; searches?: Array<{ term: string; resultLines: string[]; result?: { text: string; destLines: string[] } }> }>): Set<string> {
+export function pageVocabulary(discoveries: Array<{ calcs?: Array<{ heading: string; fields: Array<{ label: string; value: string; options?: string[] }>; steps: Array<{ name: string; value: string; newText: string }> }>; lines: string[]; groups: Array<{ heading: string; controls: Array<{ name: string }>; sequence: Array<{ newText: string }> }>; links?: Array<{ text: string; destHeading: string; top: string[]; lower: string[] }>; searches?: Array<{ term: string; resultLines: string[]; result?: { text: string; destLines: string[] } }> }>): Set<string> {
   const v = new Set<string>();
   const add = (s: string) => (s.toLowerCase().match(/[a-z']+/g) ?? []).forEach((x) => v.add(x));
   for (const d of discoveries) {
     d.lines.forEach(add);
+    for (const c of d.calcs ?? []) {
+      add(c.heading);
+      c.fields.forEach((f) => [f.label, f.value, ...(f.options ?? [])].forEach(add));
+      c.steps.forEach((s) => [s.name, s.value, s.newText].forEach(add));
+    }
     for (const g of d.groups) {
       add(g.heading);
       g.controls.forEach((c) => add(c.name));
@@ -112,6 +117,8 @@ const CAPABILITY = /\b(ai|smart|personali[sz]ed|recommend\w*|compar\w+|track\w*|
  */
 const GENERIC = new Set(["see", "open", "tap", "pick", "look", "watch", "page", "keep", "go", "then", "jump", "find", "check", "choos", "choose", "show", "try", "now", "link", "scroll", "further", "down", "read", "get", "next"]);
 const content = (s: string) => new Set([...toks(s)].filter((w) => !GENERIC.has(w)));
+/** The words of a line that say something (no function words, no generic verbs), stemmed, for comparing what is said with what is on screen. */
+export const contentTokens = (s: string): string[] => [...content(s)];
 
 export function stepAlignment(c: Concept): string[] {
   const out: string[] = [];
@@ -120,7 +127,7 @@ export function stepAlignment(c: Concept): string[] {
       const id = `c-pay${pi + 1}${ci === 0 ? "a" : "b"}`;
       const line = c.narration.find((l) => l.claims.includes(id));
       if (!line) return;
-      const own = content(`${k.kind === "scroll" ? "" : k.kind === "search" ? k.term : k.name} ${k.payoff}`);
+      const own = content(`${k.kind === "scroll" ? "" : k.kind === "search" ? k.term : k.kind === "fill" ? `${k.name} ${k.value}` : k.name} ${k.payoff}`);
       if (!shared(content(plain(line.spoken)), own).length) out.push(`the line for tap ${pi * 2 + ci + 1} ("${plain(line.spoken).slice(0, 60)}") is not about that tap, which is "${k.kind === "scroll" ? "scrolling" : k.name}" and then shows "${k.payoff.slice(0, 60)}"`);
     }),
   );
@@ -163,7 +170,7 @@ export function aiGrounding(c: Concept, vocabulary: Set<string>, factText: strin
   const lines = c.narration.map((l) => plain(l.spoken));
   const seen = (w: string) => vocabulary.has(w.toLowerCase());
   lines.forEach((line, i) => {
-    for (const m of line.match(/\d[\d,.]*/g) ?? []) if (!factText.includes(norm(m))) out.push(`a figure the product never showed: "${m}"`);
+    for (const m0 of line.match(/\d[\d,.]*/g) ?? []) { const m = m0.replace(/[.,]+$/, ""); if (m && !factText.includes(norm(m))) out.push(`a figure the product never showed: "${m}"`); }
     for (const re of [NUMBER_WORD, PRICE_WORD, SUPERLATIVE]) for (const m of line.match(re) ?? []) if (!seen(m)) out.push(`"${m}" is a claim the product's own pages never made`);
     if (i > 0) for (const m of line.match(CAPABILITY) ?? []) if (!seen(m)) out.push(`"${m}" names a capability the product's pages never showed`);
   });
@@ -178,7 +185,7 @@ export function validateConcept(c: Concept, input: GeneratorInput, opts: { ai?: 
   const checks: DesirabilityCheck[] = [];
 
   // unsupported claims and grounding
-  const factText = norm(input.discoveries.flatMap((d) => [...d.lines, ...d.groups.flatMap((g) => g.sequence.map((s) => s.newText.replace(/ \| /g, " "))), ...d.links.flatMap((l) => [l.text, l.destHeading, ...l.top, ...l.lower]), ...d.searches.flatMap((s) => [...s.resultLines, ...(s.result?.destLines ?? [])])]).join(" \n "));
+  const factText = norm(input.discoveries.flatMap((d) => [...d.lines, ...(d.calcs ?? []).flatMap((c) => [c.heading, ...c.fields.flatMap((f) => [f.label, f.value, ...(f.options ?? [])]), ...c.steps.flatMap((s) => [s.name, s.value, s.newText.replace(/ \| /g, " ")])]), ...d.groups.flatMap((g) => g.sequence.map((s) => s.newText.replace(/ \| /g, " "))), ...d.links.flatMap((l) => [l.text, l.destHeading, ...l.top, ...l.lower]), ...d.searches.flatMap((s) => [...s.resultLines, ...(s.result?.destLines ?? [])])]).join(" \n "));
   const ungrounded = c.claimsUsed.filter((u) => !factText.includes(norm(u.quote)));
   if (ungrounded.length) reasons.push(`unsupported claim: "${ungrounded[0].quote.slice(0, 50)}" was not seen on the live product`);
   const lineClaims = c.narration.filter((l) => l.claims.length === 0 || l.claims.some((id) => !c.claims.some((x) => x.id === id)));

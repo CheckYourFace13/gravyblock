@@ -13,6 +13,16 @@ export type ProbedGroup = {
   sequence: Array<{ control: number; newText: string }>;
 };
 
+/** A live calculator or read-only form: fields the viewer fills in and a result that changes, probed by really changing the inputs (nothing is submitted). */
+export type ProbedCalc = {
+  id: string;
+  path: string;
+  heading: string;
+  fields: Array<{ index: number; label: string; type: string; value: string; options?: string[] }>;
+  /** the changes made, cumulatively and in order, with the lines the page newly showed after each */
+  steps: Array<{ field: number; name: string; value: string; select?: boolean; newText: string }>;
+};
+
 export type PageDiscovery = {
   path: string;
   url: string;
@@ -22,6 +32,8 @@ export type PageDiscovery = {
   groups: ProbedGroup[];
   links: ProbedLink[];
   searches: ProbedSearch[];
+  /** calculators and read-only forms found on the page (absent in discoveries stored before they were supported) */
+  calcs?: ProbedCalc[];
   /** internal links with a visible label that look like a call to action */
   ctas: Array<{ text: string; url: string }>;
   discoveredAt: string;
@@ -32,7 +44,9 @@ export type Step =
   | { kind: "click"; control: number; name: string; payoff: string }
   | { kind: "link"; index: number; name: string; href: string; payoff: string }
   | { kind: "search"; input: number; name: string; term: string; payoff: string }
-  | { kind: "scroll"; name: string; payoff: string };
+  | { kind: "scroll"; name: string; payoff: string }
+  /** typing a demonstration value into a field of a live calculator, or choosing an option; the result updates in place */
+  | { kind: "fill"; field: number; name: string; value: string; select?: boolean; payoff: string };
 export type ClickStep = Step;
 export type PlatePlan = {
   id: string;
@@ -44,6 +58,8 @@ export type PlatePlan = {
   controls: Array<{ index: number; name: string }>;
   /** two steps, three states: before, after the first step, after the second */
   clicks: [Step, Step];
+  /** fill plates: the earlier changes of the same calculator, replayed silently first */
+  prefixFills?: Array<{ field: number; name: string; value: string; select?: boolean }>;
 };
 
 /** A search box probed by really searching (GET only). */
