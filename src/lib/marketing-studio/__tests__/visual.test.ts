@@ -1,6 +1,7 @@
 import "./setup";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { groupCaptions } from "../video/demo/audio";
 import { headlineFits, stateAt, visualChecks } from "../video/concepts/align";
 import { mutateField } from "../video/concepts/discover";
 import { rankedPairs, resultLines } from "../video/concepts/generate";
@@ -135,5 +136,13 @@ describe("post-render visual alignment", () => {
     assert.ok(!f.ok);
     assert.match(f.detail, /empty or error state/);
     assert.match(f.detail, /headline/);
+  });
+});
+
+describe("caption holds", () => {
+  test("the last caption of a line never runs into the next line even with a 200ms line gap", () => {
+    const first = groupCaptions([{ text: "Tap", from: 0, to: 200 }, { text: "Mon,", from: 200, to: 600 }], 0);
+    const second = groupCaptions([{ text: "Tap", from: 0, to: 200 }, { text: "Tue,", from: 200, to: 600 }], 600 + 200);
+    assert.ok(second[0].from >= first[first.length - 1].to - 40, `${second[0].from} vs ${first[first.length - 1].to}`);
   });
 });

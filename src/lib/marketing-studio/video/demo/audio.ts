@@ -72,7 +72,7 @@ export function groupCaptions(words: WordTime[], offsetMs: number): Array<{ from
   return groups.map((g, i) => {
     const shifted = g.map((w) => ({ text: w.text, from: w.from + offsetMs, to: w.to + offsetMs }));
     const next = groups[i + 1]?.[0];
-    return { from: shifted[0].from, to: next ? next.from + offsetMs - 20 : shifted[shifted.length - 1].to + 250, words: shifted };
+    return { from: shifted[0].from, to: next ? next.from + offsetMs - 20 : shifted[shifted.length - 1].to + 150, words: shifted }; // held 150ms, not 250: a personality with a 200ms line gap would overlap the next line's first caption
   });
 }
 
