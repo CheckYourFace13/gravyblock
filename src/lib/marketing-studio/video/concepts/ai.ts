@@ -27,14 +27,15 @@ export async function askJson(db: StudioDb, p: { specId: string; purpose: string
     body: JSON.stringify({ model: AI_MODEL, messages: [{ role: "system", content: p.system }, { role: "user", content: p.user }], max_tokens: p.maxTokens, temperature: p.temperature ?? 0.8, response_format: { type: "json_object" }, usage: { include: true } }),
   });
   if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number } };
+  const data = (await res.json()) as { choices?: Array<{ finish_reason?: string; message?: { content?: string; refusal?: string | null } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number } };
   const text = data.choices?.[0]?.message?.content ?? "";
   const tin = data.usage?.prompt_tokens ?? Math.ceil((p.system.length + p.user.length) / 3);
   const tout = data.usage?.completion_tokens ?? Math.ceil(text.length / 3);
   // the provider's exact cost when it reports one, else the published token prices
   const micros = Math.round((typeof data.usage?.cost === "number" ? data.usage.cost : tin * PRICE_IN + tout * PRICE_OUT) * 1_000_000);
   await record(db, { specId: p.specId, purpose: p.purpose, model: AI_MODEL, tokensIn: tin, tokensOut: tout, micros });
-  if (text) await putCached(db, key, { text, micros, model: AI_MODEL });
+  if (!text) throw new Error(`the model returned no text (finish_reason ${data.choices?.[0]?.finish_reason ?? "none"}, refusal ${data.choices?.[0]?.message?.refusal ?? "none"}); cost ${micros} micro-dollars was still counted`);
+  await putCached(db, key, { text, micros, model: AI_MODEL });
   return { text, micros, cached: false, model: AI_MODEL };
 }
 
