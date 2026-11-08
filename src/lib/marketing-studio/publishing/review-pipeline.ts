@@ -12,6 +12,7 @@ import { createDemoVideo } from "../video/demo/queue";
 import { applyOverridesToSpec, effectiveSpecHash, getOverrides, saveOverrides } from "../video/demo/overrides";
 import { renderDemoVideoJob } from "../video/demo/run";
 import { demoSpecFor } from "../video/demo/specs";
+import { ensureSpec } from "../video/concepts/registry";
 import { interpretChange, mergeOverrides } from "./review-intent";
 import { requestOwnerNotice } from "./review-notify";
 import { jobKey, patchJob, runReplacementJob, type ReplacementDeps, type ReplacementJob } from "./review-replacement";
@@ -37,6 +38,7 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
   // 1. understand the note, once. A request that cannot be applied safely is blocked here and the owner is told why.
   let cur = job;
   if (!cur.understood) {
+    await ensureSpec(db, specId);
     const spec = demoSpecFor(specId);
     const facts = (await listFacts(INTERNAL_SCOPE, product.id, db)).filter((f) => f.status === "current" && f.verifiedAt).map((f) => ({ key: f.factKey, value: f.factValue }));
     const productHost = product.publicUrl ? new URL(product.publicUrl).host.replace(/^www\./, "") : "";

@@ -19,6 +19,7 @@ import { DK_CLAIMS, DK_CTA, DK_FACTS, DK_NARRATION, DK_ON_SCREEN, DK_SCENE_META,
 import { capturePlates } from "./plates";
 import { buildTimeline, CLAIMS, CTA, DEMO_FACTS, layoutLines, NARRATION, ON_SCREEN, SCENE_META, TITLE, type LineTime } from "./rentalnoodle";
 import type { Claim, Manifest, NarrationLine } from "./types";
+import type { Concept } from "../concepts/types";
 
 export type DemoSpec = {
   slug: string;
@@ -40,6 +41,12 @@ export type DemoSpec = {
   kind?: "game";
   /** Extra QA inputs for products whose primary visual is real gameplay. */
   qaExtra?: (manifest: Manifest) => Pick<DemoQaInput, "interaction" | "gameplay">;
+  /** voice speed multiplier from the product personality (generated concepts) */
+  pace?: number;
+  /** music feel from the product personality (generated concepts) */
+  music?: { bpm: number; chords: Array<{ root: number; notes: number[] }> };
+  /** the generated concept this spec was built from; absent on a script written by hand */
+  concept?: Concept;
 };
 
 export const DEMO_SPECS: Record<string, DemoSpec> = {

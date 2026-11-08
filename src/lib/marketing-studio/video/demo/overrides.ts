@@ -7,6 +7,7 @@ import type { StudioDb } from "../../db";
 import { emptyOverrides, overridesKey, type VideoOverrides } from "../../publishing/review-intent";
 import { getSetting, setSetting } from "../../runtime";
 import { specFingerprint } from "../../publishing/review-replacement";
+import { ensureSpec } from "../concepts/registry";
 import { demoSpecFor, type DemoSpec } from "./specs";
 
 export async function getOverrides(db: StudioDb, productId: string): Promise<VideoOverrides> {
@@ -21,6 +22,7 @@ export async function saveOverrides(db: StudioDb, actor: string, productId: stri
 /** The fingerprint of a product's video as it would render now, with the owner's accepted edits applied. */
 export async function effectiveSpecHash(db: StudioDb, productId: string, specId: string): Promise<string> {
   const ov = await getOverrides(db, productId);
+  await ensureSpec(db, specId);
   return specFingerprint(applyOverridesToSpec(demoSpecFor(specId), ov), { lexicon: ov.lexicon, pace: ov.paceFactor });
 }
 

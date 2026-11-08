@@ -131,4 +131,6 @@ export type DemoRecord = {
   ownerApproval?: { status: "OWNER_APPROVED_REFERENCE"; at: string; by: string; note: string };
   audio: DemoAudioInfo;
   capturedAt: string;
+  /** The permanent creative standard (video/concepts/standard.ts): the ten desirability checks measured on this finished video. */
+  desirability?: { ok: boolean; generated: boolean; personality?: string; firstActionMs: number | null; stateChanges: number; interactivePlates: number; checks: Array<{ id: string; label: string; ok: boolean; detail: string }> };
 };

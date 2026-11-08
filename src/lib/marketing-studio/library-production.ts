@@ -13,9 +13,15 @@ import { prepareUnlistedReview } from "./publishing/review-upload";
 import { enqueue } from "./runtime";
 import { listProducts } from "./repository";
 import { INTERNAL_SCOPE } from "./scope";
+import { conceptKey, ensureSpec, type StoredConcept } from "./video/concepts/registry";
+import { evaluateRecord } from "./video/concepts/validate";
+import { openingKey } from "./video/concepts/standard";
+import { getSetting, setSetting } from "./runtime";
+import { listClaims } from "./repository";
+import type { DemoRecord } from "./video/demo/types";
 import { createDemoVideo } from "./video/demo/queue";
 import { renderDemoVideoJob } from "./video/demo/run";
-import { demoSpecFor } from "./video/demo/specs";
+import { DEMO_SPECS, demoSpecFor } from "./video/demo/specs";
 
 const ACTOR = "library-worker";
 
@@ -29,7 +35,22 @@ async function capFreesAt(db: StudioDb, productId: string): Promise<Date> {
   return new Date((times[idx] ?? Date.now()) + 24 * 3_600_000 + 2 * 60_000);
 }
 
+/** A finished generated video that failed the creative standard: the next concept that passed the gates takes its place. Returns false when none is left. */
+async function promoteAlternate(db: StudioDb, specId: string): Promise<boolean> {
+  const stored = await getSetting<StoredConcept | null>(conceptKey(specId), null, db);
+  if (!stored?.concept) return false;
+  const next = stored.alternates?.[0];
+  if (!next) {
+    await setSetting(conceptKey(specId), { ...stored, status: "blocked", note: "the finished video failed the creative standard and no other concept passed the gates" }, ACTOR, db, { audited: false });
+    return false;
+  }
+  await setSetting(conceptKey(specId), { ...stored, concept: next, alternates: stored.alternates.slice(1), nextVariant: next.variant + 1 }, ACTOR, db, { audited: false });
+  delete DEMO_SPECS[specId];
+  return true;
+}
+
 export async function runLibraryVideo(db: StudioDb, input: { specId: string; attempt: number; maxAttempts: number }, log: (m: string) => void = () => {}): Promise<{ status: string; detail?: string }> {
+  await ensureSpec(db, input.specId);
   const spec = demoSpecFor(input.specId);
   const product = (await listProducts(INTERNAL_SCOPE, db)).find((p) => p.slug === spec.slug);
   if (!product) throw new Error(`${spec.slug} is not a Studio product`);
@@ -67,8 +88,25 @@ export async function runLibraryVideo(db: StudioDb, input: { specId: string; att
       if (!q) q = await createDemoVideo(INTERNAL_SCOPE, ACTOR, product.id, db, { queue: false, specId: input.specId });
       log(`rendering ${input.specId}: video ${q.id}`);
       const r = await renderDemoVideoJob({ videoId: q.id }, INTERNAL_SCOPE, db);
-      if (r.status !== "ready_for_review") return await fail(`QA did not pass: ${r.failed.join("; ") || r.status}`);
+      if (r.status !== "ready_for_review") {
+        if (spec.concept && r.failed.some((x) => x.startsWith("desirability_"))) {
+          const swapped = await promoteAlternate(db, input.specId);
+          log(swapped ? "the finished video failed the creative standard; the next concept is used" : "the finished video failed the creative standard and no other concept passed the gates");
+        }
+        return await fail(`QA did not pass: ${r.failed.join("; ") || r.status}`);
+      }
       [video] = await db.select().from(ms.msVideos).where(eq(ms.msVideos.id, q.id));
+    }
+    // 2b. a script written by hand before the creative standard is judged and reported, never silently passed off or discarded
+    if (!spec.concept) {
+      const rec = video.storyboard as DemoRecord;
+      const all = await db.select({ sb: ms.msVideos.storyboard, status: ms.msVideos.status }).from(ms.msVideos);
+      const taken = [...new Set(all.filter((o) => o.status !== "superseded" && o.status !== "failed" && o.status !== "qa_failed" && (o.sb as DemoRecord | null)?.kind === "demo" && ((o.sb as DemoRecord).specId ?? "") !== input.specId && (o.sb as DemoRecord).transcript?.[0]).map((o) => openingKey((o.sb as DemoRecord).transcript[0].text)))];
+      const acting = rec.scenes.find((s) => s.sourceVisual && s.sourceVisual.states.length > 1);
+      const changes = rec.scenes.reduce((n, s) => n + Math.max(0, (s.sourceVisual?.states.length ?? 1) - 1), 0);
+      const g = evaluateRecord({ specId: input.specId, slug: product.slug, productName: product.name, transcript: rec.transcript.map((t) => ({ text: t.text, caption: t.caption })), durationMs: rec.durationMs, firstActionMs: rec.desirability?.firstActionMs ?? (acting ? acting.startMs + 2500 : null), stateChanges: rec.desirability?.stateChanges ?? changes, interactivePlates: rec.desirability?.interactivePlates ?? rec.scenes.filter((s) => (s.sourceVisual?.states.length ?? 0) >= 3).length, verifiedClaims: rec.claims.filter((c) => c.factsVerified).length, ctaText: rec.cta.text, onScreen: rec.onScreen.map((o) => o.text), takenOpenings: taken, concept: null, prohibited: (await listClaims(INTERNAL_SCOPE, product.id, db)).filter((c) => c.kind === "prohibited").map((c) => c.text) });
+      await setSetting(`video_creative_review_${input.specId.replace(/[^a-z0-9]+/gi, "_")}`, { at: new Date().toISOString(), legacy: true, ok: g.ok, reasons: g.reasons, checks: g.checks }, ACTOR, db, { audited: false });
+      log(`creative standard (written before it existed, kept as rendered): ${g.ok ? "passes all ten checks" : `flags ${g.reasons.join("; ")}`}`);
     }
     // 3. upload unlisted, verify, email the owner with the library label
     const out = await prepareUnlistedReview(db, {

@@ -10,7 +10,7 @@ import { audit } from "../../audit";
 import { STUDIO_DIRS, STUDIO_TTS_DIR } from "../../config";
 import { readAssetBytes } from "../../creative/context";
 import { ms, requireStudioDb, type StudioDb } from "../../db";
-import { addFact, listFacts, listProducts, verifyFact } from "../../repository";
+import { addFact, listClaims, listFacts, listProducts, verifyFact } from "../../repository";
 import { INTERNAL_SCOPE, type OwnerScope } from "../../scope";
 import { storeVideoFile } from "../store";
 import { audioInfo, mixAudio, parseSpoken, placeLines, synthesizeLines, synthMusic, writeWav } from "./audio";
@@ -22,6 +22,9 @@ import { demoSpecFor, type DemoSpec } from "./specs";
 import { applyLexicon } from "../../publishing/review-intent";
 import { applyOverridesToSpec, getOverrides } from "./overrides";
 import type { DemoRecord, Manifest } from "./types";
+import { ensureSpec } from "../concepts/registry";
+import { evaluateRecord } from "../concepts/validate";
+import { openingKey } from "../concepts/standard";
 
 export const DEMO_ACTOR = "pilot-prep (public sources, owner directive)";
 export const VOICE_ID = "af_heart";
@@ -67,6 +70,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
   const { db, workDir } = opts;
   const scope = opts.scope ?? INTERNAL_SCOPE;
   const log = opts.log ?? (() => {});
+  await ensureSpec(db, opts.slug ?? "rentalnoodle");
   const baseSpec: DemoSpec = demoSpecFor(opts.slug ?? "rentalnoodle");
   const spec0 = baseSpec;
   await fs.mkdir(workDir, { recursive: true });
@@ -95,7 +99,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
   // The owner's accepted edits (pronunciation, pace, call to action) apply to every render of this product.
   const overrides = await getOverrides(db, product.id);
   const spec = applyOverridesToSpec(specForLaunchState(spec0, known), overrides);
-  const voiceSpeed = +(VOICE_SPEED * overrides.paceFactor).toFixed(3);
+  const voiceSpeed = +(VOICE_SPEED * overrides.paceFactor * (spec.pace ?? 1)).toFixed(3);
   const ctaPhase = spec0.kind === "game" ? gameCtaPhase(known) : undefined;
   const facts = await ensureFacts(db, scope, product.id, manifest, opts.writeFacts, spec.facts);
   const { narration: NARRATION, claims: CLAIMS, onScreen: ON_SCREEN, sceneMeta: SCENE_META } = spec;
@@ -115,7 +119,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
   const rate = synth[0].rate;
   const vo = placeLines(synth.map((s) => ({ samples: s.samples, rate: s.rate, startMs: lineTimes[s.id].start })), timeline.durationMs + 300, rate);
   await writeWav(path.join(workDir, "vo.wav"), [vo], rate);
-  const [ml, mr] = synthMusic(timeline.durationMs / 1000 + 0.4);
+  const [ml, mr] = synthMusic(timeline.durationMs / 1000 + 0.4, 44100, spec.music ?? {});
   await writeWav(path.join(workDir, "music.wav"), [ml, mr], 44100);
   await mixAudio(path.join(workDir, "vo.wav"), path.join(workDir, "music.wav"), path.join(workDir, "mix.wav"), timeline.durationMs / 1000);
 
@@ -189,6 +193,20 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
     ...(spec.kind === "game" ? { gameCreative: { storeLive: ctaPhase === "store_live" } } : {}),
     ...(spec.qaExtra?.(manifest) ?? {}),
   });
+  // the permanent creative standard: the ten desirability checks, measured on the finished video
+  const stateTimes = timeline.scenes.flatMap((s) => (s.states ?? []).slice(1).map((st) => s.start + st.at));
+  const interactivePlates = Object.values(manifest.plates).filter((p) => Object.keys(p.states).length >= 3).length;
+  const others = await db.select({ sb: ms.msVideos.storyboard, status: ms.msVideos.status }).from(ms.msVideos);
+  const myId = record.specId ?? spec.slug;
+  const takenOpenings = [...new Set(others.filter((o) => o.status !== "superseded" && o.status !== "failed" && o.status !== "qa_failed" && (o.sb as DemoRecord | null)?.kind === "demo" && ((o.sb as DemoRecord).specId ?? "") !== myId && (o.sb as DemoRecord).transcript?.[0]).map((o) => openingKey((o.sb as DemoRecord).transcript[0].text)))];
+  const prohibitedClaims = (await listClaims(scope, product.id, db)).filter((c) => c.kind === "prohibited").map((c) => c.text);
+  const gate = evaluateRecord({ specId: myId, slug: spec.slug, productName: spec.productName, transcript: record.transcript.map((t) => ({ text: t.text, caption: t.caption })), durationMs: timeline.durationMs, firstActionMs: stateTimes.length ? Math.min(...stateTimes) : null, stateChanges: stateTimes.length, interactivePlates, verifiedClaims: record.claims.filter((c) => c.factsVerified).length, ctaText: spec.cta.text, onScreen: ON_SCREEN.map((o) => o.text), takenOpenings, concept: spec.concept ?? null, prohibited: prohibitedClaims });
+  record.desirability = { ok: gate.ok, generated: Boolean(spec.concept), personality: spec.concept?.personality, firstActionMs: stateTimes.length ? Math.min(...stateTimes) : null, stateChanges: stateTimes.length, interactivePlates, checks: gate.checks.map((c) => ({ id: c.id, label: c.label, ok: c.ok, detail: c.detail })) };
+  // a generated video must pass the standard; a script written by hand before it is reported, not failed (see library-production.ts)
+  if (spec.concept) {
+    for (const c of gate.checks) qa.checks.push({ id: `desirability_${c.id}`, ok: c.ok, severity: "fail", detail: c.detail });
+    qa.passed = qa.checks.every((c) => c.ok || c.severity === "warn");
+  }
   return { file: outFile, record, qa, stats: { captureMs, voiceMs, renderMs: rendered.wallMs, frames: rendered.frames }, manifest };
 }
 

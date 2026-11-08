@@ -206,15 +206,15 @@ function resample(s: Float32Array, from: number, to: number): Float32Array {
 // ---- original music --------------------------------------------------------------------------------------------------------------
 
 /** A simple, upbeat original loop: bass, soft pads, a plucked arpeggio and light drums. Deterministic. */
-export function synthMusic(durationSec: number, rate = 44100): [Float32Array, Float32Array] {
+export function synthMusic(durationSec: number, rate = 44100, style: { bpm?: number; chords?: Array<{ root: number; notes: number[] }> } = {}): [Float32Array, Float32Array] {
   const n = Math.ceil(durationSec * rate);
   const L = new Float32Array(n);
   const R = new Float32Array(n);
-  const bpm = 112;
+  const bpm = style.bpm ?? 112;
   const beat = 60 / bpm;
   const bar = beat * 4;
   // Am - F - C - G, one chord per bar (MIDI roots and triads)
-  const chords: Array<{ root: number; notes: number[] }> = [
+  const chords: Array<{ root: number; notes: number[] }> = style.chords ?? [
     { root: 45, notes: [57, 60, 64] },
     { root: 41, notes: [53, 57, 60] },
     { root: 48, notes: [60, 64, 67] },

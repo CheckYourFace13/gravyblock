@@ -35,6 +35,10 @@ export type AngleEntry = {
   specId?: string;
   /** the YouTube title and description to use once it is made */
   yt?: { title: string; description: string };
+  /** set when the concept generator (video/concepts) made or replaced this angle */
+  generated?: { variant: number; replaces?: string; note?: string; personality?: string };
+  /** the angle that replaced this one because the generator could not make it well from the live product */
+  replacedBy?: string;
   /** latest measured numbers when the video is public, each marked by how well it is known */
   performance?: Record<string, { value: number | null; status: string }>;
 };

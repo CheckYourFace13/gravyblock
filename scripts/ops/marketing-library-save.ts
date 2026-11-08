@@ -93,8 +93,12 @@ async function main() {
     const stored = await getAngles(db, p.slug);
     for (let i = 0; i < entries.length; i++) {
       const s = stored.find((x) => x.id === entries[i].id);
-      if (s && !entries[i].existing && ["in_production", "ready_for_review", "unlisted_review", "approved", "public"].includes(s.status)) entries[i] = s;
+      if (s && !entries[i].existing && (["in_production", "ready_for_review", "unlisted_review", "approved", "public"].includes(s.status) || s.replacedBy)) entries[i] = s;
+      // a script the concept generator made for a planned angle is kept when the plan is rebuilt
+      else if (s && !entries[i].existing && s.specId && !entries[i].specId) entries[i] = { ...entries[i], specId: s.specId, yt: s.yt, generated: s.generated };
     }
+    // angles the generator added as replacements are not in the plan; they stay
+    for (const s of stored) if (s.generated?.replaces && !entries.some((e) => e.id === s.id)) entries.push(s);
     library[p.slug] = entries;
     // 4. the call-to-action link must be a real, reachable page on the product's own site
     for (const e of entries) {

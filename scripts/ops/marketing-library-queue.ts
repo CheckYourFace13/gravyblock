@@ -8,6 +8,7 @@ import { listProducts } from "../../src/lib/marketing-studio/repository";
 import { enqueue } from "../../src/lib/marketing-studio/runtime";
 import { INTERNAL_SCOPE } from "../../src/lib/marketing-studio/scope";
 import { DEMO_SPECS } from "../../src/lib/marketing-studio/video/demo/specs";
+import { ensureSpec } from "../../src/lib/marketing-studio/video/concepts/registry";
 
 async function main() {
   const db = requireStudioDb();
@@ -17,6 +18,7 @@ async function main() {
   for (const p of PLAN_PRODUCTS) {
     const product = products.find((x) => x.slug === p.slug);
     for (const e of (await getAngles(db, p.slug)).filter((a) => a.status === "planned").sort((a, b) => a.position - b.position)) {
+      if (e.specId) await ensureSpec(db, e.specId).catch(() => {});
       if (!e.specId || !DEMO_SPECS[e.specId] || !product) {
         waiting.push(`${p.name} video ${e.position} (${e.title}): ${product ? "script not written yet" : "not in Studio yet"}`);
         continue;
