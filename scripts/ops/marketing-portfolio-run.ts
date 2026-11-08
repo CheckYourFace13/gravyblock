@@ -15,6 +15,19 @@ const DRY = process.argv.includes("--dry");
 /** Products kept out of this run: the owner has not approved their videos (the iScream site's "see it in action" is prepared but not deployed). */
 const SKIP = new Set(["iscreamstudio"]);
 
+/** The angle entry the worker needs: the script's id and hook, the scenes shown, and the YouTube title and description (the concept's own hook, payoff lines and tracked call to action). */
+async function register(db: ReturnType<typeof requireStudioDb>, slug: string, position: number, specId: string) {
+  const stored = await getSetting<StoredConcept | null>(conceptKey(specId), null, db);
+  const c = stored?.concept;
+  if (!c) return;
+  const title = c.title.length <= 100 ? c.title : `${c.title.slice(0, 97)}...`;
+  const body = c.payoff.map((p) => (/[.!?]$/.test(p) ? p : `${p}.`)).join(" ");
+  const yt = { title, description: `${/[?!.]$/.test(c.hook) ? c.hook : `${c.hook}?`} ${body}
+
+${c.cta.text}: ${c.cta.url}` };
+  await updateAngle(db, ACTOR, slug, (x) => x.position === position, { specId, hook: c.hook, yt, scenes: c.capturePlan.map((pl) => pl.heading || pl.path) });
+}
+
 async function main() {
   const db = requireStudioDb();
   for (const p of PLAN_PRODUCTS) {
@@ -27,7 +40,7 @@ async function main() {
         continue;
       }
       if (stored?.status === "ready") {
-        if (!a.specId && !DRY) await updateAngle(db, ACTOR, p.slug, (x) => x.position === a.position, { specId });
+        if (!DRY) await register(db, p.slug, a.position, specId);
         console.log(`${p.slug} ${a.position}: concept ready (${specId})`);
         continue;
       }
@@ -40,7 +53,7 @@ async function main() {
       const saved = out.match(/^saved (\S+)/m);
       const cost = out.match(/AI cost this run: .*/);
       if (saved) {
-        await updateAngle(db, ACTOR, p.slug, (x) => x.position === a.position, { specId: saved[1] });
+        await register(db, p.slug, a.position, saved[1]);
         console.log(`${p.slug} ${a.position}: SAVED ${saved[1]}. ${cost?.[0] ?? ""}`);
       } else {
         console.log(`${p.slug} ${a.position}: no concept. ${(out.match(/NO CONCEPT: .*/)?.[0] ?? out.split("\n").filter(Boolean).slice(-2).join(" ")).slice(0, 300)} ${cost?.[0] ?? ""}`);
