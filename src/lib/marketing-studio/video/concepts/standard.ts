@@ -111,7 +111,7 @@ export const BOILERPLATE = /\b(sign in|sign up|log in|log out|confirm you are|21
 /** The register of a documentation video or a corporate explainer. */
 export const DOC_REGISTER = /\b(overview|documentation|features? include|this (page|section|screen)|home ?page|our platform|solution|comprehensive|all-in-one|seamless(ly)?|leverage|robust|streamline|empower|cutting-edge|world-class|ecosystem|scroll(ing)? down|let me show|here we (can )?see|as you can see|in this tutorial|walkthrough)\b/i;
 /** A line that sells an outcome has one of these: an action, or a result word. */
-export const OUTCOME_WORD = /\b(tap|pick|try|open|find|see|watch|look|switch|check|go|play|hit|choose|turn|done|there|proof|twist|found|ready|now|no more|yours|shows?|showing|narrows?|filters?|pulls? up|jumps?|reveals?|appears?|lands?|spots?|heads?|lists?|asks?|reads?|keep going|further down|comes? (up|into view))\b/i;
+export const OUTCOME_WORD = /\b(tap|pick|try|open|find|see|watch|look|switch|check|go|play|hit|choose|turn|done|there|proof|twist|found|ready|now|no more|yours|shows?|showing|narrows?|filters?|pulls? up|jumps?|reveals?|appears?|lands?|spots?|heads?|lists?|asks?|reads?|keep going|further down|comes? (up|into view)|types?|enter|enters|put|change|climbs?|settles?|works? out|figures?|updates?|calculates?)\b/i;
 /** A hook has tension: a question, second person, a contrast or a number. */
 export const HOOK_TENSION = /\?|\b(you|your|you're|ever|still|why|what|where|how|who|stop|without|never|no more)\b/i;
 /** Verbs that invite the viewer in, for the call to action. */

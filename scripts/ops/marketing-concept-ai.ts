@@ -42,7 +42,12 @@ async function main() {
   const vids = await db.select({ sb: ms.msVideos.storyboard, status: ms.msVideos.status }).from(ms.msVideos).where(eq(ms.msVideos.productId, product.id));
   const said = vids.filter((x) => !["superseded", "failed", "qa_failed"].includes(x.status)).map((x) => x.sb as { transcript?: Array<{ text: string }>; onScreen?: Array<{ text: string }>; claims?: Array<{ sources: Array<{ quote: string }> }> } | null).flatMap((s) => [...(s?.transcript ?? []).map((t) => t.text), ...(s?.onScreen ?? []).map((o) => o.text), ...(s?.claims ?? []).flatMap((c) => c.sources.map((q) => q.quote))]).join(" | ").toLowerCase();
   for (const d of discoveries) for (const g of d.groups) for (const c of g.controls) if (said.includes(c.name.toLowerCase())) usedControls.push(c.name);
-  const specId = `${slug}:${a.id.slice(slug.length + 1)}`;
+  // --calc: a proof built around the product's own calculator, under its own spec id (never added to the library or the queue)
+  const argOf = (n: string) => (process.argv.includes(`--${n}`) ? process.argv[process.argv.indexOf(`--${n}`) + 1] : undefined);
+  const calc = flag("calc") ? discoveries.flatMap((d) => d.calcs ?? [])[0] : undefined;
+  if (flag("calc") && !calc) throw new Error("no calculator was discovered for this product");
+  const angle: AngleEntry = calc ? { ...a, id: `${slug}-proof-${calc.heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`, title: `${p.name}: ${calc.heading}`, hook: "", goal: argOf("goal") ?? `show how the real ${calc.heading.toLowerCase()} works on ${p.name}`, audience: argOf("audience") ?? a.audience, coreBenefit: argOf("benefit") ?? `see the answer instead of guessing`, features: [calc.heading, ...calc.fields.map((f) => f.label)], scenes: [] } : a;
+  const specId = `${slug}:${angle.id.slice(slug.length + 1)}`;
   const input: GeneratorInput = {
     specId,
     slug,
@@ -50,12 +55,13 @@ async function main() {
     origin: new URL(p.home).origin,
     home: p.home,
     brand: { primary: (brand?.colors as Record<string, string> | undefined)?.primary },
-    angle: { id: a.id, role: a.role, title: a.title, hook: a.hook, goal: a.goal, audience: a.audience, coreBenefit: a.coreBenefit, features: a.features, scenes: a.scenes, cta: a.cta, funnel: a.funnel },
+    angle: { id: angle.id, role: angle.role, title: angle.title, hook: angle.hook, goal: angle.goal, audience: angle.audience, coreBenefit: angle.coreBenefit, features: angle.features, scenes: angle.scenes, cta: angle.cta, funnel: angle.funnel },
     discoveries,
     verifiedFacts: verified,
     prohibited,
     takenHooks: allAngles.filter((x) => x.id !== a.id && consumes(x)).map((x) => x.hook),
-    consumed: angles.filter((e) => e.id !== a.id && consumes(e) && e.status !== "planned").map((e) => ({ id: e.id, slug: e.slug, role: e.role, title: e.title, hook: e.hook, goal: e.goal, coreBenefit: e.coreBenefit, features: e.features, scenes: e.scenes, cta: e.cta, status: e.status })),
+    // --proof waives the duplicate gate for a proof that is never queued or published (the existing public video may already cover this product feature)
+    consumed: flag("proof") ? [] : angles.filter((e) => e.id !== a.id && consumes(e) && e.status !== "planned").map((e) => ({ id: e.id, slug: e.slug, role: e.role, title: e.title, hook: e.hook, goal: e.goal, coreBenefit: e.coreBenefit, features: e.features, scenes: e.scenes, cta: e.cta, status: e.status })),
     usedControls,
     variant: 0,
   };
