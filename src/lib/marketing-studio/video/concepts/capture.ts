@@ -69,20 +69,25 @@ async function settle(page: Page) {
   await page.evaluate(() => window.scrollTo(0, 0));
   // a cookie banner never belongs in a video: take the privacy-preserving choice (this browser only, nothing is sent anywhere else)
   await page.getByRole("button", { name: /^(reject|decline|deny)( all| optional| non-essential)?( cookies)?$/i }).first().click({ timeout: 4000 }).catch(() => {});
-  // anything fixed to the screen that is still a cookie or consent prompt (a banner that re-renders, or one with no reject button) is hidden for the picture only
+  await hideConsent(page);
+  await page.waitForTimeout(300);
+}
+
+/** Anything fixed to the screen that is a cookie or consent prompt is hidden for the picture only (banners can mount late or come back, so this also runs before every shot). */
+async function hideConsent(page: Page) {
   await page.evaluate(() => {
     for (const e of Array.from(document.querySelectorAll("body *"))) {
       const cs = getComputedStyle(e);
       if ((cs.position === "fixed" || cs.position === "sticky") && /cookie|consent/i.test((e as HTMLElement).innerText || "") && (e as HTMLElement).innerText.length < 900) (e as HTMLElement).style.display = "none";
     }
   });
-  await page.waitForTimeout(300);
 }
 
 /** What is really inside each screenshot, read from the page at the moment it was taken (keyed by file), so the finished video can be checked against it. */
 const lastVisible: Record<string, string> = {};
 
 async function shotAt(page: Page, outDir: string, file: string, y0: number, h: number) {
+  await hideConsent(page).catch(() => {});
   await writeFile(path.join(outDir, file), await page.screenshot({ type: "jpeg", quality: 92, fullPage: true, clip: { x: 0, y: Math.max(0, y0), width: VIEW.w, height: h } }));
   lastVisible[file] = await visibleText(page, Math.max(0, y0), h).catch(() => "");
   return file;
