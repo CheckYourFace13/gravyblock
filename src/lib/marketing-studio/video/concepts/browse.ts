@@ -67,7 +67,9 @@ export async function openBrowsed(origin: string): Promise<Browsed> {
       blocked.count++;
       return route.abort();
     }
-    if (h !== host || /plausible|analytics|gtag|googletagmanager|posthog|clarity|hotjar/i.test(req.url())) return route.abort();
+    if (/plausible|analytics|gtag|googletagmanager|posthog|clarity|hotjar|doubleclick|facebook|segment|mixpanel|hubspot/i.test(req.url())) return route.abort();
+    // map tiles, images, fonts and styles from other hosts are read so the screen looks as it does for a visitor; scripts and data stay on the product's own host
+    if (h !== host && !["image", "font", "stylesheet", "media"].includes(req.resourceType())) return route.abort();
     return route.continue();
   });
   // the TypeScript runner wraps named functions in a helper the page does not have

@@ -5,7 +5,7 @@
  * The result is judged by validate.ts; a concept that fails is rejected and the next variant is tried, up to a limit.
  */
 import { BANNED } from "../demo/qa";
-import { BANNED_OPENER, BOILERPLATE, DOC_REGISTER, INVITE_VERB, personalityFor, wordCount, type HookStyle, type Personality } from "./standard";
+import { BANNED_OPENER, BOILERPLATE, EMPTY_STATE, DOC_REGISTER, INVITE_VERB, personalityFor, wordCount, type HookStyle, type Personality } from "./standard";
 import type { Concept, GateResult, GeneratorInput, PageDiscovery, PlatePlan, ProbedGroup, Step } from "./types";
 import { toks, validateConcept } from "./validate";
 
@@ -39,7 +39,7 @@ export function speakable(f: string, prohibited: string[] = []): boolean {
   if (/[$%/@&#<>_=+*\\|{}[\]~^]|https?:|www\.|\.com\b/.test(t)) return false;
   if (/\d{3,}/.test(t)) return false;
   if (t === t.toUpperCase()) return false;
-  if (BANNED.test(t) || DOC_REGISTER.test(t) || BANNED_OPENER.test(t) || BOILERPLATE.test(t)) return false;
+  if (BANNED.test(t) || DOC_REGISTER.test(t) || BANNED_OPENER.test(t) || BOILERPLATE.test(t) || EMPTY_STATE.test(t)) return false;
   if (prohibited.some((p) => norm(t).includes(norm(p)))) return false;
   return /[a-z]/.test(t);
 }

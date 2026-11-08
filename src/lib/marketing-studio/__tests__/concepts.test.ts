@@ -166,3 +166,11 @@ describe("payoff quality", () => {
     assert.equal(shortLabel("Winterization hub →"), "Winterization hub");
   });
 });
+
+describe("empty states", () => {
+  test("an empty or error state is never a payoff", async () => {
+    const { speakable: sp } = await import("../video/concepts/generate");
+    for (const t of ["No open mic listings near this search yet.", "Places search did not load.", "Nothing found for this search today", "Something went wrong, please try again"]) assert.equal(sp(t), false, t);
+    assert.equal(sp("Trusted open-mic listings in Brooklyn and nearby towns"), true);
+  });
+});
