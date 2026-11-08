@@ -12,14 +12,14 @@ import { getSetting, setSetting } from "../../src/lib/marketing-studio/runtime";
 import { INTERNAL_SCOPE } from "../../src/lib/marketing-studio/scope";
 import { aiConcept } from "../../src/lib/marketing-studio/video/concepts/ai-copy";
 import { spendNow, usd } from "../../src/lib/marketing-studio/video/concepts/ai-budget";
-import { rankedPairs } from "../../src/lib/marketing-studio/video/concepts/generate";
+import { rankedPairs, varied } from "../../src/lib/marketing-studio/video/concepts/generate";
 import { conceptKey, discoveryKey, type StoredConcept } from "../../src/lib/marketing-studio/video/concepts/registry";
 import type { GeneratorInput, PageDiscovery } from "../../src/lib/marketing-studio/video/concepts/types";
 
 const ACTOR = "concept-generator ai step (owner directive 2026-11-08)";
 const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const flag = (n: string) => process.argv.includes(`--${n}`);
-const pool = Number(process.argv[process.argv.indexOf("--pool") + 1]) || 3;
+const pool = Number(process.argv[process.argv.indexOf("--pool") + 1]) || 4;
 
 async function main() {
   const [slug, pos] = args;
@@ -62,7 +62,7 @@ async function main() {
   console.log(`${p.name} video ${pos}: "${a.title}" (${specId})`);
   const rp = rankedPairs(input);
   if (rp.reason) console.log(`no candidate demonstrations: ${rp.reason}`);
-  rp.pairs.slice(0, flag("plans") ? 8 : pool).forEach((pair, i) => console.log(`plan ${i + 1}: ${pair.map((c) => `${c.plan.path} [${c.plan.heading || "-"}] ` + c.plan.clicks.map((k) => `${k.kind}:${k.name} => ${k.payoff}`).join(" ; ")).join("  ||  ")}`));
+  varied(rp.pairs, pool).forEach((pair, i) => console.log(`plan ${i + 1}: ${pair.map((c) => `${c.plan.path} [${c.plan.heading || "-"}] ` + c.plan.clicks.map((k) => `${k.kind}:${k.name} => ${k.payoff}`).join(" ; ")).join("  ||  ")}`));
   if (flag("plans")) return;
   const before = await spendNow(db);
   const r = await aiConcept(db, input, { pool });

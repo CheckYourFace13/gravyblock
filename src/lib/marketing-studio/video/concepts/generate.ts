@@ -369,6 +369,21 @@ export function buildConcept(input: GeneratorInput, plates: PlatePlan[], hook: {
   return concept;
 }
 
+/** A varied shortlist: best first, then pairs that bring at least one plate not yet offered, so the choice is between different stories. */
+export function varied(pairs: Array<[Cand, Cand]>, n: number): Array<[Cand, Cand]> {
+  const key = (c: Cand) => `${c.group}:${c.from}`;
+  const uses = new Map<string, number>();
+  const out: Array<[Cand, Cand]> = [];
+  for (const pr of pairs) {
+    if (out.length >= n) break;
+    if (out.length && pr.every((c) => (uses.get(key(c)) ?? 0) >= 1)) continue;
+    if (pr.some((c) => (uses.get(key(c)) ?? 0) >= 2)) continue;
+    out.push(pr);
+    for (const c of pr) uses.set(key(c), (uses.get(key(c)) ?? 0) + 1);
+  }
+  return out;
+}
+
 /** Every pair of real demonstrations the product can show, best first (different groups, or non-overlapping steps of one group, never the same control or result twice). */
 export function rankedPairs(input: GeneratorInput): { pairs: Array<[Cand, Cand]>; reason?: string; summary?: string } {
   const angleTokens = toks(`${input.angle.title} ${input.angle.goal} ${input.angle.features.join(" ")} ${input.angle.scenes.join(" ")} ${input.angle.hook} ${input.angle.coreBenefit}`);
@@ -389,7 +404,9 @@ export function rankedPairs(input: GeneratorInput): { pairs: Array<[Cand, Cand]>
       if (a.plan.clicks.some((c) => b.plan.clicks.some((d) => norm(c.name) === norm(d.name) || norm(c.payoff) === norm(d.payoff)))) continue;
       pairs.push([a, b]);
     }
-  pairs.sort((x, y) => y[0].score + y[1].score - (x[0].score + x[1].score));
+  // a story told in one place (four taps on one page) reads better than two unrelated hops, so it is preferred
+  const total = (x: [Cand, Cand]) => x[0].score + x[1].score + (x[0].plan.path === x[1].plan.path ? 4 : 0);
+  pairs.sort((x, y) => total(y) - total(x));
   const seen = new Set<string>();
   const uniq = pairs.filter(([a, b]) => {
     const k = `${a.group}:${a.from}|${b.group}:${b.from}`;

@@ -10,7 +10,7 @@
 import type { StudioDb } from "../../db";
 import { askJson, parseJson } from "./ai";
 import { AiCapReached } from "./ai-budget";
-import { buildConcept, rankedPairs, spokenHost, timing } from "./generate";
+import { buildConcept, rankedPairs, spokenHost, timing, varied } from "./generate";
 import { personalityFor } from "./standard";
 import type { Concept, GeneratorInput, PlatePlan, Step } from "./types";
 import { validateConcept } from "./validate";
@@ -19,7 +19,7 @@ export type AiCopy = { pick: number; reject?: string; hook: string; steps: strin
 
 const SYSTEM = `You write the voiceover for a 25 second vertical product demo video that marketers would be proud to publish. The viewer watches a REAL screen recording of the live product while a narrator speaks. The recording is already captured; you are given up to 3 candidate demonstrations. Each has two places on the site, and in each place two real taps, with the exact text the page showed after each tap.
 
-Your job: choose the demonstration that makes the most compelling little story, then write the copy. If none of the candidates is worth publishing (the results are dull, off-topic, confusing, or would not make a viewer want to try the product), set pick to 0 and explain why in reject.
+Your job: choose the demonstration that makes the most compelling little story, then write the copy. If none of the candidates is worth publishing (the results are dull, off-topic, confusing, or would not make a viewer want to try the product), set pick to 0 and explain why in reject. Prefer a story told in one place over two unrelated hops, and prefer results that visibly change something the viewer cares about. Do not pad a weak demonstration with enthusiasm: reject it.
 
 Craft, with the limits software will enforce:
 - Line 1 is the hook, spoken over the first screen: 4 to 6 words. A question or a bold, relatable line about the viewer's real situation that this demonstration answers. It must use at least one of the words in hookMustUseOneOf (exact word), so it is clearly about what the viewer is about to see. Never start with the product name, a greeting, "welcome", "introducing", "meet", "discover" or "today".
@@ -132,7 +132,7 @@ export async function aiConcept(db: StudioDb, input: GeneratorInput, opts: { att
   const out: AiOutcome = { micros: 0, calls: 0, cachedCalls: 0, reasons: [], log: [] };
   const rp = rankedPairs(input);
   if (rp.reason) return { ...out, reasons: [rp.reason] };
-  const plans: Plan[] = rp.pairs.slice(0, opts.pool ?? 3).map((pair) => pair.map((c, i) => ({ ...c.plan, id: `p${i + 1}` })));
+  const plans: Plan[] = varied(rp.pairs, opts.pool ?? 4).map((pair) => pair.map((c, i) => ({ ...c.plan, id: `p${i + 1}` })));
   const p = personalityFor(input.slug);
   let feedback: string[] = [];
   let last: AiCopy | undefined;
