@@ -2,7 +2,7 @@ import "./setup";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { applyCopy } from "../video/concepts/ai-copy";
-import { aiGrounding, pageVocabulary } from "../video/concepts/validate";
+import { aiGrounding, pageVocabulary, stepAlignment } from "../video/concepts/validate";
 import { parseJson } from "../video/concepts/ai";
 import { AI_CAP_SETTING, AI_HARD_MAX_USD, AiCapReached, assertRoom, cacheKey, capUsd, monthOf, record, spendNow } from "../video/concepts/ai-budget";
 import { buildConcept } from "../video/concepts/generate";
@@ -101,5 +101,19 @@ describe("applying copy to a concept", () => {
     assert.match(c.narration.at(-1)!.spoken, /^Find your stage, at /);
     assert.equal(c.hook, "Where can you get on stage tonight?");
     assert.ok(c.estFirstTapMs > 0 && c.estSeconds > 10);
+  });
+});
+
+describe("step alignment", () => {
+  const plan = (lines: string[]) =>
+    ({
+      capturePlan: [{ clicks: [{ kind: "link", name: "See the demo", payoff: "Wednesday Night Pool League - Round Robin" }, { kind: "scroll", name: "scroll-/-0", payoff: "Friday Night Darts Shootout - Single Elimination" }] }],
+      narration: lines.map((spoken, i) => ({ id: `L${i}`, sceneId: "a1", spoken, claims: [i === 0 ? "c-pay1a" : "c-pay1b"] })),
+    }) as unknown as Concept;
+  test("lines that sit on the wrong tap are rejected", () => {
+    assert.equal(stepAlignment(plan(["Choose a format and a QR code appears.", "Jump into the demo and watch the standings take shape."])).length, 2);
+  });
+  test("lines about their own tap pass", () => {
+    assert.deepEqual(stepAlignment(plan(["Jump into the demo and see a Wednesday night pool league.", "Keep going to a Friday night darts shootout."])), []);
   });
 });

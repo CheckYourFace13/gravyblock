@@ -107,6 +107,27 @@ const SUPERLATIVE = /\b(best|fastest|easiest|simplest|ultimate|perfect|guarantee
 const CAPABILITY = /\b(ai|smart|personali[sz]ed|recommend\w*|compar\w+|track\w*|sav(e|es|ed|ing)|notif\w+|alerts?|sync\w*|book\w*|order\w*|buy\w*|purchas\w*|deliver\w*|reserv\w+|checkout|integrat\w+|real.?time|live|schedul\w+|remind\w*|share[sd]?|upload\w*|download\w*|export\w*|import\w*|calculat\w+|generat\w+|creat(e|es|ed|ing)|manag\w+|monitor\w*|analy[sz]\w+|forecast\w*|predict\w*|learn\w*)\b/gi;
 
 /**
+ * Each step's line must be about its own step: it has to share a word with that step's label or with the result the page showed. Catches copy whose lines
+ * drift out of order (a line about the demo sitting on the tap before the demo opens), which would play as narration a beat out of step with the screen.
+ */
+const GENERIC = new Set(["see", "open", "tap", "pick", "look", "watch", "page", "keep", "go", "then", "jump", "find", "check", "choos", "choose", "show", "try", "now", "link", "scroll", "further", "down", "read", "get", "next"]);
+const content = (s: string) => new Set([...toks(s)].filter((w) => !GENERIC.has(w)));
+
+export function stepAlignment(c: Concept): string[] {
+  const out: string[] = [];
+  c.capturePlan.forEach((pl, pi) =>
+    pl.clicks.forEach((k, ci) => {
+      const id = `c-pay${pi + 1}${ci === 0 ? "a" : "b"}`;
+      const line = c.narration.find((l) => l.claims.includes(id));
+      if (!line) return;
+      const own = content(`${k.kind === "scroll" ? "" : k.kind === "search" ? k.term : k.name} ${k.payoff}`);
+      if (!shared(content(plain(line.spoken)), own).length) out.push(`the line for tap ${pi * 2 + ci + 1} ("${plain(line.spoken).slice(0, 60)}") is not about that tap, which is "${k.kind === "scroll" ? "scrolling" : k.name}" and then shows "${k.payoff.slice(0, 60)}"`);
+    }),
+  );
+  return out;
+}
+
+/**
  * The stricter grounding for model-written copy. A model reads naturally, so ordinary words are free; what is checked is what a model is tempted to invent:
  * figures, prices and offers, superlatives, capability verbs, and customer outcomes. Each may appear only if the live product's own text used the word.
  * The hook is marketing copy and may talk about the viewer's situation (so capability words are allowed in it), but never figures, offers or superlatives.
@@ -143,7 +164,7 @@ export function validateConcept(c: Concept, input: GeneratorInput, opts: { ai?: 
   // copy may be reworded, but nothing the product never showed may be said
   const loose = ungroundedWords(spoken.slice(1, -1).concat(spoken.slice(-1)), pageVocabulary(input.discoveries), [...toks(c.productName), ...(c.productName.toLowerCase().match(/[a-z]+/g) ?? []), ...c.ctaHost.toLowerCase().split(/[.-]/)]);
   if (loose.length && !opts.ai) reasons.push(`words the product never showed: ${loose.slice(0, 5).join(", ")}`);
-  if (opts.ai) reasons.push(...aiGrounding(c, pageVocabulary(input.discoveries), factText));
+  if (opts.ai) reasons.push(...aiGrounding(c, pageVocabulary(input.discoveries), factText), ...stepAlignment(c));
   const hookOn = shared(toks(c.hook), content);
   const angleOn = shared(toks(`${input.angle.title} ${input.angle.goal} ${input.angle.features.join(" ")}`), content);
   if (hookOn.length < 1) reasons.push(`the hook is about something the video does not show ("${c.hook}" shares no word with the screens)`);
