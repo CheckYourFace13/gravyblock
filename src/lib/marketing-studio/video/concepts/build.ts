@@ -77,10 +77,11 @@ export function buildConceptTimeline(c: Concept) {
       const S = win[id].s;
       const r = (abs: number) => Math.max(0, abs - S);
       const E = win[id].e - S;
-      const tA = r(mt(`a${i + 1}`));
+      const hookEnd = i === 0 ? r(lt[c.narration[0].id].end) : 0;
+      // the first tap lands as the hook ends (the first step line follows it), so the first real action never waits for a gap
+      const tA = i === 0 ? Math.max(900, Math.min(r(mt(`a${i + 1}`)), hookEnd - 120)) : r(mt(`a${i + 1}`));
       const tB = r(mt(`b${i + 1}`));
       const rc = P.rects;
-      const hookEnd = i === 0 ? r(lt[c.narration[0].id].end) : 0;
       const states = [{ at: 0, state: "s0" }, { at: tA + 120, state: "a" }, { at: tB + 120, state: "b" }];
       const cursor: CursorKey[] = ascending([
         { t: 250, x: 330, y: center(rc.cA)[1] - 110 },

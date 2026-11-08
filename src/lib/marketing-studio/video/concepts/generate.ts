@@ -292,9 +292,9 @@ export function timing(narration: Concept["narration"], p: Personality): { estSe
     t += secs[i];
   });
   const total = t + 1.5;
-  const l2 = narration[1];
-  const beforeMarker = wordCount(l2.spoken.split(/\{a1\}/)[0].replace(/\{[a-z0-9]+\}/g, ""));
-  return { estSeconds: Math.round(total * 10) / 10, estFirstTapMs: Math.round((starts[1] + beforeMarker / RATE_WPS / p.pace) * 1000) };
+  // the first tap lands as the hook ends; each pause mark in the hook (a question mark, a comma) adds about a sixth of a second to what the word count says
+  const hookEnd = starts[0] + secs[0] + (0.15 * (narration[0].spoken.match(/[?.!,;:]/g) ?? []).length) / p.pace;
+  return { estSeconds: Math.round(total * 10) / 10, estFirstTapMs: Math.round((hookEnd - 0.12) * 1000) };
 }
 
 export type Attempt = { variant: number; summary: string; reasons: string[] };
