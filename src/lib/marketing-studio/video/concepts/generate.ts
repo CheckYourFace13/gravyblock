@@ -198,7 +198,11 @@ const mix = (h: string, to: number, k: number) => {
 export const spokenName = (name: string) => name.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\./g, " dot ").trim();
 export const spokenHost = (host: string) => `${spokenName(host.replace(/\.[a-z]+$/, "").replace(/^www\./, "").replace(/^[a-z]/, (c) => c.toUpperCase()))} dot ${host.split(".").pop()}`;
 
-function pickCta(input: GeneratorInput, plates: PlatePlan[]): { text: string; url: string; quotePath: string } | null {
+/**
+ * The call to action is an invitation, which is copy, so its words need not be on the page; its address must be a real page on the product's own site. The
+ * planned invitation is used when it is a real invitation, else a link label the product itself shows on a demonstrated page.
+ */
+function pickCta(input: GeneratorInput, plates: PlatePlan[]): { text: string; url: string; quotePath: string; onPage: boolean } | null {
   const host = new URL(input.home).host.replace(/^www\./, "");
   const pageOf = (p: string) => input.discoveries.find((d) => d.path === p);
   const onSite = (u: string) => {
@@ -210,17 +214,18 @@ function pickCta(input: GeneratorInput, plates: PlatePlan[]): { text: string; ur
     }
   };
   const platePaths = [...new Set(plates.map((p) => p.path))];
+  const real = (t: string) => wordCount(t) >= 2 && INVITE_VERB.test(t) && !BOILERPLATE.test(t) && !DOC_REGISTER.test(t) && !BANNED.test(t);
   const cands: Array<{ text: string; url: string }> = [input.angle.cta];
   for (const p of platePaths) for (const c of pageOf(p)?.ctas ?? []) cands.push(c);
   for (const c of cands) {
-    if (!c.text || !onSite(c.url) || wordCount(c.text) < 2 || !INVITE_VERB.test(c.text) || BOILERPLATE.test(c.text)) continue;
+    if (!c.text || !onSite(c.url) || !real(c.text)) continue;
     const found = platePaths.find((p) => (pageOf(p)?.lines ?? []).some((l) => norm(l).includes(norm(c.text))));
-    if (found) return { text: c.text, url: c.url, quotePath: found };
+    return { text: c.text, url: c.url, quotePath: found ?? platePaths[0], onPage: Boolean(found) };
   }
   return null;
 }
 
-/** The shortest sentence of each tap's candidates, for the tightest cut. */
+/** The shortest sentence of each step's candidates, for the tightest cut. */
 function shortest(plates: PlatePlan[], pair: Array<{ fragments: [string[], string[]] }>): PlatePlan[] {
   return plates.map((pl, i) => ({ ...pl, clicks: pl.clicks.map((c, ci) => ({ ...c, payoff: [...pair[i].fragments[ci]].slice(0, 4).sort((a, b) => wordCount(a) - wordCount(b))[0] ?? c.payoff })) as [Step, Step] }));
 }
@@ -290,9 +295,11 @@ export function buildConcept(input: GeneratorInput, plates: PlatePlan[], hook: {
   const ctaClaim = "c-cta";
   const first = plates[0];
   const ctaPlate = plates.find((x) => x.path === cta.quotePath) ?? first;
-  facts.push({ plate: ctaPlate.id, value: cta.text });
-  claims.push({ id: ctaClaim, text: `The product's own page offers "${cta.text}".`, facts: [cta.text], sources: [{ plate: ctaPlate.id, quote: cta.text }] });
-  claimsUsed.push({ id: ctaClaim, text: "call to action", quote: cta.text, path: cta.quotePath });
+  // an invitation claims nothing: when its words are not on the page the claim rests on what the first plate shows, and the address is on the product's own site
+  const ctaQuote = cta.onPage ? cta.text : first.heading || first.clicks[0].name;
+  facts.push({ plate: ctaPlate.id, value: ctaQuote });
+  claims.push({ id: ctaClaim, text: cta.onPage ? `The product's own page offers "${cta.text}".` : `The invitation leads to ${cta.url} on the product's own site, which shows "${ctaQuote}".`, facts: [ctaQuote], sources: [{ plate: ctaPlate.id, quote: ctaQuote }] });
+  claimsUsed.push({ id: ctaClaim, text: "call to action", quote: ctaQuote, path: cta.quotePath });
   const ctaWord = tpl(p.cta, fragIdx);
   line("end", `${ctaWord}, at ${spokenHost(host)}.`, [ctaClaim], `${ctaWord}, at ${display}.`);
   const endHeadline = `${ctaWord}.`;
