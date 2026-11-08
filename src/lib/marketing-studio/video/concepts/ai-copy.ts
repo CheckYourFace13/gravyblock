@@ -106,7 +106,7 @@ async function verify(db: StudioDb, input: GeneratorInput, c: Concept): Promise<
     specId: c.specId,
     purpose: "verify",
     temperature: 0,
-    maxTokens: 400,
+    maxTokens: 1200,
     system: `You are a strict fact-checker for marketing copy. You get the text a product's live pages showed and a voiceover script. List every statement in the script that claims, implies or promises something the page text does not support: a feature, capability, number, result, price, availability, outcome or comparison that is not there. Harmless framing (a question to the viewer, the viewer's own situation, "tap", "look", "see") is fine, and so is lightly paraphrasing what the page text says. Be strict about capabilities and outcomes, relaxed about tone. Reply with JSON only: {"unsupported":[{"line":"the sentence","why":"what is not supported"}]} and an empty list when everything is supported.`,
     user: JSON.stringify({ product: input.productName, pageText: [...new Set(shown)], verifiedProductTruth: input.verifiedFacts.slice(0, 12), script: c.narration.map((l) => l.spoken.replace(/\{[a-z0-9]+\}/g, "")) }, null, 1),
   });
@@ -131,7 +131,7 @@ export async function aiConcept(db: StudioDb, input: GeneratorInput, opts: { att
   for (let attempt = 0; attempt < (opts.attempts ?? 3); attempt++) {
     let text: string;
     try {
-      const r = await askJson(db, { specId: input.specId, purpose: "copy", system: SYSTEM, user: userPrompt(input, plans, feedback), maxTokens: 700, temperature: 0.8 });
+      const r = await askJson(db, { specId: input.specId, purpose: "copy", system: SYSTEM, user: userPrompt(input, plans, feedback), maxTokens: 2500, temperature: 0.8 });
       count(r);
       out.model = r.model;
       text = r.text;

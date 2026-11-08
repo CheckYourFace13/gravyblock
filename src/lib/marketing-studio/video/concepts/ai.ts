@@ -24,7 +24,7 @@ export async function askJson(db: StudioDb, p: { specId: string; purpose: string
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com", "X-Title": "GravyBlock Marketing Studio" },
-    body: JSON.stringify({ model: AI_MODEL, messages: [{ role: "system", content: p.system }, { role: "user", content: p.user }], max_tokens: p.maxTokens, temperature: p.temperature ?? 0.8, response_format: { type: "json_object" }, usage: { include: true } }),
+    body: JSON.stringify({ model: AI_MODEL, messages: [{ role: "system", content: p.system }, { role: "user", content: p.user }], max_tokens: p.maxTokens, temperature: p.temperature ?? 0.8, response_format: { type: "json_object" }, reasoning: { effort: "low" }, usage: { include: true } }),
   });
   if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as { choices?: Array<{ finish_reason?: string; message?: { content?: string; refusal?: string | null } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number } };
