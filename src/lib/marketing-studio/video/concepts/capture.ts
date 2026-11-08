@@ -67,6 +67,8 @@ async function settle(page: Page) {
     await page.waitForTimeout(80);
   }
   await page.evaluate(() => window.scrollTo(0, 0));
+  // a cookie banner never belongs in a video: take the privacy-preserving choice (this browser only, nothing is sent anywhere else)
+  await page.getByRole("button", { name: /^(reject|decline|deny)( all| optional| non-essential)?( cookies)?$/i }).first().click({ timeout: 1500 }).catch(() => {});
   await page.waitForTimeout(300);
 }
 
@@ -162,7 +164,11 @@ async function capturePlate(page: Page, c: Concept, pl: PlatePlan, outDir: strin
       : null;
     const headR: Rect = head ? [round(head[0]), round(head[1]), round(head[2]), round(head[3])] : cA;
     const y0 = Math.max(0, Math.round(Math.min(headR[1], box0[1], cA[1]) - 50));
-    const hh = Math.min(1150, Math.round(Math.max(box0[1] + box0[3], boxA[1] + boxA[3], boxB[1] + boxB[3], mapR ? mapR[1] + mapR[3] + 24 : 0) + 60 - y0));
+    // the result line (a count, a caption) can sit below the control group: the crop reaches it and the first result card under it, so the viewer SEES the change
+    const resB = await rectOfText(page, b.payoff);
+    const belowGroup = resB && resB[1] > boxB[1] + boxB[3] - 4 && resB[1] - (boxB[1] + boxB[3]) < 500 ? resB : null;
+    const listBottom = belowGroup ? belowGroup[1] + belowGroup[3] + 360 : 0;
+    const hh = Math.min(1150, Math.round(Math.max(box0[1] + box0[3], boxA[1] + boxA[3], boxB[1] + boxB[3], mapR ? mapR[1] + mapR[3] + 24 : 0, listBottom) + 60 - y0));
     await load();
     const readLines = () =>
       page.evaluate((id) => {
@@ -192,7 +198,9 @@ async function capturePlate(page: Page, c: Concept, pl: PlatePlan, outDir: strin
       await body();
     }
     const o = (r: Rect): Rect => [r[0], round(r[1] - y0), r[2], r[3]];
-    Object.assign(rects, { head: o(headR), cA: o(cA), cB: o(cB), boxA: o(boxA), boxB: o(mapR ?? boxB) });
+    // with a result line below the controls, the focus is that line plus the first result under it
+    const listR: Rect | null = belowGroup ? [0, belowGroup[1] - 14, VIEW.w, belowGroup[3] + 14 + 340] : null;
+    Object.assign(rects, { head: o(headR), cA: o(cA), cB: o(cB), boxA: o(listR ?? boxA), boxB: o(mapR ?? listR ?? boxB) });
     return finish(page, pl, url, states, bodies, rects, hh);
   }
 

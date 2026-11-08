@@ -132,6 +132,9 @@ export async function visualChecks(i: { concept: Concept; manifest: Manifest; li
         const st = await sharp(await readFile(path.join(platesDir, s.file))).stats();
         const flat = st.channels.slice(0, 3).every((ch) => ch.stdev < 7);
         if (flat) frame.push(`the picture of ${pl.id}/${k} is blank or a flat colour`);
+        // the figures of the result must be inside the picture itself, not just somewhere on the page
+        const nums = (s.result ?? "").split(" | ")[0].match(/\d[\d,.]*/g) ?? [];
+        if (k !== "s0" && nums.length && !nums.every((n) => (s.visible ?? "").includes(n))) frame.push(`the result after ${s.label} ("${(s.result ?? "").slice(0, 40)}") is not inside the picture shown`);
       } catch {
         /* image statistics are optional; the other framing checks still run */
       }
