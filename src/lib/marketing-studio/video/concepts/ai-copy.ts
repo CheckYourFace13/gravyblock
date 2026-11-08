@@ -25,7 +25,7 @@ Craft, with the limits software will enforce:
 - Line 1 is the hook, spoken over the first screen: 4 to 6 words. A question or a bold, relatable line about the viewer's real situation that this demonstration answers. It must use at least one of the words in hookMustUseOneOf (exact word), so it is clearly about what the viewer is about to see. Never start with the product name, a greeting, "welcome", "introducing", "meet", "discover" or "today".
 - Then one line per tap, in order (4 taps, 4 lines), 12 words or fewer each. Each line opens with what the viewer does, as a short imperative (Tap, Pick, Open, Try, Check, Look, Switch, Watch), then says what they see, in natural spoken English with the personality described. Put the token [tap] exactly once per line, immediately before the word where the finger lands. In the FIRST step line, [tap] must be the first or second word, because the first tap has to land within about four seconds of the start.
 - For a tap that scrolls ("scrolls further down the page") never say "scroll" or "scroll down"; say something like "keep going" or "and further down". For a link, say "open" or "jump into", not "click".
-- The seeing part may only restate or lightly paraphrase the page text shown for that tap. It must not add anything the page text does not support. Do not quote counts or figures; say what changed, not how many.
+- The seeing part may only restate or lightly paraphrase the page text shown for that tap (pageThenShows, and alsoOnThatPage when given: those are other things really on screen on that page). It must not add anything the page text does not support. Do not quote counts or figures; say what changed, not how many.
 - Total spoken length matters: hook plus four lines plus close plus invitation should be about 52 to 60 words in all, so the video runs about 25 to 30 seconds. Keep every step line short and let the screen do the talking.
 - Optionally a closing line of 3 to 6 words that sums up why it matters without claiming anything new. Skip it if the lines are already long.
 - The call to action: an invitation of 3 to 5 words that starts with a verb (try, find, see, plan, explore, play, check, read, make, start). Do not include the product name or the website; the address is added automatically.
@@ -40,6 +40,15 @@ Truth rules, which are checked by software and a second reviewer, and anything t
 Reply with JSON only: {"pick": 1, "reject": "", "hook": "...", "steps": ["...", "...", "...", "..."], "close": "...", "cta": "..."}`;
 
 type Plan = PlatePlan[];
+
+/** Other lines the viewer sees on the page a step lands on (from discovery), so the copy and the fact-checker work from what is really on screen, not one quoted sentence. */
+function nearby(input: GeneratorInput, s: Step): string[] {
+  if (s.kind !== "link") return [];
+  const l = input.discoveries.flatMap((d) => d.links).find((x) => x.href === s.href);
+  if (!l) return [];
+  const lines = [l.destHeading, ...l.top, ...l.lower].map((x) => x.replace(/\s+/g, " ").trim()).filter((x) => x.length >= 4 && x.length <= 140);
+  return [...new Set(lines)].slice(0, 10);
+}
 
 const doing = (s: Step) => (s.kind === "click" ? `taps "${s.name}"` : s.kind === "link" ? `opens the link "${s.name}"` : s.kind === "search" ? `searches for "${s.term}" and presses Enter` : "scrolls further down the page");
 
@@ -57,7 +66,7 @@ function userPrompt(input: GeneratorInput, plans: Plan[], feedback: string[], pr
       verifiedProductTruth: truth,
       candidates: plans.map((pl, i) => ({
         pick: i + 1,
-        places: pl.map((x) => ({ page: x.path, area: x.heading || "(none)", taps: x.clicks.map((c) => ({ viewer: doing(c), pageThenShows: c.payoff })) })),
+        places: pl.map((x) => ({ page: x.path, area: x.heading || "(none)", taps: x.clicks.map((c) => ({ viewer: doing(c), pageThenShows: c.payoff, ...(nearby(input, c).length ? { alsoOnThatPage: nearby(input, c) } : {}) })) })),
       })),
       hookMustUseOneOf: hookWords(plans),
       mustNotOpenLike: input.takenHooks.slice(0, 24),
@@ -112,7 +121,7 @@ type Verdict = { unsupported?: Array<{ line?: string; statement?: string; why?: 
 
 /** The second reader: given only the page text, finds sentences in the script that say more than the page supports. It can only reject. */
 async function verify(db: StudioDb, input: GeneratorInput, c: Concept): Promise<{ problems: string[]; micros: number; cached: boolean }> {
-  const shown = c.capturePlan.flatMap((pl) => [pl.heading, ...pl.clicks.flatMap((k) => [k.name, k.kind === "search" ? k.term : "", k.payoff])]).filter(Boolean);
+  const shown = c.capturePlan.flatMap((pl) => [pl.heading, ...pl.clicks.flatMap((k) => [k.name, k.kind === "search" ? k.term : "", k.payoff, ...nearby(input, k)])]).filter(Boolean);
   const r = await askJson(db, {
     specId: c.specId,
     purpose: "verify",

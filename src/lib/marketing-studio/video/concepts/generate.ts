@@ -118,6 +118,9 @@ export function shortLabel(t: string): string {
   return cut.join(" ").replace(/[→>›»]+$/, "").trim();
 }
 
+/** Destinations that are the product itself doing something (a demo, a live page, a tool, a map, standings) rather than a page of prose about it. */
+export const SURFACE = /\b(demo|in action|live|example|sample|preview|map|tools?|calculator|directory|browse|dashboard|standings|scoreboard|leaderboard|schedule|bracket|results|explore|discover)\b/i;
+
 function linkCandidates(d: PageDiscovery, angleTokens: Set<string>, input: GeneratorInput): Cand[] {
   const used = new Set(input.usedControls.map(norm));
   const pageText = norm(d.lines.join(" "));
@@ -131,7 +134,8 @@ function linkCandidates(d: PageDiscovery, angleTokens: Set<string>, input: Gener
     const rel = overlap(toks(`${l.text} ${l.destHeading} ${p1[0]} ${p2[0]}`), angleTokens);
     out.push({
       plan: { path: d.path, groupId: `link:${l.href}`, heading: l.destHeading || l.text, prefix: [], controls: [], clicks: [{ kind: "link", index: l.index, name: l.text, href: l.href, payoff: p1[0] }, { kind: "scroll", name: `scroll-${d.path}-${i}`, payoff: p2[0] }] },
-      score: rel * 4 + 1.5,
+      // a link into the product itself outranks a link to prose about it
+      score: rel * 4 + 1.5 + (SURFACE.test(`${l.text} ${l.destHeading} ${l.href}`) ? 8 : 0),
       group: `link:${l.href}`,
       from: 0,
       to: 0,
