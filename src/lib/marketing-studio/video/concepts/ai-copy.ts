@@ -155,7 +155,7 @@ export async function aiConcept(db: StudioDb, input: GeneratorInput, opts: { att
     out.calls += 1;
     if (r.cached) out.cachedCalls += 1;
   };
-  for (let attempt = 0; attempt < (opts.attempts ?? 7); attempt++) {
+  for (let attempt = 0; attempt < (opts.attempts ?? 10); attempt++) {
     let text: string;
     try {
       const r = await askJson(db, { specId: input.specId, purpose: "copy", system: SYSTEM, user: userPrompt(input, plans, feedback, last, attempt), maxTokens: 2500, temperature: 0.8 });

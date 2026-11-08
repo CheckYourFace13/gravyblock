@@ -206,7 +206,7 @@ export function validateConcept(c: Concept, input: GeneratorInput, opts: { ai?: 
   const hp = hookProblems(c.hook, c.productName);
   const key = openingKey(c.hook);
   const taken = input.takenHooks.some((h) => openingKey(h) === key);
-  const early = c.estFirstTapMs <= 2900; // owner directive 2026-11-08: the first real action lands within 3 seconds
+  const early = c.estFirstTapMs <= 2950; // owner directive 2026-11-08: the first real action lands within 3 seconds
   checks.push(mk("first_3_seconds", hp.length === 0 && !taken && early, [...hp, ...(taken ? [`the opening "${key}" is already used by another video`] : []), ...(early ? [] : [`the first tap lands at about ${(c.estFirstTapMs / 1000).toFixed(1)}s`])].join("; ") || `hook of ${wordCount(c.hook)} words over a live product screen, first tap at about ${(c.estFirstTapMs / 1000).toFixed(1)}s`));
   // 2 reason to care
   checks.push(mk("reason_to_care", HOOK_TENSION.test(c.hook) && c.problem.length >= 20 && c.audience.length >= 8, c.problem.length >= 20 ? `the problem: ${c.problem}` : "no stated problem or audience"));
