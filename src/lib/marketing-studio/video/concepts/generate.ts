@@ -196,7 +196,12 @@ const mix = (h: string, to: number, k: number) => {
 
 /** How a product's name is said aloud: camel case split into words ("MicStage" becomes "Mic Stage"). */
 export const spokenName = (name: string) => name.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\./g, " dot ").trim();
-export const spokenHost = (host: string) => `${spokenName(host.replace(/\.[a-z]+$/, "").replace(/^www\./, "").replace(/^[a-z]/, (c) => c.toUpperCase()))} dot ${host.split(".").pop()}`;
+/** The address as said aloud. When the site name is the product name run together ("boatingchicago"), the product name's own capitals say where the words split. */
+export const spokenHost = (host: string, productName = "") => {
+  const base = host.replace(/\.[a-z]+$/, "").replace(/^www\./, "");
+  const said = productName && productName.toLowerCase().replace(/[^a-z0-9]/g, "") === base.toLowerCase() ? spokenName(productName) : spokenName(base.replace(/^[a-z]/, (c) => c.toUpperCase()));
+  return `${said} dot ${host.split(".").pop()}`;
+};
 
 /**
  * The call to action is an invitation, which is copy, so its words need not be on the page; its address must be a real page on the product's own site. The
@@ -319,7 +324,7 @@ export function buildConcept(input: GeneratorInput, plates: PlatePlan[], hook: {
   claims.push({ id: ctaClaim, text: cta.onPage ? `The product's own page offers "${cta.text}".` : `The invitation leads to ${cta.url} on the product's own site, which shows "${ctaQuote}".`, facts: [ctaQuote], sources: [{ plate: ctaPlate.id, quote: ctaQuote }] });
   claimsUsed.push({ id: ctaClaim, text: "call to action", quote: ctaQuote, path: cta.quotePath });
   const ctaWord = tpl(p.cta, fragIdx);
-  line("end", `${ctaWord}, at ${spokenHost(host)}.`, [ctaClaim], `${ctaWord}, at ${display}.`);
+  line("end", `${ctaWord}, at ${spokenHost(host, input.productName)}.`, [ctaClaim], `${ctaWord}, at ${display}.`);
   const endHeadline = `${ctaWord}.`;
   onScreen.push({ sceneId: "end", kind: "headline", text: endHeadline, claim: ctaClaim }, { sceneId: "end", kind: "cta", text: cta.text, claim: ctaClaim });
   sceneMeta.end = { purpose: "Call to action.", motion: ["logo and headline spring in", "call to action button pulses", "music resolves"], note: "Branded end card; no product screen is claimed." };

@@ -99,7 +99,7 @@ export function applyCopy(base: Concept, copy: AiCopy): Concept {
   });
   if (copy.close) add(`a${plates.length}`, copy.close, [`c-ctx${plates.length}`]);
   const ctaWord = copy.cta.replace(/[.!?]+$/, "");
-  add("end", `${ctaWord}, at ${spokenHost(host)}.`, ["c-cta"], `${ctaWord}, at ${base.cta.display}.`);
+  add("end", `${ctaWord}, at ${spokenHost(host, base.productName)}.`, ["c-cta"], `${ctaWord}, at ${base.cta.display}.`);
   const headlines = { ...base.headlines, end: `${ctaWord}.` };
   const onScreen = base.onScreen.map((o) => (o.sceneId === "end" && o.kind === "headline" ? { ...o, text: `${ctaWord}.` } : o));
   const t = timing(narration, p);
