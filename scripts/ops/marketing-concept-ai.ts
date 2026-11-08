@@ -79,7 +79,10 @@ async function main() {
   } else {
     const c = r.concept;
     console.log(JSON.stringify({ hook: c.hook, script: c.narration.map((l) => `${l.sceneId}: ${l.spoken}`), cta: c.cta, capturePlan: c.capturePlan.map((pl) => ({ page: pl.path, area: pl.heading, taps: pl.clicks.map((k) => `${k.kind}:${k.name} => ${k.payoff}`) })), estSeconds: c.estSeconds, firstTapMs: c.estFirstTapMs, gate: c.gate?.checks.map((k) => `${k.ok ? "PASS" : "FAIL"} ${k.label}: ${k.detail}`) }, null, 1));
-    if (flag("save")) {
+    // a video that only reads or scrolls is what the owner rejected: --require-interaction keeps only concepts with real taps or typed values
+    const interactive = c.capturePlan.some((pl) => pl.clicks.some((k) => k.kind === "click" || k.kind === "fill"));
+    if (flag("require-interaction") && !interactive) console.log("NO CONCEPT: the best plan only reads or scrolls pages (no real taps or typed values)");
+    else if (flag("save")) {
       const stored: StoredConcept = { specId, status: "ready", concept: c, alternates: [], nextVariant: 1, attempts: [], generatedAt: new Date().toISOString(), note: "written by the language-model creative step" };
       await setSetting(conceptKey(specId), stored, ACTOR, db, { audited: false });
       console.log(`saved ${specId}`);
