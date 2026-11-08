@@ -175,8 +175,10 @@ export function validateConcept(c: Concept, input: GeneratorInput, opts: { ai?: 
   checks.push(mk("engaging_pacing", c.estSeconds >= 22 && c.estSeconds <= 33 && Math.max(...wl) <= 22 && avg <= 15 && clicks.length >= 4, `about ${c.estSeconds}s, ${avg.toFixed(1)} words a line, longest ${Math.max(...wl)}, ${clicks.length} state changes`));
   // 8 not documentation
   const doc = DOC_REGISTER.exec(spoken.join(" "));
-  const outcomeLines = spoken.filter((s) => OUTCOME_WORD.test(s)).length;
-  checks.push(mk("not_documentation", !doc && outcomeLines / spoken.length >= 0.6, doc ? `documentation language: "${doc[0]}"` : `${outcomeLines} of ${spoken.length} lines are an action or a result`));
+  // the hook and the closing invitation have their own checks; every line between them must be something the viewer does or a result they see
+  const middle = spoken.slice(1, -1);
+  const outcomeLines = middle.filter((s) => OUTCOME_WORD.test(s)).length;
+  checks.push(mk("not_documentation", !doc && outcomeLines / Math.max(1, middle.length) >= 0.75, doc ? `documentation language: "${doc[0]}"` : `${outcomeLines} of ${middle.length} lines between the hook and the invitation are an action or a result`));
   // 9 personality fit
   checks.push(mk("personality_fit", c.personality === p.id && c.pacing.startsWith(String(p.pace)) && c.structure === p.structure, `${p.label}: ${p.tone}, ${p.structure}`));
   // 10 usefulness
