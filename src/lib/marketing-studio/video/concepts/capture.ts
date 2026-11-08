@@ -34,6 +34,28 @@ function boxOfBlocks(blocks: Block[], y0: number, h: number, n = 4): Rect {
   return [Math.max(0, r[0]), Math.max(0, r[1]), Math.min(VIEW.w - 20, r[2]), Math.min(r[3], 420)];
 }
 
+const MAP_SELECTOR = ".leaflet-container, .mapboxgl-map, .maplibregl-map, .gm-style";
+
+/** The map on the page, if there is one, and whether it has drawn any tiles. Waits for tiles in flight to land. */
+async function settleMap(page: Page): Promise<{ rect: Rect | null; drawn: boolean }> {
+  await page
+    .waitForFunction(() => {
+      const t = Array.from(document.querySelectorAll(".leaflet-tile"));
+      return !t.length || (t.every((i) => (i as HTMLImageElement).complete) && !document.querySelector(".leaflet-tile-loading"));
+    }, null, { timeout: 8000 })
+    .catch(() => {});
+  await page.waitForTimeout(350);
+  const r = await page.evaluate((sel) => {
+    const e = document.querySelector(sel);
+    if (!e) return null;
+    const b = e.getBoundingClientRect();
+    const tiles = document.querySelectorAll(".leaflet-tile-loaded, .mapboxgl-canvas, .maplibregl-canvas, .gm-style img").length;
+    return { rect: [b.x, b.y + window.scrollY, b.width, b.height], tiles };
+  }, MAP_SELECTOR);
+  if (!r) return { rect: null, drawn: true };
+  return { rect: [round(r.rect[0]), round(r.rect[1]), round(r.rect[2]), round(r.rect[3])], drawn: r.tiles > 0 };
+}
+
 async function settle(page: Page) {
   await page.waitForLoadState("domcontentloaded", { timeout: 30_000 }).catch(() => {});
   await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
@@ -126,6 +148,10 @@ async function capturePlate(page: Page, c: Concept, pl: PlatePlan, outDir: strin
     const cB = await rectOf(page, `[data-gbc="${b.control}"]`);
     await click(b.control);
     const boxB = await rectOf(page, `[data-gbg="${gid}"]`);
+    const mapInfo = await settleMap(page);
+    if (mapInfo.rect && !mapInfo.drawn) throw new Error("capture: the map on this page never drew its tiles, so the picture would be blank");
+    // a map just below the controls is part of the payoff: it goes in the crop
+    const mapR = mapInfo.rect && mapInfo.rect[1] >= box0[1] - 20 && mapInfo.rect[1] - (box0[1] + box0[3]) < 400 ? mapInfo.rect : null;
     const head = pl.heading
       ? await page.evaluate((hh) => {
           const e = [...document.querySelectorAll("h1,h2,h3,h4")].find((x) => ((x as HTMLElement).innerText || "").replace(/\s+/g, " ").trim().startsWith(hh));
@@ -136,7 +162,7 @@ async function capturePlate(page: Page, c: Concept, pl: PlatePlan, outDir: strin
       : null;
     const headR: Rect = head ? [round(head[0]), round(head[1]), round(head[2]), round(head[3])] : cA;
     const y0 = Math.max(0, Math.round(Math.min(headR[1], box0[1], cA[1]) - 50));
-    const hh = Math.min(1150, Math.round(Math.max(box0[1] + box0[3], boxA[1] + boxA[3], boxB[1] + boxB[3]) + 60 - y0));
+    const hh = Math.min(1150, Math.round(Math.max(box0[1] + box0[3], boxA[1] + boxA[3], boxB[1] + boxB[3], mapR ? mapR[1] + mapR[3] + 24 : 0) + 60 - y0));
     await load();
     const readLines = () =>
       page.evaluate((id) => {
@@ -144,20 +170,29 @@ async function capturePlate(page: Page, c: Concept, pl: PlatePlan, outDir: strin
         const root = el?.parentElement ?? el ?? document.body;
         return ((root as HTMLElement).innerText || "").split("\n").map((l) => l.replace(/\s+/g, " ").trim()).filter((l) => l.length >= 3);
       }, gid);
+    const readAllLines = async () => new Set((await page.evaluate(() => document.body.innerText)).split("\n").map(clean).filter((l) => l.length >= 3 && l.length <= 300));
+    let prevAll = await readAllLines();
     let prev = new Set(await readLines());
+    if (mapR) await settleMap(page);
     states.s0 = { file: await shotAt(page, outDir, `${pl.id}-s0.jpg`, y0, hh), label: `${pl.heading || "Page"}, before` };
     await body();
     for (const [key, st] of [["a", a], ["b", b]] as const) {
       await click(st.control);
+      if (mapR) await settleMap(page);
       const now = await readLines();
-      const result = now.filter((l) => !prev.has(l)).map(clean).join(" | ");
+      const nowAll = await readAllLines();
+      let fresh = now.filter((l) => !prev.has(l)).map(clean);
+      // the controls themselves showed nothing new: the result is elsewhere on the page (a counts line, a list, a map caption)
+      if (!fresh.length) fresh = [...nowAll].filter((l) => !prevAll.has(l)).slice(0, 6);
+      const result = fresh.join(" | ");
       prev = new Set(now);
+      prevAll = nowAll;
       if (!has([result], st.payoff)) throw new Error(`capture: after "${st.name}" the page no longer shows "${st.payoff.slice(0, 50)}"`);
       states[key] = { file: await shotAt(page, outDir, `${pl.id}-${key}.jpg`, y0, hh), label: `After ${st.name}`, result };
       await body();
     }
     const o = (r: Rect): Rect => [r[0], round(r[1] - y0), r[2], r[3]];
-    Object.assign(rects, { head: o(headR), cA: o(cA), cB: o(cB), boxA: o(boxA), boxB: o(boxB) });
+    Object.assign(rects, { head: o(headR), cA: o(cA), cB: o(cB), boxA: o(boxA), boxB: o(mapR ?? boxB) });
     return finish(page, pl, url, states, bodies, rects, hh);
   }
 

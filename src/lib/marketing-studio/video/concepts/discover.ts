@@ -141,6 +141,8 @@ export async function discoverProduct(origin: string, paths: string[], log: (m: 
           const root = el?.parentElement ?? el ?? document.body;
           return ((root as HTMLElement).innerText || "").split("\n").map((l) => l.replace(/\s+/g, " ").trim()).filter((l) => l.length >= 3);
         }, again.id);
+        const readAll = async () => new Set((await page.evaluate(() => document.body.innerText)).split("\n").map(clean).filter((l) => l.length >= 3 && l.length <= 300));
+        let prevAll = await readAll();
         let prev = new Set(await readGroup());
         const sequence: ProbedGroup["sequence"] = [];
         const before = b.blocked.count;
@@ -158,7 +160,11 @@ export async function discoverProduct(origin: string, paths: string[], log: (m: 
             break;
           }
           const now = await readGroup();
-          const fresh = now.filter((l) => !prev.has(l));
+          const nowAll = await readAll();
+          let fresh = now.filter((l) => !prev.has(l));
+          // the control group itself showed nothing new: the result is elsewhere on the page (a counts line, a list, a map caption)
+          if (!fresh.length) fresh = [...nowAll].filter((l) => !prevAll.has(l)).slice(0, 6);
+          prevAll = nowAll;
           sequence.push({ control: idx, newText: fresh.map(clean).join(" | ").slice(0, 480) });
           prev = new Set(now);
         }

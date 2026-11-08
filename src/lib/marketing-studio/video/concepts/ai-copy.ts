@@ -44,7 +44,12 @@ Reply with JSON only: {"pick": 1, "reject": "", "hook": "...", "steps": ["...", 
 type Plan = PlatePlan[];
 
 /** Other lines the viewer sees on the page a step lands on (from discovery), so the copy and the fact-checker work from what is really on screen, not one quoted sentence. */
-function nearby(input: GeneratorInput, s: Step): string[] {
+function nearby(input: GeneratorInput, s: Step, path = ""): string[] {
+  // a filter or toggle: what the page itself says it does (a map, pins, a list, results)
+  if (s.kind === "click") {
+    const d = input.discoveries.find((x) => x.path === path);
+    return d ? d.lines.filter((l) => l.length >= 25 && l.length <= 170 && /\b(map|pins?|filters?|highlights?|results?)\b/i.test(l)).slice(0, 4) : [];
+  }
   if (s.kind !== "link") return [];
   const l = input.discoveries.flatMap((d) => d.links).find((x) => x.href === s.href);
   if (!l) return [];
@@ -69,7 +74,7 @@ function userPrompt(input: GeneratorInput, plans: Plan[], feedback: string[], pr
       verifiedProductTruth: truth,
       candidates: plans.map((pl, i) => ({
         pick: i + 1,
-        places: pl.map((x, xi) => ({ page: x.path, area: x.heading || "(none)", taps: x.clicks.map((c, ci) => ({ tapNumber: xi * 2 + ci + 1, viewer: doing(c), pageThenShows: c.payoff, ...(nearby(input, c).length ? { alsoOnThatPage: nearby(input, c) } : {}) })) })),
+        places: pl.map((x, xi) => ({ page: x.path, area: x.heading || "(none)", taps: x.clicks.map((c, ci) => ({ tapNumber: xi * 2 + ci + 1, viewer: doing(c), pageThenShows: c.payoff, ...(nearby(input, c, x.path).length ? { alsoOnThatPage: nearby(input, c, x.path) } : {}) })) })),
       })),
       hookMustUseOneOf: hookWords(plans),
       mustNotOpenLike: input.takenHooks.slice(0, 24).concat("(the first two words of your hook must differ from the first two words of every one of these)"),
@@ -124,7 +129,7 @@ type Verdict = { unsupported?: Array<{ line?: string; statement?: string; why?: 
 
 /** The second reader: given only the page text, finds sentences in the script that say more than the page supports. It can only reject. */
 async function verify(db: StudioDb, input: GeneratorInput, c: Concept): Promise<{ problems: string[]; micros: number; cached: boolean }> {
-  const shown = c.capturePlan.flatMap((pl) => [pl.heading, ...pl.clicks.flatMap((k) => [k.name, k.kind === "search" ? k.term : k.kind === "fill" ? `${k.name}: ${k.value}` : "", k.payoff, ...nearby(input, k)])]).filter(Boolean);
+  const shown = c.capturePlan.flatMap((pl) => [pl.heading, ...pl.clicks.flatMap((k) => [k.name, k.kind === "search" ? k.term : k.kind === "fill" ? `${k.name}: ${k.value}` : "", k.payoff, ...nearby(input, k, pl.path)])]).filter(Boolean);
   const r = await askJson(db, {
     specId: c.specId,
     purpose: "verify",
