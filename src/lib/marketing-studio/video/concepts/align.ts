@@ -104,7 +104,9 @@ export async function visualChecks(i: { concept: Concept; manifest: Manifest; li
       if (words.length >= 3 && missing.length / words.length > 0.5) problems.push(`line ${line.id} ("${plainOf(line.spoken).slice(0, 60)}") talks about ${missing.slice(0, 4).join(", ")} which is not on the screen showing at the time`);
       // running ahead: wording that belongs to a LATER screen of this plate or a later plate
       const later = [...Object.entries(states).filter(([k]) => (want === "a" ? k === "b" : false)).map(([, s]) => s.visible ?? ""), ...c.capturePlan.slice(pi + 1).flatMap((x) => Object.values(manifest.plates[x.id]?.states ?? {}).map((s) => s.visible ?? ""))];
-      const ahead = missing.filter((w) => later.some((v) => tokensIn(v).has(w)));
+      // filler words ("one", "list", "page") turn up on every screen and say nothing about a result: only distinctive words count as running ahead
+      const FILLER = new Set(["list", "page", "next", "here", "more", "each", "show", "shows", "come", "comes", "pick", "tap"]);
+      const ahead = missing.filter((w) => w.length >= 4 && !FILLER.has(w) && later.some((v) => tokensIn(v).has(w)));
       if (ahead.length) problems.push(`line ${line.id} runs ahead of the screen: "${ahead.slice(0, 3).join(", ")}" only appears later`);
     }),
   );
