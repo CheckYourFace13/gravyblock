@@ -13,6 +13,10 @@ import { ms, requireStudioDb, type StudioDb } from "../../db";
 import { addFact, listClaims, listFacts, listProducts, verifyFact } from "../../repository";
 import { INTERNAL_SCOPE, type OwnerScope } from "../../scope";
 import { storeVideoFile } from "../store";
+import { canonicalizeLogo, comparePixels, logoIntegrityChecks, type CanonicalLogo } from "../../brand/logo-integrity";
+import { saveCanonicalLogo } from "../../brand/brand-kit";
+import { attributionFor } from "../../entitlements";
+import { buildStageHtml } from "./stage";
 import { audioInfo, mixAudio, parseSpoken, placeLines, synthesizeLines, synthMusic, writeWav } from "./audio";
 import { renderDemo } from "./render";
 import { runDemoQa, type DemoQaResult } from "./qa";
@@ -82,9 +86,18 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
   const platesDir = path.join(workDir, "stage");
   await fs.mkdir(platesDir, { recursive: true });
   const [logoAsset] = (await db.select().from(ms.msAssets).where(eq(ms.msAssets.productId, product.id))).filter((a) => a.kind === "logo" && a.approved === "true");
-  if (!logoAsset) throw new Error(`${spec0.productName} has no approved logo asset`);
+  if (!logoAsset) throw new Error(`NEEDS BRAND ASSET: ${spec0.productName} has no approved logo asset, and a logo is never invented`);
   const logoFile = path.join(platesDir, "logo.png");
-  await fs.writeFile(logoFile, await readAssetBytes(logoAsset));
+  const logoBytes = await readAssetBytes(logoAsset);
+  await fs.writeFile(logoFile, logoBytes);
+  // the canonical, hashed source record the logo-integrity QA measures the render against
+  let canonicalLogo: CanonicalLogo | null = null;
+  try {
+    canonicalLogo = await canonicalizeLogo(logoAsset, logoBytes);
+    await saveCanonicalLogo(db, "demo-run", product.id, canonicalLogo);
+  } catch (e) {
+    log(`logo could not be canonicalized: ${e instanceof Error ? e.message : e}`);
+  }
   const t0 = Date.now();
   let manifest: Manifest;
   if (opts.reuse?.manifest) manifest = JSON.parse(await fs.readFile(path.join(platesDir, "manifest.json"), "utf8")) as Manifest;
@@ -114,6 +127,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
   const lineTimes = spec.layout(dur);
   const built = spec.build(manifest, lineTimes);
   const { timeline } = built;
+  timeline.brand.attribution = await attributionFor(db, { id: product.id, slug: spec0.slug, ownerKind: product.ownerKind });
 
   // 4. audio mix
   log("mixing voice and music");
@@ -210,6 +224,12 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
     qa.checks.push(...(await visualChecks({ concept: spec.concept, manifest, lineTimes, timeline, platesDir })));
     qa.passed = qa.checks.every((c) => c.ok || c.severity === "warn");
   }
+  // logo fidelity is a permanent HARD gate, for every video: source hash, no decoration, true proportions, pixels match the source
+  let pixels: Awaited<ReturnType<typeof comparePixels>> | null = null;
+  const big = rendered.logo.probes.find((p) => p.selector === ".elogo");
+  if (canonicalLogo && big && rendered.logo.shot) pixels = await comparePixels(logoBytes, rendered.logo.shot, { w: big.boxW, h: big.boxH }, { w: big.naturalW, h: big.naturalH }).catch(() => null);
+  qa.checks.push(...logoIntegrityChecks({ canonical: canonicalLogo, writtenBytes: logoBytes, stageHtml: buildStageHtml(timeline), probes: rendered.logo.probes, pixels }));
+  qa.passed = qa.checks.every((c) => c.ok || c.severity === "warn");
   return { file: outFile, record, qa, stats: { captureMs, voiceMs, renderMs: rendered.wallMs, frames: rendered.frames }, manifest };
 }
 

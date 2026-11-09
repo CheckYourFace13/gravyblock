@@ -12,7 +12,8 @@ export type Funnel = "cold" | "interested" | "high_intent";
 export type AngleEntry = {
   id: string; // stable, used as utm_content: <slug>-<angle>
   slug: string;
-  position: 1 | 2 | 3;
+  /** 1 to 3 are the initial library (one per role); larger positions are the ongoing library (GravyBlock's own topic inventory and later videos) */
+  position: number;
   role: AngleRole;
   title: string;
   hook: string;
@@ -33,6 +34,8 @@ export type AngleEntry = {
   publicationUrl?: string;
   /** the demo script that makes this video ("<slug>:<angle>"), once it has been written */
   specId?: string;
+  /** where an approved video belongs on the product's own site (a recommendation only; House sites are never written autonomously) */
+  placement?: string;
   /** the YouTube title and description to use once it is made */
   yt?: { title: string; description: string };
   /** set when the concept generator (video/concepts) made or replaced this angle */
@@ -83,7 +86,8 @@ export function compareAngles(a: AngleEntry, b: AngleEntry): Similarity {
   if (scores.benefit >= 0.5) reasons.push("repeats the core benefit");
   if (scores.features >= 0.5) reasons.push("shows the same features");
   if (scores.scenes >= 0.7 && a.scenes.length > 2 && b.scenes.length > 2) reasons.push("recycles the scene order");
-  if (a.role === b.role && a.slug === b.slug) reasons.push("fills a role that is already taken");
+  // the one-per-role rule is the INITIAL library's; later positions are told apart by their topic, hook, purpose, benefit and scenes
+  if (a.role === b.role && a.slug === b.slug && a.position <= 3 && b.position <= 3) reasons.push("fills a role that is already taken");
   return { reasons, scores };
 }
 

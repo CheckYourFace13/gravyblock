@@ -123,8 +123,8 @@ export async function runLibraryVideo(db: StudioDb, input: { specId: string; att
       title: entry.yt.title,
       description: entry.yt.description,
       intended: `${ROLE_LABEL[entry.role]} video for ${entry.funnel.replace("_", " ")} viewers: YouTube organic, the iScream Studio portfolio, the product site, and a candidate paid asset.`,
-      placement: undefined,
-      library: { position: entry.position, of: 3, roleLabel: ROLE_LABEL[entry.role] },
+      placement: entry.placement,
+      library: { position: entry.position, of: Math.max(3, (await getAngles(db, product.slug)).filter((a) => a.status !== "superseded").length), roleLabel: ROLE_LABEL[entry.role] },
       upload: true,
       log,
     });

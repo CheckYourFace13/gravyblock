@@ -1,12 +1,26 @@
 import { requireStudioDb } from "@/lib/marketing-studio/db";
 import { kidsFor, getPolicy } from "@/lib/marketing-studio/publishing/video-policy";
-import { declareKidsAction, pauseVideoMarketingAction, resumeVideoMarketingAction } from "../../actions";
+import { getBrandKit } from "@/lib/marketing-studio/brand/brand-kit";
+import { allowanceFor, attributionFor, entitlementFor, outcomesFor } from "@/lib/marketing-studio/entitlements";
+import { contactSummary } from "@/lib/marketing-studio/publishing/review-contact";
+import { listReviews } from "@/lib/marketing-studio/publishing/video-review";
+import { youtubeConnectionFor } from "@/lib/marketing-studio/publishing/youtube-share";
+import { changeReviewEmailAction, declareKidsAction, pauseVideoMarketingAction, resumeVideoMarketingAction } from "../../actions";
 
 /** Pause, resume and the one-time YouTube declaration for one product. Resume lives only here, behind the GravyBlock login. */
-export async function VideoMarketingCard({ product }: { product: { id: string; ownerKind: string } }) {
+export async function VideoMarketingCard({ product }: { product: { id: string; ownerKind: string; slug?: string } }) {
   const db = requireStudioDb();
   const policy = await getPolicy(db, product.id);
   const kids = await kidsFor(db, product);
+  const ent = await entitlementFor(db, product);
+  const allow = await allowanceFor(db, product);
+  const outcome = await outcomesFor(db, product.id, Date.now(), ent);
+  const contact = await contactSummary(db, product.id);
+  const kit = await getBrandKit(db, product.id);
+  const channel = await youtubeConnectionFor(db, product.id);
+  const attribution = await attributionFor(db, product);
+  const reviews = (await listReviews(db)).filter((r) => r.productId === product.id).sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+  const date = (iso: string | null) => (iso ? iso.slice(0, 10) : "when a strong opportunity exists");
   return (
     <section className="rounded-lg border border-zinc-200 bg-white p-4">
       <h2 className="text-base font-semibold text-zinc-900">Video marketing</h2>
@@ -23,6 +37,28 @@ export async function VideoMarketingCard({ product }: { product: { id: string; o
           <button className="mt-3 rounded-md border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800">Pause new videos</button>
         </form>
       )}
+      <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-zinc-100 pt-4 text-sm sm:grid-cols-3">
+        <div><dt className="text-xs text-zinc-500">Plan</dt><dd className="font-medium">{ent.label}</dd></div>
+        <div><dt className="text-xs text-zinc-500">New videos this {allow.period}</dt><dd className="font-medium">{allow.generated} of {allow.allowance ?? "no limit"}</dd></div>
+        <div><dt className="text-xs text-zinc-500">Corrections made</dt><dd className="font-medium">{allow.replacements} (free)</dd></div>
+        <div><dt className="text-xs text-zinc-500">Approved / published</dt><dd className="font-medium">{outcome.approved} / {outcome.published}</dd></div>
+        <div><dt className="text-xs text-zinc-500">Next new video</dt><dd className="font-medium">{allow.eligible ? "eligible now, when a strong idea exists" : date(allow.nextEligibleAt)}</dd></div>
+        <div><dt className="text-xs text-zinc-500">Publishing channel</dt><dd className="font-medium">{channel ? "YouTube connected" : "No channel connected"}</dd></div>
+        <div><dt className="text-xs text-zinc-500">Logo on file</dt><dd className="font-medium">{kit?.logos.length ? `Yes, used exactly as supplied (${kit.logos.length})` : "NEEDS BRAND ASSET"}</dd></div>
+        <div><dt className="text-xs text-zinc-500">End-card credit</dt><dd className="font-medium">{attribution ?? "None"}</dd></div>
+        <div><dt className="text-xs text-zinc-500">Videos reviewed so far</dt><dd className="font-medium">{reviews.length}</dd></div>
+      </dl>
+      <form action={changeReviewEmailAction} className="mt-5 border-t border-zinc-100 pt-4">
+        <p className="text-sm font-medium text-zinc-900">Marketing review email</p>
+        <p className="mt-1 text-xs text-zinc-600">
+          Review, replacement and attention messages go to {contact.current ?? "nobody yet (add an address)"}.{contact.pending ? ` Waiting for ${contact.pending} to confirm.` : ""} A new address is only used after it is confirmed from a link sent to it.
+        </p>
+        <input type="hidden" name="productId" value={product.id} />
+        <div className="mt-2 flex gap-2">
+          <input type="email" name="email" required placeholder="name@yourcompany.com" className="w-64 rounded-md border border-zinc-300 px-3 py-1.5 text-sm" />
+          <button className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm">Send confirmation</button>
+        </div>
+      </form>
       <form action={declareKidsAction} className="mt-5 border-t border-zinc-100 pt-4">
         <p className="text-sm font-medium text-zinc-900">YouTube: are this product&apos;s videos &ldquo;made for kids&rdquo;?</p>
         <p className="mt-1 text-xs text-zinc-600">

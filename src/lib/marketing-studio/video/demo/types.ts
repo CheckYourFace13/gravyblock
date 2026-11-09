@@ -90,7 +90,7 @@ export type Timeline = {
   durationMs: number;
   /** where the product screen sits; defaults to WIN */
   win?: { x: number; y: number; w: number; h: number; r: number };
-  brand: { name: string; accent: string; dark: string; light: string; logo: string; /** optional palette; defaults are the RentalNoodle look */ palette?: { blobs: [string, string]; endFrom: string; endMid: string; endTo: string; button: string; ripple: string } };
+  brand: { name: string; accent: string; dark: string; light: string; logo: string; /** small end-card line such as "Created automatically by GravyBlock Marketing Studio"; null or absent when the plan or branding policy removes it */ attribution?: string | null; /** optional palette; defaults are the RentalNoodle look */ palette?: { blobs: [string, string]; endFrom: string; endMid: string; endTo: string; button: string; ripple: string } };
   plates: Record<string, { w: number; h: number; states: Record<string, string> }>;
   scenes: StageScene[];
   captions: CaptionGroup[];

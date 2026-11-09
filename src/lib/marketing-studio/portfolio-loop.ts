@@ -7,12 +7,15 @@
 import { spawn } from "node:child_process";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { ms, type StudioDb } from "./db";
+import { hasApprovedLogo } from "./brand/brand-kit";
+import { allowanceFor } from "./entitlements";
 import { PLAN_PRODUCTS } from "./library-plan";
 import { getAngles } from "./library-store";
 import { listFacts, listProducts } from "./repository";
 import { enqueue, getSetting, setSetting } from "./runtime";
 import { INTERNAL_SCOPE } from "./scope";
 import { specFor } from "./publishing/platforms";
+import { reviewRecipient } from "./publishing/review-contact";
 import { youtubeConnectionFor } from "./publishing/youtube-share";
 import { getPolicy, kidsFor, policyKey, type VideoPolicy } from "./publishing/video-policy";
 import { queueReplacement } from "./publishing/review-replacement";
@@ -67,6 +70,8 @@ async function gather(db: StudioDb, p: Product): Promise<StatusFacts & { policy:
   const recent = pubs.filter((x) => x.at && x.at.getTime() > since).length;
   let needsOwner: string | null = null;
   if ((await kidsFor(db, p)) === null) needsOwner = "the one-time YouTube made-for-kids declaration for this product has not been made";
+  else if (!(await hasApprovedLogo(db, p.id))) needsOwner = "NEEDS BRAND ASSET: no approved logo file is on record, and a logo is never invented";
+  else if (!(await reviewRecipient(db, p.id))) needsOwner = "no verified review email is set for this product";
   else if (!(await youtubeConnectionFor(db, p.id))) needsOwner = "no healthy YouTube connection is available for this product";
   return { paused: Boolean(policy.paused), needsOwner, review: reviews, activeJobs: jobs.length, uploadLimited: recent >= cap, waiting: Boolean(policy.waiting), policy };
 }
@@ -125,6 +130,12 @@ export async function portfolioTick(db: StudioDb, log: (m: string) => void = () 
     }
     if (status === "WAITING_FOR_REVIEW" || status === "RENDERING" || status === "WAITING_FOR_UPLOAD_LIMIT") {
       say("waiting, nothing new to start");
+      continue;
+    }
+    // plan allowance: a ceiling on NEW videos only (replacements never come through here). Quality still decides whether anything is made at all.
+    const allow = await allowanceFor(db, p);
+    if (!allow.eligible) {
+      say(`plan allowance: ${allow.reason}; next new video eligible ${allow.nextEligibleAt ?? "now"}`);
       continue;
     }
     const angles = (await getAngles(db, p.slug)).filter((a) => a.status === "planned").sort((a, b) => a.position - b.position);

@@ -26,6 +26,7 @@ import { collectForPublication } from "@/lib/marketing-studio/measurement/collec
 import { getSetting, setKillSwitch } from "@/lib/marketing-studio/runtime";
 import { requireStudioDb } from "@/lib/marketing-studio/db";
 import { declareKids, pauseProduct, resumeProduct } from "@/lib/marketing-studio/publishing/video-policy";
+import { sendVerificationEmail } from "@/lib/marketing-studio/publishing/review-notify";
 import { approveReview, requestChanges } from "@/lib/marketing-studio/publishing/video-review";
 import { createVideoFromProduct, reviewVideo } from "@/lib/marketing-studio/video/queue";
 import { importRemoteImage } from "@/lib/marketing-studio/remote-import";
@@ -93,6 +94,17 @@ export async function declareKidsAction(fd: FormData) {
     await requireProduct(scope, id);
     if (v !== "yes" && v !== "no") throw new Error("Choose yes or no");
     await declareKids(requireStudioDb(), actor, { productId: id }, v === "yes");
+  });
+}
+
+/** Change where this product's video reviews go. The new address gets a confirmation email and is only used after its owner confirms; the old verified one keeps working until then. */
+export async function changeReviewEmailAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    const product = await requireProduct(scope, id);
+    const out = await sendVerificationEmail(requireStudioDb(), actor, id, s(fd, "email"), product.name);
+    if (!out.sent) throw new Error(out.reason ?? "The confirmation email could not be sent");
   });
 }
 

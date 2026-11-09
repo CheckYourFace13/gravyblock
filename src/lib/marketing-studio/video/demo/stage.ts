@@ -49,6 +49,7 @@ var scenes=TL.scenes.map(function(sc,i){
     o.eh=el('div','eh',o.end); o.eh.textContent=sc.end_card.headline;
     o.eb=el('div','ebtn',o.end); o.eb.textContent=sc.end_card.button;
     o.eu=el('div','eurl',o.end); o.eu.textContent=sc.end_card.url;
+    if(TL.brand.attribution){o.ea=el('div','eattr',o.end); o.ea.textContent=TL.brand.attribution;}
   }
   if(sc.headline){
     o.head=el('div','head',headBox); o.headWords=sc.headline.text.split(' ').map(function(w){var s=el('span','hw',o.head);s.textContent=w+' ';return s;});
@@ -148,11 +149,12 @@ function seek(t){
       if(t>=sc.start){
         o.end.style.opacity=eout(p);
         var q=clamp((lt-120)/700,0,1);
-        o.elogo.style.transform='scale('+(0.4+0.6*eback(q))+') rotate('+((1-eback(q))*-12)+'deg)';
+        o.elogo.style.transform='scale('+(0.4+0.6*eback(q))+')'; /* logo fidelity: uniform scale only, never rotation, clipping or effects */
         var q2=clamp((lt-300)/600,0,1);o.eh.style.opacity=q2;o.eh.style.transform='translateY('+px((1-eout(q2))*60)+')';
         var q3=clamp((lt-500)/600,0,1);o.eb.style.opacity=q3;o.eb.style.transform='translateY('+px((1-eout(q3))*60)+') scale('+(1+0.035*Math.sin(lt/190)*q3)+')';
         o.eu.style.opacity=clamp((lt-800)/500,0,1);
         o.eg.style.transform='scale('+(1+0.08*Math.sin(lt/400))+')';
+        if(o.ea)o.ea.style.opacity=0.75*clamp((lt-1100)/500,0,1);
       }
     }
     // headline (top zone)
@@ -195,7 +197,7 @@ html,body{width:${CANVAS.w}px;height:${CANVAS.h}px;background:${tl.brand.dark};o
 .b2{width:640px;height:640px;right:-240px;top:760px;background:${tl.brand.palette?.blobs[0] ?? "#f59e0b"};opacity:.28}
 .b3{width:700px;height:700px;left:120px;bottom:-300px;background:${tl.brand.palette?.blobs[1] ?? "#fb7185"};opacity:.25}
 .brand{position:absolute;left:60px;top:48px;height:64px;display:flex;align-items:center;gap:18px;z-index:5}
-.blogo{height:60px;width:60px;border-radius:15px}
+.blogo{height:60px;width:auto;max-width:200px;object-fit:contain}
 .bname{color:#fff;font-weight:800;font-size:38px;letter-spacing:-.01em}
 .prog{position:absolute;left:0;top:0;width:${CANVAS.w}px;height:10px;background:rgba(255,255,255,.12);z-index:6}
 .progbar{height:10px;width:0;background:${tl.brand.accent}}
@@ -217,7 +219,8 @@ html,body{width:${CANVAS.w}px;height:${CANVAS.h}px;background:${tl.brand.dark};o
 .cw.on{color:${tl.brand.accent}}
 .endcard{position:absolute;inset:0;z-index:9;display:none;flex-direction:column;align-items:center;justify-content:center;gap:44px;background:linear-gradient(155deg,${tl.brand.palette?.endFrom ?? "#f97316"} 0%,${tl.brand.palette?.endMid ?? "#ea580c"} 60%,${tl.brand.palette?.endTo ?? "#9a3412"} 100%)}
 .eglow{position:absolute;width:1100px;height:1100px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.32),rgba(255,255,255,0) 62%);left:-10px;top:260px}
-.elogo{position:relative;width:300px;height:300px;border-radius:70px;box-shadow:0 30px 70px rgba(0,0,0,.35)}
+.elogo{position:relative;width:auto;height:300px;max-width:520px;object-fit:contain}
+.eattr{position:relative;color:#fff;opacity:.75;font-weight:600;font-size:30px;letter-spacing:.02em;text-align:center;padding:0 80px}
 .eh{position:relative;color:#fff;font-weight:800;font-size:112px;line-height:1.02;text-align:center;letter-spacing:-.03em;padding:0 80px}
 .ebtn{position:relative;background:#fff;color:${tl.brand.palette?.button ?? "#c2410c"};font-weight:800;font-size:66px;padding:34px 84px;border-radius:999px;box-shadow:0 22px 50px rgba(0,0,0,.35)}
 .eurl{position:relative;color:#fff;font-weight:700;font-size:56px;letter-spacing:.01em}

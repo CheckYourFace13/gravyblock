@@ -59,5 +59,5 @@ export async function kidsFor(db: StudioDb, product: { id: string; ownerKind?: s
 }
 
 export async function declareKids(db: StudioDb, actor: string, target: { productId: string } | "portfolio", value: boolean): Promise<void> {
-  await setSetting("productId" in (target as object) ? kidsKey((target as { productId: string }).productId) : PORTFOLIO_KIDS_KEY, value, actor, db);
+  await setSetting(target === "portfolio" ? PORTFOLIO_KIDS_KEY : kidsKey(target.productId), value, actor, db);
 }

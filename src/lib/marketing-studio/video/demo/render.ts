@@ -8,10 +8,11 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { registerKiller } from "../../active-work";
 import { launchBrowser } from "../../creative/render";
+import type { LogoProbe } from "../../brand/logo-integrity";
 import { buildStageHtml } from "./stage";
 import { CANVAS, type Timeline } from "./types";
 
-export type RenderStats = { frames: number; wallMs: number };
+export type RenderStats = { frames: number; wallMs: number; /** the logo as measured and photographed in the live render, for the logo-integrity QA */ logo: { probes: LogoProbe[]; shot: Buffer | null } };
 
 /** `dir` must hold stage assets: the plate images and the logo, at the paths the timeline names. */
 export async function renderDemo(opts: { dir: string; timeline: Timeline; audioFile: string; outFile: string; onProgress?: (done: number, total: number) => void }): Promise<RenderStats> {
@@ -46,6 +47,7 @@ export async function renderDemo(opts: { dir: string; timeline: Timeline; audioF
     /* surfaced through the exit code */
   });
 
+  const logo: RenderStats["logo"] = { probes: [], shot: null };
   const handle = await launchBrowser();
   try {
     const ctx = await handle.browser.newContext({ viewport: { width: CANVAS.w, height: CANVAS.h }, deviceScaleFactor: 1, offline: true, serviceWorkers: "block" });
@@ -54,6 +56,18 @@ export async function renderDemo(opts: { dir: string; timeline: Timeline; audioF
     await page.route("**/*", (route) => (route.request().url().startsWith("file:") || route.request().url().startsWith("data:") ? route.continue() : route.abort()));
     await page.goto(pathToFileURL(stagePath).href, { waitUntil: "load", timeout: 60_000 });
     await page.evaluate(() => (window as unknown as { __ready: Promise<unknown> }).__ready);
+    // logo fidelity: measure and photograph the logo while the end card shows it at full size, before any frame is encoded
+    const endAt = timeline.scenes.find((s) => s.kind === "end");
+    if (endAt) await page.evaluate((ms) => (window as unknown as { __seek: (n: number) => void }).__seek(ms), Math.min(timeline.durationMs - 50, endAt.start + 1500));
+    logo.probes = (await page.evaluate(() =>
+      ["blogo", "elogo"].flatMap((c) => {
+        const el = document.querySelector("." + c) as HTMLImageElement | null;
+        if (!el) return [];
+        const cs = getComputedStyle(el);
+        return [{ selector: "." + c, naturalW: el.naturalWidth, naturalH: el.naturalHeight, boxW: el.offsetWidth, boxH: el.offsetHeight, objectFit: cs.objectFit, radius: cs.borderTopLeftRadius, shadow: cs.boxShadow, filter: cs.filter, clip: cs.clipPath, opacity: cs.opacity, transform: cs.transform }];
+      }),
+    )) as LogoProbe[];
+    if (endAt) logo.shot = await page.locator(".elogo").screenshot({ type: "png", timeout: 15_000 }).catch(() => null);
     for (let f = 0; f < total; f++) {
       const t = (f * 1000) / CANVAS.fps;
       await page.evaluate((ms) => (window as unknown as { __seek: (n: number) => void }).__seek(ms), t);
@@ -70,5 +84,5 @@ export async function renderDemo(opts: { dir: string; timeline: Timeline; audioF
     ff.kill("SIGKILL");
     await handle.close();
   }
-  return { frames: total, wallMs: Date.now() - t0 };
+  return { frames: total, wallMs: Date.now() - t0, logo };
 }

@@ -230,7 +230,7 @@ html,body{width:${m.w}px;height:${m.h}px;background:${t.bg1}}
   background:linear-gradient(135deg,${t.bg1},${t.bg2});color:${t.fg};font-family:'Inter',sans-serif}
 .top{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:${m.logoH}px;flex:0 0 auto}
 .logo{display:block;object-fit:contain}
-.hero{display:block;flex:0 0 auto;object-fit:contain;border-radius:22%;align-self:${input.family === "cta" ? "center" : "flex-start"};box-shadow:0 0 0 6px rgba(255,255,255,.14),0 24px 60px rgba(0,0,0,.45),0 0 90px ${t.accent}66}
+.hero{display:block;flex:0 0 auto;object-fit:contain;align-self:${input.family === "cta" ? "center" : "flex-start"}}
 .pname{font-weight:700;color:${t.muted};flex:1 1 0;min-width:0;text-align:right;white-space:nowrap}
 .main{position:relative;z-index:2;flex:1 1 0;min-height:0;display:flex;flex-direction:${row ? "row" : "column"};justify-content:center;gap:${m.gap}px;${input.family === "cta" ? "align-items:center;text-align:center;" : ""}${row ? "align-items:center;" : ""}}
 .main>*{min-width:0}

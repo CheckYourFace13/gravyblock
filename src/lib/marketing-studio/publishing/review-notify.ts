@@ -9,6 +9,7 @@ import type { StudioDb } from "../db";
 import { getSetting } from "../runtime";
 import { jobKey } from "./review-replacement";
 import { signReviewToken } from "./review-token";
+import { requestEmailChange, reviewRecipient } from "./review-contact";
 import { buildReviewEmail, getReview, listReviews, type ReviewState, markEmailed, ownerReviewEmail, reviewLinkUrl, siteBase } from "./video-review";
 
 const WINDOW_MS = 5 * 60_000;
@@ -31,6 +32,8 @@ export async function sendReviewEmail(db: StudioDb, publicationId: string, fetch
   const r = await getReview(db, publicationId);
   if (!r) return { sent: false, reason: "no review for that publication" };
   if (r.status !== "unlisted_live") return { sent: false, reason: `the video is ${r.status}, not waiting for review` };
+  const to = await reviewRecipient(db, r.productId);
+  if (!to) return { sent: false, reason: "no verified review email for this product yet" };
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { sent: false, reason: "mail is not configured on the app" };
   const key = process.env.MARKETING_SECRET_KEY;
@@ -40,7 +43,7 @@ export async function sendReviewEmail(db: StudioDb, publicationId: string, fetch
   const res = await fetchFn("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: [ownerReviewEmail()], subject: mail.subject, html: mail.html, text: mail.text }),
+    body: JSON.stringify({ from, to: [to], subject: mail.subject, html: mail.html, text: mail.text }),
   });
   if (!res.ok) return { sent: false, reason: `the mail service answered ${res.status}` };
   await markEmailed(db, "review-notify", publicationId);
@@ -88,6 +91,8 @@ export async function sendNoticeEmail(db: StudioDb, publicationId: string, fetch
   if (!r || !job || job.status !== "needs_attention") return { sent: false, reason: "no change request needs attention" };
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { sent: false, reason: "mail is not configured on the app" };
+  const to = await reviewRecipient(db, r.productId);
+  if (!to) return { sent: false, reason: "no verified review email for this product yet" };
   const subject = `Needs attention: ${r.productName} change request`;
   const body = [
     `Your change request for the ${r.productName} video could not be applied automatically.`,
@@ -103,7 +108,7 @@ export async function sendNoticeEmail(db: StudioDb, publicationId: string, fetch
   const res = await fetchFn("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>", to: [ownerReviewEmail()], subject, text: body, html: `<div style="font-family:Arial,sans-serif;max-width:600px;white-space:pre-wrap">${esc(body)}</div>` }),
+    body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>", to: [to], subject, text: body, html: `<div style="font-family:Arial,sans-serif;max-width:600px;white-space:pre-wrap">${esc(body)}</div>` }),
   });
   return res.ok ? { sent: true } : { sent: false, reason: `the mail service answered ${res.status}` };
 }
@@ -132,4 +137,19 @@ export async function requestTestEmail(fetchFn: typeof fetch = fetch): Promise<R
   if (!key) return { sent: false, reason: "no Studio secret in this environment" };
   const res = await fetchFn(`${siteBase()}/api/admin/marketing-studio/video-review/notify`, { method: "POST", headers: signedNotifyHeaders(TEST_PUBLICATION_ID, key), body: JSON.stringify({ publicationId: TEST_PUBLICATION_ID, test: true }) });
   return { status: res.status, ...((await res.json().catch(() => ({}))) as Record<string, unknown>) };
+}
+
+/** Runs inside the app: asks the NEW address to confirm it. The address only becomes the review recipient after its owner opens the link and confirms. */
+export async function sendVerificationEmail(db: StudioDb, actor: string, productId: string, email: string, productName: string, fetchFn: typeof fetch = fetch): Promise<{ sent: boolean; reason?: string }> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return { sent: false, reason: "mail is not configured on the app" };
+  const { token, email: to } = await requestEmailChange(db, actor, productId, email);
+  const link = `${siteBase()}/video-review/verify/${encodeURIComponent(token)}`;
+  const text = `Confirm this address for ${productName} video reviews in GravyBlock Marketing Studio.\n\nOpen this link and press the confirm button (it expires in 24 hours):\n${link}\n\nIf you did not ask for this, ignore this message: nothing changes until the button is pressed.`;
+  const res = await fetchFn("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>", to: [to], subject: "Confirm your GravyBlock video review email", text }),
+  });
+  return res.ok ? { sent: true } : { sent: false, reason: `the mail service answered ${res.status}` };
 }
