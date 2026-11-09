@@ -82,6 +82,11 @@ export async function prepareUnlistedReview(db: StudioDb, o: UploadOptions): Pro
   const video = wanted[0];
   if (!video) throw new Error(`${product.name} has no QA-passed demo video waiting`);
   const record = video.storyboard as DemoRecord;
+  // logo fidelity: a video drawn before the logo-integrity gate may have a clipped, stretched or shadowed logo; it never goes to review, it is re-rendered first
+  if (visibility === "unlisted") {
+    const logoChecks = ((video.qa as { checks?: Array<{ id: string; ok: boolean }> } | null)?.checks ?? []).filter((c) => c.id.startsWith("logo_"));
+    if (logoChecks.length === 0 || logoChecks.some((c) => !c.ok)) throw new Error("NEEDS RE-RENDER: this video has no passing logo-integrity checks (it was drawn before the logo gate); it will not be sent for review");
+  }
   if (visibility === "public" && video.status !== "approved") throw new Error("Only a video the owner has already approved may be published directly.");
   if (video.status === "ready_for_review") {
     // The owner directed the unlisted review upload; this approval lets the file go to YouTube as UNLISTED only. Public still needs the owner's own approval.
