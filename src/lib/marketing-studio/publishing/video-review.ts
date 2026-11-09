@@ -30,7 +30,7 @@ export const embedKey = (productId: string) => `video_embed_${productId}`;
 export const REVIEW_PREFIX = "video_review_";
 
 export type ReviewStatus = "unlisted_live" | "changes_requested" | "approved_pending_public" | "approved_public" | "superseded";
-export type ReviewEvent = "REVERTED_TO_UNLISTED" | "EMAIL_SENT" | "VIEWED" | "APPROVED" | "CHANGES_REQUESTED" | "REPLACEMENT_RENDERING" | "REPLACEMENT_READY" | "PUBLIC" | "FAILED";
+export type ReviewEvent = "REVERTED_TO_UNLISTED" | "EMAIL_SENT" | "VIEWED" | "APPROVED" | "CHANGES_REQUESTED" | "REPLACEMENT_RENDERING" | "REPLACEMENT_READY" | "PUBLIC" | "FAILED" | "PAUSED";
 export type ReviewState = {
   /** Every step of the review is recorded here. An email being SENT is never an owner decision. */
   events?: Array<{ at: string; event: ReviewEvent; detail?: string }>;
@@ -126,7 +126,7 @@ export const reviewPageUrl = (publicationId: string) => `${siteBase()}/admin/mar
 export const reviewLinkUrl = (token: string) => `${siteBase()}/video-review/${token}`;
 export const thumbUrlFor = (videoId: string) => `${siteBase()}/api/video-review/thumb/${videoId}?v=2`;
 
-export type ReviewLinks = { approve: string; changes: string };
+export type ReviewLinks = { approve: string; changes: string; pause: string };
 
 /**
  * The owner email. Order: product and title, the video thumbnail with a play button (links to the unlisted video), the plain link, the two decision
@@ -149,6 +149,7 @@ export function buildReviewEmail(r: ReviewState, links: ReviewLinks): { subject:
     "",
     `APPROVE AND MAKE PUBLIC: ${links.approve}`,
     `REQUEST CHANGES: ${links.changes}`,
+    `PAUSE NEW VIDEOS: ${links.pause}`,
     "",
     ...rows.map(([k, v]) => `${k}: ${v}`),
     "",
@@ -170,10 +171,11 @@ ${tag ? `<p style="margin:0 0 8px"><span style="display:inline-block;background:
 <p style="margin:10px 0 18px;font-size:14px;word-break:break-all"><a href="${esc(r.watchUrl)}" style="color:#2563eb">${esc(r.watchUrl)}</a></p>
 ${button(links.approve, "APPROVE & MAKE PUBLIC", "#15803d")}
 ${button(links.changes, "REQUEST CHANGES", "#3f3f46")}
+${button(links.pause, "PAUSE NEW VIDEOS", "#b45309")}
 <table style="border-collapse:collapse;width:100%;font-size:14px;margin-top:22px">${rows.map(([k, v]) => `<tr><td style="padding:6px 12px 6px 0;color:#71717a;vertical-align:top;white-space:nowrap">${esc(k)}</td><td style="padding:6px 0">${esc(v)}</td></tr>`).join("")}</table>
 <h3 style="margin:18px 0 4px;font-size:14px">Proposed public title</h3><p style="margin:0">${esc(r.title)}</p>
 <h3 style="margin:14px 0 4px;font-size:14px">Proposed public description</h3><p style="margin:0;white-space:pre-wrap;background:#f4f4f5;padding:10px 12px;border-radius:8px;font-size:13px">${esc(r.description)}</p>
-<p style="margin:18px 0 0;color:#71717a;font-size:12px">The video is unlisted: anyone with the link can watch it, and it stays out of channel pages, search and recommendations until you approve. Approving switches this same video to public, with no re-upload.</p></div>`;
+<p style="margin:18px 0 0;color:#71717a;font-size:12px">The video is unlisted: anyone with the link can watch it, and it stays out of channel pages, search and recommendations until you approve. Approving switches this same video to public, with no re-upload. Pausing stops new videos for this product only: nothing already published is touched, and you resume from your GravyBlock dashboard.</p></div>`;
   return { subject, html, text };
 }
 

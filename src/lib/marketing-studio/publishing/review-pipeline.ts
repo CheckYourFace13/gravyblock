@@ -3,6 +3,7 @@
  * accepted edits, render, run full QA, upload a NEW unlisted video, supersede the old one, email the new review link. Safe to run again after a crash or
  * a failure: finished work is reused, never repeated. It never makes anything public and never touches a website.
  */
+import { isPaused } from "./video-policy";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { ms, type StudioDb } from "../db";
 import { listFacts, listProducts } from "../repository";
@@ -32,6 +33,7 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
   const products = await listProducts(INTERNAL_SCOPE, db);
   const product = products.find((p) => p.id === job.productId);
   if (!product) return { status: "gone" };
+  if (await isPaused(db, product.id)) return { status: "paused", detail: "new video generation is paused for this product; the replacement resumes when the owner resumes" };
   const slug = product.slug;
   const specId = review.specId ?? slug;
 

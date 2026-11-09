@@ -5,6 +5,7 @@ import { requireStudioAccess } from "@/lib/marketing-studio/auth";
 import { UPLOAD_KINDS, FACT_SOURCES } from "@/lib/marketing-studio/config";
 import { StudioAccessError } from "@/lib/marketing-studio/scope";
 import { CreativeSections } from "./creative-sections";
+import { VideoMarketingCard } from "./video-marketing-card";
 import { PublishingSections } from "./publishing-sections";
 import { getBrandProfile, listAssets, listCampaigns, listClaims, listFacts, requireProduct, truthReadiness } from "@/lib/marketing-studio/repository";
 import {
@@ -79,6 +80,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           ))}
         </form>
       </div>
+      <VideoMarketingCard product={product} />
       {q.e ? <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{q.e}</p> : null}
       {q.connect ? <p className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900">{q.connect}</p> : null}
 

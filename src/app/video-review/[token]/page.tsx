@@ -46,6 +46,25 @@ export default async function VideoReviewPage({ params, searchParams }: { params
   if (r.kind === "changes_received") {
     return <Note title="Change request received">Your note was saved. The video stays unlisted while a corrected version is made, checked and uploaded, and you will get a new review email with the new link.</Note>;
   }
+  if (r.kind === "paused") {
+    return <Note title="New video generation is paused">{r.state.productName} will not get any new videos made while this is paused. Videos that are already published stay live, and nothing you approved is changed. To start again, sign in to GravyBlock and press Resume video marketing.</Note>;
+  }
+  if (r.kind === "pause_ready") {
+    return (
+      <Shell>
+        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <h1 className="text-xl font-bold">Pause new videos for {r.state.productName}?</h1>
+          <p className="mt-2 text-sm text-zinc-700">No new concepts, renders or uploads will be made for {r.state.productName}. Anything already published stays live and nothing you approved is changed. You resume later from your GravyBlock dashboard.</p>
+          {e ? <p className="mt-3 rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-900">{e}</p> : null}
+          <form action="/api/video-review/pause" method="post" className="mt-5">
+            <input type="hidden" name="token" value={token} />
+            <input type="hidden" name="txn" value={r.txn} />
+            <button className="w-full rounded-xl bg-amber-700 px-5 py-3.5 text-base font-bold text-white">Pause new videos</button>
+          </form>
+        </section>
+      </Shell>
+    );
+  }
   const s = r.state;
   if (r.kind === "approve_ready") {
     return (

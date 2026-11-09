@@ -10,6 +10,7 @@ import { checkDistinct, consumes, ROLE_LABEL } from "./library";
 import { getAngles, updateAngle } from "./library-store";
 import { specFor } from "./publishing/platforms";
 import { prepareUnlistedReview } from "./publishing/review-upload";
+import { isPaused } from "./publishing/video-policy";
 import { enqueue } from "./runtime";
 import { listProducts } from "./repository";
 import { INTERNAL_SCOPE } from "./scope";
@@ -65,6 +66,7 @@ export async function runLibraryVideo(db: StudioDb, input: { specId: string; att
     await updateAngle(db, ACTOR, product.slug, (e) => e.id === entry.id, { status: "blocked" });
     return { status: "blocked", detail: `repeats an existing angle: ${gate.conflicts.map((c) => `${c.title} (${c.reasons.join(", ")})`).join("; ")}` };
   }
+  if (await isPaused(db, product.id)) return { status: "paused", detail: "new video generation is paused for this product" };
   if (!entry.yt) throw new Error(`The angle ${entry.id} has no YouTube title and description yet`);
   await updateAngle(db, ACTOR, product.slug, (e) => e.id === entry.id, { status: "in_production" });
 

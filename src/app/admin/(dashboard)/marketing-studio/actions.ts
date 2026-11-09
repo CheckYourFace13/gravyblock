@@ -11,6 +11,7 @@ import {
   createCampaign,
   createProduct,
   removeClaim,
+  requireProduct,
   saveBrandProfile,
   setCampaignStatus,
   setProductStatus,
@@ -24,6 +25,7 @@ import { approvePublication, cancelPublication, createPublication, markPublicati
 import { collectForPublication } from "@/lib/marketing-studio/measurement/collect";
 import { getSetting, setKillSwitch } from "@/lib/marketing-studio/runtime";
 import { requireStudioDb } from "@/lib/marketing-studio/db";
+import { declareKids, pauseProduct, resumeProduct } from "@/lib/marketing-studio/publishing/video-policy";
 import { approveReview, requestChanges } from "@/lib/marketing-studio/publishing/video-review";
 import { createVideoFromProduct, reviewVideo } from "@/lib/marketing-studio/video/queue";
 import { importRemoteImage } from "@/lib/marketing-studio/remote-import";
@@ -61,6 +63,37 @@ export async function createProductAction(fd: FormData) {
   }
   revalidatePath(base);
   redirect(`${base}/products/${id}`);
+}
+
+/** Resume video marketing: only here, behind the GravyBlock login. Emails never carry a resume link. */
+export async function resumeVideoMarketingAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    await requireProduct(scope, id);
+    await resumeProduct(requireStudioDb(), actor, id);
+  });
+}
+
+export async function pauseVideoMarketingAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    await requireProduct(scope, id);
+    await pauseProduct(requireStudioDb(), actor, id);
+  });
+}
+
+/** The one-time YouTube made-for-kids declaration for this product. The owner makes it; it is stored and reused on every later upload. */
+export async function declareKidsAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  const v = s(fd, "kids");
+  await guarded(`${base}/products/${id}`, async () => {
+    await requireProduct(scope, id);
+    if (v !== "yes" && v !== "no") throw new Error("Choose yes or no");
+    await declareKids(requireStudioDb(), actor, { productId: id }, v === "yes");
+  });
 }
 
 export async function productStatusAction(fd: FormData) {

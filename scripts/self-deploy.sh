@@ -68,6 +68,15 @@ node scripts/setup-single-price.mjs 2>&1 || echo "[self-deploy] single price war
 
 npm run build
 
+# Durability: never restart the Marketing Studio worker over an active heavy render. Wait (up to ~25 min) for it to finish; the lock is refreshed
+# meanwhile so no new heavy job starts and no second deploy begins. The queue is durable, so a job that still dies is retried by the portfolio loop.
+for _ in $(seq 1 50); do
+  RUNNING=$( (set -a; [ -f ./.env ] && . ./.env; set +a; node scripts/ops/heavy-running.mjs) 2>/dev/null | tail -1)
+  [ "${RUNNING:-0}" = "0" ] && break
+  touch "$LOCK_FILE"
+  sleep 30
+done
+
 pm2 startOrRestart ecosystem.config.js --update-env
 pm2 save
 

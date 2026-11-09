@@ -12,10 +12,21 @@ import { evaluateHealth, usable } from "./connections";
 export const YOUTUBE_SHARE_SETTING = "youtube_channel_share";
 type ShareMap = Record<string, string[]>;
 
+/**
+ * Tenant isolation: the shared umbrella channel exists only for the owner's own products (owner_kind internal or house). A customer's videos belong to the customer's own
+ * accounts: a customer product can neither borrow the owner's channel nor lend its own to another product, whatever the share map says.
+ */
+async function sameOwnerFamily(db: StudioDb, a: string, b: string): Promise<boolean> {
+  const rows = await db.select({ id: ms.msProducts.id, kind: ms.msProducts.ownerKind }).from(ms.msProducts);
+  const kind = (id: string) => rows.find((r) => r.id === id)?.kind;
+  return kind(a) !== undefined && kind(b) !== undefined && kind(a) !== "customer" && kind(b) !== "customer";
+}
+
 export async function shareYoutubeConnection(db: StudioDb, actor: string, connectionId: string, productId: string): Promise<void> {
   const [conn] = await db.select().from(ms.msConnections).where(and(eq(ms.msConnections.id, connectionId), eq(ms.msConnections.platform, "youtube"))).limit(1);
   if (!conn) throw new Error("No such YouTube connection");
   if (conn.productId === productId) return;
+  if (!(await sameOwnerFamily(db, conn.productId, productId))) throw new Error("A channel can only be shared between the owner's own products, never with or from a customer");
   const map = await getSetting<ShareMap>(YOUTUBE_SHARE_SETTING, {}, db);
   const next: ShareMap = { ...map, [connectionId]: [...new Set([...(map[connectionId] ?? []), productId])] };
   await setSetting(YOUTUBE_SHARE_SETTING, next, actor, db);
@@ -25,6 +36,7 @@ export async function shareYoutubeConnection(db: StudioDb, actor: string, connec
 /** May this product post through this connection? Its own, or one the owner explicitly shared with it. */
 export async function connectionAllowedFor(db: StudioDb, conn: { id: string; productId: string }, productId: string): Promise<boolean> {
   if (conn.productId === productId) return true;
+  if (!(await sameOwnerFamily(db, conn.productId, productId))) return false;
   const map = await getSetting<ShareMap>(YOUTUBE_SHARE_SETTING, {}, db);
   return (map[conn.id] ?? []).includes(productId);
 }
@@ -33,6 +45,7 @@ export async function connectionAllowedFor(db: StudioDb, conn: { id: string; pro
 export async function youtubeConnectionFor(db: StudioDb, productId: string) {
   const all = await db.select().from(ms.msConnections).where(eq(ms.msConnections.platform, "youtube"));
   const map = await getSetting<ShareMap>(YOUTUBE_SHARE_SETTING, {}, db);
-  const mine = all.filter((c) => c.productId === productId || (map[c.id] ?? []).includes(productId));
+  const mine: typeof all = [];
+  for (const c of all) if (c.productId === productId || ((map[c.id] ?? []).includes(productId) && (await sameOwnerFamily(db, c.productId, productId)))) mine.push(c);
   return mine.find((c) => usable(evaluateHealth(c))) ?? null;
 }

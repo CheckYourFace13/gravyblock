@@ -3,6 +3,7 @@
  * QA-passed demo video, prepare the publication (owner copy, tracked link), run the checklist, upload it as UNLISTED, verify it live, store the review and
  * embed details and email the owner. Shared by the operator CLI and the replacement worker. It never makes anything public.
  */
+import { kidsFor } from "./video-policy";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { ms, type StudioDb } from "../db";
 import { collectForPublication } from "../measurement/collect";
@@ -73,7 +74,7 @@ export async function prepareUnlistedReview(db: StudioDb, o: UploadOptions): Pro
   await setSetting(youtubeEnabledSetting(product.id), true, "owner-directive", db);
   const visibility = o.visibility ?? "unlisted";
   await setSetting(youtubePrivacySetting(product.id), visibility, "owner-directive", db);
-  const kids = await getSetting<boolean | null>(youtubeKidsSetting(product.id), null, db);
+  const kids = await kidsFor(db, product);
 
   const wanted = o.videoRowId
     ? await db.select().from(ms.msVideos).where(and(eq(ms.msVideos.id, o.videoRowId), eq(ms.msVideos.productId, product.id))).limit(1)

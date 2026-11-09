@@ -9,7 +9,7 @@ import { sql } from "drizzle-orm";
 import type { StudioDb } from "../db";
 import { ms } from "../db";
 
-export type ReviewDecision = "approve" | "changes";
+export type ReviewDecision = "approve" | "changes" | "pause";
 export type ReviewClaims = { p: string; a: ReviewDecision; e: number; j: string };
 export type TokenCheck = { ok: true; claims: ReviewClaims } | { ok: false; reason: "invalid" | "expired" };
 
@@ -33,7 +33,7 @@ export function verifyReviewToken(token: string, key: string | undefined, now = 
   if (want.length !== got.length || !timingSafeEqual(want, got)) return { ok: false, reason: "invalid" };
   try {
     const c = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as ReviewClaims;
-    if (typeof c.p !== "string" || typeof c.j !== "string" || (c.a !== "approve" && c.a !== "changes") || typeof c.e !== "number") return { ok: false, reason: "invalid" };
+    if (typeof c.p !== "string" || typeof c.j !== "string" || (c.a !== "approve" && c.a !== "changes" && c.a !== "pause") || typeof c.e !== "number") return { ok: false, reason: "invalid" };
     if (c.e < now) return { ok: false, reason: "expired" };
     return { ok: true, claims: c };
   } catch {

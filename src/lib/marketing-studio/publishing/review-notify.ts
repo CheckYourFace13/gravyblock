@@ -35,7 +35,7 @@ export async function sendReviewEmail(db: StudioDb, publicationId: string, fetch
   if (!apiKey) return { sent: false, reason: "mail is not configured on the app" };
   const key = process.env.MARKETING_SECRET_KEY;
   if (!key) return { sent: false, reason: "no Studio secret on the app" };
-  const mail = buildReviewEmail(r, { approve: reviewLinkUrl(signReviewToken(publicationId, "approve", key)), changes: reviewLinkUrl(signReviewToken(publicationId, "changes", key)) });
+  const mail = buildReviewEmail(r, { approve: reviewLinkUrl(signReviewToken(publicationId, "approve", key)), changes: reviewLinkUrl(signReviewToken(publicationId, "changes", key)), pause: reviewLinkUrl(signReviewToken(publicationId, "pause", key)) });
   const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
   const res = await fetchFn("https://api.resend.com/emails", {
     method: "POST",
@@ -59,7 +59,7 @@ export async function sendTestReviewEmail(db: StudioDb, fetchFn: typeof fetch = 
   const sample = (await listReviews(db)).sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))[0];
   const base: ReviewState = sample ?? { status: "unlisted_live", publicationId: TEST_PUBLICATION_ID, productId: "test", productName: "Sample product", videoRowId: "test", videoId: "" } as unknown as ReviewState;
   const r: ReviewState = { ...base, publicationId: TEST_PUBLICATION_ID, productName: "TEST", title: "This is only a test of the review email", description: "Test message. Nothing was uploaded or published, and the buttons below do nothing.", library: { position: 1, of: 3, roleLabel: "test" } };
-  const mail = buildReviewEmail(r, { approve: reviewLinkUrl(signReviewToken(TEST_PUBLICATION_ID, "approve", key)), changes: reviewLinkUrl(signReviewToken(TEST_PUBLICATION_ID, "changes", key)) });
+  const mail = buildReviewEmail(r, { approve: reviewLinkUrl(signReviewToken(TEST_PUBLICATION_ID, "approve", key)), changes: reviewLinkUrl(signReviewToken(TEST_PUBLICATION_ID, "changes", key)), pause: reviewLinkUrl(signReviewToken(TEST_PUBLICATION_ID, "pause", key)) });
   const to = ownerReviewEmail();
   const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
   const res = await fetchFn("https://api.resend.com/emails", {

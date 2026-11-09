@@ -12,6 +12,7 @@ import { INTERNAL_SCOPE, type OwnerScope } from "../scope";
 import type { Deps } from "./adapters";
 import { consumeTransaction, openTransaction, verifyReviewToken, type ReviewClaims } from "./review-token";
 import { queueReplacement } from "./review-replacement";
+import { isPaused, pauseProduct } from "./video-policy";
 import { approveReview, getReview, requestChanges, trackEvent, thumbUrlFor, watchUrlFor, type ReviewState } from "./video-review";
 
 export type SuccessView = {
@@ -33,7 +34,9 @@ export type Opened =
   | { kind: "approved"; state: ReviewState; view: SuccessView }
   | { kind: "changes_form"; state: ReviewState; txn: string }
   | { kind: "changes_received"; state: ReviewState }
-  | { kind: "stale"; state: ReviewState };
+  | { kind: "stale"; state: ReviewState }
+  | { kind: "pause_ready"; state: ReviewState; txn: string }
+  | { kind: "paused"; state: ReviewState };
 
 export async function successView(db: StudioDb, state: ReviewState): Promise<SuccessView> {
   const m = await currentMetrics(db, state.publicationId).catch(() => ({ snapshots: 0 }));
@@ -58,6 +61,10 @@ export async function openReview(db: StudioDb, token: string, key: string | unde
   if (!state) return { kind: "invalid" };
   const last = state.events?.[state.events.length - 1];
   if (!(last?.event === "VIEWED" && now - Date.parse(last.at) < 10 * 60_000)) await trackEvent(db, "review-link", state.publicationId, "VIEWED", `${t.claims.a} link opened`);
+  if (t.claims.a === "pause") {
+    if (await isPaused(db, state.productId)) return { kind: "paused", state };
+    return { kind: "pause_ready", state, txn: await openTransaction(db, t.claims, now) };
+  }
   if (t.claims.a === "approve") {
     if (state.status === "approved_public") return { kind: "approved", state, view: await successView(db, state) };
     if (state.status !== "unlisted_live" && state.status !== "approved_pending_public") return { kind: "stale", state };
@@ -109,6 +116,20 @@ export async function submitChanges(db: StudioDb, input: { token: string; txn: s
   } catch (e) {
     return { ok: false, status: 500, message: e instanceof Error ? e.message : "Could not record the request" };
   }
+}
+
+/** The POST side of "pause new videos": stops future generation for this product only. Existing videos, approvals and settings are left exactly as they are. */
+export async function submitPause(db: StudioDb, input: { token: string; txn: string }, key: string | undefined, now = Date.now()): Promise<ActionResult<{ state: ReviewState; stoppedJobs: number }>> {
+  const t = verifyReviewToken(input.token, key, now);
+  if (!t.ok) return { ok: false, status: t.reason === "expired" ? 410 : 400, message: t.reason === "expired" ? "This link has expired." : "This link is not valid." };
+  if (t.claims.a !== "pause") return { ok: false, status: 400, message: "This link is not a pause link." };
+  const state = await getReview(db, t.claims.p);
+  if (!state) return { ok: false, status: 404, message: "That video was not found." };
+  if (await isPaused(db, state.productId)) return { ok: true, state, stoppedJobs: 0 };
+  if (!(await consumeTransaction(db, input.txn, t.claims, now))) return { ok: false, status: 409, message: "This was not started from the pause page, or it was already used. Open the link from your email again." };
+  const r = await pauseProduct(db, "owner-email-link", state.productId);
+  await trackEvent(db, "owner-email-link", state.publicationId, "PAUSED", "new video generation paused for this product").catch(() => {});
+  return { ok: true, state, stoppedJobs: r.stoppedJobs };
 }
 
 /** True when this publication's YouTube video is the one a review link points to. Used by the thumbnail route so it is never an open proxy. */

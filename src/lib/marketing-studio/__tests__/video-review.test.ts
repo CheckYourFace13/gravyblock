@@ -25,10 +25,11 @@ const state: ReviewState = {
 
 describe("video review workflow", () => {
   test("the owner email puts the video, the plain link and both decision buttons before any detail, and is addressed to the owner only", () => {
-    const links = { approve: "https://gravyblock.com/video-review/APPROVE_TOKEN", changes: "https://gravyblock.com/video-review/CHANGES_TOKEN" };
+    const links = { approve: "https://gravyblock.com/video-review/APPROVE_TOKEN", changes: "https://gravyblock.com/video-review/CHANGES_TOKEN", pause: "https://gravyblock.com/video-review/PAUSE_TOKEN" };
     const m = buildReviewEmail(state, links);
     const at = (needle: string) => m.html.indexOf(needle);
-    assert.ok(at("<img") > 0 && at(state.watchUrl) > 0 && at(links.approve) > 0 && at(links.changes) > 0);
+    assert.ok(at("<img") > 0 && at(state.watchUrl) > 0 && at(links.approve) > 0 && at(links.changes) > 0 && at(links.pause) > at(links.changes), "Pause New Videos is the third control, right after Request Changes");
+    assert.ok(!/href="[^"]*resume/i.test(m.html) && !m.html.includes("RESUME"), "an email never carries a resume link: resuming needs the GravyBlock login");
     assert.ok(at("<img") < at(links.approve) && at(links.approve) < at(links.changes), "thumbnail first, then approve, then request changes");
     for (const detail of ["Duration", "CTA destination", "Intended use", "Proposed public title", "Proposed public description"]) assert.ok(at(links.changes) < at(detail), `${detail} comes after the buttons`);
     assert.ok(m.html.includes("APPROVE &amp; MAKE PUBLIC") && m.html.includes("REQUEST CHANGES"));
