@@ -21,6 +21,7 @@ import { ADAPTERS, type Deps, type PublishInput } from "./adapters";
 import { youtubeTokensForCall } from "./oauth-youtube";
 import { assertRolloutOrder } from "./first-post";
 import { GAME_PAUSE_MESSAGE, gameAcquisitionPaused } from "./pause";
+import { kidsFor } from "./video-policy";
 import { connectionAllowedFor } from "./youtube-share";
 import { angleKey } from "../library";
 import { evaluateHealth, tokensForPublish, usable } from "./connections";
@@ -353,7 +354,9 @@ export async function runDuePublications(scope: OwnerScope, deps: Deps = { fetch
       if (n >= spec.rateLimit.ourCap24h) blockers.push(`daily cap of ${spec.rateLimit.ourCap24h} posts reached`);
       let youtube: PublishInput["youtube"];
       if (p.platform === "youtube") {
-        const kids = await getSetting<boolean | null>(youtubeKidsSetting(p.productId), null, db);
+        // the product's own declaration, else the owner's portfolio default (declared once, reused; never applied to a customer)
+        const [kidsProduct] = await db.select({ id: ms.msProducts.id, ownerKind: ms.msProducts.ownerKind }).from(ms.msProducts).where(eq(ms.msProducts.id, p.productId)).limit(1);
+        const kids = kidsProduct ? await kidsFor(db, kidsProduct) : null;
         if (!(await getSetting<boolean>(youtubeEnabledSetting(p.productId), false, db))) blockers.push("YouTube is not selected for this product");
         if (typeof kids !== "boolean") blockers.push("the owner has not declared whether this product's videos are made for kids");
         const privacy = await getSetting<string | null>(youtubePrivacySetting(p.productId), null, db);
