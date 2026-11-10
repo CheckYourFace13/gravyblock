@@ -8,6 +8,7 @@ import type { LineTime } from "../demo/rentalnoodle";
 import type { DemoSpec } from "../demo/specs";
 import { PLATE_CSS_W, TRANSITION_MS, type CameraKey, type CursorKey, type Manifest, type Rect, type SpotKey, type StageScene, type Timeline, type WordTime } from "../demo/types";
 import { captureConcept } from "./capture";
+import { captureExplainer } from "./explainer";
 import { personalityFor } from "./standard";
 import type { Concept, PlatePlan, Step } from "./types";
 
@@ -130,6 +131,16 @@ export function buildConceptTimeline(c: Concept) {
   };
 }
 
+/** An explainer is timed exactly like a walkthrough, but no cursor or tap is drawn: nothing is clicked, the steps simply light up as they are spoken. */
+export function buildExplainerTimeline(c: Concept) {
+  const inner = buildConceptTimeline(c);
+  return (manifest: Manifest, lt: Record<string, LineTime>): BuiltDkDemo => {
+    const built = inner(manifest, lt);
+    for (const s of built.timeline.scenes) if (s.kind === "screen") s.cursor = undefined;
+    return built;
+  };
+}
+
 /** The DemoSpec for a concept: the existing pipeline renders it like any other video. */
 export function specFromConcept(c: Concept): DemoSpec {
   const p = personalityFor(c.slug);
@@ -146,9 +157,9 @@ export function specFromConcept(c: Concept): DemoSpec {
     facts: c.facts,
     onScreen: c.onScreen,
     sceneMeta: c.sceneMeta,
-    capture: captureConcept(c),
+    capture: c.explainer ? captureExplainer(c) : captureConcept(c),
     layout: layoutConcept(c),
-    build: buildConceptTimeline(c),
+    build: c.explainer ? buildExplainerTimeline(c) : buildConceptTimeline(c),
     pace: p.pace,
     music: p.music,
     concept: c,

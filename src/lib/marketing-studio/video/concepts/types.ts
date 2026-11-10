@@ -107,6 +107,8 @@ export type Concept = {
   /** estimated time of the first tap, ms */
   estFirstTapMs: number;
   gate?: { ok: boolean; checks: DesirabilityCheck[] };
+  /** set for a PRODUCT EXPLAINER / WORKFLOW VISUALIZATION: the steps shown as animated cards instead of live clicks (see explainer.ts) */
+  explainer?: { scenes: Array<{ heading: string; nodes: [{ step: string; line: string; say: string; path?: string; fact: string }, { step: string; line: string; say: string; path?: string; fact: string }, { step: string; line: string; say: string; path?: string; fact: string }] }> };
   /** present when the copy was written by the language-model step (and passed the deterministic gates and the fact-checker) */
   ai?: { model: string; copy: Record<string, unknown> };
 };
