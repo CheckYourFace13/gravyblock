@@ -26,9 +26,21 @@ export const VOICES: VoiceInfo[] = [
   v("bm_george", "George", "British", "male", "C"),
   v("bm_fable", "Fable", "British", "male", "C"),
 ];
-const RANK = ["A", "A-", "B-", "C+", "C", "D+", "D", "F+"];
-/** Voices good enough to offer to customers: grade C or better. Lower-graded voices exist on the worker but are not offered. */
-export const OFFERED_VOICES = VOICES.filter((x) => RANK.indexOf(x.grade) <= RANK.indexOf("C"));
+/**
+ * The curated selection a customer sees: the best-graded voices, a spread of American and British and of female and male, eight in all. The other installed voices stay available to
+ * the engine but are not offered, so the settings page is a short list and not a raw dump.
+ */
+export const CURATED_IDS = ["af_heart", "af_bella", "af_nicole", "af_sarah", "am_michael", "am_fenrir", "bf_emma", "bm_george"] as const;
+export const OFFERED_VOICES = CURATED_IDS.map((id) => VOICES.find((x) => x.id === id) as VoiceInfo);
+export const localeOf = (v: VoiceInfo) => (v.accent === "American" ? "en-US" : "en-GB");
+export const PREVIEW_CATALOG_KEY = "voice_preview_catalog";
+export const previewUrlFor = (voiceId: string) => `/api/admin/marketing-studio/voice-preview/${voiceId}`;
+/** What each customer-facing voice card shows. `style` comes only from measuring the preview audio (pitch and pace); it is null until the previews have been made. */
+export type VoiceCard = { id: string; label: string; locale: string; gender: string; grade: string; style: string | null; previewUrl: string };
+export async function voiceCards(db: StudioDb): Promise<VoiceCard[]> {
+  const measured = await getSetting<Record<string, string>>(PREVIEW_CATALOG_KEY, {}, db);
+  return OFFERED_VOICES.map((v) => ({ id: v.id, label: `${v.label} (${v.accent}, ${v.gender})`, locale: localeOf(v), gender: v.gender, grade: v.grade, style: measured[v.id] ?? null, previewUrl: previewUrlFor(v.id) }));
+}
 
 /** Tone = pace. 1.0 is the plain reading speed. These are the only tones offered because pace is the only tone control the free engine really has. */
 export const TONES = {

@@ -5,7 +5,7 @@ import { allowanceFor, attributionFor, entitlementFor, outcomesFor } from "@/lib
 import { contactSummary } from "@/lib/marketing-studio/publishing/review-contact";
 import { listReviews } from "@/lib/marketing-studio/publishing/video-review";
 import { youtubeConnectionFor } from "@/lib/marketing-studio/publishing/youtube-share";
-import { OFFERED_VOICES, TONES, voiceSettingFor } from "@/lib/marketing-studio/video/voices";
+import { OFFERED_VOICES, TONES, voiceCards, voiceSettingFor } from "@/lib/marketing-studio/video/voices";
 import { changeReviewEmailAction, changeVoiceAction, declareKidsAction, pauseVideoMarketingAction, resumeVideoMarketingAction } from "../../actions";
 
 /** Pause, resume and the one-time YouTube declaration for one product. Resume lives only here, behind the GravyBlock login. */
@@ -14,6 +14,7 @@ export async function VideoMarketingCard({ product }: { product: { id: string; o
   const policy = await getPolicy(db, product.id);
   const kids = await kidsFor(db, product);
   const voice = await voiceSettingFor(db, product.id);
+  const cards = await voiceCards(db);
   const ent = await entitlementFor(db, product);
   const allow = await allowanceFor(db, product);
   const outcome = await outcomesFor(db, product.id, Date.now(), ent);
@@ -68,8 +69,16 @@ export async function VideoMarketingCard({ product }: { product: { id: string; o
         <p className="text-sm font-medium text-zinc-900">Brand voice</p>
         <p className="mt-1 text-xs text-zinc-600">One narrator for every video. Free, offline voices only. Tone changes the pace. Currently {voice.voice}, {voice.tone}, {voice.variation === "none" ? "never varied" : voice.variation === "pacing" ? "same narrator, pace varied slightly" : "approved alternate narrators allowed"}.</p>
         <input type="hidden" name="productId" value={product.id} />
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {cards.map((c) => (
+            <label key={c.id} className="flex cursor-pointer flex-col gap-1 rounded-lg border border-zinc-200 p-3 text-sm has-[:checked]:border-zinc-900">
+              <span className="flex items-center gap-2"><input type="radio" name="voice" value={c.id} defaultChecked={voice.voice === c.id} /><span className="font-medium">{c.label}</span><span className="text-xs text-zinc-500">{c.locale}</span></span>
+              <span className="text-xs text-zinc-600">{c.style ?? "Preview coming"}</span>
+              <audio controls preload="none" src={c.previewUrl} className="h-8 w-full" />
+            </label>
+          ))}
+        </div>
         <div className="mt-2 flex flex-wrap gap-2">
-          <select name="voice" defaultValue={voice.voice} className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm">{OFFERED_VOICES.map((v) => <option key={v.id} value={v.id}>{v.label} ({v.accent}, {v.gender})</option>)}</select>
           <select name="tone" defaultValue={voice.tone} className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm">{Object.entries(TONES).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}</select>
           <select name="variation" defaultValue={voice.variation} className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm"><option value="none">Never vary the narrator</option><option value="pacing">Same narrator, vary pace</option><option value="alternate">Allow an alternate narrator</option></select>
           <select name="alternate" defaultValue="" className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm"><option value="">Alternate narrator: none</option>{OFFERED_VOICES.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}</select>

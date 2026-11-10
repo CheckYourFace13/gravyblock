@@ -147,7 +147,8 @@ describe("game video mode: fun first, real gameplay only", () => {
 
 describe("free voices", () => {
   test("a curated, previewable set is offered, and choices are validated rather than silently replaced", () => {
-    assert.ok(OFFERED_VOICES.length >= 10);
+    assert.equal(OFFERED_VOICES.length, 8);
+    assert.ok(OFFERED_VOICES.every((v) => v && v.id && v.grade));
     assert.equal(validateVoiceSetting({ voice: "af_heart", tone: "upbeat" }).ok, true);
     assert.equal(validateVoiceSetting({ voice: "am_adam" }).ok, false, "a low-grade voice is not offered");
     assert.equal(validateVoiceSetting({ voice: "af_heart", variation: "alternate" }).ok, false, "alternate narrators must be named");

@@ -136,3 +136,19 @@ describe("storage lifecycle plan", () => {
     assert.equal(planPurge(shared, now).actions.length, 0);
   });
 });
+
+describe("voice descriptions come from measuring the audio", () => {
+  test("pitch and pace are measured, silence is ignored, and the words follow the numbers", async () => {
+    const { describeVoice, measureVoice } = await import("../video/voice-analysis");
+    const rate = 24000;
+    const tone = (hz: number, sec: number) => Float32Array.from({ length: Math.round(rate * sec) }, (_, i) => 0.3 * Math.sin((2 * Math.PI * hz * i) / rate));
+    const silence = new Float32Array(rate);
+    const clip = Float32Array.from([...tone(200, 2), ...silence, ...tone(200, 1)]);
+    const m = measureVoice(clip, rate, 9);
+    assert.ok(m.pitchHz !== null && Math.abs(m.pitchHz - 200) <= 6, `pitch ${m.pitchHz}`);
+    assert.ok(Math.abs(m.speechSec - 3) < 0.1, `speech ${m.speechSec}`);
+    assert.equal(describeVoice({ pitchHz: 110, wordsPerSec: 2.2, speechSec: 5 }), "Deeper voice, unhurried pace");
+    assert.equal(describeVoice({ pitchHz: 250, wordsPerSec: 3.4, speechSec: 5 }), "Higher voice, brisk pace");
+    assert.equal(describeVoice({ pitchHz: null, wordsPerSec: 3, speechSec: 5 }), "Clear voice, even pace");
+  });
+});
