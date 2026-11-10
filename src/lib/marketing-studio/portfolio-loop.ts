@@ -5,12 +5,12 @@
  * Quality still overrides volume: the generator and every gate decide, and when nothing passes the product simply waits. One video awaits review per product at a time.
  */
 import { spawn } from "node:child_process";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { ms, type StudioDb } from "./db";
 import { hasApprovedLogo } from "./brand/brand-kit";
 import { allowanceFor } from "./entitlements";
 import { PLAN_PRODUCTS } from "./library-plan";
-import { getAngles } from "./library-store";
+import { getAngles, updateAngle } from "./library-store";
 import { listFacts, listProducts } from "./repository";
 import { enqueue, getSetting, setSetting } from "./runtime";
 import { INTERNAL_SCOPE } from "./scope";
@@ -27,8 +27,31 @@ export type ProductStatus = "ACTIVE" | "WAITING_FOR_REVIEW" | "CHANGES_REQUESTED
 /** Products kept out of the loop: games follow their own rules, and the iScream site's own showcase is not deployed. */
 const OUT_OF_LOOP = new Set(["iscreamstudio"]);
 const REASSESS_MS = 24 * 3_600_000;
-const TRANSIENT = /pre-upload|connection|rate|limit|timed out|timeout|closed|ECONN|fetch failed|503|502|429/i;
+const TRANSIENT = /NEEDS RE-RENDER|pre-upload|connection|rate|limit|timed out|timeout|closed|ECONN|fetch failed|503|502|429/i;
 const MAX_REVIVES = 6;
+
+/** A script's job that is waiting or running right now. */
+async function activeJobForSpec(db: StudioDb, specId: string): Promise<boolean> {
+  const rows = await db.select({ id: ms.msMediaJobs.id }).from(ms.msMediaJobs).where(and(eq(ms.msMediaJobs.kind, "library_video"), inArray(ms.msMediaJobs.status, ["queued", "running"]), sql`${ms.msMediaJobs.input}->>'specId' = ${specId}`)).limit(1);
+  return rows.length > 0;
+}
+
+/** Queues one script's video unless it already has a job waiting or running. The key counts earlier jobs, so a script whose old job finished or died can be made again. */
+async function queueSpec(db: StudioDb, productId: string, specId: string): Promise<"queued" | "active"> {
+  if (await activeJobForSpec(db, specId)) return "active";
+  const prior = await db.select({ id: ms.msMediaJobs.id }).from(ms.msMediaJobs).where(and(eq(ms.msMediaJobs.kind, "library_video"), sql`${ms.msMediaJobs.input}->>'specId' = ${specId}`));
+  const r = await enqueue({ kind: "library_video", weight: "heavy", priority: 2, productId, dedupeKey: prior.length ? `library_video:${specId}:n${prior.length}` : `library_video:${specId}`, input: { specId }, maxAttempts: 3 }, db);
+  return r.id ? "queued" : "active";
+}
+
+/** An angle marked in production with no job behind it (a crash, a deploy mid-job) goes back to planned so the loop can pick it up again. */
+async function recoverStranded(db: StudioDb, p: Product, log: (m: string) => void) {
+  for (const a of (await getAngles(db, p.slug)).filter((x) => x.status === "in_production" && x.specId)) {
+    if (await activeJobForSpec(db, a.specId as string)) continue;
+    await updateAngle(db, "portfolio-watchdog", p.slug, (e) => e.id === a.id && e.status === "in_production", { status: "planned" });
+    log(`portfolio ${p.slug}: ${a.id} was in production with no job; it is planned again`);
+  }
+}
 
 type Product = { id: string; slug: string; name: string; ownerKind: string };
 
@@ -121,6 +144,7 @@ export async function portfolioTick(db: StudioDb, log: (m: string) => void = () 
       continue;
     }
     // durability: a job that died of a temporary problem (YouTube limit, site failure, closed browser, throttling) is revived, a few times, with no owner action
+    await recoverStranded(db, p, log);
     await reviveTransient(db, p, log);
     if (status === "CHANGES_REQUESTED") {
       // a change request never waits on the owner again: make sure its replacement is queued (a pause, a restart or a dead job cannot strand it)
@@ -140,20 +164,26 @@ export async function portfolioTick(db: StudioDb, log: (m: string) => void = () 
     }
     const angles = (await getAngles(db, p.slug)).filter((a) => a.status === "planned").sort((a, b) => a.position - b.position);
     let queued: string | null = null;
+    let inFlight = false;
     for (const a of angles) {
       if (!a.specId || !a.yt) continue;
+      // a script made by the concept generator must be ready; a hand-written script (no stored concept) is judged by the creative standard when it renders
       const c = await getSetting<StoredConcept | null>(conceptKey(a.specId), null, db);
-      if (c?.status !== "ready") continue;
-      const r = await enqueue({ kind: "library_video", weight: "heavy", priority: 2, productId: p.id, dedupeKey: `library_video:${a.specId}`, input: { specId: a.specId }, maxAttempts: 3 }, db);
-      queued = r.id ? a.specId : null;
-      if (queued || r.id === null) break; // already queued or just queued: one at a time
+      if (c && c.status !== "ready") continue;
+      const r = await queueSpec(db, p.id, a.specId);
+      if (r === "queued") {
+        queued = a.specId;
+        break; // one at a time
+      }
+      inFlight = true; // this script already has a job: nothing else is started until it finishes
+      break;
     }
     if (queued) {
       await clearWaiting(db, p.id, g.policy);
       say(`queued the next video (${queued})`);
       continue;
     }
-    if (angles.some((a) => a.specId && a.yt)) {
+    if (inFlight) {
       say("a script is already queued or in progress");
       continue;
     }
@@ -192,9 +222,20 @@ async function clearWaiting(db: StudioDb, productId: string, policy: VideoPolicy
 
 /** Revives library jobs that died of a temporary cause, at most MAX_REVIVES times per script. A real QA failure is not revived: that video was judged not good enough. */
 async function reviveTransient(db: StudioDb, p: Product, log: (m: string) => void) {
-  const dead = await db.select().from(ms.msMediaJobs).where(and(eq(ms.msMediaJobs.productId, p.id), eq(ms.msMediaJobs.status, "dead"), inArray(ms.msMediaJobs.kind, ["library_video", "review_replacement"]))).orderBy(desc(ms.msMediaJobs.createdAt)).limit(5);
+  const dead = await db.select().from(ms.msMediaJobs).where(and(eq(ms.msMediaJobs.productId, p.id), eq(ms.msMediaJobs.status, "dead"), inArray(ms.msMediaJobs.kind, ["library_video", "review_replacement"]))).orderBy(desc(ms.msMediaJobs.createdAt)).limit(12);
+  const seen = new Set<string>();
   for (const j of dead) {
     const spec = (j.input as { specId?: string; publicationId?: string }).specId ?? (j.input as { publicationId?: string }).publicationId ?? j.id;
+    if (seen.has(spec)) continue; // one revival per script, from its newest dead job
+    seen.add(spec);
+    const specId = (j.input as { specId?: string }).specId;
+    if (specId) {
+      if (await activeJobForSpec(db, specId)) continue;
+      const newer = await db.select({ id: ms.msMediaJobs.id }).from(ms.msMediaJobs).where(and(eq(ms.msMediaJobs.kind, "library_video"), sql`${ms.msMediaJobs.input}->>'specId' = ${specId}`, inArray(ms.msMediaJobs.status, ["done"]), sql`${ms.msMediaJobs.createdAt} > ${j.createdAt}`)).limit(1);
+      if (newer.length) continue;
+      const angle = (await getAngles(db, p.slug)).find((a) => a.specId === specId);
+      if (angle && ["unlisted_review", "approved", "public"].includes(angle.status)) continue;
+    }
     if (!TRANSIENT.test(j.error ?? "") || /QA did not pass|made-for-kids|paused by the owner/i.test(j.error ?? "")) continue;
     if (j.finishedAt && Date.now() - j.finishedAt.getTime() < 30 * 60_000) continue;
     const key = `video_revive_${spec}`;
@@ -204,4 +245,20 @@ async function reviveTransient(db: StudioDb, p: Product, log: (m: string) => voi
     await enqueue({ kind: j.kind as "library_video", weight: "heavy", priority: 2, productId: p.id, dedupeKey: `${j.dedupeKey ?? j.id}:revive-${n + 1}`, input: j.input as Record<string, unknown>, maxAttempts: 3 }, db);
     log(`portfolio ${p.slug}: revived ${j.kind} (${spec}) after a temporary failure, attempt ${n + 1}`);
   }
+}
+
+/**
+ * The empty-queue watchdog (owner directive 2026-11-10). It runs every 10 minutes as its own light job and is independent of the 30-minute portfolio tick: for every active product it
+ * queues the next eligible work (a ready or hand-written script, a temporarily failed job, a stranded angle) when nothing is waiting or running and nothing legitimately blocks it. It never
+ * generates a new concept (the tick does that) and never overrides a pause, an owner decision or a gate. What it saw is stored in `portfolio_watchdog` so a silent stall is visible.
+ */
+export async function portfolioWatchdog(db: StudioDb, log: (m: string) => void = () => {}) {
+  const report = await portfolioTick(db, log, { generate: false });
+  const queuedNow = report.filter((r) => /^queued|revived/.test(r.action)).map((r) => r.slug);
+  const active = report.filter((r) => r.status === "ACTIVE").map((r) => r.slug);
+  const jobs = await db.select({ id: ms.msMediaJobs.id }).from(ms.msMediaJobs).where(and(inArray(ms.msMediaJobs.status, ["queued", "running"]), inArray(ms.msMediaJobs.kind, ["library_video", "review_replacement", "render_demo_video"])));
+  const state = { at: new Date().toISOString(), activeProducts: active, queuedNow, workInFlight: jobs.length, byStatus: Object.fromEntries(report.map((r) => [r.slug, r.status])) };
+  await setSetting("portfolio_watchdog", state, "portfolio-watchdog", db, { audited: false });
+  if (queuedNow.length) log(`watchdog: queued work for ${queuedNow.join(", ")} (nothing was waiting)`);
+  return state;
 }

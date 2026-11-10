@@ -4,7 +4,7 @@
  *   review email ("Video N of 3: role") -> the angle moves to unlisted_review. It never publishes: the owner's approval does that, on the same video.
  * Safe to run again after a crash: an existing render is reused and a half-finished upload resumes.
  */
-import { and, eq, gt, gte, sql } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, sql } from "drizzle-orm";
 import { ms, type StudioDb } from "./db";
 import { checkDistinct, consumes, ROLE_LABEL } from "./library";
 import { getAngles, updateAngle } from "./library-store";
@@ -25,6 +25,24 @@ import { renderDemoVideoJob } from "./video/demo/run";
 import { DEMO_SPECS, demoSpecFor } from "./video/demo/specs";
 
 const ACTOR = "library-worker";
+
+/** True when a render's QA carries the logo-integrity checks and they all passed. A render drawn before the logo gate has none and is never reused or uploaded. */
+export const hasPassingLogoChecks = (qa: unknown): boolean => {
+  const logo = ((qa as { checks?: Array<{ id: string; ok: boolean }> } | null)?.checks ?? []).filter((c) => c.id.startsWith("logo_"));
+  return logo.length > 0 && logo.every((c) => c.ok);
+};
+
+/** Old renders of this script that were never uploaded and carry no passing logo checks are retired so a fresh render can be made. Anything with a publication or review is left alone. */
+async function retireUnverifiedRenders(db: StudioDb, productId: string, specId: string, slug: string, log: (m: string) => void) {
+  const rows = await db.select().from(ms.msVideos).where(and(eq(ms.msVideos.productId, productId), sql`${ms.msVideos.storyboard}->>'kind' = 'demo'`, sql`coalesce(${ms.msVideos.storyboard}->>'specId', ${slug}) = ${specId}`, inArray(ms.msVideos.status, ["ready_for_review", "approved"])));
+  for (const v of rows) {
+    if (hasPassingLogoChecks(v.qa)) continue;
+    const pub = await db.select({ id: ms.msPublications.id }).from(ms.msPublications).where(eq(ms.msPublications.videoId, v.id)).limit(1);
+    if (pub.length) continue;
+    await db.update(ms.msVideos).set({ status: "superseded" }).where(and(eq(ms.msVideos.id, v.id), inArray(ms.msVideos.status, ["ready_for_review", "approved"])));
+    log(`retired the old render ${v.id.slice(0, 8)} of ${specId}: it has no passing logo-integrity checks`);
+  }
+}
 
 /** When the product's 24-hour posting allowance for YouTube has room again. */
 async function capFreesAt(db: StudioDb, productId: string): Promise<Date> {
@@ -77,7 +95,8 @@ export async function runLibraryVideo(db: StudioDb, input: { specId: string; att
   try {
     // 2. the video: reuse an earlier attempt's render, else make one
     const rows = await db.select().from(ms.msVideos).where(and(eq(ms.msVideos.productId, product.id), sql`${ms.msVideos.storyboard}->>'kind' = 'demo'`, sql`coalesce(${ms.msVideos.storyboard}->>'specId', ${product.slug}) = ${input.specId}`, gte(ms.msVideos.createdAt, new Date(Date.now() - 48 * 3_600_000)))).orderBy(sql`${ms.msVideos.createdAt} desc`);
-    let video = rows.find((v) => (v.status === "ready_for_review" || v.status === "approved") && Boolean((v.qa as { passed?: boolean } | null)?.passed));
+    let video = rows.find((v) => (v.status === "ready_for_review" || v.status === "approved") && Boolean((v.qa as { passed?: boolean } | null)?.passed) && hasPassingLogoChecks(v.qa));
+    if (!video) await retireUnverifiedRenders(db, product.id, input.specId, product.slug, log);
     if (!video) {
       let q = rows.find((v) => v.status === "queued");
       if (!q) {
@@ -111,7 +130,8 @@ export async function runLibraryVideo(db: StudioDb, input: { specId: string; att
       log(`creative standard: ${g.ok ? "passes all ten checks" : `fails: ${g.reasons.join("; ")}`}`);
       // Nothing that is not yet owner-approved is grandfathered: a hand-written script that fails the standard is held for a rebuild, not uploaded.
       if (!g.ok) {
-        await updateAngle(db, ACTOR, product.slug, (e) => e.id === entry.id, { status: "planned" });
+        // blocked, not planned: a planned angle would be rendered again on every tick. The loop looks for a new angle instead.
+        await updateAngle(db, ACTOR, product.slug, (e) => e.id === entry.id, { status: "blocked" });
         return { status: "held", detail: `held for a rebuild under the creative standard: ${g.reasons.join("; ")}` };
       }
     }

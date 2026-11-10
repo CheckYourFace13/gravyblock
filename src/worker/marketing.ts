@@ -21,7 +21,7 @@ import { renderDemoVideoJob } from "@/lib/marketing-studio/video/demo/run";
 import { runReviewReplacement } from "@/lib/marketing-studio/publishing/review-pipeline";
 import { runLibraryVideo } from "@/lib/marketing-studio/library-production";
 import { renderVideoJob, runBenchmarkJob } from "@/lib/marketing-studio/video/jobs";
-import { portfolioTick } from "@/lib/marketing-studio/portfolio-loop";
+import { portfolioTick, portfolioWatchdog } from "@/lib/marketing-studio/portfolio-loop";
 import { closeStudioDb, getStudioDb } from "@/lib/marketing-studio/db";
 import {
   claimNext,
@@ -120,6 +120,10 @@ async function runJob(job: Job): Promise<Record<string, unknown>> {
       const rep = await portfolioTick(getStudioDb()!, (m) => void log(m));
       return { products: rep.length, report: rep };
     }
+    case "portfolio_watchdog": {
+      const w = await portfolioWatchdog(getStudioDb()!, (m) => void log(m));
+      return { ...w };
+    }
     case "benchmark_video":
       return { ...(await runBenchmarkJob(job.input as { targetSeconds?: number; label?: string })) };
     case "cleanup_tmp": {
@@ -135,6 +139,7 @@ async function scheduleRecurring() {
   const now = new Date();
   await enqueue({ kind: "storage_audit", dedupeKey: `storage_audit:${now.toISOString().slice(0, 13)}`, priority: 8 });
   await enqueue({ kind: "portfolio_tick", weight: "heavy", priority: 6, dedupeKey: `portfolio_tick:${Math.floor(now.getTime() / (30 * 60_000))}` });
+  await enqueue({ kind: "portfolio_watchdog", priority: 4, dedupeKey: `portfolio_watchdog:${Math.floor(now.getTime() / (10 * 60_000))}` });
   await enqueue({ kind: "cleanup_tmp", dedupeKey: `cleanup_tmp:${Math.floor(now.getTime() / (15 * 60_000))}`, priority: 9 });
 }
 
