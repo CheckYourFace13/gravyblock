@@ -23,7 +23,7 @@ export const DK_NARRATION: NarrationLine[] = [
 
 export const DK_CLAIMS: Claim[] = [
   { id: "c-scale", text: "A DrinkKnird recipe page, such as the Classic Negroni, has a Scale servings control that scales the ingredient amounts.", facts: ["Scales ingredient amounts only."], sources: [{ plate: "negroni", quote: "Classic Negroni" }, { plate: "negroni", quote: "Scale servings" }, { plate: "negroni", quote: "Scales ingredient amounts only." }, { plate: "negroni", quote: "1 ounce (30 ml) Campari" }] },
-  { id: "c-convert", text: "The kitchen measurement converter handles tsp, tbsp, cups, fluid ounces, ml, and oven temperature in Fahrenheit and Celsius.", facts: ["Convert tsp, tbsp, cups, fluid ounces, ml, and oven °F/°C."], sources: [{ plate: "tools", quote: "Convert tsp, tbsp, cups, fluid ounces, ml, and oven °F/°C." }, { plate: "converter", quote: "Oven temperature" }, { plate: "converter", quote: "Result:" }] },
+  { id: "c-convert", text: "The kitchen measurement converter handles tsp, tbsp, cups, fluid ounces, ml, and oven temperature in Fahrenheit and Celsius.", facts: ["Convert tsp, tbsp, cups, fluid ounces, ml, and oven °F/°C."], sources: [{ plate: "tools", quote: "Convert tsp, tbsp, cups, fluid ounces, and ml, plus oven °F ↔ °C" }, { plate: "converter", quote: "Oven temperature" }, { plate: "converter", quote: "Result:" }] },
   { id: "c-story", text: "DrinkKnird's history page explores the documented origins and disputed stories behind the Negroni.", facts: ["documented origins and disputed stories behind the Negroni"], sources: [{ plate: "story", quote: "documented origins and disputed stories behind the Negroni" }, { plate: "story", quote: "Documented origin claims" }] },
   { id: "c-home", text: "The home page offers homemade recipes and cocktails, what is trending in food culture, events and kitchen and bar tools.", facts: ["Homemade recipes and cocktails"], sources: [{ plate: "home", quote: "Homemade recipes and cocktails, plus a clear look at what's cooking in food culture" }, { plate: "home", quote: "Browse recipes" }] },
   { id: "c-cta", text: "The home page's tagline is Drink, Cook, Discover Something New, with a Browse recipes call to action.", facts: ["Drink, Cook, Discover Something New"], sources: [{ plate: "home", quote: "Drink, Cook, Discover Something New" }, { plate: "home", quote: "Browse recipes" }] },
@@ -33,7 +33,7 @@ export const DK_CLAIMS: Claim[] = [
 export const DK_FACTS: Array<{ plate: string; value: string }> = [
   { plate: "negroni", value: "Scales ingredient amounts only." },
   { plate: "negroni", value: "IBA-aligned Negroni: 1 oz each gin, Campari, and sweet vermouth" },
-  { plate: "tools", value: "Convert tsp, tbsp, cups, fluid ounces, ml, and oven °F/°C." },
+  { plate: "tools", value: "Convert tsp, tbsp, cups, fluid ounces, and ml, plus oven °F ↔ °C" },
   { plate: "story", value: "Explore the documented origins and disputed stories behind the Negroni cocktail and its association with Florence." },
   { plate: "home", value: "Homemade recipes and cocktails, plus a clear look at what's cooking in food culture—trends, stories, and events worth knowing about." },
   { plate: "home", value: "Drink, Cook, Discover Something New" },

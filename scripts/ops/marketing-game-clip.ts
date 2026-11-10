@@ -55,7 +55,8 @@ async function main() {
   let offset = 0;
   const clipMoments: GameMoment[] = [];
   for (const s of spans) {
-    for (const m of s.moments) {
+    // every real moment inside the footage counts, not just the ones that picked it
+    for (const m of moments.filter((x) => x.endMs > s.fromMs && x.startMs < s.toMs)) {
       const a = Math.max(m.startMs, s.fromMs);
       const b = Math.min(m.endMs, s.toMs);
       if (b > a) clipMoments.push({ ...m, startMs: offset + (a - s.fromMs), endMs: offset + (b - s.fromMs) });
