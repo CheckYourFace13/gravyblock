@@ -161,12 +161,20 @@ async function verifyLive(c: Concept, scenes: ExplainerScene[]): Promise<Record<
     for (const sc of scenes)
       for (const n of sc.nodes) {
         if (!n.path) continue;
-        const url = new URL(n.path, c.origin).toString();
-        if (!texts[url]) {
-          await openPage(b.page, url);
-          texts[url] = norm(await b.page.evaluate(() => document.body.innerText));
+        // the page the line was taken from first, then the product's other public pages: a line that is on none of them is no longer true to say
+        let found = false;
+        for (const p of [...new Set([n.path, "/", "/scan", "/proof"])]) {
+          const url = new URL(p as string, c.origin).toString();
+          if (!texts[url]) {
+            await openPage(b.page, url);
+            texts[url] = norm(await b.page.evaluate(() => document.body.innerText));
+          }
+          if (texts[url].includes(norm(n.line))) {
+            found = true;
+            break;
+          }
         }
-        if (!texts[url].includes(norm(n.line))) throw new Error(`The live page ${url} no longer says "${n.line.slice(0, 70)}". Not rendering a claim the product does not make.`);
+        if (!found) throw new Error(`The live site no longer says "${n.line.slice(0, 70)}" on any public page. Not rendering a claim the product does not make.`);
       }
   } finally {
     await b.close();

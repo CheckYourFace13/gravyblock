@@ -53,7 +53,7 @@ export async function renderGameClip(i: GameRenderInput): Promise<{ file: string
     const seg = path.join(i.workDir, `seg${k}.mp4`);
     const cap = s.caption ? path.join(i.workDir, `cap${k}.txt`) : null;
     if (cap) await fs.writeFile(cap, s.caption as string);
-    const draw = cap ? `,drawtext=fontfile=${FONT}:textfile=${cap}:fontsize=92:fontcolor=white:borderw=7:bordercolor=black@0.85:x=(w-text_w)/2:y=190` : "";
+    const draw = cap ? `,drawtext=fontfile=${FONT}:textfile=${cap}:fontsize=76:fontcolor=white:borderw=6:bordercolor=black@0.85:x=(w-text_w)/2:y=190` : "";
     await run(["-f", "concat", "-safe", "0", "-i", listFile, "-ss", String(s.from), "-t", String(s.to - s.from), "-filter_complex", `[0:v]fps=30,split[a][b];[a]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=40:6,eq=brightness=-0.12[bg];[b]scale=-2:1760[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2${draw}[v]`, "-map", "[v]", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "veryfast", "-crf", "20", "-r", "30", seg]);
     segs.push(seg);
   }
