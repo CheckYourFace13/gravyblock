@@ -148,7 +148,7 @@ describe("voice descriptions come from measuring the audio", () => {
     assert.ok(m.pitchHz !== null && Math.abs(m.pitchHz - 200) <= 6, `pitch ${m.pitchHz}`);
     assert.ok(Math.abs(m.speechSec - 3) < 0.1, `speech ${m.speechSec}`);
     assert.equal(describeVoice({ pitchHz: 110, wordsPerSec: 2.2, speechSec: 5 }), "Deeper voice, unhurried pace");
-    assert.equal(describeVoice({ pitchHz: 250, wordsPerSec: 3.4, speechSec: 5 }), "Higher voice, brisk pace");
-    assert.equal(describeVoice({ pitchHz: null, wordsPerSec: 3, speechSec: 5 }), "Clear voice, even pace");
+    assert.equal(describeVoice({ pitchHz: 250, wordsPerSec: 4.4, speechSec: 5 }), "Higher voice, brisk pace");
+    assert.equal(describeVoice({ pitchHz: null, wordsPerSec: 3.9, speechSec: 5 }), "Clear voice, even pace");
   });
 });

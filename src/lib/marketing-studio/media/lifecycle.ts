@@ -21,6 +21,8 @@ import { safeJoin } from "../storage";
 const DAY = 86_400_000;
 export const RETENTION_DAYS = { failed: 1, superseded: 3, published: 7, hostedAfterUpload: 1, captures: 3 } as const;
 export const QUOTA_WARN_SHARE = 0.8;
+/** Capture sub-folders (by name pattern) that are per-render scratch and safe to purge. Empty on purpose: game recordings live in the same tree. */
+export const DISPOSABLE_CAPTURE_DIRS: RegExp[] = [];
 
 export type LifecycleVideo = { id: string; assetId: string | null; status: string; createdAt: number; bytes: number; /** went live (or unlisted) on YouTube or another platform */ onPlatform: boolean; /** verified copy on object storage */ onObjectStore: boolean };
 export type PurgeAction = { assetId: string; bytes: number; reason: "failed" | "superseded" | "published" | "hosted"; videoIds: string[] };
@@ -63,12 +65,16 @@ async function dirBytes(p: string): Promise<number> {
 
 /** Removes old working folders under captures/<product>/. A render that is running keeps a fresh one, so only entries older than the retention go. */
 export async function purgeCaptures(now = Date.now(), days: number = RETENTION_DAYS.captures): Promise<{ removed: number; bytes: number }> {
+  // DISABLED 2026-11-10: captures/<product> also holds the stored REAL GAMEPLAY RECORDINGS that game videos are cut from (frames, HUD log). Those are source material, not temporary
+  // files, and an earlier version of this purge deleted ScribbleZap's. Only folders that are provably disposable may be listed in DISPOSABLE_CAPTURE_DIRS below.
+  if (!DISPOSABLE_CAPTURE_DIRS.length) return { removed: 0, bytes: 0 };
   const root = path.join(STUDIO_DIRS.root, "captures");
   let removed = 0;
   let bytes = 0;
   for (const prod of await fs.readdir(root, { withFileTypes: true }).catch(() => [])) {
     if (!prod.isDirectory()) continue;
     for (const e of await fs.readdir(path.join(root, prod.name), { withFileTypes: true }).catch(() => [])) {
+      if (!DISPOSABLE_CAPTURE_DIRS.some((re) => re.test(e.name))) continue;
       const p = path.join(root, prod.name, e.name);
       const st = await fs.stat(p).catch(() => null);
       if (!st || now - st.mtimeMs < days * DAY) continue;

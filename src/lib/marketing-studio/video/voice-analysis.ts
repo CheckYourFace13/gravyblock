@@ -57,6 +57,6 @@ export function measureVoice(samples: Float32Array, rate: number, words: number)
 /** The customer-facing description, built only from the two measurements. */
 export function describeVoice(m: VoiceMeasure): string {
   const pitch = m.pitchHz === null ? "" : m.pitchHz < 130 ? "Deeper" : m.pitchHz < 180 ? "Mid-low" : m.pitchHz < 235 ? "Mid-range" : "Higher";
-  const pace = m.wordsPerSec < 2.6 ? "unhurried pace" : m.wordsPerSec < 3.2 ? "even pace" : "brisk pace";
+  const pace = m.wordsPerSec < 3.7 ? "unhurried pace" : m.wordsPerSec < 4.15 ? "even pace" : "brisk pace";
   return pitch ? `${pitch} voice, ${pace}` : `Clear voice, ${pace}`;
 }
