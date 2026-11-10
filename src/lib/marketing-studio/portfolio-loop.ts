@@ -231,7 +231,7 @@ async function reviveTransient(db: StudioDb, p: Product, log: (m: string) => voi
     const specId = (j.input as { specId?: string }).specId;
     if (specId) {
       if (await activeJobForSpec(db, specId)) continue;
-      const newer = await db.select({ id: ms.msMediaJobs.id }).from(ms.msMediaJobs).where(and(eq(ms.msMediaJobs.kind, "library_video"), sql`${ms.msMediaJobs.input}->>'specId' = ${specId}`, inArray(ms.msMediaJobs.status, ["done"]), sql`${ms.msMediaJobs.createdAt} > ${j.createdAt}`)).limit(1);
+      const newer = await db.select({ id: ms.msMediaJobs.id }).from(ms.msMediaJobs).where(and(eq(ms.msMediaJobs.kind, "library_video"), sql`${ms.msMediaJobs.input}->>'specId' = ${specId}`, inArray(ms.msMediaJobs.status, ["done"]), sql`${ms.msMediaJobs.createdAt} > ${j.createdAt.toISOString()}::timestamptz`)).limit(1);
       if (newer.length) continue;
       const angle = (await getAngles(db, p.slug)).find((a) => a.specId === specId);
       if (angle && ["unlisted_review", "approved", "public"].includes(angle.status)) continue;

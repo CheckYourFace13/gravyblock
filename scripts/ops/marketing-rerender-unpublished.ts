@@ -18,7 +18,7 @@ async function main() {
   const db = requireStudioDb();
   const products = await db.select().from(ms.msProducts);
   const reviews = await listReviews(db);
-  const pubs = await db.select({ videoId: ms.msPublications.videoId }).from(ms.msPublications);
+  const pubs = await db.select({ videoId: ms.msPublications.videoId }).from(ms.msPublications).where(inArray(ms.msPublications.status, ["published", "publishing", "revoked", "deleted"]));
   const rows = await db.select().from(ms.msVideos).where(inArray(ms.msVideos.status, ["ready_for_review", "approved"]));
   for (const v of rows) {
     const p = products.find((x) => x.id === v.productId);
@@ -35,7 +35,8 @@ async function main() {
     console.log(`${p.slug} ${v.id.slice(0, 8)} ${v.status}: retired${QUEUE ? ", fresh render queued" : ""}${DRY ? " (dry)" : ""}`);
     if (DRY) continue;
     await db.update(ms.msVideos).set({ status: "superseded" }).where(and(eq(ms.msVideos.id, v.id), inArray(ms.msVideos.status, ["ready_for_review", "approved"])));
-    if (QUEUE) await createDemoVideo(INTERNAL_SCOPE, "logo-rerender", p.id, db, { queue: true, specId: specId === p.slug ? undefined : specId, replaceStale: true });
+    if (QUEUE) await createDemoVideo(INTERNAL_SCOPE, "logo-rerender", p.id, db, { queue: true, specId: specId === p.slug ? undefined : specId, replaceStale: true }).catch((e) => console.log(`  no fresh render queued: ${e instanceof Error ? e.message.split("
+")[0] : e}`));
   }
 }
 main().catch((e) => { console.error(e instanceof Error ? e.stack : e); process.exitCode = 1; }).finally(() => closeStudioDb());

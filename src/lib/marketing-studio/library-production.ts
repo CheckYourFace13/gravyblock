@@ -37,7 +37,8 @@ async function retireUnverifiedRenders(db: StudioDb, productId: string, specId: 
   const rows = await db.select().from(ms.msVideos).where(and(eq(ms.msVideos.productId, productId), sql`${ms.msVideos.storyboard}->>'kind' = 'demo'`, sql`coalesce(${ms.msVideos.storyboard}->>'specId', ${slug}) = ${specId}`, inArray(ms.msVideos.status, ["ready_for_review", "approved"])));
   for (const v of rows) {
     if (hasPassingLogoChecks(v.qa)) continue;
-    const pub = await db.select({ id: ms.msPublications.id }).from(ms.msPublications).where(eq(ms.msPublications.videoId, v.id)).limit(1);
+    // only a publication that went live (or was taken down) is history; a blocked or failed attempt is not
+    const pub = await db.select({ id: ms.msPublications.id }).from(ms.msPublications).where(and(eq(ms.msPublications.videoId, v.id), inArray(ms.msPublications.status, ["published", "publishing", "revoked", "deleted"]))).limit(1);
     if (pub.length) continue;
     await db.update(ms.msVideos).set({ status: "superseded" }).where(and(eq(ms.msVideos.id, v.id), inArray(ms.msVideos.status, ["ready_for_review", "approved"])));
     log(`retired the old render ${v.id.slice(0, 8)} of ${specId}: it has no passing logo-integrity checks`);
