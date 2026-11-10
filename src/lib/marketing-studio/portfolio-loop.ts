@@ -28,7 +28,7 @@ export type ProductStatus = "ACTIVE" | "WAITING_FOR_REVIEW" | "CHANGES_REQUESTED
 /** Products kept out of the loop: games follow their own rules, and the iScream site's own showcase is not deployed. */
 const OUT_OF_LOOP = new Set(["iscreamstudio"]);
 const REASSESS_MS = 24 * 3_600_000;
-const TRANSIENT = /NEEDS RE-RENDER|pre-upload|connection|rate|limit|timed out|timeout|closed|ECONN|fetch failed|503|502|429/i;
+const TRANSIENT = /NEEDS RE-RENDER|Blocked before sending|not declared|pre-upload|connection|rate|limit|timed out|timeout|closed|ECONN|fetch failed|503|502|429/i;
 const MAX_REVIVES = 6;
 
 /** A script's job that is waiting or running right now. */
