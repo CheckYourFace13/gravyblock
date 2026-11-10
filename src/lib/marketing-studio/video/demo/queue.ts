@@ -46,7 +46,7 @@ export async function createDemoVideo(scope: OwnerScope, actor: string, productI
   // The slideshow video is replaced by the demo, not shown next to it.
   await db.update(ms.msVideos).set({ status: "superseded" }).where(and(eq(ms.msVideos.productId, productId), sql`coalesce(${ms.msVideos.storyboard}->>'kind','') <> 'demo'`, sql`${ms.msVideos.status} <> 'superseded'`));
   const [row] = await db.insert(ms.msVideos).values({ productId, title: `${product.name} ${specId === product.slug ? "product demo" : `video: ${DEMO_SPECS[specId].angle ?? specId}`}`, storyboard: { version: 2, kind: "demo", pending: true, specId }, targetSeconds: 30, status: "queued" }).returning();
-  const id = opts.queue === false ? null : (await enqueue({ kind: "render_demo_video", weight: "heavy", priority: 3, productId, input: { videoId: row.id }, maxAttempts: 1 }, db)).id;
+  const id = opts.queue === false ? null : (await enqueue({ kind: "render_demo_video", weight: "heavy", priority: opts.replaceStale ? 1 : 3, productId, input: { videoId: row.id }, maxAttempts: 1 }, db)).id;
   await audit(db, { actor, action: "video.demo_create", entity: "video", entityId: row.id, productId, detail: { jobId: id, queued: opts.queue !== false } });
   return row;
 }

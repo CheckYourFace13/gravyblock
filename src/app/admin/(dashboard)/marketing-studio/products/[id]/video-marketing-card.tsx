@@ -5,13 +5,15 @@ import { allowanceFor, attributionFor, entitlementFor, outcomesFor } from "@/lib
 import { contactSummary } from "@/lib/marketing-studio/publishing/review-contact";
 import { listReviews } from "@/lib/marketing-studio/publishing/video-review";
 import { youtubeConnectionFor } from "@/lib/marketing-studio/publishing/youtube-share";
-import { changeReviewEmailAction, declareKidsAction, pauseVideoMarketingAction, resumeVideoMarketingAction } from "../../actions";
+import { OFFERED_VOICES, TONES, voiceSettingFor } from "@/lib/marketing-studio/video/voices";
+import { changeReviewEmailAction, changeVoiceAction, declareKidsAction, pauseVideoMarketingAction, resumeVideoMarketingAction } from "../../actions";
 
 /** Pause, resume and the one-time YouTube declaration for one product. Resume lives only here, behind the GravyBlock login. */
 export async function VideoMarketingCard({ product }: { product: { id: string; ownerKind: string; slug?: string } }) {
   const db = requireStudioDb();
   const policy = await getPolicy(db, product.id);
   const kids = await kidsFor(db, product);
+  const voice = await voiceSettingFor(db, product.id);
   const ent = await entitlementFor(db, product);
   const allow = await allowanceFor(db, product);
   const outcome = await outcomesFor(db, product.id, Date.now(), ent);
@@ -40,6 +42,9 @@ export async function VideoMarketingCard({ product }: { product: { id: string; o
       <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-zinc-100 pt-4 text-sm sm:grid-cols-3">
         <div><dt className="text-xs text-zinc-500">Plan</dt><dd className="font-medium">{ent.label}</dd></div>
         <div><dt className="text-xs text-zinc-500">New videos this {allow.period}</dt><dd className="font-medium">{allow.generated} of {allow.allowance ?? "no limit"}</dd></div>
+        <div><dt className="text-xs text-zinc-500">Allowance (plan + add-on)</dt><dd className="font-medium">{allow.base ?? "no limit"} + {allow.addOnPerPeriod + allow.creditsRemaining} = {allow.allowance ?? "no limit"} per {allow.period}{allow.carried ? `, ${allow.carried} carried` : ""}</dd></div>
+        <div><dt className="text-xs text-zinc-500">Remaining this {allow.period}</dt><dd className="font-medium">{allow.remaining ?? "no limit"}</dd></div>
+        <div><dt className="text-xs text-zinc-500">Billing period</dt><dd className="font-medium">{date(allow.periodStart)} to {date(allow.periodEnd)}</dd></div>
         <div><dt className="text-xs text-zinc-500">Corrections made</dt><dd className="font-medium">{allow.replacements} (free)</dd></div>
         <div><dt className="text-xs text-zinc-500">Approved / published</dt><dd className="font-medium">{outcome.approved} / {outcome.published}</dd></div>
         <div><dt className="text-xs text-zinc-500">Next new video</dt><dd className="font-medium">{allow.eligible ? "eligible now, when a strong idea exists" : date(allow.nextEligibleAt)}</dd></div>
@@ -58,6 +63,19 @@ export async function VideoMarketingCard({ product }: { product: { id: string; o
           <input type="email" name="email" required placeholder="name@yourcompany.com" className="w-64 rounded-md border border-zinc-300 px-3 py-1.5 text-sm" />
           <button className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm">Send confirmation</button>
         </div>
+      </form>
+      <form action={changeVoiceAction} className="mt-5 border-t border-zinc-100 pt-4">
+        <p className="text-sm font-medium text-zinc-900">Brand voice</p>
+        <p className="mt-1 text-xs text-zinc-600">One narrator for every video. Free, offline voices only. Tone changes the pace. Currently {voice.voice}, {voice.tone}, {voice.variation === "none" ? "never varied" : voice.variation === "pacing" ? "same narrator, pace varied slightly" : "approved alternate narrators allowed"}.</p>
+        <input type="hidden" name="productId" value={product.id} />
+        <div className="mt-2 flex flex-wrap gap-2">
+          <select name="voice" defaultValue={voice.voice} className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm">{OFFERED_VOICES.map((v) => <option key={v.id} value={v.id}>{v.label} ({v.accent}, {v.gender})</option>)}</select>
+          <select name="tone" defaultValue={voice.tone} className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm">{Object.entries(TONES).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}</select>
+          <select name="variation" defaultValue={voice.variation} className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm"><option value="none">Never vary the narrator</option><option value="pacing">Same narrator, vary pace</option><option value="alternate">Allow an alternate narrator</option></select>
+          <select name="alternate" defaultValue="" className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm"><option value="">Alternate narrator: none</option>{OFFERED_VOICES.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}</select>
+          <button className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm">Save voice</button>
+        </div>
+        <textarea name="pronunciations" defaultValue={Object.entries(voice.pronunciations ?? {}).map(([k, v]) => `${k}=${v}`).join(String.fromCharCode(10))} placeholder={"Pronunciations, one per line: Knird=nerd"} className="mt-2 w-full max-w-md rounded-md border border-zinc-300 px-3 py-1.5 text-xs" rows={2} />
       </form>
       <form action={declareKidsAction} className="mt-5 border-t border-zinc-100 pt-4">
         <p className="text-sm font-medium text-zinc-900">YouTube: are this product&apos;s videos &ldquo;made for kids&rdquo;?</p>

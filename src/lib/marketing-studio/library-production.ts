@@ -7,6 +7,7 @@
 import { and, eq, gt, gte, inArray, sql } from "drizzle-orm";
 import { ms, type StudioDb } from "./db";
 import { checkDistinct, consumes, ROLE_LABEL } from "./library";
+import { OWNED_TARGET } from "./portfolio-target";
 import { getAngles, updateAngle } from "./library-store";
 import { specFor } from "./publishing/platforms";
 import { prepareUnlistedReview } from "./publishing/review-upload";
@@ -145,7 +146,7 @@ export async function runLibraryVideo(db: StudioDb, input: { specId: string; att
       description: entry.yt.description,
       intended: `${ROLE_LABEL[entry.role]} video for ${entry.funnel.replace("_", " ")} viewers: YouTube organic, the iScream Studio portfolio, the product site, and a candidate paid asset.`,
       placement: entry.placement,
-      library: { position: entry.position, of: Math.max(3, (await getAngles(db, product.slug)).filter((a) => a.status !== "superseded").length), roleLabel: ROLE_LABEL[entry.role] },
+      library: { position: entry.position, of: Math.max(OWNED_TARGET, (await getAngles(db, product.slug)).filter((a) => a.status !== "superseded" && a.status !== "blocked").length), roleLabel: entry.purpose ?? ROLE_LABEL[entry.role] },
       upload: true,
       log,
     });
@@ -153,7 +154,7 @@ export async function runLibraryVideo(db: StudioDb, input: { specId: string; att
       // The product has used its posting allowance for the last 24 hours. This is not a failure: the finished video waits and the job is queued again for the moment the allowance frees.
       const again = await capFreesAt(db, product.id);
       await updateAngle(db, ACTOR, product.slug, (e) => e.id === entry.id, { status: "planned" });
-      await enqueue({ kind: "library_video", weight: "heavy", priority: 2, productId: product.id, dedupeKey: `library_video:${input.specId}:after-${again.getTime()}`, input: { specId: input.specId }, runAfter: again, maxAttempts: 3 }, db);
+      await enqueue({ kind: "library_video", weight: "heavy", priority: 3, productId: product.id, dedupeKey: `library_video:${input.specId}:after-${again.getTime()}`, input: { specId: input.specId }, runAfter: again, maxAttempts: 3 }, db);
       return { status: "deferred", detail: `posting allowance used; queued again for ${again.toISOString()}` };
     }
     if (!out.ok || !out.publicationId || !out.videoId) return await fail(out.blocked ?? "the upload did not complete");

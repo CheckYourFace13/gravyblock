@@ -26,6 +26,8 @@ import { demoSpecFor, type DemoSpec } from "./specs";
 import { applyLexicon } from "../../publishing/review-intent";
 import { applyOverridesToSpec, getOverrides } from "./overrides";
 import type { DemoRecord, Manifest } from "./types";
+import { getSetting } from "../../runtime";
+import { pickVoice, voiceKey, type VoiceSetting } from "../voices";
 import { ensureSpec } from "../concepts/registry";
 import { visualChecks } from "../concepts/align";
 import { evaluateRecord } from "../concepts/validate";
@@ -113,7 +115,12 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
   // The owner's accepted edits (pronunciation, pace, call to action) apply to every render of this product.
   const overrides = await getOverrides(db, product.id);
   const spec = applyOverridesToSpec(specForLaunchState(spec0, known), overrides);
-  const voiceSpeed = +(VOICE_SPEED * overrides.paceFactor * (spec.pace ?? 1)).toFixed(3);
+  // the product's brand voice (Brand Kit setting) when one was chosen; otherwise the house default, unchanged. The narrator never changes unless the customer allowed variation.
+  const chosen = await getSetting<VoiceSetting | null>(voiceKey(product.id), null, db);
+  const picked = chosen ? pickVoice(chosen, (await db.select({ id: ms.msVideos.id }).from(ms.msVideos).where(eq(ms.msVideos.productId, product.id))).length) : null;
+  const voiceId = picked?.voice ?? VOICE_ID;
+  const voiceSpeed = +((picked?.speed ?? VOICE_SPEED) * overrides.paceFactor * (spec.pace ?? 1)).toFixed(3);
+  const lexicon = { ...(chosen?.pronunciations ?? {}), ...overrides.lexicon };
   const ctaPhase = spec0.kind === "game" ? gameCtaPhase(known) : undefined;
   const facts = await ensureFacts(db, scope, product.id, manifest, opts.writeFacts, spec.facts);
   const { narration: NARRATION, claims: CLAIMS, onScreen: ON_SCREEN, sceneMeta: SCENE_META } = spec;
@@ -121,7 +128,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
   // 3. voiceover
   log("recording the voiceover");
   const t1 = Date.now();
-  const synth = await synthesizeLines(NARRATION.map((l) => ({ id: l.id, text: applyLexicon(parseSpoken(l.spoken).words.join(" "), overrides.lexicon) })), { ttsDir: opts.ttsDir ?? STUDIO_TTS_DIR, voice: VOICE_ID, speed: voiceSpeed, tmpDir: path.join(workDir, "tts") });
+  const synth = await synthesizeLines(NARRATION.map((l) => ({ id: l.id, text: applyLexicon(parseSpoken(l.spoken).words.join(" "), lexicon) })), { ttsDir: opts.ttsDir ?? STUDIO_TTS_DIR, voice: voiceId, speed: voiceSpeed, tmpDir: path.join(workDir, "tts") });
   const voiceMs = Date.now() - t1;
   const dur = Object.fromEntries(synth.map((s) => [s.id, Math.round((s.samples.length / s.rate) * 1000)]));
   const lineTimes = spec.layout(dur);
@@ -187,7 +194,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
     cta: { text: spec.cta.text, url: spec.cta.url },
     ...(ctaPhase ? { ctaPhase } : {}),
     endHeadline: timeline.scenes.find((s) => s.kind === "end")?.end_card?.headline,
-    audio: audioInfo(VOICE_ID, voiceSpeed),
+    audio: audioInfo(voiceId, voiceSpeed),
     capturedAt: manifest.capturedAt,
   };
   log("checking quality");

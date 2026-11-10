@@ -26,6 +26,7 @@ import { collectForPublication } from "@/lib/marketing-studio/measurement/collec
 import { getSetting, setKillSwitch } from "@/lib/marketing-studio/runtime";
 import { requireStudioDb } from "@/lib/marketing-studio/db";
 import { declareKids, pauseProduct, resumeProduct } from "@/lib/marketing-studio/publishing/video-policy";
+import { saveVoiceSetting, type ToneKey } from "@/lib/marketing-studio/video/voices";
 import { sendVerificationEmail } from "@/lib/marketing-studio/publishing/review-notify";
 import { approveReview, requestChanges } from "@/lib/marketing-studio/publishing/video-review";
 import { createVideoFromProduct, reviewVideo } from "@/lib/marketing-studio/video/queue";
@@ -105,6 +106,17 @@ export async function changeReviewEmailAction(fd: FormData) {
     const product = await requireProduct(scope, id);
     const out = await sendVerificationEmail(requireStudioDb(), actor, id, s(fd, "email"), product.name);
     if (!out.sent) throw new Error(out.reason ?? "The confirmation email could not be sent");
+  });
+}
+
+export async function changeVoiceAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    await requireProduct(scope, id);
+    const pronunciations = Object.fromEntries(s(fd, "pronunciations").split(String.fromCharCode(10)).map((l) => l.split("=")).filter((p) => p.length === 2 && p[0].trim() && p[1].trim()).map((p) => [p[0].trim(), p[1].trim()]));
+    const alt = s(fd, "alternate");
+    await saveVoiceSetting(requireStudioDb(), actor, id, { voice: s(fd, "voice"), tone: s(fd, "tone") as ToneKey, variation: s(fd, "variation") as "none" | "pacing" | "alternate", alternates: alt ? [alt] : [], pronunciations });
   });
 }
 

@@ -8,11 +8,12 @@ import { spawn } from "node:child_process";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { ms, type StudioDb } from "./db";
 import { hasApprovedLogo } from "./brand/brand-kit";
-import { allowanceFor } from "./entitlements";
+import { allowanceFor, spendCredit } from "./entitlements";
+import { ensureOwnedSlots, TARGET_EXEMPT } from "./portfolio-target";
 import { PLAN_PRODUCTS } from "./library-plan";
 import { getAngles, updateAngle } from "./library-store";
 import { listFacts, listProducts } from "./repository";
-import { enqueue, getSetting, setSetting } from "./runtime";
+import { enqueue, getSetting, JOB_PRIORITY, setSetting } from "./runtime";
 import { INTERNAL_SCOPE } from "./scope";
 import { specFor } from "./publishing/platforms";
 import { reviewRecipient } from "./publishing/review-contact";
@@ -37,10 +38,10 @@ async function activeJobForSpec(db: StudioDb, specId: string): Promise<boolean> 
 }
 
 /** Queues one script's video unless it already has a job waiting or running. The key counts earlier jobs, so a script whose old job finished or died can be made again. */
-async function queueSpec(db: StudioDb, productId: string, specId: string): Promise<"queued" | "active"> {
+async function queueSpec(db: StudioDb, productId: string, specId: string, priority: number = JOB_PRIORITY.normal): Promise<"queued" | "active"> {
   if (await activeJobForSpec(db, specId)) return "active";
   const prior = await db.select({ id: ms.msMediaJobs.id }).from(ms.msMediaJobs).where(and(eq(ms.msMediaJobs.kind, "library_video"), sql`${ms.msMediaJobs.input}->>'specId' = ${specId}`));
-  const r = await enqueue({ kind: "library_video", weight: "heavy", priority: 2, productId, dedupeKey: prior.length ? `library_video:${specId}:n${prior.length}` : `library_video:${specId}`, input: { specId }, maxAttempts: 3 }, db);
+  const r = await enqueue({ kind: "library_video", weight: "heavy", priority, productId, dedupeKey: prior.length ? `library_video:${specId}:n${prior.length}` : `library_video:${specId}`, input: { specId }, maxAttempts: 3 }, db);
   return r.id ? "queued" : "active";
 }
 
@@ -125,11 +126,20 @@ function runDriver(slug: string, timeoutMs = 25 * 60_000): Promise<string> {
 
 export type TickReport = Array<{ slug: string; status: ProductStatus; action: string }>;
 
+const GENERATION_LOG = "portfolio_generation_log";
+/** GravyBlock is served about twice as often as any other product (it has the largest library to build); everyone else rotates by who was served longest ago. */
+const GRAVYBLOCK_HEAD_START_MS = 6 * 3_600_000;
+async function generationOrder(db: StudioDb) {
+  const served = await getSetting<Record<string, number>>(GENERATION_LOG, {}, db);
+  const key = (slug: string) => (served[slug] ?? 0) - (slug === "gravyblock" ? GRAVYBLOCK_HEAD_START_MS : 0);
+  return [...PLAN_PRODUCTS].sort((a, b) => key(a.slug) - key(b.slug));
+}
+
 export async function portfolioTick(db: StudioDb, log: (m: string) => void = () => {}, opts: { generate?: boolean } = {}): Promise<TickReport> {
   const report: TickReport = [];
   const products = (await listProducts(INTERNAL_SCOPE, db)) as unknown as Product[];
   let generated = 0;
-  for (const plan of PLAN_PRODUCTS) {
+  for (const plan of await generationOrder(db)) {
     if (OUT_OF_LOOP.has(plan.slug)) continue;
     const p = products.find((x) => x.slug === plan.slug);
     if (!p) continue;
@@ -145,6 +155,8 @@ export async function portfolioTick(db: StudioDb, log: (m: string) => void = () 
     }
     // durability: a job that died of a temporary problem (YouTube limit, site failure, closed browser, throttling) is revived, a few times, with no owner action
     await recoverStranded(db, p, log);
+    // the owner's portfolio target is five distinct videos per product: make sure the two open slots exist (GravyBlock has its own inventory)
+    if (p.ownerKind !== "customer" && !TARGET_EXEMPT.has(p.slug)) await ensureOwnedSlots(db, "portfolio-tick", { slug: p.slug, name: p.name, home: plan.home }).catch(() => 0);
     await reviveTransient(db, p, log);
     if (status === "CHANGES_REQUESTED") {
       // a change request never waits on the owner again: make sure its replacement is queued (a pause, a restart or a dead job cannot strand it)
@@ -170,8 +182,11 @@ export async function portfolioTick(db: StudioDb, log: (m: string) => void = () 
       // a script made by the concept generator must be ready; a hand-written script (no stored concept) is judged by the creative standard when it renders
       const c = await getSetting<StoredConcept | null>(conceptKey(a.specId), null, db);
       if (c && c.status !== "ready") continue;
-      const r = await queueSpec(db, p.id, a.specId);
+      // paid add-on capacity runs in the lowest class; the plan's own allowance runs as normal work
+      const burst = allow.base !== null && allow.generated >= allow.base + allow.carried;
+      const r = await queueSpec(db, p.id, a.specId, burst ? JOB_PRIORITY.burst : JOB_PRIORITY.normal);
       if (r === "queued") {
+        if (allow.base !== null && allow.generated >= allow.base + allow.carried + allow.addOnPerPeriod) await spendCredit(db, p.id);
         queued = a.specId;
         break; // one at a time
       }
@@ -199,6 +214,7 @@ export async function portfolioTick(db: StudioDb, log: (m: string) => void = () 
       continue;
     }
     generated++;
+    await setSetting(GENERATION_LOG, { ...(await getSetting<Record<string, number>>(GENERATION_LOG, {}, db)), [p.slug]: Date.now() }, "portfolio-tick", db, { audited: false });
     const out = await runDriver(p.slug);
     const made = /: (SAVED|NEW ANGLE|concept ready)/.test(out);
     if (made) {
@@ -242,7 +258,7 @@ async function reviveTransient(db: StudioDb, p: Product, log: (m: string) => voi
     const n = await getSetting<number>(key, 0, db);
     if (n >= MAX_REVIVES) continue;
     await setSetting(key, n + 1, "portfolio-tick", db, { audited: false });
-    await enqueue({ kind: j.kind as "library_video", weight: "heavy", priority: 2, productId: p.id, dedupeKey: `${j.dedupeKey ?? j.id}:revive-${n + 1}`, input: j.input as Record<string, unknown>, maxAttempts: 3 }, db);
+    await enqueue({ kind: j.kind as "library_video", weight: "heavy", priority: 3, productId: p.id, dedupeKey: `${j.dedupeKey ?? j.id}:revive-${n + 1}`, input: j.input as Record<string, unknown>, maxAttempts: 3 }, db);
     log(`portfolio ${p.slug}: revived ${j.kind} (${spec}) after a temporary failure, attempt ${n + 1}`);
   }
 }

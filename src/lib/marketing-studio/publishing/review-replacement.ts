@@ -48,7 +48,7 @@ async function put(db: StudioDb, job: ReplacementJob): Promise<ReplacementJob> {
 
 /** Enqueues the worker job for this job record. Duplicate-safe: the queue holds one job per publication and generation. */
 async function enqueueFor(db: StudioDb, job: ReplacementJob): Promise<string | null> {
-  const r = await enqueue({ kind: REPLACEMENT_JOB_KIND, weight: "heavy", priority: 3, productId: job.productId, dedupeKey: `${REPLACEMENT_JOB_KIND}:${job.id}:${job.generation}`, input: { publicationId: job.id }, maxAttempts: MAX_ATTEMPTS }, db);
+  const r = await enqueue({ kind: REPLACEMENT_JOB_KIND, weight: "heavy", priority: 1, productId: job.productId, dedupeKey: `${REPLACEMENT_JOB_KIND}:${job.id}:${job.generation}`, input: { publicationId: job.id }, maxAttempts: MAX_ATTEMPTS }, db);
   return r.id;
 }
 

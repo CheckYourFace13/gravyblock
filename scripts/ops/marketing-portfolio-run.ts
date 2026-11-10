@@ -25,7 +25,8 @@ async function register(db: ReturnType<typeof requireStudioDb>, slug: string, po
   const yt = { title, description: `${/[?!.]$/.test(c.hook) ? c.hook : `${c.hook}?`} ${body}
 
 ${c.cta.text}: ${c.cta.url}` };
-  await updateAngle(db, ACTOR, slug, (x) => x.position === position, { specId, hook: c.hook, yt, scenes: c.capturePlan.map((pl) => pl.heading || pl.path), ...(replace ? { title: c.title, features: c.capturePlan.flatMap((pl) => pl.clicks.map((k) => ("name" in k ? k.name : ""))).filter(Boolean) } : {}) });
+  const open = (await getAngles(db, slug)).find((x) => x.position === position)?.slot === true; // an open slot takes its title and features from the concept that fills it
+  await updateAngle(db, ACTOR, slug, (x) => x.position === position, { specId, hook: c.hook, yt, scenes: c.capturePlan.map((pl) => pl.heading || pl.path), ...(replace || open ? { title: c.title, features: c.capturePlan.flatMap((pl) => pl.clicks.map((k) => ("name" in k ? k.name : ""))).filter(Boolean) } : {}) });
 }
 
 /** The planned angle cannot be shown with real taps: build a better one from the product's own discovered calculators (a verified, interactive surface), duplicate gate on. */

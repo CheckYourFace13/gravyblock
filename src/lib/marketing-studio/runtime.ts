@@ -112,6 +112,16 @@ export async function usageSummary(db: StudioDb = requireStudioDb()) {
 export type Job = typeof ms.msMediaJobs.$inferSelect;
 export type JobKind = "noop_probe" | "storage_audit" | "cleanup_tmp" | "render_creatives" | "render_video" | "render_demo_video" | "benchmark_video" | "review_replacement" | "library_video" | "portfolio_tick" | "portfolio_watchdog";
 
+/**
+ * Scheduling classes (lower runs first). They decide who goes next when the single heavy slot frees; none of them ever allows a second heavy job at once.
+ *   remediation: a requested change or a logo correction, work an owner is waiting on
+ *   publication: an owner-approved video waiting to go out
+ *   normal: a scheduled video inside the plan's own allowance
+ *   burst: a video beyond the plan, from paid add-on capacity
+ * Within a class the tenant (product) that was served longest ago goes first, so a customer with many videos queued cannot starve one with a single video.
+ */
+export const JOB_PRIORITY = { remediation: 1, publication: 2, normal: 3, burst: 4 } as const;
+
 /** 2, 10, 45 minutes with jitter, then dead. */
 export function backoffMs(attempt: number): number {
   const base = [2, 10, 45][Math.min(Math.max(attempt, 1), 3) - 1] * 60_000;
@@ -147,7 +157,9 @@ export async function claimNext(workerId: string, opts: { allowHeavy: boolean },
     where id = (
       select id from ms_media_jobs
       where status = 'queued' and run_after <= now() and (weight = 'light' or ${opts.allowHeavy})
-      order by priority asc, run_after asc
+      order by priority asc,
+        (select max(coalesce(j2.finished_at, j2.heartbeat_at, j2.created_at)) from ms_media_jobs j2 where j2.product_id = ms_media_jobs.product_id and j2.id <> ms_media_jobs.id and j2.status in ('running','done','dead') and j2.weight = 'heavy') asc nulls first,
+        run_after asc
       limit 1
       for update skip locked
     )

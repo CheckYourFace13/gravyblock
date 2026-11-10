@@ -42,6 +42,10 @@ export type AngleEntry = {
   generated?: { variant: number; replaces?: string; note?: string; personality?: string };
   /** the angle that replaced this one because the generator could not make it well from the live product */
   replacedBy?: string;
+  /** an open slot of the owner's five-video target: a purpose, not yet a script. The generator fills it only from verified Product Truth */
+  slot?: boolean;
+  /** the purpose of a slot, shown in the review email in place of the role label */
+  purpose?: string;
   /** latest measured numbers when the video is public, each marked by how well it is known */
   performance?: Record<string, { value: number | null; status: string }>;
 };

@@ -11,7 +11,7 @@
  */
 import { and, eq, inArray } from "drizzle-orm";
 import { ms, type StudioDb } from "./db";
-import { getSetting } from "./runtime";
+import { getSetting, setSetting } from "./runtime";
 import { listReviews } from "./publishing/video-review";
 
 export type PlanKey = "portfolio" | "starter" | "growth" | "pro" | "agency";
@@ -39,7 +39,16 @@ export const PLAN_ENTITLEMENTS: Record<PlanKey, Entitlement> = {
   agency: { plan: "agency", label: "Agency", videosPerPeriod: 6, period: "week", minSpacingDays: 1, carryOver: true, attribution: "none" },
 };
 
+/**
+ * Paid extra capacity (pricing is attached later; only the quantities live here). It buys MORE VIDEOS ENTITLED, never more simultaneous rendering: every video still waits its turn in the
+ * one-heavy-render queue, and extra work runs at the lowest scheduling class so it can never starve another customer.
+ *   perPeriod: extra new videos in every billing period (for example +1 or +2 a week)
+ *   credits:   a pack of extra new videos that is used up once the plan and per-period add-on are spent; creditsUsed counts the ones already spent
+ */
+export type AddOn = { perPeriod?: number; credits?: number; creditsUsed?: number; note?: string };
+
 export type ProductEntitlement = {
+  addOn?: AddOn;
   plan: PlanKey;
   overrides?: Partial<Pick<Entitlement, "videosPerPeriod" | "period" | "minSpacingDays" | "carryOver" | "attribution">>;
   /** day of the month (1 to 28) a monthly billing period starts on; default 1 */
@@ -47,10 +56,19 @@ export type ProductEntitlement = {
 };
 export const entitlementKey = (productId: string) => `video_entitlement_${productId}`;
 
-export async function entitlementFor(db: StudioDb, product: { id: string; ownerKind?: string }): Promise<Entitlement & { anchorDay: number }> {
+export async function entitlementFor(db: StudioDb, product: { id: string; ownerKind?: string }): Promise<Entitlement & { anchorDay: number; addOn?: AddOn }> {
   const stored = await getSetting<ProductEntitlement | null>(entitlementKey(product.id), null, db);
   const plan: PlanKey = stored?.plan && stored.plan in PLAN_ENTITLEMENTS ? stored.plan : product.ownerKind === "customer" ? "starter" : "portfolio";
-  return { ...PLAN_ENTITLEMENTS[plan], ...(stored?.overrides ?? {}), anchorDay: Math.min(28, Math.max(1, stored?.anchorDay ?? 1)) };
+  return { ...PLAN_ENTITLEMENTS[plan], ...(stored?.overrides ?? {}), anchorDay: Math.min(28, Math.max(1, stored?.anchorDay ?? 1)), ...(stored?.addOn ? { addOn: stored.addOn } : {}) };
+}
+
+/** Records that one extra-video credit was spent (called when a new video starts beyond the plan and per-period add-on). */
+export async function spendCredit(db: StudioDb, productId: string): Promise<void> {
+  const stored = await getSetting<ProductEntitlement | null>(entitlementKey(productId), null, db);
+  if (!stored?.addOn?.credits) return;
+  const used = (stored.addOn.creditsUsed ?? 0) + 1;
+  if (used > stored.addOn.credits) return;
+  await setSetting(entitlementKey(productId), { ...stored, addOn: { ...stored.addOn, creditsUsed: used } }, "entitlements", db, { audited: false });
 }
 
 export type VideoEvent = { at: number; kind: "new" | "replacement" };
@@ -60,7 +78,13 @@ export type Allowance = {
   period: Period;
   periodStart: string;
   periodEnd: string;
-  /** null = uncapped */
+  /** the plan's own allowance for the period (null = uncapped) */
+  base: number | null;
+  /** extra videos per period bought as an add-on */
+  addOnPerPeriod: number;
+  /** extra-video credits still unspent */
+  creditsRemaining: number;
+  /** total new videos entitled this period: base + carried + add-on + credits (null = uncapped) */
   allowance: number | null;
   carried: number;
   generated: number;
@@ -91,7 +115,7 @@ export function periodEnd(period: Period, start: number, anchorDay = 1): number 
 const prevStart = (period: Period, start: number, anchorDay: number) => periodStart(period, start - 1, anchorDay);
 
 /** Pure: what the plan allows right now, given the new-video and replacement events so far. */
-export function computeAllowance(ent: Entitlement & { anchorDay?: number }, events: VideoEvent[], now: number): Allowance {
+export function computeAllowance(ent: Entitlement & { anchorDay?: number; addOn?: AddOn }, events: VideoEvent[], now: number): Allowance {
   const anchor = ent.anchorDay ?? 1;
   const start = periodStart(ent.period, now, anchor);
   const end = periodEnd(ent.period, start, anchor);
@@ -100,17 +124,23 @@ export function computeAllowance(ent: Entitlement & { anchorDay?: number }, even
   const generated = news.filter(inPeriod).length;
   const replacements = events.filter((e) => e.kind === "replacement" && inPeriod(e)).length;
   const last = news.reduce((m, e) => Math.max(m, e.at), 0);
-  const spacingOk = ent.minSpacingDays <= 0 || last === 0 || now >= last + ent.minSpacingDays * DAY;
-  const spacingAt = last ? last + ent.minSpacingDays * DAY : 0;
+  const addPer = Math.max(0, Math.floor(ent.addOn?.perPeriod ?? 0));
+  const creditsLeft = Math.max(0, Math.floor((ent.addOn?.credits ?? 0) - (ent.addOn?.creditsUsed ?? 0)));
+  const periodDays = (end - start) / DAY;
+  const totalForSpacing = (ent.videosPerPeriod ?? 0) + addPer + creditsLeft;
+  // more entitlement shortens the spacing (a +2 a week plan needs videos closer than 5 days) but never lengthens it
+  const spacingDays = totalForSpacing > 0 ? Math.min(ent.minSpacingDays, Math.max(0.5, periodDays / totalForSpacing)) : ent.minSpacingDays;
+  const spacingOk = spacingDays <= 0 || last === 0 || now >= last + spacingDays * DAY;
+  const spacingAt = last ? last + spacingDays * DAY : 0;
   const base = { plan: ent.plan, label: ent.label, period: ent.period, periodStart: new Date(start).toISOString(), periodEnd: new Date(end).toISOString(), generated, replacements };
-  if (ent.videosPerPeriod === null) return { ...base, allowance: null, carried: 0, remaining: null, nextEligibleAt: null, eligible: true, reason: "no plan cap" };
+  if (ent.videosPerPeriod === null) return { ...base, base: null, addOnPerPeriod: 0, creditsRemaining: 0, allowance: null, carried: 0, remaining: null, nextEligibleAt: null, eligible: true, reason: "no plan cap" };
   let carried = 0;
   if (ent.carryOver) {
     const ps = prevStart(ent.period, start, anchor);
     const prevGenerated = news.filter((e) => e.at >= ps && e.at < start).length;
     carried = Math.min(ent.videosPerPeriod, Math.max(0, ent.videosPerPeriod - prevGenerated));
   }
-  const allowance = ent.videosPerPeriod + carried;
+  const allowance = ent.videosPerPeriod + carried + addPer + creditsLeft;
   const remaining = Math.max(0, allowance - generated);
   const eligible = remaining > 0 && spacingOk;
   let nextEligibleAt: string | null = null;
@@ -120,9 +150,9 @@ export function computeAllowance(ent: Entitlement & { anchorDay?: number }, even
     reason = `this ${ent.period}'s allowance of ${allowance} is used`;
   } else if (!spacingOk) {
     nextEligibleAt = new Date(spacingAt).toISOString();
-    reason = `new videos are spaced at least ${ent.minSpacingDays} days apart`;
+    reason = `new videos are spaced at least ${Math.round(spacingDays * 10) / 10} days apart`;
   }
-  return { ...base, allowance, carried, remaining, nextEligibleAt, eligible, reason };
+  return { ...base, base: ent.videosPerPeriod, addOnPerPeriod: addPer, creditsRemaining: creditsLeft, allowance, carried, remaining, nextEligibleAt, eligible, reason };
 }
 
 /** Every new video and replacement the product has had, from its reviews (one script = one new video; each extra version of it is a replacement) plus scripts in flight. */
