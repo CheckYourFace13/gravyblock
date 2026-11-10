@@ -131,12 +131,41 @@ export function buildConceptTimeline(c: Concept) {
   };
 }
 
+/**
+ * A walkthrough moves because a cursor moves; an explainer has none, so the camera never rests: between its planned moves it drifts in a slow breathing zoom and sway, so the picture
+ * is alive at every moment (the motion checks measure real frame-to-frame change) without ever changing what is shown.
+ */
+export function withDrift(keys: CameraKey[], endMs: number): CameraKey[] {
+  const base = (t: number) => {
+    let prev = keys[0];
+    for (const k of keys) {
+      if (k.t >= t) {
+        const span = k.t - prev.t || 1;
+        const u = Math.min(1, Math.max(0, (t - prev.t) / span));
+        return { cx: prev.cx + (k.cx - prev.cx) * u, cy: prev.cy + (k.cy - prev.cy) * u, zoom: prev.zoom + (k.zoom - prev.zoom) * u };
+      }
+      prev = k;
+    }
+    return { cx: prev.cx, cy: prev.cy, zoom: prev.zoom };
+  };
+  const out: CameraKey[] = [];
+  for (let t = 0; t <= endMs; t += 450) {
+    const b = base(t);
+    out.push({ t, cx: b.cx + 7 * Math.sin(t / 700), cy: b.cy + 9 * Math.cos(t / 900), zoom: +(b.zoom + 0.012 * Math.sin(t / 520)).toFixed(4) });
+  }
+  return out;
+}
+
 /** An explainer is timed exactly like a walkthrough, but no cursor or tap is drawn: nothing is clicked, the steps simply light up as they are spoken. */
 export function buildExplainerTimeline(c: Concept) {
   const inner = buildConceptTimeline(c);
   return (manifest: Manifest, lt: Record<string, LineTime>): BuiltDkDemo => {
     const built = inner(manifest, lt);
-    for (const s of built.timeline.scenes) if (s.kind === "screen") s.cursor = undefined;
+    for (const s of built.timeline.scenes) {
+      if (s.kind !== "screen") continue;
+      s.cursor = undefined;
+      if (s.camera?.length) s.camera = withDrift(s.camera, s.end - s.start);
+    }
     return built;
   };
 }
