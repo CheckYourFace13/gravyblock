@@ -21,6 +21,7 @@ import { renderDemoVideoJob } from "@/lib/marketing-studio/video/demo/run";
 import { runReviewReplacement } from "@/lib/marketing-studio/publishing/review-pipeline";
 import { runLibraryVideo } from "@/lib/marketing-studio/library-production";
 import { renderVideoJob, runBenchmarkJob } from "@/lib/marketing-studio/video/jobs";
+import { runLifecycle } from "@/lib/marketing-studio/media/lifecycle";
 import { portfolioTick, portfolioWatchdog } from "@/lib/marketing-studio/portfolio-loop";
 import { closeStudioDb, getStudioDb } from "@/lib/marketing-studio/db";
 import {
@@ -34,6 +35,7 @@ import {
   reapExpired,
   recordUsage,
   runningHeavyCount,
+  getSetting,
   setSetting,
   writeHeartbeat,
   type Job,
@@ -128,6 +130,12 @@ async function runJob(job: Job): Promise<Record<string, unknown>> {
       return { ...(await runBenchmarkJob(job.input as { targetSeconds?: number; label?: string })) };
     case "cleanup_tmp": {
       const r = await cleanupTmp();
+      // the storage lifecycle (failed and superseded renders, redundant VPS copies, old capture folders, the per-tenant ledger) runs at most once an hour
+      const prev = await getSetting<{ at?: string } | null>("storage_ledger", null, getStudioDb()!);
+      if (!prev?.at || Date.now() - Date.parse(prev.at) > 55 * 60_000) {
+        const life = await runLifecycle(getStudioDb()!);
+        return { ...r, lifecycle: { purged: life.purged, purgedBytes: life.purgedBytes, captures: life.captures } };
+      }
       return { ...r };
     }
     default:

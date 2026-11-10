@@ -40,6 +40,10 @@ export type ReviewState = {
   specId?: string;
   /** Fingerprint of the script this video was made from, so a replacement is only rendered once something actually changed. */
   specHash?: string;
+  /** "hosted": GravyBlock-hosted video for a customer with no YouTube channel (publicationId and videoId are then the canonical video id) */
+  provider?: "youtube" | "hosted";
+  /** an explicit thumbnail address for the email (hosted videos); YouTube videos use the thumbnail proxy */
+  thumbUrl?: string;
   status: ReviewStatus;
   publicationId: string;
   productId: string;
@@ -167,7 +171,7 @@ export function buildReviewEmail(r: ReviewState, links: ReviewLinks): { subject:
 ${tag ? `<p style="margin:0 0 8px"><span style="display:inline-block;background:#eef2ff;color:#3730a3;font-size:13px;font-weight:700;padding:4px 10px;border-radius:999px">${esc(tag)}</span></p>` : ""}
 <p style="margin:0 0 2px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:#71717a">${esc(r.productName)}</p>
 <h1 style="margin:0 0 14px;font-size:22px;line-height:1.25">${esc(r.title)}</h1>
-<a href="${esc(r.watchUrl)}" style="display:block;text-decoration:none"><img src="${esc(thumbUrlFor(r.videoId))}" alt="Play the video: ${esc(r.title)}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border-radius:12px;border:0"></a>
+<a href="${esc(r.watchUrl)}" style="display:block;text-decoration:none"><img src="${esc(r.thumbUrl ?? thumbUrlFor(r.videoId))}" alt="Play the video: ${esc(r.title)}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border-radius:12px;border:0"></a>
 <p style="margin:10px 0 18px;font-size:14px;word-break:break-all"><a href="${esc(r.watchUrl)}" style="color:#2563eb">${esc(r.watchUrl)}</a></p>
 ${button(links.approve, "APPROVE & MAKE PUBLIC", "#15803d")}
 ${button(links.changes, "REQUEST CHANGES", "#3f3f46")}
@@ -238,6 +242,7 @@ export async function approveReview(scope: OwnerScope, actor: string, publicatio
   if (!r) throw new Error("No review found for that video");
   if (r.status === "approved_public") return r;
   if (r.status === "superseded") throw new Error("This version was superseded by a newer one; review the newer version.");
+  if (r.provider === "hosted") return (await import("../media/hosted-review")).approveHosted(db, actor, publicationId, note);
   const [pub] = await db.select().from(ms.msPublications).where(and(eq(ms.msPublications.id, publicationId), eq(ms.msPublications.productId, r.productId))).limit(1);
   if (!pub || pub.status !== "published" || pub.externalPostId !== r.videoId || !pub.connectionId) throw new Error("The uploaded video could not be matched to its publication");
   const [conn] = await db.select().from(ms.msConnections).where(eq(ms.msConnections.id, pub.connectionId)).limit(1);

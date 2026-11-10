@@ -8,6 +8,7 @@
  */
 import { eq, sql } from "drizzle-orm";
 import { ms, type StudioDb } from "../db";
+import { storeFromEnv } from "../media/object-store";
 import { youtubeConnectionFor } from "./youtube-share";
 
 export type PlaybackDestination =
@@ -37,7 +38,7 @@ export function decidePlayback(p: { ownerKind: string; ownConnectionId: string |
 
 export async function playbackFor(db: StudioDb, product: { id: string; ownerKind?: string }): Promise<PlaybackDestination> {
   const conn = await youtubeConnectionFor(db, product.id);
-  return decidePlayback({ ownerKind: product.ownerKind ?? "internal", ownConnectionId: conn?.id ?? null, storeConfigured: mediaStoreConfig().configured });
+  return decidePlayback({ ownerKind: product.ownerKind ?? "internal", ownConnectionId: conn?.id ?? null, storeConfigured: storeFromEnv().ok });
 }
 
 /** The shapes a hosted video exposes: review playback (private, token), public playback, embed code, download. URLs are built from the CDN base and an unguessable object key. */

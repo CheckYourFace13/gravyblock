@@ -10,7 +10,7 @@ import { checkDistinct, consumes, ROLE_LABEL } from "./library";
 import { OWNED_TARGET } from "./portfolio-target";
 import { getAngles, updateAngle } from "./library-store";
 import { specFor } from "./publishing/platforms";
-import { prepareUnlistedReview } from "./publishing/review-upload";
+import { prepareReview } from "./publishing/review-dispatch";
 import { isPaused } from "./publishing/video-policy";
 import { enqueue } from "./runtime";
 import { listProducts } from "./repository";
@@ -138,7 +138,7 @@ export async function runLibraryVideo(db: StudioDb, input: { specId: string; att
       }
     }
     // 3. upload unlisted, verify, email the owner with the library label
-    const out = await prepareUnlistedReview(db, {
+    const out = await prepareReview(db, {
       slug: product.slug,
       specId: input.specId,
       videoRowId: video.id,

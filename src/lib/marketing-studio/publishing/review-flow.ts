@@ -44,7 +44,7 @@ export async function successView(db: StudioDb, state: ReviewState): Promise<Suc
     productName: state.productName,
     title: state.title,
     watchUrl: watchUrlFor(state.videoId),
-    thumbUrl: thumbUrlFor(state.videoId),
+    thumbUrl: state.thumbUrl ?? thumbUrlFor(state.videoId),
     destination: state.ctaUrl.split("?")[0],
     visibility: "Public",
     videoId: state.videoId,

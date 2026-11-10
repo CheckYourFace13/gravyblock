@@ -17,7 +17,7 @@ import { ensureSpec } from "../video/concepts/registry";
 import { interpretChange, mergeOverrides } from "./review-intent";
 import { requestOwnerNotice } from "./review-notify";
 import { jobKey, patchJob, runReplacementJob, type ReplacementDeps, type ReplacementJob } from "./review-replacement";
-import { prepareUnlistedReview } from "./review-upload";
+import { prepareReview } from "./review-dispatch";
 import { embedKey, getReview, trackEvent, type EmbedEntry } from "./video-review";
 
 const STUCK_RENDER_MS = 5 * 60_000;
@@ -88,7 +88,7 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
       const placement = embeds.find((e) => e.publicationId === prev.publicationId)?.recommendedPlacement;
       // the same copy as the version being replaced, with its tracked link turned back into the plain destination (a new publication gets its own tracking id)
       const description = prev.description.split(prev.ctaUrl).join(prev.ctaUrl.split("?")[0]);
-      const out = await prepareUnlistedReview(db, { slug, specId, videoRowId, title: prev.title, description, intended: prev.intendedUse, placement, upload: true, log });
+      const out = await prepareReview(db, { slug, specId, videoRowId, title: prev.title, description, intended: prev.intendedUse, placement, upload: true, log });
       if (!out.ok || !out.publicationId || !out.videoId) throw new Error(out.blocked ?? "the upload did not complete");
       return { publicationId: out.publicationId, videoId: out.videoId, emailed: Boolean(out.emailed) };
     },
