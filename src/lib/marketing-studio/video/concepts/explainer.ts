@@ -37,6 +37,8 @@ export type ExplainerDef = {
   hook: string;
   scenes: ExplainerScene[];
   endLine: string;
+  /** what the closing caption shows: the invitation with the web address */
+  endCaption: string;
   cta: { text: string; url: string; display: string };
   endHeadline: string;
   brand: { name: string; accent: string; dark: string; light: string };
@@ -87,7 +89,7 @@ export function conceptFromExplainer(d: ExplainerDef): Concept {
       ],
     });
   });
-  narration.push({ id: "Lend", sceneId: "end", spoken: d.endLine, claims: [] });
+  narration.push({ id: "Lend", sceneId: "end", spoken: d.endLine, caption: d.endCaption, claims: ["c-cta"] });
   headlines.end = d.endHeadline;
   onScreen.push({ sceneId: "end", kind: "headline", text: d.endHeadline, claim: "c-cta" });
   onScreen.push({ sceneId: "end", kind: "cta", text: d.cta.text, claim: "c-cta" });

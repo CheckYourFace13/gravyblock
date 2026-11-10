@@ -39,7 +39,7 @@ async function main() {
     const description = `${c.hook} ${e.yt.description}\n\n${c.cta.text}: ${c.cta.url}`;
     const hit = (await getAngles(db, "gravyblock")).find((a) => a.id === e.angleId);
     if (!hit) throw new Error(`no GravyBlock angle ${e.angleId}`);
-    await updateAngle(db, ACTOR, "gravyblock", (a) => a.id === e.angleId, { specId: c.specId, hook: c.hook, yt: { title: e.yt.title, description }, scenes: c.capturePlan.map((p) => p.heading), ...(hit.status === "planned" ? {} : {}) });
+    await updateAngle(db, ACTOR, "gravyblock", (a) => a.id === e.angleId, { specId: c.specId, hook: c.hook, yt: { title: e.yt.title, description }, scenes: c.capturePlan.map((p) => p.heading), ...(["blocked", "in_production"].includes(hit.status) ? { status: "planned" as const } : {}) });
     console.log(`  stored and attached to ${e.angleId}`);
   }
 }

@@ -56,3 +56,20 @@ describe("GravyBlock explainer concepts", () => {
     assert.ok(s0.includes("Reads your real website"));
   });
 });
+
+describe("the QA gates a finished explainer must clear, checked before any render", () => {
+  test("at least half of the lines are an action or a result, the closing line invites, and the end line carries the claim and the web address", async () => {
+    const { OUTCOME_WORD, INVITE_VERB } = await import("../video/concepts/standard");
+    for (const e of GRAVYBLOCK_EXPLAINERS) {
+      const c = conceptFromExplainer(e.def);
+      const spoken = c.narration.map((l) => l.spoken.replace(/{[^}]*}/g, ""));
+      const outcome = spoken.filter((s) => OUTCOME_WORD.test(s)).length;
+      assert.ok(outcome / spoken.length >= 0.5, `${c.specId}: ${outcome} of ${spoken.length} lines are an action or a result`);
+      assert.ok(INVITE_VERB.test(spoken[spoken.length - 1]), `${c.specId} closing line invites`);
+      const end = c.narration[c.narration.length - 1];
+      assert.deepEqual(end.claims, ["c-cta"]);
+      assert.ok((end.caption ?? "").toLowerCase().includes(c.ctaHost), `${c.specId} end caption names the site`);
+      assert.ok(spoken.length >= 5, `${c.specId} has enough lines`);
+    }
+  });
+});
