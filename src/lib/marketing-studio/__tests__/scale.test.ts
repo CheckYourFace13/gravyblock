@@ -184,3 +184,25 @@ describe("where a customer's video plays", () => {
     assert.ok(!m.configured && m.missing.length === 6);
   });
 });
+
+describe("game moment detection from a real session log", () => {
+  test("cuts, bursts, close calls, clears and unlocks become real moments; menus are dead time; adjacent moments become straight footage", async () => {
+    const { detectMoments, spansOf } = await import("../video/game/moments");
+    const frames = Array.from({ length: 600 }, (_, i) => ({ t: 1000 + i * 0.02, f: `f${i}.jpg` })); // 12 s of 50 fps footage
+    const log = [
+      { t: 1002, tag: "start", txt: "START DAILY CHALLENGE" },
+      { t: 1003, tag: "level1-board", txt: "LEVEL 1 0% / 60%" },
+      { t: 1004, tag: "L1cut1", txt: "LEVEL 1 30% / 60% NICE CUT" },
+      { t: 1005, tag: "L1cut2", txt: "LEVEL 1 56% / 60%" },
+      { t: 1007, tag: "L1-clear", txt: "LEVEL 1 CLEAR ★ ★ ★ +3 ZAPS TENNIS BALL UNLOCKED" },
+    ];
+    const m = detectMoments(frames, log);
+    const kinds = new Set(m.map((x) => x.kind));
+    for (const k of ["menu", "stage_transition", "input", "animation", "score", "close_call", "win", "unlock", "reward"] as const) assert.ok(kinds.has(k), `missing ${k}`);
+    assert.ok(m.every((x) => x.source === "real_capture" && x.endMs > x.startMs));
+    const live = m.filter((x) => x.kind !== "menu");
+    const spans = spansOf(live, 500);
+    assert.ok(spans.length <= 2, "touching moments become continuous footage");
+    assert.deepEqual(detectMoments([], log), []);
+  });
+});
