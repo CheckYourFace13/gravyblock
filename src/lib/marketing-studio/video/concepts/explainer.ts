@@ -75,7 +75,7 @@ export function conceptFromExplainer(d: ExplainerDef): Concept {
     narration.push({ id: `L${n}3`, sceneId: sid, spoken: `{b${n}}${sc.nodes[2].say}`, claims: [ids[2]] });
     headlines[sid] = sc.heading;
     onScreen.push({ sceneId: sid, kind: "headline", text: sc.heading, claim: ids[0] });
-    sceneMeta[sid] = { plate, purpose: `Shows step by step how ${d.productName} works: ${sc.nodes.map((x) => x.step.toLowerCase()).join(", ")}`, motion: ["steps light up in order", "slow push-in on the active step"], note: "An animated workflow built only from verified Product Truth; nothing here is a screen of the product." };
+    sceneMeta[sid] = { plate, purpose: `Shows step by step how ${d.productName} works: ${sc.nodes.map((x) => x.step.toLowerCase()).join(", ")}`, motion: ["steps light up in order", "slow push-in on the active step", "camera drifts continuously across the flow"], note: "An animated workflow built only from verified Product Truth; nothing here is a screen of the product." };
     capturePlan.push({
       id: plate,
       path: sc.nodes[0].path ?? "/",
