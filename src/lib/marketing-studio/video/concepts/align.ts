@@ -13,6 +13,7 @@ import { SCREEN_SCALE, TRANSITION_MS, WIN, type Manifest, type Timeline } from "
 import { EMPTY_STATE, personalityFor } from "./standard";
 import type { Concept } from "./types";
 import { contentTokens } from "./validate";
+import { expandAbbreviations } from "../../revisions/text";
 
 export type VisualCheck = { id: string; ok: boolean; severity: "fail" | "warn"; detail: string };
 
@@ -54,7 +55,8 @@ export async function visualChecks(i: { concept: Concept; manifest: Manifest; li
   const out: VisualCheck[] = [];
   const nameTokens = new Set(contentTokens(`${c.productName} ${c.ctaHost.replace(/\./g, " ")}`));
   const visibleOf = (plate: string, state: string) => manifest.plates[plate]?.states[state]?.visible ?? "";
-  const tokensIn = (text: string) => new Set(contentTokens(text));
+  // a weekday button reading "Tue" is the same word as the voice saying "Tuesday"
+  const tokensIn = (text: string) => new Set(contentTokens(expandAbbreviations(text)));
   const markers = markerTimes(c, lt);
   const problems: string[] = [];
   let checked = 0;
