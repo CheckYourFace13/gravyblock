@@ -477,7 +477,8 @@ export function resultProblems(c: Concept, plan: EditPlan, cx: ApplyContext, cha
     const line = stepLine(c, pi, k);
     const st = c.capturePlan[pi].clicks[k];
     if (!line) continue;
-    const shared = contentTokens(stripMarkers(line.spoken)).filter((w) => contentTokens(`${st.kind === "scroll" ? "" : st.name} ${st.payoff}`).includes(w));
+    const tapText = `${st.kind === "scroll" ? "" : `${st.name} ${expandAbbreviations(st.name)} ${st.display ?? ""}`} ${st.payoff}`;
+    const shared = contentTokens(stripMarkers(line.spoken)).filter((w) => contentTokens(tapText).includes(w));
     if (!shared.length) out.push(`the line for tap ${pi * 2 + k + 1} ("${stripMarkers(line.spoken).slice(0, 60)}") is not about that tap`);
   }
   if (c.narration.length < 5) out.push(`only ${c.narration.length} spoken lines are left (a video needs at least 5)`);
