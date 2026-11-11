@@ -294,11 +294,11 @@ export function timing(narration: Concept["narration"], p: Personality, extraMs 
   let t = 0.15;
   const starts: number[] = [];
   narration.forEach((l, i) => {
-    if (i > 0) t += (l.sceneId === narration[i - 1].sceneId ? p.gaps.same : l.sceneId === "end" ? p.gaps.endLead : p.gaps.scene) / 1000 + extraMs / 1000;
+    if (i > 0) t += (l.sceneId === narration[i - 1].sceneId ? p.gaps.same : l.sceneId === "end" ? p.gaps.endLead : p.gaps.scene) / 1000;
     starts.push(t);
     t += secs[i];
   });
-  const total = t + 1.5;
+  const total = t + 1.5 + extraMs / 1000;
   // the first tap lands as the hook ends; each pause mark in the hook (a question mark, a comma) adds about a sixth of a second to what the word count says
   const hookEnd = starts[0] + secs[0] + (0.15 * (narration[0].spoken.match(/[?.!,;:]/g) ?? []).length) / p.pace;
   return { estSeconds: Math.round(total * 10) / 10, estFirstTapMs: Math.round((hookEnd - 0.12) * 1000) };

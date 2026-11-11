@@ -221,9 +221,9 @@ function settle(c: Concept) {
   c.hook = hookText;
   c.gapExtraMs = undefined;
   Object.assign(c, timing(c.narration, personalityFor(c.slug)));
-  // a revision that came out under the 20s minimum gets a little more air between lines instead of being refused
+  // a revision that came out under the 20s minimum holds the closing frame a little longer instead of being refused
   if (c.estSeconds < 23 && c.estSeconds >= 15 && c.narration.length > 1) {
-    c.gapExtraMs = Math.min(900, Math.ceil(((23 - c.estSeconds) * 1000) / (c.narration.length - 1)));
+    c.gapExtraMs = Math.min(4500, Math.ceil((23 - c.estSeconds) * 1000));
     Object.assign(c, timing(c.narration, personalityFor(c.slug), c.gapExtraMs));
   }
 }

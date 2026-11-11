@@ -350,7 +350,7 @@ describe("change requests V2: text and structure edits (pure)", () => {
     const r = ok(applyPlan(c, plan([{ op: "remove_line", line: "L6" }]), ctxFor(c)));
     if (r.concept.gapExtraMs) {
       assert.ok(r.concept.estSeconds >= 22.5, `padded to ${r.concept.estSeconds}`);
-      assert.ok(r.concept.gapExtraMs <= 900);
+      assert.ok(r.concept.gapExtraMs <= 4500);
     } else assert.ok(r.concept.estSeconds >= 23 || r.concept.estSeconds < 15);
     const plain = { ...r.concept, gapExtraMs: undefined };
     assert.ok(timelineOf(r.concept).built.timeline.durationMs >= timelineOf(plain).built.timeline.durationMs, "the render timeline uses the extra gap");

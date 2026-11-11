@@ -37,7 +37,6 @@ export function layoutConcept(c: Concept) {
     let t = 150;
     c.narration.forEach((l, i) => {
       if (i > 0) t += l.sceneId === c.narration[i - 1].sceneId ? p.gaps.same : l.sceneId === "end" ? p.gaps.endLead : p.gaps.scene;
-      if (i > 0) t += c.gapExtraMs ?? 0;
       const d = durMs[l.id];
       if (!d) throw new Error(`no audio duration for line ${l.id}`);
       out[l.id] = { start: t, end: t + d, durMs: d };
@@ -70,7 +69,7 @@ export function buildConceptTimeline(c: Concept) {
       win[id] = { s: i === 0 ? 0 : win[order[i - 1]].e - TRANSITION_MS, e: lastEnd(id) + (i === order.length - 1 ? 1300 : 600) };
     });
     const endStart = win[order[order.length - 1]].e - TRANSITION_MS;
-    const durationMs = lt[lastLine.id].end + 1500;
+    const durationMs = lt[lastLine.id].end + 1500 + (c.gapExtraMs ?? 0);
     const scenes: StageScene[] = [];
 
     c.capturePlan.forEach((pl: PlatePlan, i) => {
