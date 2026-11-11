@@ -40,13 +40,14 @@ export type PageDiscovery = {
 };
 
 /** One real, read-only thing a viewer sees done on the live product. `payoff` is the page text that supports what the copy says about it. */
-export type Step =
+export type Step = (
   | { kind: "click"; control: number; name: string; payoff: string }
   | { kind: "link"; index: number; name: string; href: string; payoff: string }
   | { kind: "search"; input: number; name: string; term: string; payoff: string }
   | { kind: "scroll"; name: string; payoff: string }
   /** typing a demonstration value into a field of a live calculator, or choosing an option; the result updates in place */
-  | { kind: "fill"; field: number; name: string; value: string; select?: boolean; payoff: string };
+  | { kind: "fill"; field: number; name: string; value: string; select?: boolean; payoff: string }
+) & { /** what the focus label says when it must differ from the page's own control name (for example a spelled-out weekday) */ display?: string };
 export type ClickStep = Step;
 export type PlatePlan = {
   id: string;
@@ -109,6 +110,8 @@ export type Concept = {
   gate?: { ok: boolean; checks: DesirabilityCheck[] };
   /** set for a PRODUCT EXPLAINER / WORKFLOW VISUALIZATION: the steps shown as animated cards instead of live clicks (see explainer.ts) */
   explainer?: { scenes: Array<{ heading: string; nodes: [{ step: string; line: string; say: string; path?: string; fact: string }, { step: string; line: string; say: string; path?: string; fact: string }, { step: string; line: string; say: string; path?: string; fact: string }] }> };
+  /** owner edit: a larger value zooms the camera closer in every scene, a smaller one wider (0 = the personality default) */
+  zoomBias?: number;
   /** present when the copy was written by the language-model step (and passed the deterministic gates and the fact-checker) */
   ai?: { model: string; copy: Record<string, unknown> };
 };

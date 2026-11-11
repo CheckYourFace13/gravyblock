@@ -87,20 +87,22 @@ export async function sendTestReviewEmail(db: StudioDb, fetchFn: typeof fetch = 
 
 /** Runs inside the app: tells the owner a change request is blocked or has run out of retries. Says what was asked, why it stopped, and that nothing was published. */
 export async function sendNoticeEmail(db: StudioDb, publicationId: string, fetchFn: typeof fetch = fetch): Promise<{ sent: boolean; reason?: string }> {
-  const [r, job] = [await getReview(db, publicationId), await getSetting<{ status?: string; detail?: string; note?: string } | null>(jobKey(publicationId), null, db)];
+  const [r, job] = [await getReview(db, publicationId), await getSetting<{ status?: string; detail?: string; note?: string; options?: string[] } | null>(jobKey(publicationId), null, db)];
   if (!r || !job || job.status !== "needs_attention") return { sent: false, reason: "no change request needs attention" };
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { sent: false, reason: "mail is not configured on the app" };
   const to = await reviewRecipient(db, r.productId);
   if (!to) return { sent: false, reason: "no verified review email for this product yet" };
   const subject = `Needs attention: ${r.productName} change request`;
+  const options = job.options ?? [];
   const body = [
-    `Your change request for the ${r.productName} video could not be applied automatically.`,
+    `We could not finish your change request for the ${r.productName} video without one decision from you.`,
     "",
     `What you asked: ${job.note ?? ""}`,
-    `Why it stopped: ${job.detail ?? "unknown"}`,
+    `The one open question: ${job.detail ?? "unknown"}`,
+    ...(options.length ? ["", 'Simple options (answer with Request Changes in your latest review email, for example "option 1"):', ...options.map((o, i) => `  ${i + 1}. ${o}`)] : []),
     "",
-    "The video you reviewed is still unlisted and nothing was published. Use Request Changes in your latest review email with a clearer or narrower note, or ask for a developer edit.",
+    "The video you reviewed is still unlisted and nothing was published.",
     "",
     `Watch (unlisted): ${r.watchUrl}`,
   ].join("\n");

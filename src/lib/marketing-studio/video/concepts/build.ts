@@ -13,7 +13,7 @@ import { personalityFor } from "./standard";
 import type { Concept, PlatePlan, Step } from "./types";
 
 /** What the focus label says for a step: the control, or the field with the demonstration value typed into it. */
-const stepLabel = (s: Step) => (s.kind === "fill" ? `${s.name.replace(/[:?]+$/, "")}: ${s.value}` : s.name);
+const stepLabel = (s: Step) => (s.kind === "fill" ? `${s.name.replace(/[:?]+$/, "")}: ${s.value}` : s.display ?? s.name);
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 const clean = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -93,12 +93,12 @@ export function buildConceptTimeline(c: Concept) {
         { t: E - 300, x: center(rc.cB)[0], y: center(rc.cB)[1], hide: true },
       ]);
       const camera: CameraKey[] = ascending([
-        { t: 0, cx: 195, cy: center(rc.head)[1] + 90, zoom: p.zoom.rest },
-        { t: tA - 450, cx: 195, cy: center(rc.cA)[1], zoom: p.zoom.rest },
-        { t: tA + 500, cx: 195, cy: center(rc.boxA)[1], zoom: p.zoom.tap },
-        { t: tB - 350, cx: 195, cy: center(rc.cB)[1], zoom: p.zoom.rest + 0.02 },
-        { t: tB + 500, cx: 195, cy: center(rc.boxB)[1], zoom: p.zoom.tap },
-        { t: E, cx: 195, cy: center(rc.boxB)[1] + 30, zoom: p.zoom.tap + 0.02 },
+        { t: 0, cx: 195, cy: center(rc.head)[1] + 90, zoom: p.zoom.rest + (c.zoomBias ?? 0) },
+        { t: tA - 450, cx: 195, cy: center(rc.cA)[1], zoom: p.zoom.rest + (c.zoomBias ?? 0) },
+        { t: tA + 500, cx: 195, cy: center(rc.boxA)[1], zoom: p.zoom.tap + (c.zoomBias ?? 0) },
+        { t: tB - 350, cx: 195, cy: center(rc.cB)[1], zoom: p.zoom.rest + 0.02 + (c.zoomBias ?? 0) },
+        { t: tB + 500, cx: 195, cy: center(rc.boxB)[1], zoom: p.zoom.tap + (c.zoomBias ?? 0) },
+        { t: E, cx: 195, cy: center(rc.boxB)[1] + 30, zoom: p.zoom.tap + 0.02 + (c.zoomBias ?? 0) },
       ], 220);
       const spots: SpotKey[] = [
         { from: Math.max(0, tA - 150), to: Math.max(tA + 700, tA - 100), rect: rc.cA, ...(pl.clicks[0].kind === "scroll" ? {} : { label: stepLabel(pl.clicks[0]) }) },

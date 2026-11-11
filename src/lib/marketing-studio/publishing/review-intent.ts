@@ -47,7 +47,7 @@ function splitCamel(w: string): string {
   return w.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
 }
 
-function pronunciation(sentence: string, ctx: IntentContext): Fail | Intent {
+export function pronunciation(sentence: string, ctx: IntentContext): Fail | Intent {
   const text = ctx.narration.map((l) => `${l.spoken} ${l.caption ?? ""}`).join(" ");
   const hay = letters(text);
   const words = sentence.match(/[A-Za-z][A-Za-z']*/g) ?? [];
@@ -81,7 +81,7 @@ function pronunciation(sentence: string, ctx: IntentContext): Fail | Intent {
   return { type: "lexicon", key, written: best.raw, spoken };
 }
 
-function paceFactor(sentence: string): Intent | Fail {
+export function paceFactor(sentence: string): Intent | Fail {
   const s = sentence.toLowerCase();
   if (/\b(scene|part|section|sentence|line|beginning|start|end(ing)?|middle|first|second|third|last)\b/.test(s)) {
     return { ok: false, kind: "unsupported", reason: "The pace can only be changed for the whole voiceover. A single scene or sentence cannot be re-timed automatically yet." };
@@ -96,7 +96,7 @@ function paceFactor(sentence: string): Intent | Fail {
   return { type: "pace", factor, label: `${slow ? "slower" : "faster"} voice (${Math.round(Math.abs(factor - 1) * 100)}%)` };
 }
 
-function ctaText(sentence: string, ctx: IntentContext): Intent | Fail {
+export function ctaText(sentence: string, ctx: IntentContext): Intent | Fail {
   const m = /\b(?:say|read|be|to|says|reads)\s+(.{2,80})$/i.exec(sentence.replace(/[.!?]+$/, ""));
   const asked = m?.[1]?.trim().replace(/^["“'‘]+|["”'’]+$/g, "").trim();
   if (!asked) return { ok: false, kind: "ambiguous", reason: "The request is about the call to action but does not say what it should read." };
@@ -108,7 +108,7 @@ function ctaText(sentence: string, ctx: IntentContext): Intent | Fail {
   return { type: "cta_text", text: hit };
 }
 
-function ctaUrl(sentence: string, ctx: IntentContext): Intent | Fail {
+export function ctaUrl(sentence: string, ctx: IntentContext): Intent | Fail {
   const url = /https?:\/\/[^\s"'<>)]+/i.exec(sentence)?.[0]?.replace(/[.,;]+$/, "");
   if (!url) return { ok: false, kind: "ambiguous", reason: "The request asks for a different page but does not give its address, so the right page cannot be chosen safely." };
   let host = "";

@@ -5,6 +5,7 @@ import { DEMO_SPECS } from "../demo/specs";
 import type { Attempt } from "./generate";
 import { specFromConcept } from "./build";
 import type { Concept } from "./types";
+import { applyScriptEdits, scriptEditsKey, type ScriptEdits } from "../../revisions/handwritten";
 
 export const conceptKey = (specId: string) => `video_concept_${specId.replace(/[^a-z0-9]+/gi, "_")}`;
 export const discoveryKey = (slug: string) => `video_discovery_${slug}`;
@@ -26,7 +27,11 @@ export type StoredConcept = {
 /** Makes a generated spec available. A hand-written spec is never replaced. */
 export async function ensureSpec(db: StudioDb, specId: string): Promise<void> {
   const cur = DEMO_SPECS[specId];
-  if (cur && !cur.concept) return;
+  if (cur && !cur.concept) {
+    // a hand-written script keeps its own timeline; the owner's accepted text edits are layered over it every time it loads
+    applyScriptEdits(cur, await getSetting<ScriptEdits | null>(scriptEditsKey(specId), null, db));
+    return;
+  }
   const stored = await getSetting<StoredConcept | null>(conceptKey(specId), null, db);
   if (!stored?.concept || stored.status !== "ready") {
     if (cur) return;

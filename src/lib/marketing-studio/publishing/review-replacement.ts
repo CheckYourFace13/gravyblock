@@ -32,6 +32,8 @@ export type ReplacementJob = {
   detail?: string;
   /** what was understood from the note and will change */
   understood?: string[];
+  /** when the engine needs one decision from the owner: the simple options offered */
+  options?: string[];
   newPublicationId?: string;
   newVideoId?: string;
 };

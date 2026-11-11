@@ -13,6 +13,7 @@ import { updateAngle } from "../library-store";
 import { getSetting, setSetting } from "../runtime";
 import type { OwnerScope } from "../scope";
 import type { DemoRecord } from "../video/demo/types";
+import type { NoteHints } from "../revisions/types";
 import { collectForPublication } from "../measurement/collect";
 import type { Deps } from "./adapters";
 import { evaluateHealth, usable } from "./connections";
@@ -63,6 +64,8 @@ export type ReviewState = {
   publicAt?: string;
   approvalNote?: string;
   changesNote?: string;
+  /** the optional quick controls the owner ticked on the Request Changes page (they help interpret the note; the note decides) */
+  changesHints?: NoteHints;
   changesRequestedAt?: string;
   supersededBy?: string;
 };
@@ -279,13 +282,13 @@ export async function approveReview(scope: OwnerScope, actor: string, publicatio
 }
 
 /** Owner asks for changes: the video stays UNLISTED and nothing is deleted. The replacement is made, uploaded and mailed as a new version that supersedes this one. */
-export async function requestChanges(actor: string, publicationId: string, note: string, db: StudioDb): Promise<ReviewState> {
+export async function requestChanges(actor: string, publicationId: string, note: string, db: StudioDb, hints?: NoteHints): Promise<ReviewState> {
   const r = await getReview(db, publicationId);
   if (!r) throw new Error("No review found for that video");
   if (r.status === "approved_public") throw new Error("This video is already public; request changes by making a new version.");
-  const clean = note.trim().slice(0, 1000);
+  const clean = note.trim().slice(0, 2000);
   if (!clean) throw new Error("Say what should change, so the replacement can be made.");
-  const state: ReviewState = { ...r, status: "changes_requested", changesNote: clean, changesRequestedAt: new Date().toISOString(), events: [...(r.events ?? []), { at: new Date().toISOString(), event: "CHANGES_REQUESTED" as const, detail: clean.slice(0, 200) }] };
+  const state: ReviewState = { ...r, status: "changes_requested", changesNote: clean, ...(hints && (hints.kinds.length || hints.where || hints.at) ? { changesHints: hints } : {}), changesRequestedAt: new Date().toISOString(), events: [...(r.events ?? []), { at: new Date().toISOString(), event: "CHANGES_REQUESTED" as const, detail: clean.slice(0, 200) }] };
   await setSetting(reviewKey(publicationId), state, actor, db, { audited: false });
   await audit(db, { actor, action: "video_review.changes_requested", entity: "publication", entityId: publicationId, productId: r.productId, detail: { note: clean } });
   return state;

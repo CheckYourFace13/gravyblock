@@ -6,15 +6,16 @@
 import { isPaused } from "./video-policy";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { ms, type StudioDb } from "../db";
-import { listFacts, listProducts } from "../repository";
+import { listProducts } from "../repository";
 import { getSetting } from "../runtime";
 import { INTERNAL_SCOPE } from "../scope";
 import { createDemoVideo } from "../video/demo/queue";
-import { applyOverridesToSpec, effectiveSpecHash, getOverrides, saveOverrides } from "../video/demo/overrides";
+import { effectiveSpecHash } from "../video/demo/overrides";
 import { renderDemoVideoJob } from "../video/demo/run";
 import { demoSpecFor } from "../video/demo/specs";
-import { ensureSpec } from "../video/concepts/registry";
-import { interpretChange, mergeOverrides } from "./review-intent";
+import { conceptKey, ensureSpec, type StoredConcept } from "../video/concepts/registry";
+import { copyFor, prepareRevision, scrubDescription } from "../revisions/run";
+import { markRevision, revisionFor } from "../revisions/history";
 import { requestOwnerNotice } from "./review-notify";
 import { jobKey, patchJob, runReplacementJob, type ReplacementDeps, type ReplacementJob } from "./review-replacement";
 import { prepareReview } from "./review-dispatch";
@@ -37,26 +38,26 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
   const slug = product.slug;
   const specId = review.specId ?? slug;
 
-  // 1. understand the note, once. A request that cannot be applied safely is blocked here and the owner is told why.
+  // 1. understand the note, once (change-request engine V2): plan, validate, rebuild the script from its source. A timing change is normal and never a reason to stop.
   let cur = job;
   if (!cur.understood) {
     await ensureSpec(db, specId);
-    const spec = demoSpecFor(specId);
-    const facts = (await listFacts(INTERNAL_SCOPE, product.id, db)).filter((f) => f.status === "current" && f.verifiedAt).map((f) => ({ key: f.factKey, value: f.factValue }));
-    const productHost = product.publicUrl ? new URL(product.publicUrl).host.replace(/^www\./, "") : "";
-    const current = await getOverrides(db, product.id);
-    const eff = applyOverridesToSpec(spec, current);
-    const it = interpretChange(cur.note, { narration: spec.narration, ctaText: eff.cta.text, ctaUrl: eff.cta.url, productHost, facts, current });
-    if (!it.ok) {
-      log(`change request blocked (${it.kind}): ${it.reason}`);
-      await trackEvent(db, "review-worker", cur.id, "FAILED", `${it.kind}: ${it.reason}`);
-      cur = await patchJob(db, cur, { status: "needs_attention", detail: `${it.kind}: ${it.reason}` });
+    const prep = await prepareRevision(db, { productId: product.id, slug, productName: product.name, origin: demoSpecFor(specId).site.origin, specId, supersedes: cur.id, note: cur.note, hints: review.changesHints });
+    if (!prep.ok && prep.kind === "retry") {
+      if (input.attempt < input.maxAttempts) throw new Error(prep.reason);
+      cur = await patchJob(db, cur, { status: "needs_attention", detail: prep.reason });
       await requestOwnerNotice(cur.id).catch(() => undefined);
       return { status: "needs_attention", detail: cur.detail };
     }
-    await saveOverrides(db, "review-worker", product.id, mergeOverrides(current, it.intents, cur.note));
-    cur = await patchJob(db, cur, { understood: it.summary });
-    log(`understood: ${it.summary.join("; ")}`);
+    if (!prep.ok) {
+      log(`change request needs the owner: ${prep.reason}`);
+      await trackEvent(db, "review-worker", cur.id, "FAILED", `needs a decision: ${prep.reason}`);
+      cur = await patchJob(db, cur, { status: "needs_attention", detail: prep.reason, options: prep.options });
+      await requestOwnerNotice(cur.id).catch(() => undefined);
+      return { status: "needs_attention", detail: cur.detail };
+    }
+    cur = await patchJob(db, cur, { understood: prep.understood });
+    log(`understood: ${prep.understood.join("; ")}`);
   }
 
   // 2. render, QA, upload unlisted, supersede, email
@@ -87,8 +88,12 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
       const embeds = await getSetting<EmbedEntry[]>(embedKey(prev.productId), [], db);
       const placement = embeds.find((e) => e.publicationId === prev.publicationId)?.recommendedPlacement;
       // the same copy as the version being replaced, with its tracked link turned back into the plain destination (a new publication gets its own tracking id)
-      const description = prev.description.split(prev.ctaUrl).join(prev.ctaUrl.split("?")[0]);
-      const out = await prepareReview(db, { slug, specId, videoRowId, title: prev.title, description, intended: prev.intendedUse, placement, upload: true, log });
+      // a generated script is described from its revised script; a hand-written one keeps its copy with the removed wording scrubbed out
+      const revised = (await getSetting<StoredConcept | null>(conceptKey(specId), null, db))?.concept;
+      const kept = prev.description.split(prev.ctaUrl).join(prev.ctaUrl.split("?")[0]);
+      const plan = (await revisionFor(db, specId, prev.publicationId))?.plan;
+      const copy = revised ? copyFor(revised, prev.title) : { title: prev.title, description: plan ? scrubDescription(kept, plan) : kept };
+      const out = await prepareReview(db, { slug, specId, videoRowId, title: copy.title, description: copy.description, intended: prev.intendedUse, placement, upload: true, log });
       if (!out.ok || !out.publicationId || !out.videoId) throw new Error(out.blocked ?? "the upload did not complete");
       return { publicationId: out.publicationId, videoId: out.videoId, emailed: Boolean(out.emailed) };
     },
@@ -99,5 +104,6 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
     return { status: "needs_attention", detail: outcome.job.detail };
   }
   if (outcome.retry) throw new Error(outcome.job.detail ?? "replacement failed; retrying");
+  if (outcome.job.status === "done") await markRevision(db, specId, outcome.job.id, { status: "sent", resultVideoId: outcome.job.newVideoId, supersededBy: outcome.job.newPublicationId, detail: outcome.job.detail }).catch(() => undefined);
   return { status: outcome.job.status, detail: outcome.job.detail, understood: outcome.job.understood };
 }

@@ -52,7 +52,7 @@ export default async function VideoReviewPage({ params, searchParams }: { params
           <form action={requestVideoChangesAction} className={`space-y-2 rounded-xl border p-3 ${action === "changes" ? "border-zinc-700" : "border-zinc-200"}`}>
             <input type="hidden" name="publicationId" value={id} />
             <p className="font-semibold">Request changes</p>
-            <textarea name="note" required rows={3} placeholder="What should change?" className="w-full rounded-lg border border-zinc-300 px-2 py-1 text-xs" />
+            <textarea name="note" required rows={3} placeholder="What would you like changed?" className="w-full rounded-lg border border-zinc-300 px-2 py-1 text-xs" />
             <button className="rounded-full bg-zinc-800 px-4 py-1.5 text-xs font-semibold text-white">Request changes</button>
           </form>
         </div>
