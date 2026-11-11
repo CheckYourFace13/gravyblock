@@ -202,6 +202,9 @@ async function capturePlate(page: Page, c: Concept, pl: PlatePlan, outDir: strin
       let fresh = now.filter((l) => !prev.has(l)).map(clean);
       // the controls themselves showed nothing new: the result is elsewhere on the page (a counts line, a list, a map caption)
       if (!fresh.length) fresh = [...nowAll].filter((l) => !prevAll.has(l)).slice(0, 6);
+      // a line that is plainly on the page after the tap counts even when it was already listed before it (the page is the source of truth, not the order the taps were probed in)
+      const onPage = [...nowAll].find((l) => has([l], st.payoff));
+      if (!has([fresh.join(" | ")], st.payoff) && onPage) fresh = [...fresh, onPage];
       const result = fresh.join(" | ");
       prev = new Set(now);
       prevAll = nowAll;

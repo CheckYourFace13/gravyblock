@@ -473,6 +473,10 @@ export function resultProblems(c: Concept, plan: EditPlan, cx: ApplyContext, cha
     const key = norm(o.phrase);
     if (key.split(" ").length >= 2 && c.narration.some((l) => norm(stripMarkers(l.spoken)).includes(key))) out.push(`"${o.phrase}" is still said after it was removed`);
   }
+  for (const pi of new Set(stepsChanged.map(([p]) => p))) {
+    const [s1, s2] = c.capturePlan[pi].clicks;
+    if (s1.kind === "click" && s2.kind === "click" && s1.control === s2.control) out.push(`both taps of ${c.capturePlan[pi].id} would be "${s1.name}"; pick two different taps`);
+  }
   for (const [pi, k] of stepsChanged) {
     const line = stepLine(c, pi, k);
     const st = c.capturePlan[pi].clicks[k];
