@@ -11,13 +11,13 @@ import { setSetting } from "../runtime";
 import { mergeOverrides, emptyOverrides } from "../publishing/review-intent";
 import { runReplacementJob, queueReplacement, type ReplacementDeps } from "../publishing/review-replacement";
 import { requestChanges, getReview, recordUnlistedReview } from "../publishing/video-review";
-import { applyPlan, snapshotOf, type ApplyContext } from "../revisions/apply";
+import { applyPlan, ensureMarkers, snapshotOf, type ApplyContext } from "../revisions/apply";
 import { candidatesFor } from "../revisions/candidates";
 import { listRevisions } from "../revisions/history";
 import { interpretNote, modelInput, rulesPlan, type PlanView, type Planner } from "../revisions/plan";
 import { fetchPageText, flagForCorrection, flagsKey, listFlags, recheckProductTruth } from "../revisions/recheck";
 import { copyFor, prepareRevision, scrubDescription } from "../revisions/run";
-import { abbreviationsIn, expandAbbreviations, removePhrase } from "../revisions/text";
+import { abbreviationsIn, expandAbbreviations, markersIn, placeMarker, removePhrase, withoutMarker } from "../revisions/text";
 import { hintsFromForm } from "../publishing/review-flow";
 import { connectAccount } from "../publishing/connections";
 import { YT_SCOPE_MANAGE, YT_SCOPE_READ, YT_SCOPE_UPLOAD } from "../publishing/youtube-api";
@@ -343,6 +343,27 @@ describe("change requests V2: text and structure edits (pure)", () => {
     const c = marina(3);
     const r = ok(applyPlan(c, plan([{ op: "remove_text", line: "L8", phrase: "so you know where to skip" }]), ctxFor(c)));
     assert.ok(c.estSeconds > 0 && r.concept.estSeconds < c.estSeconds, `${r.concept.estSeconds} should be shorter than ${c.estSeconds}`);
+  });
+
+  test("a revision that comes out too short gets air between lines instead of failing the length gate", () => {
+    const c = marina(3);
+    const r = ok(applyPlan(c, plan([{ op: "remove_line", line: "L6" }]), ctxFor(c)));
+    if (r.concept.gapExtraMs) {
+      assert.ok(r.concept.estSeconds >= 22.5, `padded to ${r.concept.estSeconds}`);
+      assert.ok(r.concept.gapExtraMs <= 900);
+    } else assert.ok(r.concept.estSeconds >= 23 || r.concept.estSeconds < 15);
+    const plain = { ...r.concept, gapExtraMs: undefined };
+    assert.ok(timelineOf(r.concept).built.timeline.durationMs >= timelineOf(plain).built.timeline.durationMs, "the render timeline uses the extra gap");
+  });
+
+  test("a tap marker that ended up on a line about something else is moved onto the line that says what the tap shows", () => {
+    const c = marina(3);
+    const owner = c.narration.find((l) => l.claims.includes("c-pay1b"))!;
+    owner.spoken = withoutMarker(owner.spoken, "b1");
+    c.narration[0].spoken = placeMarker(c.narration[0].spoken, "b1", "start");
+    assert.deepEqual(ensureMarkers(c), []);
+    assert.ok(markersIn(owner.spoken).includes("b1"));
+    assert.ok(!markersIn(c.narration[0].spoken).includes("b1"));
   });
 
   test("a hand-written script (SendFable) is edited line by line over its own timeline, and the edit is stored as the difference from the original", () => {

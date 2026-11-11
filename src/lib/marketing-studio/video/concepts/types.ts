@@ -112,6 +112,8 @@ export type Concept = {
   explainer?: { scenes: Array<{ heading: string; nodes: [{ step: string; line: string; say: string; path?: string; fact: string }, { step: string; line: string; say: string; path?: string; fact: string }, { step: string; line: string; say: string; path?: string; fact: string }] }> };
   /** owner edit: a larger value zooms the camera closer in every scene, a smaller one wider (0 = the personality default) */
   zoomBias?: number;
+  /** owner edit: extra pause (ms) added to every gap between lines when a revision came out shorter than the 20s minimum */
+  gapExtraMs?: number;
   /** present when the copy was written by the language-model step (and passed the deterministic gates and the fact-checker) */
   ai?: { model: string; copy: Record<string, unknown> };
 };

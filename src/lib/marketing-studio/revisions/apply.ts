@@ -130,6 +130,18 @@ export function ensureMarkers(c: Concept): string[] {
       if (+k[1] > n || seen.has(m)) l.spoken = withoutMarker(l.spoken, m);
       else seen.add(m);
     }
+  // a tap marker belongs on the line that says what that tap shows: if it ended up elsewhere (a merged or removed line), take it off and let it be placed again below
+  for (let i = 1; i <= n; i++)
+    for (const k of [0, 1] as const) {
+      const m = `${k === 0 ? "a" : "b"}${i}`;
+      const owner = stepLine(c, i - 1, k);
+      if (!owner || markersIn(owner.spoken).includes(m)) continue;
+      for (const l of c.narration) if (l !== owner && markersIn(l.spoken).includes(m)) l.spoken = withoutMarker(l.spoken, m);
+      const tap = c.capturePlan[i - 1]?.clicks[k];
+      const named = k === 1 && tap && tap.kind !== "scroll" ? placeMarkerBefore(owner.spoken, m, tap.display ?? tap.name) : null;
+      owner.spoken = named ?? placeMarker(owner.spoken, m, k === 0 ? "start" : { fromEnd: Math.min(1, Math.max(0, parseSpoken(owner.spoken).words.length - 3)) });
+      seen.add(m);
+    }
   for (let i = 1; i <= n; i++) {
     const lines = c.narration.filter((l) => l.sceneId === `a${i}`);
     if (!lines.length) {
@@ -206,7 +218,13 @@ function settle(c: Concept) {
     c.headlines.a1 = hookText;
   }
   c.hook = hookText;
+  c.gapExtraMs = undefined;
   Object.assign(c, timing(c.narration, personalityFor(c.slug)));
+  // a revision that came out under the 20s minimum gets a little more air between lines instead of being refused
+  if (c.estSeconds < 23 && c.estSeconds >= 15 && c.narration.length > 1) {
+    c.gapExtraMs = Math.min(900, Math.ceil(((23 - c.estSeconds) * 1000) / (c.narration.length - 1)));
+    Object.assign(c, timing(c.narration, personalityFor(c.slug), c.gapExtraMs));
+  }
 }
 
 // ---- the text operations (shared with hand-written scripts) -----------------------------------------------------------------------------
@@ -486,7 +504,7 @@ export function resultProblems(c: Concept, plan: EditPlan, cx: ApplyContext, cha
     if (!shared.length) out.push(`the line for tap ${pi * 2 + k + 1} ("${stripMarkers(line.spoken).slice(0, 60)}") is not about that tap`);
   }
   if (c.narration.length < 5) out.push(`only ${c.narration.length} spoken lines are left (a video needs at least 5)`);
-  if (c.estSeconds < 18) out.push(`the video would run about ${c.estSeconds}s, which is too short (it needs 20 to 35s): reword or replace instead of removing`);
+  if (c.estSeconds < 15) out.push(`the video would run about ${c.estSeconds}s, which is too short (it needs 20 to 35s): reword or replace instead of removing`);
   if (c.estSeconds > 36) out.push(`the video would run about ${c.estSeconds}s, which is too long (it needs 20 to 35s)`);
   return [...new Set(out)];
 }
