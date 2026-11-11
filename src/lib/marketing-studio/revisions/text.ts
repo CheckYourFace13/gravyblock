@@ -156,3 +156,18 @@ export function autoLine(name: string, payoff: string): string {
   const shown = lowerFirst(payoff.replace(/^showing\s+/i, "").replace(/[.!?]+$/, ""));
   return `Tap ${name}, and the page shows ${shown}.`;
 }
+
+/** Puts a marker in front of the first word of `phrase` where it occurs in the line (case and punctuation ignored). Returns null when the phrase is not in the line or sits at its very start. */
+export function placeMarkerBefore(spoken: string, marker: string, phrase: string): string | null {
+  const t = tokens(withoutMarker(spoken, marker));
+  const clean = (w: string) => w.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const want = phrase.split(/\s+/).map(clean).filter(Boolean);
+  if (!want.length) return null;
+  for (let i = 1; i + want.length <= t.length; i++) {
+    if (want.every((w, k) => clean(t[i + k].word) === w)) {
+      t[i].markers.push(marker);
+      return serialize(t);
+    }
+  }
+  return null;
+}

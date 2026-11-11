@@ -58,7 +58,9 @@ export async function recheckProductTruth(db: StudioDb, input: { productId: stri
     const url = new URL(u.path || "/", input.origin).toString();
     if (!cache.has(url)) cache.set(url, await fetchText(url));
     const page = cache.get(url);
-    entries.push({ claimId: u.id, quote: u.quote, path: u.path, onLivePage: page == null ? null : norm(page).includes(norm(u.quote)), action: stillQuoted(u.quote) ? "kept" : "removed" });
+    // text that only appears after a tap cannot be seen in the page as first loaded: the capture checks it live, tap by tap
+    const afterTap = /^c-pay/.test(u.id) && input.before.capturePlan.some((p) => p.clicks.some((k) => k.kind === "click" && k.payoff === u.quote));
+    entries.push({ claimId: u.id, quote: u.quote, path: u.path, onLivePage: page == null || afterTap ? null : norm(page).includes(norm(u.quote)), action: stillQuoted(u.quote) ? "kept" : "removed" });
   }
   const flagged: RecheckResult["flagged"] = [];
   if (ownerConcern) {
@@ -68,7 +70,7 @@ export async function recheckProductTruth(db: StudioDb, input: { productId: stri
   }
   const note = !used.length
     ? "No claim of the video was affected."
-    : `${used.length} claim${used.length === 1 ? "" : "s"} re-checked against the live page: ${entries.map((e) => `"${e.quote.slice(0, 60)}" ${e.onLivePage === null ? "could not be fetched" : e.onLivePage ? "is still on the page" : "is no longer on the page"}, ${e.action === "removed" ? "removed from the video" : "kept"}`).join("; ")}.${ownerConcern ? ` The owner doubted it, so it stays out and is flagged for source correction.` : ""}`;
+    : `${used.length} claim${used.length === 1 ? "" : "s"} re-checked against the live page: ${entries.map((e) => `"${e.quote.slice(0, 60)}" ${e.onLivePage === null ? "is shown after a tap, so the capture verifies it live" : e.onLivePage ? "is still on the page" : "is no longer on the page"}, ${e.action === "removed" ? "removed from the video" : "kept"}`).join("; ")}.${ownerConcern ? ` The owner doubted it, so it stays out and is flagged for source correction.` : ""}`;
   return { ownerConcern, entries, flagged, note };
 }
 

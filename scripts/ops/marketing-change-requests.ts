@@ -32,7 +32,7 @@ async function main() {
     await ensureSpec(db, specId);
     const out = await prepareRevision(db, { productId: product.id, slug: product.slug, productName: product.name, origin: demoSpecFor(specId).site.origin, specId, supersedes: r.publicationId, note: r.changesNote ?? "", hints: r.changesHints }, { dry: true });
     if (!out.ok) {
-      console.log(JSON.stringify({ result: out.kind, reason: out.reason, options: "options" in out ? out.options : undefined }, null, 1));
+      console.log(JSON.stringify({ result: out.kind, reason: out.reason, options: "options" in out ? out.options : undefined, plan: "revision" in out ? out.revision?.plan : undefined }, null, 1));
       return;
     }
     const rev = out.revision;

@@ -369,6 +369,18 @@ describe("change requests V2: text and structure edits (pure)", () => {
     assert.equal(planHandwritten(spec, { summary: ["x"], ops: [{ op: "remove_scene", scene: "a1" }] }).ok, false, "whole scenes need a generated script the engine can rebuild");
   });
 
+  test("listing the options once: the second tap lands on the word that names it, its claim stays with the scene's spoken line, and a qualifier is never dropped", () => {
+    const c = marina(2);
+    const merged = ok(applyPlan(c, plan([{ op: "rewrite_line", line: "L2", spoken: "Tap Fuel, then Pump-out, and the list narrows to marinas with each one confirmed." }, { op: "remove_line", line: "L3" }]), ctxFor(c)));
+    const l2 = merged.concept.narration.find((l) => l.id === "L2")!;
+    assert.match(l2.spoken, /^\{a1\}Tap Fuel, then \{b1\}Pump-out/, "the first tap at the start, the second on the word Pump-out");
+    assert.ok(l2.claims.includes("c-pay1b"), "the claim of the removed line moved to the remaining line of its scene");
+    assert.ok(merged.concept.claims.some((x) => x.id === "c-pay1b"));
+    const dropped = applyPlan(c, plan([{ op: "rewrite_line", line: "L2", spoken: "Tap Fuel and the list narrows to marinas with fuel." }, { op: "rewrite_line", line: "L3", spoken: "Try Pump-out next, and marinas with pump-out show up." }, { op: "rewrite_line", line: "L4", spoken: "Pick Transient dockage, and marinas with transient dockage appear." }, { op: "rewrite_line", line: "L5", spoken: "Tap Boat launch ramp, and marinas with a launch ramp appear." }]), ctxFor(c));
+    assert.equal(dropped.ok, false, "removing every 'confirmed' weakens what the page says");
+    assert.match(dropped.ok ? "" : dropped.reason, /confirmed/);
+  });
+
   test("quick controls help classification and never restrict the note", () => {
     assert.deepEqual(hintsFromForm(["remove", "bogus", "remove", "shorter"], "middle", "second scene"), { kinds: ["remove", "shorter"], where: "middle", at: "second scene" });
     assert.equal(hintsFromForm([], "", ""), undefined, "no controls ticked is fine");
@@ -440,7 +452,9 @@ describe("change requests V2: Product Truth recheck and the whole loop (database
     assert.equal(asked, "https://boatingchicago.com/marinas", "the live page is fetched");
     assert.equal(re.ownerConcern, true);
     const inland = re.entries.find((e) => /inland/.test(e.quote))!;
-    assert.deepEqual([inland.onLivePage, inland.action], [true, "removed"], "still on the page, but removed because the owner doubted it");
+    assert.deepEqual([inland.onLivePage, inland.action], [null, "removed"], "that line only appears after a tap, so the capture verifies it live; it is removed because the owner doubted it");
+    const ctxEntry = re.entries.find((e) => e.claimId === "c-ctx3");
+    assert.equal(ctxEntry?.onLivePage, true, "a heading on the page as first loaded is checked against the fetched page");
     assert.ok(re.flagged.length >= 1);
     assert.ok((await flagForCorrection(db(), productId, re, "note")) >= 1);
     assert.ok((await listFlags(db(), productId)).some((f) => /inland/.test(f.phrase) && f.status === "flagged"));

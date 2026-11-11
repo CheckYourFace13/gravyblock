@@ -12,7 +12,7 @@ import { aiGrounding, contentTokens, scriptProblems } from "../video/concepts/va
 import type { Concept, Step } from "../video/concepts/types";
 import type { Intent } from "../publishing/review-intent";
 import type { StepCandidate } from "./candidates";
-import { autoLine, carryMarkers, expandAbbreviations, abbreviationsIn, markersIn, MONTHS, placeMarker, removePhrase, stripMarkers, WEEKDAYS, withoutMarker } from "./text";
+import { autoLine, carryMarkers, expandAbbreviations, abbreviationsIn, markersIn, MONTHS, placeMarker, placeMarkerBefore, removePhrase, stripMarkers, WEEKDAYS, withoutMarker } from "./text";
 import type { EditOp, EditPlan, ScriptSnapshot } from "./types";
 
 export type ApplyContext = {
@@ -139,7 +139,12 @@ export function ensureMarkers(c: Concept): string[] {
     const first = i === 1 ? lines.find((l) => l !== c.narration[0]) ?? c.narration[0] : lines[0];
     const second = lines[lines.indexOf(first) + 1] ?? first;
     if (!seen.has(`a${i}`)) first.spoken = placeMarker(first.spoken, `a${i}`, "start");
-    if (!seen.has(`b${i}`)) second.spoken = second === first ? placeMarker(second.spoken, `b${i}`, { fromEnd: Math.min(1, Math.max(0, parseSpoken(second.spoken).words.length - 3)) }) : placeMarker(second.spoken, `b${i}`, "start");
+    if (!seen.has(`b${i}`)) {
+      const tap = c.capturePlan[i - 1]?.clicks[1];
+      // two taps in one line: the second lands on the word that names it
+      const named = second === first && tap && tap.kind !== "scroll" ? placeMarkerBefore(second.spoken, `b${i}`, tap.display ?? tap.name) : null;
+      second.spoken = named ?? (second === first ? placeMarker(second.spoken, `b${i}`, { fromEnd: Math.min(1, Math.max(0, parseSpoken(second.spoken).words.length - 3)) }) : placeMarker(second.spoken, `b${i}`, "start"));
+    }
     seen.add(`a${i}`);
     seen.add(`b${i}`);
   }
@@ -349,6 +354,9 @@ export function applyPlan(source: Concept, plan: EditPlan, cx: ApplyContext): Ap
       if (i === 0 || i === c.narration.length - 1) return fail("invalid", "the opening and closing lines cannot be removed; reword them instead");
       const l = c.narration[i];
       if (c.narration.filter((x) => x.sceneId === l.sceneId).length < 2) return fail("invalid", `${op.line} is the only line of its scene; remove the scene instead`);
+      // what the removed line was tied to stays tied to a spoken line of its scene
+      const near = c.narration.slice(0, i).reverse().find((x) => x.sceneId === l.sceneId) ?? c.narration.slice(i + 1).find((x) => x.sceneId === l.sceneId);
+      if (near) near.claims = [...new Set([...near.claims, ...l.claims])];
       c.narration.splice(i, 1);
       affected.add(l.sceneId);
       changes.push(`removed line ${l.id}: "${stripMarkers(l.spoken)}"`);
@@ -447,6 +455,13 @@ export function resultProblems(c: Concept, plan: EditPlan, cx: ApplyContext, cha
     out.push(...aiGrounding({ ...c, narration: [{ id: "x", sceneId: "x", spoken: "x", claims: [] }, { id: l.id, sceneId: l.sceneId, spoken: fresh.join(" "), claims: l.claims }] } as Concept, vocab, cx.factText));
   }
   out.push(...scriptProblems(changedLines, c.onScreen.map((o) => o.text), cx.prohibited));
+  // a qualifier the page itself uses (confirmed, verified, official) is part of what the claim says: it may be said once instead of four times, never dropped
+  if (source) {
+    const said = (x: Concept) => x.narration.map((l) => `${stripMarkers(l.spoken)} ${l.caption ?? ""}`).join(" ").toLowerCase();
+    const wasSaid = said(source);
+    const nowSaid = said(c);
+    for (const q of ["confirmed", "verified", "official"]) if (wasSaid.includes(q) && !nowSaid.includes(q) && !plan.ops.some((o) => o.op === "remove_text" && o.phrase.toLowerCase().includes(q))) out.push(`"${q}" is a qualifier the page uses, so it must still be said at least once`);
+  }
   for (const f of cx.flagged) {
     const key = norm(f);
     if (!key) continue;

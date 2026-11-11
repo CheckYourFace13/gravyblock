@@ -152,8 +152,10 @@ Rules:
 - Change only what the note asks. Keep every other line exactly. Timing is rebuilt automatically, so removing or rewording is always fine.
 - New wording may use ONLY words that appear in LINES, TAPS, CANDIDATES or FACTS (plus spelled-out weekdays and months). Never add a number, price, promise, comparison or claim that is not in them. Never write {markers}.
 - Spoken lines are short (at most 22 words), natural to say aloud, and each tap line must name what that tap does or what the page then shows. The video stays 20 to 35 seconds with at least 5 lines: if removing would make it too short, replace a tap or reword instead.
+- Never weaken a claim: words the page itself uses to qualify a result (confirmed, verified, official) stay in the video at least once.
+- To show a different place or example, use replace_step with a candidate whose id starts with that plate and tap (for example p1.2. for tap 2 of p1), then rewrite_line for the line of that tap using words of the new result.
 - A line with claims c-payNa or c-payNb belongs to tap 1 or 2 of scene aN, and the video SHOWS that tap. To remove or change what it shows, use remove_step or replace_step (pick a CANDIDATES id for a different place, example or result), then rewrite_line for that line using words from the new result.
-- Repetition: when several lines repeat the same phrase, merge or reword them (rewrite_line on each, or consolidate) so each option is listed once; keep every real tap's line.
+- Repetition: when several lines repeat the same phrase, say the options once: one line per scene that names both of its taps in order, then remove the now-redundant line of that scene (for example "Tap Fuel, then Pump-out, and the list narrows to marinas with each one confirmed.", then remove_line the second line of the scene). Keep every tap named in order.
 - If the owner says something looks wrong or is an error, put the claim's verbatim words in factual.phrases and remove it.
 - Praise (like "I like this") is not an edit: set sentiment, no op. Do not put it in unresolved.
 - Use needsOwner only if the request is contradictory or impossible to do safely, and give two or three simple options. Otherwise make your best safe interpretation.
@@ -216,7 +218,7 @@ export function modelInput(i: PlanInput): string {
     seconds: v.estSeconds,
     LINES: v.lines.map((l) => ({ id: l.id, scene: l.scene, text: l.text, ...(l.caption ? { caption: l.caption } : {}), claims: l.claims })),
     TAPS: v.taps,
-    CANDIDATES: v.candidates.slice(0, 24).map((c) => ({ id: c.id, shows: c.label })),
+    CANDIDATES: v.candidates.slice(0, 24).map((c) => ({ id: c.id, forTap: `${c.plate} tap ${c.step}`, shows: c.label })),
     FACTS: v.facts.slice(0, 30),
     mustNotClaim: v.prohibited.slice(0, 12),
     earlierFeedback: v.earlier.slice(-4),
