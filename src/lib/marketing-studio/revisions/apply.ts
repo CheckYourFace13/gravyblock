@@ -138,8 +138,9 @@ export function ensureMarkers(c: Concept): string[] {
       if (!owner || markersIn(owner.spoken).includes(m)) continue;
       for (const l of c.narration) if (l !== owner && markersIn(l.spoken).includes(m)) l.spoken = withoutMarker(l.spoken, m);
       const tap = c.capturePlan[i - 1]?.clicks[k];
-      const named = k === 1 && tap && tap.kind !== "scroll" ? placeMarkerBefore(owner.spoken, m, tap.display ?? tap.name) : null;
-      owner.spoken = named ?? placeMarker(owner.spoken, m, k === 0 ? "start" : { fromEnd: Math.min(1, Math.max(0, parseSpoken(owner.spoken).words.length - 3)) });
+      const sameLine = k === 1 && stepLine(c, i - 1, 0) === owner;
+      const named = sameLine && tap && tap.kind !== "scroll" ? placeMarkerBefore(owner.spoken, m, expandAbbreviations(tap.display ?? tap.name)) ?? placeMarkerBefore(owner.spoken, m, tap.display ?? tap.name) : null;
+      owner.spoken = named ?? placeMarker(owner.spoken, m, k === 0 || !sameLine ? "start" : { fromEnd: Math.min(1, Math.max(0, parseSpoken(owner.spoken).words.length - 3)) });
       seen.add(m);
     }
   for (let i = 1; i <= n; i++) {

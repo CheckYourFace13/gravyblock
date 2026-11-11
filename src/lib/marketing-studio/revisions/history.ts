@@ -34,3 +34,14 @@ export async function markRevision(db: StudioDb, specId: string, supersedes: str
 export async function earlierFeedback(db: StudioDb, specId: string, exceptSupersedes?: string): Promise<Array<{ note: string; summary: string[] }>> {
   return (await listRevisions(db, specId)).filter((r) => r.supersedes !== exceptSupersedes && r.status !== "failed").map((r) => ({ note: r.note, summary: r.plan.summary }));
 }
+
+/** Puts the script back to what it was before a revision changed it and marks that revision failed, so the next attempt plans the same note again from the source. Returns false when no source was kept. */
+export async function resetRevision(db: StudioDb, specId: string, supersedes: string, conceptKeyOf: (specId: string) => string): Promise<boolean> {
+  const cur = await revisionFor(db, specId, supersedes);
+  if (!cur?.sourceConcept) return false;
+  const stored = await getSetting<Record<string, unknown> | null>(conceptKeyOf(specId), null, db);
+  if (!stored) return false;
+  await setSetting(conceptKeyOf(specId), { ...stored, concept: cur.sourceConcept, note: "restored to the pre-revision script" }, ACTOR, db, { audited: false });
+  await saveRevision(db, specId, { ...cur, status: "failed", detail: "reset to be planned again from the source" });
+  return true;
+}

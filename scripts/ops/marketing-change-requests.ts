@@ -9,8 +9,10 @@ import { getSetting } from "../../src/lib/marketing-studio/runtime";
 import { jobKey, queueReplacement, requeueReplacement, type ReplacementJob } from "../../src/lib/marketing-studio/publishing/review-replacement";
 import { getReview, listReviews } from "../../src/lib/marketing-studio/publishing/video-review";
 import { prepareRevision } from "../../src/lib/marketing-studio/revisions/run";
+import { resetRevision } from "../../src/lib/marketing-studio/revisions/history";
+import { conceptKey } from "../../src/lib/marketing-studio/video/concepts/registry";
+import { DEMO_SPECS, demoSpecFor } from "../../src/lib/marketing-studio/video/demo/specs";
 import { ensureSpec } from "../../src/lib/marketing-studio/video/concepts/registry";
-import { demoSpecFor } from "../../src/lib/marketing-studio/video/demo/specs";
 import { spendNow } from "../../src/lib/marketing-studio/video/concepts/ai-budget";
 
 async function main() {
@@ -41,6 +43,18 @@ async function main() {
     for (const l of rev.after.lines) console.log(`${was.get(l.id) === l.spoken ? "  " : "~ "}${l.id} ${l.scene}: ${l.spoken}${was.get(l.id) === l.spoken ? "" : `\n    was: ${was.get(l.id) ?? "(new)"}`}`);
     for (const id of rev.before.lines.map((l) => l.id).filter((id) => !rev.after.lines.some((l) => l.id === id))) console.log(`- ${id} removed: ${was.get(id)}`);
     console.log("steps after:", rev.after.steps.join(" | "));
+    return;
+  }
+  if (cmd === "redo" && arg) {
+    const r = await getReview(db, arg);
+    if (!r) throw new Error("no such review");
+    const specId = r.specId ?? (await listProducts(INTERNAL_SCOPE, db)).find((p) => p.id === r.productId)!.slug;
+    const ok = await resetRevision(db, specId, r.publicationId, conceptKey);
+    if (ok) {
+      delete DEMO_SPECS[specId];
+      await ensureSpec(db, specId);
+    }
+    console.log(ok ? "script restored to its pre-revision source; use queue to plan it again" : "no source was kept for this revision (it predates source saving)");
     return;
   }
   if (cmd === "queue" && arg) {

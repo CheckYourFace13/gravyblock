@@ -163,6 +163,6 @@ export async function prepareRevision(db: StudioDb, input: PrepareInput, deps: P
   if (ok.intents.length) await saveOverrides(db, ACTOR, input.productId, mergeOverrides(await getOverrides(db, input.productId), ok.intents, input.note));
 
   const after: ScriptSnapshot = ok.concept ? snapshotOf(ok.concept) : { ...before, lines: demoSpecFor(input.specId).narration.map((l) => ({ id: l.id, scene: l.sceneId, spoken: stripMarkers(l.spoken), ...(l.caption ? { caption: l.caption } : {}) })) };
-  const revision = await saveRevision(db, input.specId, { ...base, aiMicros: micros, plan, ...(recheck ? { recheck } : {}), before, after, scenesAffected: ok.affected, status: "applied", detail: ok.changes.join("; ") });
+  const revision = await saveRevision(db, input.specId, { ...base, aiMicros: micros, plan, ...(recheck ? { recheck } : {}), before, after, scenesAffected: ok.affected, status: "applied", detail: ok.changes.join("; "), ...(concept ? { sourceConcept: concept } : {}) });
   return { ok: true, revision, understood: [...(plan.summary.length ? plan.summary : ok.changes), ...(recheck?.note && recheck.entries.length ? [recheck.note] : [])], concept: ok.concept ?? null };
 }
