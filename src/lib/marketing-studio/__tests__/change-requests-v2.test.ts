@@ -16,7 +16,7 @@ import { candidatesFor } from "../revisions/candidates";
 import { listRevisions } from "../revisions/history";
 import { interpretNote, modelInput, rulesPlan, type PlanView, type Planner } from "../revisions/plan";
 import { fetchPageText, flagForCorrection, flagsKey, listFlags, recheckProductTruth } from "../revisions/recheck";
-import { copyFor, prepareRevision, scrubDescription } from "../revisions/run";
+import { copyFor, prepareRevision, scrubDescription, swapFlaggedTaps } from "../revisions/run";
 import { abbreviationsIn, expandAbbreviations, markersIn, placeMarker, removePhrase, withoutMarker } from "../revisions/text";
 import { hintsFromForm } from "../publishing/review-flow";
 import { connectAccount } from "../publishing/connections";
@@ -720,6 +720,26 @@ describe("autonomous revision loop: failure handling and source rebuild (pure)",
     assert.ok(!/confirmed transient dockage/.test(stripMarkers(c.narration.find((l) => l.id === "L4")!.spoken)));
     assert.ok(markersIn(c.narration.find((l) => l.id === "L4")!.spoken).includes("a2"), "the tap marker survives the cut");
     assert.ok(c.estSeconds > 0 && Math.abs(c.estSeconds - before) < 6);
+  });
+
+  test("a tap that still shows wording reported as wrong is swapped by the engine for a real alternative, with the stale line rewrite dropped", () => {
+    const stepOf = (control: number, name: string, payoff: string) => ({ kind: "click" as const, control, name, payoff });
+    const view = {
+      taps: [
+        { plate: "p1", step: 1 as const, scene: "a1", name: "Wed", shows: "Map: 87 in view", line: "L2" },
+        { plate: "p1", step: 2 as const, scene: "a1", name: "Thu", shows: "Open Mic Night at DALEEE KTAOS", line: "L3" },
+      ],
+      candidates: [
+        { id: "p1.2.4.1", plate: "p1", step: 2 as const, sameControl: true, def: stepOf(4, "Thu", "x"), label: "same tap, the page shows: Open Mic Night at DALEEE KTAOS" },
+        { id: "p1.2.5.0", plate: "p1", step: 2 as const, sameControl: false, def: stepOf(5, "Fri", "Third Coast Comedy Club"), label: 'tap "Fri", the page shows: Third Coast Comedy Club' },
+      ],
+    } as unknown as PlanView;
+    const bad = plan([{ op: "replace_step", plate: "p1", step: 1, candidate: "p1.1.2.1" }, { op: "rewrite_line", line: "L3", spoken: "Pick Thursday and land on Open Mic Night at DALEEE KTAOS." }]);
+    const fixed = swapFlaggedTaps(bad, '"Open Mic Night at DALEEE KTAOS" is reported as wrong but is still in the video', view)!;
+    assert.ok(fixed, "a fix is found");
+    assert.deepEqual(fixed.ops.filter((o) => o.op === "replace_step").map((o) => (o as { candidate: string }).candidate), ["p1.1.2.1", "p1.2.5.0"]);
+    assert.ok(!fixed.ops.some((o) => o.op === "rewrite_line"), "the old line rewrite is dropped so the line is rebuilt from the new result");
+    assert.equal(swapFlaggedTaps(bad, '"Something else" is reported as wrong but is still in the video', view), null, "nothing to swap when no tap shows it");
   });
 
   test("a script is rebuilt from the approved video's own record, not from a half-edited stored copy", () => {

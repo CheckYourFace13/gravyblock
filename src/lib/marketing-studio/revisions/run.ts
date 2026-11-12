@@ -67,6 +67,32 @@ export function scrubDescription(description: string, plan: EditPlan): string {
     .join(NL);
 }
 
+/**
+ * A plan that leaves a tap showing wording the owner reported as wrong cannot pass. Instead of asking the model to try again, replace that tap with the first real alternative the page
+ * offers for it (one that does not repeat the other tap's control or the flagged wording) and drop the line rewrites for it, so its line is rebuilt from what the new result shows.
+ */
+export function swapFlaggedTaps(plan: EditPlan, reason: string, view: PlanView): EditPlan | null {
+  const phrases = [...reason.matchAll(/"([^"]+)" is reported as wrong but is still in the video/g)].map((m) => norm(m[1]));
+  if (!phrases.length) return null;
+  const ops = [...plan.ops];
+  let changed = false;
+  for (const p of phrases) {
+    const tap = view.taps.find((t) => norm(t.shows).includes(p) && !ops.some((o) => o.op === "replace_step" && o.plate === t.plate && o.step === t.step));
+    if (!tap) continue;
+    const other = ops.find((o) => o.op === "replace_step" && o.plate === tap.plate && o.step !== tap.step);
+    const otherControl = other && other.op === "replace_step" ? other.candidate.split(".")[2] : undefined;
+    const pick = view.candidates.find((c) => c.plate === tap.plate && c.step === tap.step && !c.sameControl && !phrases.some((q) => norm(c.label).includes(q)) && c.id.split(".")[2] !== otherControl);
+    if (!pick) continue;
+    for (let i = ops.length - 1; i >= 0; i--) {
+      const o = ops[i];
+      if ((o.op === "rewrite_line" && o.line === tap.line) || (o.op === "replace_step" && o.plate === tap.plate && o.step === tap.step)) ops.splice(i, 1);
+    }
+    ops.push({ op: "replace_step", plate: tap.plate, step: tap.step, candidate: pick.id });
+    changed = true;
+  }
+  return changed ? { ...plan, ops } : null;
+}
+
 export async function prepareRevision(db: StudioDb, input: PrepareInput, deps: PrepareDeps = {}): Promise<Prepared> {
   const now = deps.now ?? (() => new Date());
   await ensureSpec(db, input.specId);
@@ -129,6 +155,17 @@ export async function prepareRevision(db: StudioDb, input: PrepareInput, deps: P
     return { ok: true, concept: null, changes: h.changes, affected: [], intents, edits: h.edits };
   };
   let result = run(plan);
+  if (!result.ok) {
+    // a tap that still shows wording reported as wrong is swapped for a real alternative by the engine itself, before the model is asked again
+    const fixed = swapFlaggedTaps(plan, result.reason, view);
+    if (fixed) {
+      const retry = run(fixed);
+      if (retry.ok) {
+        plan = fixed;
+        result = retry;
+      }
+    }
+  }
   if (!result.ok) {
     // the model gets the exact problems once
     try {
