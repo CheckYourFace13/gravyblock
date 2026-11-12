@@ -42,7 +42,7 @@ function viewOf(spec: DemoSpec, concept: Concept | null, i: { origin: string; pr
   const lines = (concept?.narration ?? spec.narration).map((l) => ({ id: l.id, scene: l.sceneId, text: stripMarkers(l.spoken), ...(l.caption ? { caption: l.caption } : {}), claims: l.claims }));
   const taps: PlanView["taps"] = [];
   concept?.capturePlan.forEach((pl, pi) =>
-    pl.clicks.forEach((k, ki) => taps.push({ plate: pl.id, step: (ki + 1) as 1 | 2, scene: `a${pi + 1}`, name: k.kind === "scroll" ? "scroll down" : k.display ?? k.name, shows: k.payoff, line: (concept.narration.find((l) => l.claims.includes(`c-pay${pi + 1}${ki === 0 ? "a" : "b"}`)) ?? { id: undefined }).id })),
+    pl.clicks.forEach((k, ki) => taps.push({ plate: pl.id, step: (ki + 1) as 1 | 2, scene: `a${pi + 1}`, name: k.kind === "scroll" ? "scroll down" : k.display ?? k.name, ...(k.kind === "click" ? { control: k.control } : {}), shows: k.payoff, line: (concept.narration.find((l) => l.claims.includes(`c-pay${pi + 1}${ki === 0 ? "a" : "b"}`)) ?? { id: undefined }).id })),
   );
   return { product: i.productName, productHost: new URL(i.origin).host.replace(/^www\./, ""), cta: { text: spec.cta.text, url: spec.cta.url }, lines, taps, candidates: i.candidates, facts: i.facts, prohibited: i.prohibited, earlier: i.earlier, estSeconds: concept?.estSeconds ?? 0, structure: concept ? "generated" : "hand_written", voiceFacts: i.voiceFacts };
 }
@@ -88,6 +88,36 @@ export function swapFlaggedTaps(plan: EditPlan, reason: string, view: PlanView):
       if ((o.op === "rewrite_line" && o.line === tap.line) || (o.op === "replace_step" && o.plate === tap.plate && o.step === tap.step)) ops.splice(i, 1);
     }
     ops.push({ op: "replace_step", plate: tap.plate, step: tap.step, candidate: pick.id });
+    changed = true;
+  }
+  return changed ? { ...plan, ops } : null;
+}
+
+/**
+ * A plan that would make both taps of a scene the same control cannot pass. The engine keeps the first replacement and gives the other tap a real alternative on a different control,
+ * dropping that tap's old line rewrite so its line is rebuilt from what the new result shows.
+ */
+export function swapDuplicateTaps(plan: EditPlan, reason: string, view: PlanView): EditPlan | null {
+  const plates = [...reason.matchAll(/both taps of (p\d+) would be/g)].map((m) => m[1]);
+  if (!plates.length) return null;
+  const ops = [...plan.ops];
+  let changed = false;
+  for (const plate of plates) {
+    const replaced = ops.filter((o): o is Extract<EditPlan["ops"][number], { op: "replace_step" }> => o.op === "replace_step" && o.plate === plate);
+    if (!replaced.length) continue;
+    // the later replaced tap is the one to change; the other tap's control is whatever it ends up using
+    const change = [...replaced].sort((a, b) => b.step - a.step)[0];
+    const otherStep = change.step === 1 ? 2 : 1;
+    const otherOp = replaced.find((o) => o.step === otherStep);
+    const otherControl = otherOp ? Number(otherOp.candidate.split(".")[2]) : view.taps.find((t) => t.plate === plate && t.step === otherStep)?.control;
+    const pick = view.candidates.find((c) => c.plate === plate && c.step === change.step && Number(c.id.split(".")[2]) !== otherControl && c.id !== change.candidate);
+    if (!pick) continue;
+    const line = view.taps.find((t) => t.plate === plate && t.step === change.step)?.line;
+    for (let i = ops.length - 1; i >= 0; i--) {
+      const o = ops[i];
+      if ((o.op === "rewrite_line" && o.line === line) || o === change) ops.splice(i, 1);
+    }
+    ops.push({ op: "replace_step", plate, step: change.step, candidate: pick.id });
     changed = true;
   }
   return changed ? { ...plan, ops } : null;
@@ -157,7 +187,7 @@ export async function prepareRevision(db: StudioDb, input: PrepareInput, deps: P
   let result = run(plan);
   if (!result.ok) {
     // a tap that still shows wording reported as wrong is swapped for a real alternative by the engine itself, before the model is asked again
-    const fixed = swapFlaggedTaps(plan, result.reason, view);
+    const fixed = swapFlaggedTaps(plan, result.reason, view) ?? swapDuplicateTaps(plan, result.reason, view);
     if (fixed) {
       const retry = run(fixed);
       if (retry.ok) {

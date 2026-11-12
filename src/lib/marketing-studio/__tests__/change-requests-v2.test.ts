@@ -16,7 +16,7 @@ import { candidatesFor } from "../revisions/candidates";
 import { listRevisions } from "../revisions/history";
 import { interpretNote, modelInput, rulesPlan, type PlanView, type Planner } from "../revisions/plan";
 import { fetchPageText, flagForCorrection, flagsKey, listFlags, recheckProductTruth } from "../revisions/recheck";
-import { copyFor, prepareRevision, scrubDescription, swapFlaggedTaps } from "../revisions/run";
+import { copyFor, prepareRevision, scrubDescription, swapDuplicateTaps, swapFlaggedTaps } from "../revisions/run";
 import { abbreviationsIn, expandAbbreviations, markersIn, placeMarker, removePhrase, withoutMarker } from "../revisions/text";
 import { hintsFromForm } from "../publishing/review-flow";
 import { connectAccount } from "../publishing/connections";
@@ -753,6 +753,25 @@ describe("autonomous revision loop: failure handling and source rebuild (pure)",
     assert.deepEqual(fixed.ops.filter((o) => o.op === "replace_step").map((o) => (o as { candidate: string }).candidate), ["p1.1.2.1", "p1.2.5.0"]);
     assert.ok(!fixed.ops.some((o) => o.op === "rewrite_line"), "the old line rewrite is dropped so the line is rebuilt from the new result");
     assert.equal(swapFlaggedTaps(bad, '"Something else" is reported as wrong but is still in the video', view), null, "nothing to swap when no tap shows it");
+  });
+
+  test("a plan that would make both taps the same control is repaired by the engine with a different control for the second tap", () => {
+    const stepOf = (control: number, name: string, payoff: string) => ({ kind: "click" as const, control, name, payoff });
+    const view = {
+      taps: [
+        { plate: "p1", step: 1 as const, scene: "a1", name: "Wed", shows: "x", line: "L2", control: 3 },
+        { plate: "p1", step: 2 as const, scene: "a1", name: "Thu", shows: "y", line: "L3", control: 4 },
+      ],
+      candidates: [
+        { id: "p1.1.2.1", plate: "p1", step: 1 as const, sameControl: false, def: stepOf(2, "Tue", "Texas Union Building (UNB)"), label: "a" },
+        { id: "p1.2.2.2", plate: "p1", step: 2 as const, sameControl: false, def: stepOf(2, "Tue", "Open mic: Tuesday"), label: "b" },
+        { id: "p1.2.5.0", plate: "p1", step: 2 as const, sameControl: false, def: stepOf(5, "Fri", "Third Coast Comedy Club"), label: "c" },
+      ],
+    } as unknown as PlanView;
+    const bad = plan([{ op: "replace_step", plate: "p1", step: 1, candidate: "p1.1.2.1" }, { op: "replace_step", plate: "p1", step: 2, candidate: "p1.2.2.2" }, { op: "rewrite_line", line: "L3", spoken: "Pick Tuesday and land on Texas Union Building." }]);
+    const fixed = swapDuplicateTaps(bad, 'both taps of p1 would be "Tue"; pick two different taps', view)!;
+    assert.deepEqual(fixed.ops.filter((o) => o.op === "replace_step").map((o) => (o as { candidate: string }).candidate), ["p1.1.2.1", "p1.2.5.0"]);
+    assert.ok(!fixed.ops.some((o) => o.op === "rewrite_line"));
   });
 
   test("a scroll step's internal name is never a quote of a claim: QA checks quotes against the live page", () => {

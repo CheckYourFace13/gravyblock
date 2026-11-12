@@ -18,7 +18,7 @@ export type PlanView = {
   cta: { text: string; url: string };
   lines: Array<{ id: string; scene: string; text: string; caption?: string; claims: string[] }>;
   /** the real taps of a generated video, with the line that talks about each */
-  taps: Array<{ plate: string; step: 1 | 2; scene: string; name: string; shows: string; line?: string }>;
+  taps: Array<{ plate: string; step: 1 | 2; scene: string; name: string; shows: string; line?: string; /** the page control this tap uses (click taps) */ control?: number }>;
   candidates: StepCandidate[];
   /** verbatim text the live product showed, which new wording may rely on */
   facts: string[];
