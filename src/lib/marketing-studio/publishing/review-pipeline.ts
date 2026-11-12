@@ -7,7 +7,7 @@ import { isPaused } from "./video-policy";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { ms, type StudioDb } from "../db";
 import { listProducts } from "../repository";
-import { getSetting, setSetting } from "../runtime";
+import { getSetting, setSetting, SoftRetry } from "../runtime";
 import { INTERNAL_SCOPE } from "../scope";
 import { createDemoVideo } from "../video/demo/queue";
 import { effectiveSpecHash } from "../video/demo/overrides";
@@ -71,7 +71,7 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
   if (!prep.ok && (prep.kind === "retry" || prep.kind === "replan")) {
     if (!final) {
       cur = await patchJob(db, cur, { detail: `planning again: ${prep.reason.slice(0, 240)}`, ...(prep.kind === "replan" ? { strategy: escalate(cur.strategy ?? NO_STRATEGY, prep.reason) } : {}) });
-      throw new Error(prep.reason);
+      throw new SoftRetry(prep.reason);
     }
     if (prep.kind === "retry") {
       cur = await internalFailure(db, cur, prep.reason, product.name, log);
@@ -145,7 +145,7 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
     await requestOwnerNotice(outcome.job.id).catch(() => undefined);
     return { status: "needs_attention", detail: outcome.job.detail };
   }
-  if (outcome.retry) throw new Error(outcome.job.detail ?? "replacement failed; retrying");
+  if (outcome.retry) throw new SoftRetry(outcome.job.detail ?? "replacement failed; rebuilding");
   if (outcome.job.status === "done") await markRevision(db, specId, outcome.job.id, { status: "sent", resultVideoId: outcome.job.newVideoId, supersededBy: outcome.job.newPublicationId, detail: outcome.job.detail }).catch(() => undefined);
   return { status: outcome.job.status, detail: outcome.job.detail, understood: outcome.job.understood };
 }

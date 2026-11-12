@@ -122,6 +122,13 @@ export type JobKind = "noop_probe" | "storage_audit" | "cleanup_tmp" | "render_c
  */
 export const JOB_PRIORITY = { remediation: 1, publication: 2, normal: 3, burst: 4 } as const;
 
+/** A job that failed because its own plan needs changing (not because something flaky was down) asks to be tried again soon instead of after the long backoff. Still bounded by maxAttempts. */
+export class SoftRetry extends Error {
+  constructor(message: string, public retryAfterMs = 20_000) {
+    super(message);
+  }
+}
+
 /** 2, 10, 45 minutes with jitter, then dead. */
 export function backoffMs(attempt: number): number {
   const base = [2, 10, 45][Math.min(Math.max(attempt, 1), 3) - 1] * 60_000;
@@ -201,7 +208,7 @@ export async function completeJob(jobId: string, output: Record<string, unknown>
 }
 
 /** Failure: retry with backoff until maxAttempts, then dead-letter. Never an immediate retry loop. */
-export async function failJob(job: Pick<Job, "id" | "attempts" | "maxAttempts">, error: string, wallMs: number, db: StudioDb = requireStudioDb()) {
+export async function failJob(job: Pick<Job, "id" | "attempts" | "maxAttempts">, error: string, wallMs: number, db: StudioDb = requireStudioDb(), retryAfterMs?: number) {
   const dead = job.attempts >= job.maxAttempts;
   await db
     .update(ms.msMediaJobs)
@@ -209,7 +216,7 @@ export async function failJob(job: Pick<Job, "id" | "attempts" | "maxAttempts">,
       status: dead ? "dead" : "queued",
       error: error.slice(0, 1000),
       wallMs,
-      runAfter: dead ? new Date() : new Date(Date.now() + backoffMs(job.attempts)),
+      runAfter: dead ? new Date() : new Date(Date.now() + (retryAfterMs ?? backoffMs(job.attempts))),
       finishedAt: dead ? new Date() : null,
       lockedBy: null,
       lockedUntil: null,

@@ -31,6 +31,7 @@ import {
   enqueue,
   evaluateGovernor,
   failJob,
+  SoftRetry,
   heartbeat,
   reapExpired,
   recordUsage,
@@ -200,7 +201,7 @@ async function loopOnce() {
       await log("job done", { id: job.id, kind: job.kind, ms: Date.now() - started });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      await failJob(job, msg, Date.now() - started, db);
+      await failJob(job, msg, Date.now() - started, db, err instanceof SoftRetry ? err.retryAfterMs : undefined);
       await log("job failed", { id: job.id, kind: job.kind, attempt: job.attempts, error: msg });
     } finally {
       clearInterval(beat);
