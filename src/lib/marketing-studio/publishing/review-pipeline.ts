@@ -19,7 +19,8 @@ import { escalate, NO_STRATEGY } from "../revisions/heal";
 import { markRevision, revisionFor } from "../revisions/history";
 import { captureSource, restoreSource } from "../revisions/source";
 import { requestOwnerNotice } from "./review-notify";
-import { jobKey, patchJob, runReplacementJob, type ReplacementDeps, type ReplacementJob } from "./review-replacement";
+import { capFreesAt } from "../library-production";
+import { AllowanceWait, enqueueReplacementAfter, jobKey, patchJob, runReplacementJob, type ReplacementDeps, type ReplacementJob } from "./review-replacement";
 import { prepareReview } from "./review-dispatch";
 import { embedKey, getReview, trackEvent, type EmbedEntry } from "./video-review";
 
@@ -125,11 +126,17 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
       const plan = (await revisionFor(db, specId, prev.publicationId))?.plan;
       const copy = revised ? copyFor(revised, prev.title) : { title: prev.title, description: plan ? scrubDescription(kept, plan) : kept };
       const out = await prepareReview(db, { slug, specId, videoRowId, title: copy.title, description: copy.description, intended: prev.intendedUse, placement, upload: true, log });
+      if (!out.ok && /daily cap/i.test(out.blocked ?? "")) throw new AllowanceWait(await capFreesAt(db, product.id));
       if (!out.ok || !out.publicationId || !out.videoId) throw new Error(out.blocked ?? "the upload did not complete");
       return { publicationId: out.publicationId, videoId: out.videoId, emailed: Boolean(out.emailed) };
     },
   };
   const outcome = await runReplacementJob(db, cur, review, deps, { final });
+  if (outcome.waitUntil) {
+    await enqueueReplacementAfter(db, outcome.job, outcome.waitUntil);
+    log(`waiting for the posting allowance until ${outcome.waitUntil.toISOString()}; the finished video is kept`);
+    return { status: "waiting", detail: outcome.job.detail };
+  }
   if (outcome.job.status === "internal_failure") {
     await raiseOpsAlert(db, outcome.job, product.name, log);
     return { status: "internal_failure", detail: outcome.job.detail };

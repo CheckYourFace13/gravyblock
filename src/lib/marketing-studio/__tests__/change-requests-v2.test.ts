@@ -9,7 +9,7 @@ import { createProduct, listFacts } from "../repository";
 import { INTERNAL_SCOPE } from "../scope";
 import { setSetting } from "../runtime";
 import { mergeOverrides, emptyOverrides } from "../publishing/review-intent";
-import { runReplacementJob, queueReplacement, type ReplacementDeps } from "../publishing/review-replacement";
+import { AllowanceWait, runReplacementJob, queueReplacement, type ReplacementDeps } from "../publishing/review-replacement";
 import { requestChanges, getReview, recordUnlistedReview } from "../publishing/video-review";
 import { applyPlan, ensureMarkers, snapshotOf, type ApplyContext } from "../revisions/apply";
 import { candidatesFor } from "../revisions/candidates";
@@ -662,6 +662,19 @@ describe("change requests V2: Product Truth recheck and the whole loop (database
     job = await (await import("../publishing/review-replacement")).requeueReplacement(db(), old.pub.id);
     out = await runReplacementJob(db(), job, old.review, depsFailing("made-for-kids declared by the owner: not set"), { final: false });
     assert.equal(out.job.status, "needs_attention", "a declaration only the owner can make is the one thing that escalates");
+  });
+
+  test("the posting allowance being used is a wait with the finished video kept, never a failure, and does not use up an attempt", async () => {
+    const old = await reviewOf("Allowance test");
+    const job = await queueReplacement(db(), "t", old.review);
+    const until = new Date(Date.now() + 3_600_000);
+    const deps: ReplacementDeps = { currentSpecHash: () => "h-new", slugFor: async () => "boatingchicago", render: async () => ({ ok: true as const, videoRowId: randomUUID() }), upload: async () => { throw new AllowanceWait(until); } };
+    const out = await runReplacementJob(db(), job, old.review, deps, { final: true });
+    assert.equal(out.job.status, "queued");
+    assert.equal(out.retry, false);
+    assert.equal(out.waitUntil?.getTime(), until.getTime());
+    assert.equal(out.job.attempts, 0, "no attempt was used");
+    assert.equal(out.job.failures, undefined, "nothing is recorded as a failure");
   });
 
   test("a legacy request whose script an older attempt already rewrote is never trusted as a source", async () => {

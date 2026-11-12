@@ -104,7 +104,19 @@ export type ReplacementDeps = {
   upload: (input: { productSlug: string; videoRowId: string; old: ReviewState; specHash: string }) => Promise<{ publicationId: string; videoId: string; emailed: boolean }>;
 };
 
-export type RunOutcome = { job: ReplacementJob; retry: boolean };
+/** Thrown by the upload step when the product's posting allowance for the last 24 hours is used: the finished video is kept and the upload is tried again when the allowance frees. Not a failure. */
+export class AllowanceWait extends Error {
+  constructor(public until: Date) {
+    super(`the posting allowance is used until ${until.toISOString()}`);
+  }
+}
+
+export type RunOutcome = { job: ReplacementJob; retry: boolean; /** set when the upload must wait for the posting allowance */ waitUntil?: Date };
+
+/** Queues the same job to run again once the allowance has room (one queue entry per wake-up time). */
+export async function enqueueReplacementAfter(db: StudioDb, job: ReplacementJob, until: Date): Promise<void> {
+  await enqueue({ kind: REPLACEMENT_JOB_KIND, weight: "heavy", priority: 1, productId: job.productId, dedupeKey: `${REPLACEMENT_JOB_KIND}:${job.id}:${job.generation}:after-${until.getTime()}`, runAfter: until, input: { publicationId: job.id }, maxAttempts: MAX_ATTEMPTS }, db);
+}
 
 /**
  * Runs the render, QA and upload for one job. `final` says no retries remain. A transient failure returns retry=true (the worker then lets the queue back off
@@ -139,6 +151,10 @@ export async function runReplacementJob(db: StudioDb, job: ReplacementJob, old: 
     await trackEvent(db, "review-worker", job.id, "REPLACEMENT_READY", up.videoId);
     return { job: await patchJob(db, cur, { status: "done", newPublicationId: up.publicationId, newVideoId: up.videoId, detail: up.emailed ? "New review email sent." : "Uploaded, but the review email could not be sent." }), retry: false };
   } catch (e) {
+    if (e instanceof AllowanceWait) {
+      const waiting = await patchJob(db, { ...cur, attempts: Math.max(0, cur.attempts - 1) }, { status: "queued", detail: `The finished video is kept; it is uploaded for review when the posting allowance frees (${e.until.toISOString()}).` });
+      return { job: waiting, retry: false, waitUntil: e.until };
+    }
     return await fail(e instanceof Error ? e.message : String(e));
   }
 }

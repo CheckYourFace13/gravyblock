@@ -47,7 +47,7 @@ async function retireUnverifiedRenders(db: StudioDb, productId: string, specId: 
 }
 
 /** When the product's 24-hour posting allowance for YouTube has room again. */
-async function capFreesAt(db: StudioDb, productId: string): Promise<Date> {
+export async function capFreesAt(db: StudioDb, productId: string): Promise<Date> {
   const cap = specFor("youtube")?.rateLimit.ourCap24h ?? 3;
   const since = new Date(Date.now() - 24 * 3_600_000);
   const rows = await db.select({ at: ms.msPublications.publishedAt }).from(ms.msPublications).where(and(eq(ms.msPublications.platform, "youtube"), eq(ms.msPublications.productId, productId), eq(ms.msPublications.status, "published"), gt(ms.msPublications.publishedAt, since))).orderBy(ms.msPublications.publishedAt);
