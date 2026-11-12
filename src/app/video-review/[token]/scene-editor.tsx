@@ -11,7 +11,7 @@ function Choice({ scene, action, disabled }: { scene: SceneView; action: SceneAc
   );
 }
 
-function SceneCard({ scene, structure }: { scene: SceneView; structure: SceneEditView["structure"] }) {
+function SceneCard({ scene }: { scene: SceneView }) {
   const editable = scene.kind === "screen" || scene.lines.length > 0;
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm" aria-label={scene.label}>
@@ -21,7 +21,7 @@ function SceneCard({ scene, structure }: { scene: SceneView; structure: SceneEdi
             // eslint-disable-next-line @next/next/no-img-element
             <img src={scene.frame} alt={`${scene.label} frame`} className="aspect-[3/4] w-24 rounded-lg border border-zinc-200 object-cover" />
           ) : (
-            <div className="flex aspect-[3/4] w-24 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-100 text-center text-xs text-zinc-500">{scene.kind === "end" ? "Closing card" : "Preview appears on newer videos"}</div>
+            <div className="flex aspect-[3/4] w-24 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-100 text-center text-xs text-zinc-500">{scene.kind === "end" ? "Closing card" : "No preview yet"}</div>
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -39,10 +39,10 @@ function SceneCard({ scene, structure }: { scene: SceneView; structure: SceneEdi
         </div>
       </div>
       {editable
-        ? scene.lines.map((l) => (
+        ? scene.lines.map((l, i) => (
             <div key={l.id} className="mt-3 space-y-2">
               <label className="block text-sm font-semibold text-zinc-700" htmlFor={`spoken_${l.id}`}>
-                What the voice says
+                What the voice says{scene.lines.length > 1 ? ` (${i + 1} of ${scene.lines.length})` : ""}
               </label>
               <textarea id={`spoken_${l.id}`} name={`spoken_${l.id}`} defaultValue={l.spoken} rows={2} maxLength={400} className="w-full rounded-xl border border-zinc-300 p-2.5 text-base" />
               {l.caption.trim().toLowerCase() !== l.spoken.trim().toLowerCase() ? (
@@ -67,7 +67,6 @@ function SceneCard({ scene, structure }: { scene: SceneView; structure: SceneEdi
             <Choice key={a} scene={scene} action={a} disabled={(a === "remove" && !scene.canRemove) || (a === "visual" && !scene.canReplaceVisual)} />
           ))}
         </div>
-        {structure === "hand_written" ? <p className="mt-2 text-xs text-zinc-500">This video was made by hand, so wording can be changed here; to replace a visual or remove a scene, describe it in the note and GravyBlock will handle it.</p> : null}
       </fieldset>
     </section>
   );
@@ -109,8 +108,9 @@ export function SceneEditor({ view, token, txn, error, productName, watchUrl, th
         </div>
       </section>
 
+      {view.structure === "hand_written" ? <p className="rounded-xl bg-zinc-100 px-3 py-2 text-xs text-zinc-600">You can change the words of any scene here. To replace a visual or remove a scene in this video, describe it in that scene's note and GravyBlock will handle it.</p> : null}
       {view.scenes.map((sc) => (
-        <SceneCard key={sc.id} scene={sc} structure={view.structure} />
+        <SceneCard key={sc.id} scene={sc} />
       ))}
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">

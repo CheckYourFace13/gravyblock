@@ -80,7 +80,12 @@ export async function buildSceneEditView(db: StudioDb, review: ReviewState): Pro
       canReplaceVisual: Boolean(concept) && s.kind === "screen",
     };
   });
-  return { publicationId: review.publicationId, title: board.title ?? review.title, durationSec: Math.round((board.durationMs ?? 0) / 100) / 10, structure: concept ? "generated" : "hand_written", ctaText: board.cta?.text ?? review.ctaText, scenes };
+  // each scene runs until the next one starts (the cross-fades between them are not shown to the customer as overlaps)
+  const total = Math.round((board.durationMs ?? 0) / 100) / 10;
+  scenes.forEach((sc, i) => {
+    sc.endSec = i + 1 < scenes.length ? scenes[i + 1].startSec : Math.max(total, sc.endSec);
+  });
+  return { publicationId: review.publicationId, title: board.title ?? review.title, durationSec: total, structure: concept ? "generated" : "hand_written", ctaText: board.cta?.text ?? review.ctaText, scenes };
 }
 
 /** What the customer changed, read from the editor form. Only real changes are kept; an untouched editor yields null. */
