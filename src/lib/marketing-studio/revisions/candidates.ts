@@ -11,6 +11,10 @@ import type { Concept, PageDiscovery, Step } from "../video/concepts/types";
 export type StepCandidate = { id: string; plate: string; step: 1 | 2; sameControl: boolean; def: Step; label: string };
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+/** a line with its numbers blanked out: two live counters with different figures have the same shape */
+const shape = (s: string) => norm(s).replace(/[0-9]+/g, "#");
+/** a live counter ("87 in view, 12 match filters, 87 on map"): its figures drift as the data changes, so it may not be on the page again when the video is captured */
+const COUNTER = (f: string) => (f.match(/[0-9]+/g) ?? []).length >= 3;
 const ZERO = /\b0 of \d+|\bno (results|matches|listings)\b|\bnone\b/i;
 
 /** The lines a probed click newly showed, one by one, as they appear on the page. */
@@ -26,7 +30,7 @@ export function candidatesFor(concept: Concept, discoveries: PageDiscovery[], fl
   const out: StepCandidate[] = [];
   const bad = flagged.map(norm).filter(Boolean);
   // what the page showed after a tap: any short, plain line of it (the voice paraphrases, so the line need not be sayable verbatim)
-  const ok = (f: string) => f.length >= 8 && f.length <= 140 && /[a-z]/.test(f) && f !== f.toUpperCase() && !/[<>{}|\\]/.test(f) && !BANNED.test(f) && !BOILERPLATE.test(f) && !EMPTY_STATE.test(f) && !ZERO.test(f) && !bad.some((b) => norm(f).includes(b) || b.includes(norm(f)));
+  const ok = (f: string) => !COUNTER(f) && !bad.some((b) => shape(f) === shape(b)) && f.length >= 8 && f.length <= 140 && /[a-z]/.test(f) && f !== f.toUpperCase() && !/[<>{}|\\]/.test(f) && !BANNED.test(f) && !BOILERPLATE.test(f) && !EMPTY_STATE.test(f) && !ZERO.test(f) && !bad.some((b) => norm(f).includes(b) || b.includes(norm(f)));
   for (const pl of concept.capturePlan) {
     const group = discoveries.find((d) => d.path === pl.path)?.groups.find((g) => g.id === pl.groupId);
     if (!group) continue;

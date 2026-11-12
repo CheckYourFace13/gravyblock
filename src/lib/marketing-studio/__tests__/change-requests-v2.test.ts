@@ -774,6 +774,19 @@ describe("autonomous revision loop: failure handling and source rebuild (pure)",
     assert.ok(!fixed.ops.some((o) => o.op === "rewrite_line"));
   });
 
+  test("live counters are never offered as a replacement result, and one that fails capture rules out every counter of its shape", () => {
+    const c = micstage();
+    const d: PageDiscovery[] = [{ path: "/map", url: "https://micstage.com/map", title: "Map", discoveredAt: "2026-11-01T00:00:00Z", ctas: [], links: [], searches: [], lines: ["Open mic map"], groups: [{ id: "/map#0", path: "/map", heading: "Open mic map", controls: [{ index: 2, name: "Tue" }, { index: 3, name: "Wed" }, { index: 4, name: "Thu" }, { index: 5, name: "Fri" }], sequence: [
+      { control: 2, newText: "Map: 87 in view · List: 7 match filters · Total: 87 on map | Texas Union Building (UNB)" },
+      { control: 5, newText: "Map: 87 in view · List: 12 match filters · Total: 87 on map | Third Coast Comedy Club" },
+    ] }] }];
+    const all = candidatesFor(c, d).map((x) => x.def.kind === "click" ? x.def.payoff : "");
+    assert.ok(all.includes("Texas Union Building (UNB)") && all.includes("Third Coast Comedy Club"));
+    assert.ok(!all.some((p) => /in view/.test(p)), "counters are not offered");
+    const avoided = candidatesFor(c, d, ["Texas Union Building (UNB)"]).map((x) => x.def.kind === "click" ? x.def.payoff : "");
+    assert.ok(!avoided.includes("Texas Union Building (UNB)") && avoided.includes("Third Coast Comedy Club"));
+  });
+
   test("a scroll step's internal name is never a quote of a claim: QA checks quotes against the live page", () => {
     const c = marina(2);
     c.capturePlan[1].clicks[1] = { kind: "scroll", name: "scroll-/marinas-2", payoff: "Showing 4 of 13 verified marinas with confirmed boat launch ramp." };
