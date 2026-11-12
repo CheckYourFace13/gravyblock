@@ -36,6 +36,7 @@ import { captureSource, reconstructConcept, restoreSource } from "../revisions/s
 import { saveRevision } from "../revisions/history";
 import { sendChangesReceivedEmail } from "../publishing/review-notify";
 import { stripMarkers } from "../revisions/text";
+import { buildSceneEditView, compileSceneEdits, composeNote, framesKey, mergeOps, sceneEditsFromForm, type SceneEditView } from "../revisions/scene-edits";
 
 const HAVE_DB = Boolean(process.env.STUDIO_TEST_DATABASE_URL);
 
@@ -677,6 +678,63 @@ describe("change requests V2: Product Truth recheck and the whole loop (database
     assert.equal(out.job.failures, undefined, "nothing is recorded as a failure");
   });
 
+  const storyboardOf = (c: Concept) => {
+    const ids = [...new Set(c.narration.map((l) => l.sceneId))];
+    return {
+      title: c.title,
+      durationMs: 30000,
+      cta: { text: c.cta.text },
+      scenes: ids.map((id, i) => ({ id, kind: id === "end" ? "end" : "screen", startMs: i * 8000, endMs: (i + 1) * 8000, headline: c.headlines[id], ...(id === "end" ? {} : { sourceVisual: { plate: "p" + id.slice(1), url: "https://boatingchicago.com/marinas", states: [] } }) })),
+      transcript: c.narration.map((l) => ({ id: l.id, sceneId: l.sceneId, text: stripMarkers(l.spoken), caption: l.caption ?? stripMarkers(l.spoken) })),
+      onScreen: c.onScreen,
+    };
+  };
+
+  test("the scene editor shows the video as scenes in plain words: frame, timing, words, on-screen text and where the visual comes from", async () => {
+    const c = marina(3);
+    await storeConcept(c);
+    const [row] = await db().insert(ms.msVideos).values({ productId, title: "V", storyboard: storyboardOf({ ...c, specId }), targetSeconds: 30, status: "ready_for_review" }).returning();
+    await setSetting(framesKey(row.id), { a1: "data:image/jpeg;base64,AAAA" }, "t", db());
+    const view = (await buildSceneEditView(db(), { publicationId: "pub", videoRowId: row.id, specId, title: "T", ctaText: "Go" } as never))!;
+    assert.equal(view.structure, "generated");
+    assert.deepEqual(view.scenes.map((x) => x.label), ["Scene 1", "Scene 2", "Scene 3", "Closing"]);
+    const one = view.scenes[0];
+    assert.equal(one.frame, "data:image/jpeg;base64,AAAA");
+    assert.equal(view.scenes[1].frame, undefined, "a scene without a saved picture still renders");
+    assert.deepEqual([one.startSec, one.endSec], [0, 8]);
+    assert.ok(one.lines.length >= 1 && one.lines.every((l) => l.spoken && !/[{}]/.test(l.spoken)), "no markers are ever shown");
+    assert.match(one.visual, /boatingchicago.com\/marinas/);
+    assert.match(one.visual, /taps Fuel, then taps Pump-out/);
+    assert.ok(one.canRemove && one.canReplaceVisual);
+    assert.equal(view.scenes[3].canRemove, false, "the closing card cannot be removed");
+    assert.match(view.scenes[3].visual, /Closing card/);
+  });
+
+  test("scene edits rebuild automatically: the customer's own words need no AI, a scene note and the overall note go to the planner with the scene named", async () => {
+    const c = marina(3);
+    await storeConcept(c);
+    const base = { productId, slug: "boatingchicago", productName: "BoatingChicago", origin: "https://boatingchicago.com", specId, supersedes: "pub-scene-1", note: "x", fresh: true };
+    const never: Planner = async () => {
+      throw new Error("the planner must not be asked for exact edits");
+    };
+    const exact = await prepareRevision(db(), { ...base, sceneEdits: { overall: "", scenes: [{ scene: "a3", action: "wording", lines: { L7: { spoken: "Tap Lake Michigan and see every verified marina." } } }] } }, { planner: never, replan: true });
+    assert.ok(exact.ok, exact.ok ? "" : exact.reason);
+    const after = (await storedConcept())!.concept;
+    assert.equal(stripMarkers(after.narration.find((l) => l.id === "L7")!.spoken), "Tap Lake Michigan and see every verified marina.");
+    assert.deepEqual(after.narration.filter((l) => l.sceneId === "a1" || l.sceneId === "a2"), c.narration.filter((l) => l.sceneId === "a1" || l.sceneId === "a2"), "the scenes the customer did not touch are exactly as they were");
+    assert.deepEqual(after.capturePlan.slice(0, 2), c.capturePlan.slice(0, 2));
+    await storeConcept(c);
+    let asked = "";
+    const planner: Planner = async (i) => {
+      asked = i.note;
+      return { micros: 5, plan: { summary: ["x"], ops: [{ op: "rewrite_line", line: "L3", spoken: "Try Pump-out next, and marinas with confirmed pump-out appear." }] } };
+    };
+    const mixed = await prepareRevision(db(), { ...base, supersedes: "pub-scene-2", sceneEdits: { overall: "Make this less repetitive.", scenes: [{ scene: "a1", action: "keep", note: "this scene repeats itself" }] } }, { planner, replan: true });
+    assert.ok(mixed.ok, mixed.ok ? "" : mixed.reason);
+    assert.match(asked, /Scene 1 \(scene id a1, lines L1, L2, L3\): this scene repeats itself/);
+    assert.match(asked, /Whole video: Make this less repetitive\./);
+  });
+
   test("a legacy request whose script an older attempt already rewrote is never trusted as a source", async () => {
     const c = marina(3);
     await storeConcept(c);
@@ -706,6 +764,66 @@ describe("change requests V2: Product Truth recheck and the whole loop (database
 });
 
 describe("autonomous revision loop: failure handling and source rebuild (pure)", () => {
+  const editView = (): SceneEditView => ({
+    publicationId: "p", title: "T", durationSec: 30, structure: "generated", ctaText: "Explore BoatingChicago",
+    scenes: [
+      { id: "a1", n: 1, label: "Scene 1", kind: "screen", startSec: 0, endSec: 8, lines: [{ id: "L1", spoken: "Need fuel and a slip?", caption: "Need fuel and a slip?" }, { id: "L2", spoken: "Tap Fuel and marinas with confirmed fuel show up.", caption: "Tap Fuel and marinas with confirmed fuel show up." }], onScreen: [], visual: "x", canRemove: true, canReplaceVisual: true },
+      { id: "end", n: 2, label: "Closing", kind: "end", startSec: 8, endSec: 12, lines: [], onScreen: [], visual: "y", canRemove: false, canReplaceVisual: false },
+    ],
+  });
+  const formOf = (fields: Record<string, string>) => (name: string) => (name in fields ? fields[name] : null);
+
+  test("the editor form yields only real changes; an untouched editor changes nothing", () => {
+    const v = editView();
+    assert.equal(sceneEditsFromForm(formOf({ spoken_L1: "Need fuel and a slip?", spoken_L2: "Tap Fuel and marinas with confirmed fuel show up.", cta_text: "Explore BoatingChicago", action_a1: "keep" }), v), null);
+    const e = sceneEditsFromForm(formOf({ overall: "Shorten it.", overall_us: "on", action_a1: "visual", note_a1: "I do not know this place", spoken_L2: "Tap Fuel and see every fuel dock.", spoken_L1: "Need fuel and a slip?", action_end: "remove", cta_text: "See the marinas" }), v)!;
+    assert.equal(e.overall, "Shorten it. Use U.S. examples and locations.");
+    assert.deepEqual(e.scenes, [{ scene: "a1", action: "visual", note: "I do not know this place", lines: { L2: { spoken: "Tap Fuel and see every fuel dock." } } }], "the closing card cannot be removed, so that choice is ignored; unchanged lines are not recorded");
+    assert.deepEqual(e.cta, { text: "See the marinas" });
+    assert.match(composeNote(e, v), /Whole video: Shorten it\./);
+    assert.match(composeNote(e, v), /Scene 1: replace the visual; new wording; I do not know this place/);
+  });
+
+  test("scene choices become exact engine edits and only the touched scenes change", () => {
+    const ctxOf = (c: Concept) => {
+      const v = view_(c);
+      return { lines: v.lines.map((l) => ({ id: l.id, scene: l.scene, text: l.text })), taps: v.taps.map((t) => ({ plate: t.plate, step: t.step, control: t.control, shows: t.shows })), candidates: v.candidates, structure: "generated" as const };
+    };
+    // the customer's own words and the call to action: scenes 1 and 2 are exactly as they were
+    const c = marina(3);
+    const words = compileSceneEdits({ overall: "", scenes: [{ scene: "a3", action: "wording", lines: { L7: { spoken: "Tap Lake Michigan and see every verified marina." } } }] , cta: { text: "See the marinas" } }, ctxOf(c));
+    assert.deepEqual(words.ops.filter((o) => o.op === "rewrite_line").map((o) => (o as { line: string }).line), ["L7"]);
+    assert.ok(words.ops.some((o) => o.op === "cta_text"));
+    assert.equal(words.freeText, "", "nothing here needs the planner");
+    const r = ok(applyPlan(c, plan(words.ops), ctxFor(c)));
+    assert.deepEqual(r.concept.narration.filter((l) => l.sceneId === "a1" || l.sceneId === "a2"), c.narration.filter((l) => l.sceneId === "a1" || l.sceneId === "a2"), "scenes 1 and 2 are untouched");
+    assert.deepEqual(r.concept.capturePlan.slice(0, 2), c.capturePlan.slice(0, 2));
+    assert.match(stripMarkers(r.concept.narration.find((l) => l.id === "L7")!.spoken), /every verified marina/);
+    // removing a scene: the others stay exactly as they were
+    const gone = compileSceneEdits({ overall: "", scenes: [{ scene: "a3", action: "remove" }] }, ctxOf(c));
+    const removed = ok(applyPlan(c, plan(gone.ops), ctxFor(c)));
+    assert.ok(!removed.concept.narration.some((l) => l.sceneId === "a3"), "scene 3 is removed");
+    assert.deepEqual(removed.concept.narration.filter((l) => l.sceneId === "a1" || l.sceneId === "a2"), c.narration.filter((l) => l.sceneId === "a1" || l.sceneId === "a2"));
+    // replacing a visual: a new real result for that scene only
+    const two = marina(2);
+    const visual = compileSceneEdits({ overall: "", scenes: [{ scene: "a2", action: "visual" }] }, ctxOf(two));
+    assert.equal(visual.ops.filter((o) => o.op === "replace_step" && o.plate === "p2").length, 2, "the visual of scene 2 is replaced with two real alternatives");
+    const swapped = ok(applyPlan(two, plan(visual.ops), ctxFor(two)));
+    assert.deepEqual(swapped.concept.narration.filter((l) => l.sceneId === "a1"), two.narration.filter((l) => l.sceneId === "a1"), "scene 1 is untouched");
+    assert.deepEqual(swapped.concept.capturePlan[0], two.capturePlan[0]);
+    assert.notDeepEqual(swapped.concept.capturePlan[1].clicks, two.capturePlan[1].clicks, "scene 2 has a new visual");
+  });
+
+  test("where the customer was exact, the planner never overrides them", () => {
+    const lines = [{ id: "L2", scene: "a1" }, { id: "L4", scene: "a2" }, { id: "L5", scene: "a2" }];
+    const merged = mergeOps(
+      [{ op: "rewrite_line", line: "L2", spoken: "mine" }, { op: "remove_scene", scene: "a2" }, { op: "replace_step", plate: "p3", step: 1, candidate: "p3.1.6.0" }],
+      [{ op: "rewrite_line", line: "L2", spoken: "ai" }, { op: "rewrite_line", line: "L4", spoken: "ai" }, { op: "replace_step", plate: "p2", step: 1, candidate: "x" }, { op: "replace_step", plate: "p3", step: 1, candidate: "y" }, { op: "expand_abbreviations" }],
+      lines,
+    );
+    assert.deepEqual(merged.map((o) => o.op), ["rewrite_line", "remove_scene", "replace_step", "expand_abbreviations"], "the planner's edits to their words, the removed scene and the visual they chose are dropped");
+  });
+
   test("failures are classified: technical ones are ours to fix, only declarations and missing assets go to the owner", () => {
     for (const m of ["no_dead_air: pause of 0.76s between spoken lines", "duration: 19.3s (target 20 to 35s, planned 19.3s)", 'visual_alignment: line L2 runs ahead of the screen: "tuesday" only appears later', 'capture: after "Tue" the page no longer shows "Texas Union"', "ffmpeg exited with code 1", "marker b2 missing", "cached old script"]) assert.equal(classifyFailure(m).kind, "internal", m);
     for (const m of ["made-for-kids declared by the owner: not set", "no logo was supplied"]) assert.equal(classifyFailure(m).kind, "owner", m);

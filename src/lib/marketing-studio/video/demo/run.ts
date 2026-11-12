@@ -3,6 +3,7 @@
  * mix the audio, render the frames, and run QA. `produceDemo` makes the file and the record; `renderDemoVideoJob` stores it for review.
  * Nothing here posts, schedules or connects anything.
  */
+import { saveSceneFrames } from "../../revisions/frames";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { eq } from "drizzle-orm";
@@ -273,6 +274,8 @@ export async function renderDemoVideoJob(input: { videoId?: string }, scope: Own
       .update(ms.msVideos)
       .set({ storyboard: made.record, assetId: stored.id, width: 1080, height: 1920, durationMs: made.record.durationMs, bytes: stored.bytes, status, qa: { passed: made.qa.passed, checks: made.qa.checks, metrics: made.qa.metrics }, renderMs: Date.now() - t0 })
       .where(eq(ms.msVideos.id, video.id));
+    // a picture of each scene for the review editor (never a reason to fail a render)
+    await saveSceneFrames(db, video.id, made.manifest, path.join(dir, "stage"), made.record.scenes).catch(() => 0);
     await audit(db, { actor: "studio-worker", action: "video.demo_render", entity: "video", entityId: video.id, productId: video.productId, detail: { status, durationSec: made.qa.metrics.durationSec, failed: made.qa.checks.filter((c) => !c.ok && c.severity === "fail").map((c) => c.id) } });
     return { videoId: video.id, status, failed: made.qa.checks.filter((c) => !c.ok && c.severity === "fail").map((c) => `${c.id}: ${c.detail}`), metrics: made.qa.metrics, stats: made.stats };
   } catch (e) {

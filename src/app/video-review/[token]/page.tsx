@@ -5,7 +5,9 @@ import { requireStudioDb } from "@/lib/marketing-studio/db";
 import { openReview } from "@/lib/marketing-studio/publishing/review-flow";
 import { QUICK_KINDS, QUICK_LABELS } from "@/lib/marketing-studio/revisions/types";
 import { thumbUrlFor, watchUrlFor } from "@/lib/marketing-studio/publishing/video-review";
+import { buildSceneEditView } from "@/lib/marketing-studio/revisions/scene-edits";
 import { ApproveClient } from "./approve-client";
+import { SceneEditor } from "./scene-editor";
 import { SuccessCard } from "./success-card";
 
 export const dynamic = "force-dynamic";
@@ -71,6 +73,15 @@ export default async function VideoReviewPage({ params, searchParams }: { params
     return (
       <Shell>
         <ApproveClient token={token} txn={r.txn} productName={s.productName} title={s.title} thumbUrl={thumbUrlFor(s.videoId)} watchUrl={watchUrlFor(s.videoId)} />
+      </Shell>
+    );
+  }
+  // the visual scene editor; a video without a record to build it from keeps the simple form below
+  const view = await buildSceneEditView(requireStudioDb(), s);
+  if (view) {
+    return (
+      <Shell>
+        <SceneEditor view={view} token={token} txn={r.txn} error={e} productName={s.productName} watchUrl={watchUrlFor(s.videoId)} thumbUrl={thumbUrlFor(s.videoId)} />
       </Shell>
     );
   }

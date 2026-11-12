@@ -8,12 +8,14 @@
  */
 import { and, eq, like } from "drizzle-orm";
 import { audit } from "../audit";
+import { replyNote } from "./sender";
 import { ms, type StudioDb } from "../db";
 import { updateAngle } from "../library-store";
 import { getSetting, setSetting } from "../runtime";
 import type { OwnerScope } from "../scope";
 import type { DemoRecord } from "../video/demo/types";
 import type { NoteHints } from "../revisions/types";
+import type { SceneEdits } from "../revisions/scene-edits";
 import { collectForPublication } from "../measurement/collect";
 import type { Deps } from "./adapters";
 import { evaluateHealth, usable } from "./connections";
@@ -66,6 +68,8 @@ export type ReviewState = {
   changesNote?: string;
   /** the optional quick controls the owner ticked on the Request Changes page (they help interpret the note; the note decides) */
   changesHints?: NoteHints;
+  /** what the customer chose in the scene editor, scene by scene */
+  changesEdits?: SceneEdits;
   changesRequestedAt?: string;
   supersededBy?: string;
   /** this video is the replacement made after the owner asked for changes (the email says so) */
@@ -169,6 +173,8 @@ export function buildReviewEmail(r: ReviewState, links: ReviewLinks): { subject:
     r.description,
     "",
     "The video is UNLISTED: anyone with the link can watch it, and it stays out of channel pages, search and recommendations until you approve. Approving switches this same video to public.",
+    "",
+    replyNote(),
   ].join("\n");
   const button = (href: string, label: string, bg: string) =>
     `<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 12px"><tr><td align="center" bgcolor="${bg}" style="border-radius:12px"><a href="${esc(href)}" style="display:block;padding:18px 12px;font-size:18px;font-weight:700;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif">${esc(label)}</a></td></tr></table>`;
@@ -185,7 +191,7 @@ ${button(links.pause, "PAUSE NEW VIDEOS", "#b45309")}
 <h3 style="margin:18px 0 4px;font-size:14px">Proposed public title</h3><p style="margin:0">${esc(r.title)}</p>
 <h3 style="margin:14px 0 4px;font-size:14px">Proposed public description</h3><p style="margin:0;white-space:pre-wrap;background:#f4f4f5;padding:10px 12px;border-radius:8px;font-size:13px">${esc(r.description)}</p>
 <p style="margin:18px 0 0;color:#71717a;font-size:12px">The video is unlisted: anyone with the link can watch it, and it stays out of channel pages, search and recommendations until you approve. Approving switches this same video to public, with no re-upload. Pausing stops new videos for this product only: nothing already published is touched, and you resume from your GravyBlock dashboard.</p></div>`;
-  return { subject, html, text };
+  return { subject, html: html.replace(/<\/div>\s*$/, `<p style="margin:14px 0 0;color:#71717a;font-size:12px">${esc(replyNote())}</p></div>`), text };
 }
 
 export async function getReview(db: StudioDb, publicationId: string): Promise<ReviewState | null> {
@@ -285,13 +291,13 @@ export async function approveReview(scope: OwnerScope, actor: string, publicatio
 }
 
 /** Owner asks for changes: the video stays UNLISTED and nothing is deleted. The replacement is made, uploaded and mailed as a new version that supersedes this one. */
-export async function requestChanges(actor: string, publicationId: string, note: string, db: StudioDb, hints?: NoteHints): Promise<ReviewState> {
+export async function requestChanges(actor: string, publicationId: string, note: string, db: StudioDb, hints?: NoteHints, edits?: SceneEdits): Promise<ReviewState> {
   const r = await getReview(db, publicationId);
   if (!r) throw new Error("No review found for that video");
   if (r.status === "approved_public") throw new Error("This video is already public; request changes by making a new version.");
   const clean = note.trim().slice(0, 2000);
   if (!clean) throw new Error("Say what should change, so the replacement can be made.");
-  const state: ReviewState = { ...r, status: "changes_requested", changesNote: clean, ...(hints && (hints.kinds.length || hints.where || hints.at) ? { changesHints: hints } : {}), changesRequestedAt: new Date().toISOString(), events: [...(r.events ?? []), { at: new Date().toISOString(), event: "CHANGES_REQUESTED" as const, detail: clean.slice(0, 200) }] };
+  const state: ReviewState = { ...r, status: "changes_requested", changesNote: clean, ...(edits ? { changesEdits: edits } : {}), ...(hints && (hints.kinds.length || hints.where || hints.at) ? { changesHints: hints } : {}), changesRequestedAt: new Date().toISOString(), events: [...(r.events ?? []), { at: new Date().toISOString(), event: "CHANGES_REQUESTED" as const, detail: clean.slice(0, 200) }] };
   await setSetting(reviewKey(publicationId), state, actor, db, { audited: false });
   await audit(db, { actor, action: "video_review.changes_requested", entity: "publication", entityId: publicationId, productId: r.productId, detail: { note: clean } });
   return state;

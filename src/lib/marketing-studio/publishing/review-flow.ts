@@ -14,6 +14,7 @@ import { consumeTransaction, openTransaction, verifyReviewToken, type ReviewClai
 import { queueReplacement } from "./review-replacement";
 import { sendChangesReceivedEmail } from "./review-notify";
 import { QUICK_KINDS, WHERE_OPTIONS, type NoteHints } from "../revisions/types";
+import { buildSceneEditView, composeNote, sceneEditsFromForm, type SceneEdits } from "../revisions/scene-edits";
 import { isPaused, pauseProduct } from "./video-policy";
 import { approveReview, getReview, requestChanges, trackEvent, thumbUrlFor, watchUrlFor, type ReviewState } from "./video-review";
 
@@ -109,18 +110,27 @@ export async function submitApproval(db: StudioDb, deps: Deps, input: { token: s
 }
 
 /** The POST side of "request changes": stores the exact note, keeps the video unlisted and queues the replacement. */
-export async function submitChanges(db: StudioDb, input: { token: string; txn: string; note: string; hints?: NoteHints }, key: string | undefined, now = Date.now()): Promise<ActionResult<{ state: ReviewState }>> {
+export async function submitChanges(db: StudioDb, input: { token: string; txn: string; note: string; hints?: NoteHints; /** the scene editor's form fields: when given, the request is built from what the customer chose scene by scene */ form?: (name: string) => string | null }, key: string | undefined, now = Date.now()): Promise<ActionResult<{ state: ReviewState }>> {
   const t = verifyReviewToken(input.token, key, now);
   if (!t.ok) return { ok: false, status: t.reason === "expired" ? 410 : 400, message: t.reason === "expired" ? "This review link has expired." : "This review link is not valid." };
   if (t.claims.a !== "changes") return { ok: false, status: 400, message: "This link is not a request-changes link." };
-  const note = input.note.trim();
-  if (!note) return { ok: false, status: 400, message: "Say what should change, so the replacement can be made." };
   const state = await getReview(db, t.claims.p);
   if (!state) return { ok: false, status: 404, message: "That video was not found." };
+  let note = input.note.trim();
+  let edits: SceneEdits | undefined;
+  if (input.form) {
+    const view = await buildSceneEditView(db, state);
+    const got = view ? sceneEditsFromForm(input.form, view) : null;
+    if (view && got) {
+      edits = got;
+      note = composeNote(got, view);
+    } else note = input.form("overall")?.trim() ?? note;
+  }
+  if (!note) return { ok: false, status: 400, message: "Change something first (a scene's words, its visual, or the instructions for the whole video), so the new version can be made." };
   if (state.status === "changes_requested") return { ok: true, state };
   if (!(await consumeTransaction(db, input.txn, t.claims, now))) return { ok: false, status: 409, message: "This request was not started from the review page, or it was already used. Open the link from your email again." };
   try {
-    const next = await requestChanges("owner-email-link", t.claims.p, note, db, input.hints);
+    const next = await requestChanges("owner-email-link", t.claims.p, note, db, input.hints, edits);
     await queueReplacement(db, "owner-email-link", next);
     await sendChangesReceivedEmail(db, next.publicationId).catch(() => undefined);
     return { ok: true, state: next };

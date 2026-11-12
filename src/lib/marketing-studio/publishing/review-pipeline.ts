@@ -17,6 +17,7 @@ import { conceptKey, ensureSpec, type StoredConcept } from "../video/concepts/re
 import { copyFor, prepareRevision, scrubDescription } from "../revisions/run";
 import { escalate, NO_STRATEGY } from "../revisions/heal";
 import { markRevision, revisionFor } from "../revisions/history";
+import { cleanSceneEdits } from "../revisions/scene-edits";
 import { captureSource, restoreSource } from "../revisions/source";
 import { requestOwnerNotice } from "./review-notify";
 import { capFreesAt } from "../library-production";
@@ -67,7 +68,7 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
     return { status: cur.status, detail: cur.detail };
   }
   await restoreSource(db, product.id, source);
-  const prep = await prepareRevision(db, { productId: product.id, slug, productName: product.name, origin: demoSpecFor(specId).site.origin, specId, supersedes: cur.id, note: cur.note, hints: review.changesHints, strategy: cur.strategy ?? NO_STRATEGY, fresh: true }, { replan: true });
+  const prep = await prepareRevision(db, { productId: product.id, slug, productName: product.name, origin: demoSpecFor(specId).site.origin, specId, supersedes: cur.id, note: cur.note, hints: review.changesHints, sceneEdits: cleanSceneEdits(review.changesEdits) ?? undefined, strategy: cur.strategy ?? NO_STRATEGY, fresh: true }, { replan: true });
   if (!prep.ok && (prep.kind === "retry" || prep.kind === "replan")) {
     if (!final) {
       cur = await patchJob(db, cur, { detail: `planning again: ${prep.reason.slice(0, 240)}`, ...(prep.kind === "replan" ? { strategy: escalate(cur.strategy ?? NO_STRATEGY, prep.reason) } : {}) });

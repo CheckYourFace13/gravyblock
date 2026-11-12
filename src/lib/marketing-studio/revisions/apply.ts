@@ -482,7 +482,8 @@ export function resultProblems(c: Concept, plan: EditPlan, cx: ApplyContext, cha
   }
   out.push(...scriptProblems(changedLines, c.onScreen.map((o) => o.text), cx.prohibited));
   // a qualifier the page itself uses (confirmed, verified, official) is part of what the claim says: it may be said once instead of four times, never dropped
-  if (source) {
+  // (a scene or line the owner removed takes its qualifiers with it: nothing is left to qualify)
+  if (source && !plan.ops.some((o) => o.op === "remove_scene" || o.op === "remove_line")) {
     const said = (x: Concept) => x.narration.map((l) => `${stripMarkers(l.spoken)} ${l.caption ?? ""}`).join(" ").toLowerCase();
     const wasSaid = said(source);
     const nowSaid = said(c);

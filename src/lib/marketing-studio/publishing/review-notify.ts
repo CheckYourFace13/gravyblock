@@ -5,6 +5,7 @@
  * choose a recipient nor change the content.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { replyNote, studioHeaders } from "./sender";
 import type { StudioDb } from "../db";
 import { getSetting } from "../runtime";
 import { jobKey, patchJob, type ReplacementJob } from "./review-replacement";
@@ -39,11 +40,10 @@ export async function sendReviewEmail(db: StudioDb, publicationId: string, fetch
   const key = process.env.MARKETING_SECRET_KEY;
   if (!key) return { sent: false, reason: "no Studio secret on the app" };
   const mail = buildReviewEmail(r, { approve: reviewLinkUrl(signReviewToken(publicationId, "approve", key)), changes: reviewLinkUrl(signReviewToken(publicationId, "changes", key)), pause: reviewLinkUrl(signReviewToken(publicationId, "pause", key)) });
-  const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
   const res = await fetchFn("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: [to], subject: mail.subject, html: mail.html, text: mail.text }),
+    body: JSON.stringify({ ...studioHeaders(), to: [to], subject: mail.subject, html: mail.html, text: mail.text }),
   });
   if (!res.ok) return { sent: false, reason: `the mail service answered ${res.status}` };
   await markEmailed(db, "review-notify", publicationId);
@@ -64,11 +64,10 @@ export async function sendTestReviewEmail(db: StudioDb, fetchFn: typeof fetch = 
   const r: ReviewState = { ...base, publicationId: TEST_PUBLICATION_ID, productName: "TEST", title: "This is only a test of the review email", description: "Test message. Nothing was uploaded or published, and the buttons below do nothing.", library: { position: 1, of: 3, roleLabel: "test" } };
   const mail = buildReviewEmail(r, { approve: reviewLinkUrl(signReviewToken(TEST_PUBLICATION_ID, "approve", key)), changes: reviewLinkUrl(signReviewToken(TEST_PUBLICATION_ID, "changes", key)), pause: reviewLinkUrl(signReviewToken(TEST_PUBLICATION_ID, "pause", key)) });
   const to = ownerReviewEmail();
-  const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
   const res = await fetchFn("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: [to], subject: "TEST — GravyBlock Marketing Studio Video Review Email", html: mail.html, text: mail.text }),
+    body: JSON.stringify({ ...studioHeaders(), to: [to], subject: "TEST — GravyBlock Marketing Studio Video Review Email", html: mail.html, text: mail.text }),
   });
   const out = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
   if (!res.ok) return { sent: false, reason: `the mail service answered ${res.status}: ${out.message ?? ""}`.trim() };
@@ -105,12 +104,14 @@ export async function sendNoticeEmail(db: StudioDb, publicationId: string, fetch
     "The video you reviewed is still unlisted and nothing was published.",
     "",
     `Watch (unlisted): ${r.watchUrl}`,
+    "",
+    replyNote(),
   ].join("\n");
   const esc = (t: string) => t.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
   const res = await fetchFn("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>", to: [to], subject, text: body, html: `<div style="font-family:Arial,sans-serif;max-width:600px;white-space:pre-wrap">${esc(body)}</div>` }),
+    body: JSON.stringify({ ...studioHeaders(), to: [to], subject, text: body, html: `<div style="font-family:Arial,sans-serif;max-width:600px;white-space:pre-wrap">${esc(body)}</div>` }),
   });
   return res.ok ? { sent: true } : { sent: false, reason: `the mail service answered ${res.status}` };
 }
@@ -124,12 +125,12 @@ export async function sendChangesReceivedEmail(db: StudioDb, publicationId: stri
   if (!apiKey) return { sent: false, reason: "mail is not configured on the app" };
   const to = await reviewRecipient(db, r.productId);
   if (!to) return { sent: false, reason: "no verified review email for this product yet" };
-  const body = ["Changes received. GravyBlock is creating your updated video.", "", `What you asked: ${job.note}`, "", "There is nothing you need to do. We will email you again when your updated video is ready for review.", "The video you reviewed stays unlisted, and nothing is published until you approve."].join(String.fromCharCode(10));
+  const body = ["Changes received. GravyBlock is creating your updated video.", "", `What you asked: ${job.note}`, "", "There is nothing you need to do. We will email you again when your updated video is ready for review.", "The video you reviewed stays unlisted, and nothing is published until you approve.", "", replyNote()].join(String.fromCharCode(10));
   const esc = (t: string) => t.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
   const res = await fetchFn("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>", to: [to], subject: `Changes received: ${r.productName}`, text: body, html: `<div style="font-family:Arial,sans-serif;max-width:600px;white-space:pre-wrap">${esc(body)}</div>` }),
+    body: JSON.stringify({ ...studioHeaders(), to: [to], subject: `Changes received: ${r.productName}`, text: body, html: `<div style="font-family:Arial,sans-serif;max-width:600px;white-space:pre-wrap">${esc(body)}</div>` }),
   });
   if (!res.ok) return { sent: false, reason: `the mail service answered ${res.status}` };
   await patchJob(db, job, { ackedAt: new Date().toISOString() });
@@ -173,7 +174,7 @@ export async function sendVerificationEmail(db: StudioDb, actor: string, product
   const res = await fetchFn("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>", to: [to], subject: "Confirm your GravyBlock video review email", text }),
+    body: JSON.stringify({ ...studioHeaders(), to: [to], subject: "Confirm your GravyBlock video review email", text }),
   });
   return res.ok ? { sent: true } : { sent: false, reason: `the mail service answered ${res.status}` };
 }

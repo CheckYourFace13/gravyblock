@@ -21,6 +21,7 @@ import { applyScriptEdits, loadScriptEdits, planHandwritten, scriptEditsKey, typ
 import { earlierFeedback, revisionFor, saveRevision } from "./history";
 import { aiPlanner, interpretNote, isPraise, sentencesOf, type PlanView, type Planner } from "./plan";
 import { applyStrategy, type Strategy } from "./heal";
+import { compileSceneEdits, mergeOps, type SceneEdits } from "./scene-edits";
 import { flagForCorrection, flaggedPhrases, recheckProductTruth } from "./recheck";
 import { removePhrase, stripMarkers } from "./text";
 import type { EditPlan, NoteHints, Revision, ScriptSnapshot } from "./types";
@@ -28,7 +29,7 @@ import type { EditPlan, NoteHints, Revision, ScriptSnapshot } from "./types";
 const ACTOR = "change-request-engine";
 const norm = (s: string) => s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim();
 
-export type PrepareInput = { productId: string; slug: string; productName: string; origin: string; specId: string; supersedes: string; note: string; hints?: NoteHints; /** what earlier attempts of this request taught: applied to the rebuilt script and given to the planner */ strategy?: Strategy; /** plan again from the source even if an earlier attempt left a revision behind */ fresh?: boolean };
+export type PrepareInput = { productId: string; slug: string; productName: string; origin: string; specId: string; supersedes: string; note: string; hints?: NoteHints; /** what earlier attempts of this request taught: applied to the rebuilt script and given to the planner */ strategy?: Strategy; /** plan again from the source even if an earlier attempt left a revision behind */ fresh?: boolean; /** what the customer chose in the visual scene editor */ sceneEdits?: SceneEdits };
 export type PrepareDeps = { planner?: Planner; fetchText?: (url: string) => Promise<string | null>; now?: () => Date; /** a plan that fails validation is reported as `replan` (the caller tries again) instead of asking the owner */ replan?: boolean; /** plan and validate only: nothing is stored, flagged or changed (a preview of what a note would do) */ dry?: boolean };
 export type Prepared =
   | { ok: true; revision: Revision; understood: string[]; concept: Concept | null }
@@ -144,9 +145,14 @@ export async function prepareRevision(db: StudioDb, input: PrepareInput, deps: P
   const view = viewOf(spec, concept, { origin: input.origin, productName: input.productName, facts: factStrings, prohibited, earlier: await earlierFeedback(db, input.specId, input.supersedes), candidates, voiceFacts: facts.map((f) => ({ key: f.factKey, value: f.factValue })) });
 
   const planner = deps.planner ?? aiPlanner(db, input.specId);
+  // what the customer chose scene by scene is exact; only what they said in words goes to the planner
+  const compiled = input.sceneEdits
+    ? compileSceneEdits(input.sceneEdits, { lines: view.lines.map((l) => ({ id: l.id, scene: l.scene, text: l.text })), taps: view.taps.map((t) => ({ plate: t.plate, step: t.step, control: t.control, shows: t.shows })), candidates, structure: view.structure })
+    : null;
   let planned;
   try {
-    planned = await interpretNote(input.note, view, { hints: input.hints, planner, earlierProblems: input.strategy?.planProblems });
+    planned = compiled && !compiled.freeText ? { plan: { summary: compiled.summary, ops: [] } as EditPlan, by: "rules" as const, micros: 0 } : await interpretNote(compiled ? compiled.freeText : input.note, view, { hints: input.hints, planner, earlierProblems: input.strategy?.planProblems });
+    if (compiled) planned = { ...planned, plan: { ...planned.plan, summary: [...compiled.summary, ...planned.plan.summary], ops: mergeOps(compiled.ops, planned.plan.ops, view.lines) } };
   } catch (e) {
     return { ok: false, kind: "retry", reason: `the edit could not be interpreted yet (${e instanceof Error ? e.message : String(e)}); it will be tried again` };
   }
