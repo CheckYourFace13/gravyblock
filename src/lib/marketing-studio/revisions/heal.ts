@@ -7,7 +7,7 @@ import { timing } from "../video/concepts/generate";
 import { personalityFor } from "../video/concepts/standard";
 import type { Concept } from "../video/concepts/types";
 import { ensureMarkers } from "./apply";
-import { carryMarkers, removePhrase, stripMarkers } from "./text";
+import { carryMarkers, markersIn, placeMarker, removePhrase, stripMarkers } from "./text";
 
 export type Strategy = {
   /** extra hold on the closing frame, ms, added on top of what the script itself needs */
@@ -18,13 +18,15 @@ export type Strategy = {
   avoid: string[];
   /** words a line says before the screen shows them: that part of the line is cut */
   dropWords: Array<{ line: string; word: string }>;
+  /** taps ("b1", "a2") whose result was not on screen when their line was spoken: their marker moves to the start of its line */
+  earlyMarkers: string[];
   /** what went wrong before, in words the planner can act on */
   planProblems: string[];
   /** how many times the plan has been adjusted */
   rounds: number;
 };
 
-export const NO_STRATEGY: Strategy = { holdMs: 0, gapScale: 1, avoid: [], dropWords: [], planProblems: [], rounds: 0 };
+export const NO_STRATEGY: Strategy = { holdMs: 0, gapScale: 1, avoid: [], dropWords: [], earlyMarkers: [], planProblems: [], rounds: 0 };
 
 export type FailureClass = "dead_air" | "too_short" | "too_long" | "alignment" | "capture" | "render" | "owner_decision";
 export type Classified = { kind: "internal" | "owner"; cls: FailureClass; message: string };
@@ -46,7 +48,7 @@ export function classifyFailure(message: string): Classified {
 /** The next strategy after a failure: what to change so the same mistake is not rebuilt. */
 export function escalate(prev: Strategy, message: string): Strategy {
   const f = classifyFailure(message);
-  const next: Strategy = { ...prev, avoid: [...prev.avoid], dropWords: [...prev.dropWords], planProblems: [...prev.planProblems], rounds: prev.rounds + 1 };
+  const next: Strategy = { ...prev, avoid: [...prev.avoid], dropWords: [...prev.dropWords], earlyMarkers: [...(prev.earlyMarkers ?? [])], planProblems: [...prev.planProblems], rounds: prev.rounds + 1 };
   const note = (s: string) => {
     if (!next.planProblems.includes(s)) next.planProblems.push(s);
     next.planProblems = next.planProblems.slice(-4);
@@ -65,6 +67,11 @@ export function escalate(prev: Strategy, message: string): Strategy {
   } else if (f.cls === "alignment") {
     for (const m of f.message.matchAll(/line (L\d+) runs ahead of the screen: "([^"]+)"/g)) for (const w of m[2].split(/,\s*/)) if (!next.dropWords.some((x) => x.line === m[1] && x.word === w)) next.dropWords.push({ line: m[1], word: w });
     for (const m of f.message.matchAll(/line (L\d+) \("[^"]*"\) talks about ([^"]+?) which is not on the screen/g)) for (const w of m[2].split(/,\s*/)) if (!next.dropWords.some((x) => x.line === m[1] && x.word === w)) next.dropWords.push({ line: m[1], word: w.trim() });
+    for (const m of f.message.matchAll(/describes the result of tap (\d+) but that result is not on screen/g)) {
+      const n = Number(m[1]);
+      const marker = `${n % 2 === 1 ? "a" : "b"}${Math.ceil(n / 2)}`;
+      if (!next.earlyMarkers.includes(marker)) next.earlyMarkers.push(marker);
+    }
     note(f.message.slice(0, 220));
   } else note(f.message.slice(0, 220));
   return next;
@@ -79,6 +86,14 @@ export function applyStrategy(c: Concept, s: Strategy): string[] {
     if (!cut || stripMarkers(cut.text).split(/\s+/).filter(Boolean).length < 3) continue;
     l.spoken = carryMarkers(cut.text, cut.lost);
     if (l.caption) l.caption = undefined;
+  }
+  // a tap whose result was not on screen when its line was said now happens as that line starts (unless the line also holds the tap before it)
+  for (const m of s.earlyMarkers ?? []) {
+    const line = c.narration.find((l) => markersIn(l.spoken).includes(m));
+    if (!line) continue;
+    const earlier = /^b(\d+)$/.test(m) ? `a${m.slice(1)}` : null;
+    if (earlier && markersIn(line.spoken).includes(earlier)) continue;
+    line.spoken = placeMarker(line.spoken, m, "start");
   }
   const problems = ensureMarkers(c);
   c.gapScale = s.gapScale < 1 ? s.gapScale : undefined;

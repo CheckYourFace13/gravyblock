@@ -723,6 +723,16 @@ describe("autonomous revision loop: failure handling and source rebuild (pure)",
     assert.equal(s.rounds, 4);
   });
 
+  test("a tap whose result was not on screen when its line was spoken starts as that line starts on the next attempt", () => {
+    const s = escalate(NO_STRATEGY, "QA did not pass: visual_alignment: line L3 describes the result of tap 2 but that result is not on screen when it is said (p1/a is showing)");
+    assert.deepEqual(s.earlyMarkers, ["b1"]);
+    const c = marina(2);
+    const l3 = c.narration.find((l) => l.id === "L3")!;
+    l3.spoken = "Try Pump-out next, and marinas with {b1}confirmed pump-out appear.";
+    assert.deepEqual(applyStrategy(c, s), []);
+    assert.match(c.narration.find((l) => l.id === "L3")!.spoken, /^{b1}Try Pump-out/);
+  });
+
   test("the strategy is applied to the rebuilt script: pauses scale, the closing frame holds, ahead-of-screen wording is cut and the taps keep their words", () => {
     const c = marina(2);
     const before = timing(c.narration, personalityFor(c.slug)).estSeconds;
