@@ -114,6 +114,8 @@ export type Concept = {
   zoomBias?: number;
   /** owner edit: extra hold (ms) on the closing frame when a revision came out shorter than the 20s minimum */
   gapExtraMs?: number;
+  /** self-healing: multiplies the pauses between spoken lines (below 1 tightens a video that had dead air) */
+  gapScale?: number;
   /** present when the copy was written by the language-model step (and passed the deterministic gates and the fact-checker) */
   ai?: { model: string; copy: Record<string, unknown> };
 };

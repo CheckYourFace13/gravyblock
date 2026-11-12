@@ -7,10 +7,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { StudioDb } from "../db";
 import { getSetting } from "../runtime";
-import { jobKey } from "./review-replacement";
+import { jobKey, patchJob, type ReplacementJob } from "./review-replacement";
 import { signReviewToken } from "./review-token";
 import { requestEmailChange, reviewRecipient } from "./review-contact";
-import { buildReviewEmail, getReview, listReviews, type ReviewState, markEmailed, ownerReviewEmail, reviewLinkUrl, siteBase } from "./video-review";
+import { buildReviewEmail, getReview, trackEvent, listReviews, type ReviewState, markEmailed, ownerReviewEmail, reviewLinkUrl, siteBase } from "./video-review";
 
 const WINDOW_MS = 5 * 60_000;
 const sign = (key: string, publicationId: string, ts: string) => createHmac("sha256", key).update(`review-notify.${ts}.${publicationId}`).digest("hex");
@@ -113,6 +113,28 @@ export async function sendNoticeEmail(db: StudioDb, publicationId: string, fetch
     body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>", to: [to], subject, text: body, html: `<div style="font-family:Arial,sans-serif;max-width:600px;white-space:pre-wrap">${esc(body)}</div>` }),
   });
   return res.ok ? { sent: true } : { sent: false, reason: `the mail service answered ${res.status}` };
+}
+
+/** Runs inside the app, right after Request Changes is submitted: one short email saying the request arrived and what happens next. Sent once per request. */
+export async function sendChangesReceivedEmail(db: StudioDb, publicationId: string, fetchFn: typeof fetch = fetch): Promise<{ sent: boolean; reason?: string }> {
+  const [r, job] = [await getReview(db, publicationId), await getSetting<ReplacementJob | null>(jobKey(publicationId), null, db)];
+  if (!r || !job) return { sent: false, reason: "no change request" };
+  if (job.ackedAt) return { sent: false, reason: "already sent" };
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return { sent: false, reason: "mail is not configured on the app" };
+  const to = await reviewRecipient(db, r.productId);
+  if (!to) return { sent: false, reason: "no verified review email for this product yet" };
+  const body = ["Changes received. GravyBlock is creating your updated video.", "", `What you asked: ${job.note}`, "", "There is nothing you need to do. We will email you again when your updated video is ready for review.", "The video you reviewed stays unlisted, and nothing is published until you approve."].join(String.fromCharCode(10));
+  const esc = (t: string) => t.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
+  const res = await fetchFn("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>", to: [to], subject: `Changes received: ${r.productName}`, text: body, html: `<div style="font-family:Arial,sans-serif;max-width:600px;white-space:pre-wrap">${esc(body)}</div>` }),
+  });
+  if (!res.ok) return { sent: false, reason: `the mail service answered ${res.status}` };
+  await patchJob(db, job, { ackedAt: new Date().toISOString() });
+  await trackEvent(db, "review-notify", publicationId, "CHANGES_RECEIVED", "acknowledgement sent").catch(() => undefined);
+  return { sent: true };
 }
 
 /** Runs in the CLI or the worker: asks the app to tell the owner a change request needs attention. */

@@ -7,7 +7,7 @@ import { isPaused } from "./video-policy";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { ms, type StudioDb } from "../db";
 import { listProducts } from "../repository";
-import { getSetting } from "../runtime";
+import { getSetting, setSetting } from "../runtime";
 import { INTERNAL_SCOPE } from "../scope";
 import { createDemoVideo } from "../video/demo/queue";
 import { effectiveSpecHash } from "../video/demo/overrides";
@@ -15,13 +15,30 @@ import { renderDemoVideoJob } from "../video/demo/run";
 import { demoSpecFor } from "../video/demo/specs";
 import { conceptKey, ensureSpec, type StoredConcept } from "../video/concepts/registry";
 import { copyFor, prepareRevision, scrubDescription } from "../revisions/run";
+import { escalate, NO_STRATEGY } from "../revisions/heal";
 import { markRevision, revisionFor } from "../revisions/history";
+import { captureSource, restoreSource } from "../revisions/source";
 import { requestOwnerNotice } from "./review-notify";
 import { jobKey, patchJob, runReplacementJob, type ReplacementDeps, type ReplacementJob } from "./review-replacement";
 import { prepareReview } from "./review-dispatch";
 import { embedKey, getReview, trackEvent, type EmbedEntry } from "./video-review";
 
 const STUCK_RENDER_MS = 5 * 60_000;
+
+/** A technical problem of ours: recorded for operations, never emailed to the customer. */
+async function raiseOpsAlert(db: StudioDb, job: ReplacementJob, productName: string, log: (m: string) => void): Promise<void> {
+  const list = (await getSetting<Array<Record<string, unknown>>>("ops_alerts", [], db)) ?? [];
+  list.push({ at: new Date().toISOString(), kind: "video_revision_internal_failure", publicationId: job.id, product: productName, detail: job.detail, failures: job.failures ?? [] });
+  await setSetting("ops_alerts", list.slice(-100), "review-worker", db, { audited: false });
+  await trackEvent(db, "review-worker", job.id, "INTERNAL_FAILURE", (job.detail ?? "").slice(0, 300)).catch(() => undefined);
+  log(`OPS ALERT: video revision for ${productName} failed internally after ${job.attempts} attempts: ${job.detail}`);
+}
+
+async function internalFailure(db: StudioDb, job: ReplacementJob, detail: string, productName: string, log: (m: string) => void): Promise<ReplacementJob> {
+  const next = await patchJob(db, job, { status: "internal_failure", detail: `Internal problem: ${detail}` });
+  await raiseOpsAlert(db, next, productName, log);
+  return next;
+}
 
 export type PipelineResult = { status: string; detail?: string; understood?: string[] };
 
@@ -38,27 +55,41 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
   const slug = product.slug;
   const specId = review.specId ?? slug;
 
-  // 1. understand the note, once (change-request engine V2): plan, validate, rebuild the script from its source. A timing change is normal and never a reason to stop.
+  // 1. rebuild from the SAVED SOURCE on every attempt: the video as it was accepted plus the owner's note, never what an earlier attempt left behind. A technical problem
+  // (timing, alignment, capture replay, render) adjusts the plan and tries again; only a decision the customer must make is ever sent to them.
   let cur = job;
-  if (!cur.understood) {
-    await ensureSpec(db, specId);
-    const prep = await prepareRevision(db, { productId: product.id, slug, productName: product.name, origin: demoSpecFor(specId).site.origin, specId, supersedes: cur.id, note: cur.note, hints: review.changesHints });
-    if (!prep.ok && prep.kind === "retry") {
-      if (input.attempt < input.maxAttempts) throw new Error(prep.reason);
-      cur = await patchJob(db, cur, { status: "needs_attention", detail: prep.reason });
-      await requestOwnerNotice(cur.id).catch(() => undefined);
-      return { status: "needs_attention", detail: cur.detail };
-    }
-    if (!prep.ok) {
-      log(`change request needs the owner: ${prep.reason}`);
-      await trackEvent(db, "review-worker", cur.id, "FAILED", `needs a decision: ${prep.reason}`);
-      cur = await patchJob(db, cur, { status: "needs_attention", detail: prep.reason, options: prep.options });
-      await requestOwnerNotice(cur.id).catch(() => undefined);
-      return { status: "needs_attention", detail: cur.detail };
-    }
-    cur = await patchJob(db, cur, { understood: prep.understood });
-    log(`understood: ${prep.understood.join("; ")}`);
+  const final = input.attempt >= input.maxAttempts;
+  await ensureSpec(db, specId);
+  const source = await captureSource(db, { specId, publicationId: cur.id, productId: product.id });
+  if (source.origin === "unrecoverable") {
+    cur = await internalFailure(db, cur, "the saved source for this video could not be rebuilt", product.name, log);
+    return { status: cur.status, detail: cur.detail };
   }
+  await restoreSource(db, product.id, source);
+  const prep = await prepareRevision(db, { productId: product.id, slug, productName: product.name, origin: demoSpecFor(specId).site.origin, specId, supersedes: cur.id, note: cur.note, hints: review.changesHints, strategy: cur.strategy ?? NO_STRATEGY, fresh: true }, { replan: true });
+  if (!prep.ok && (prep.kind === "retry" || prep.kind === "replan")) {
+    if (!final) {
+      cur = await patchJob(db, cur, { detail: `planning again: ${prep.reason.slice(0, 240)}`, ...(prep.kind === "replan" ? { strategy: escalate(cur.strategy ?? NO_STRATEGY, prep.reason) } : {}) });
+      throw new Error(prep.reason);
+    }
+    if (prep.kind === "retry") {
+      cur = await internalFailure(db, cur, prep.reason, product.name, log);
+      return { status: cur.status, detail: cur.detail };
+    }
+    // several plans, none safe: that is a real question for the owner
+    cur = await patchJob(db, cur, { status: "needs_attention", detail: `No safe way to make that change was found: ${prep.reason}`, options: ["Tell us the exact words or scene to change (for example: remove the second sentence)", "Approve this video as it is"] });
+    await requestOwnerNotice(cur.id).catch(() => undefined);
+    return { status: "needs_attention", detail: cur.detail };
+  }
+  if (!prep.ok) {
+    log(`change request needs the owner: ${prep.reason}`);
+    await trackEvent(db, "review-worker", cur.id, "FAILED", `needs a decision: ${prep.reason}`);
+    cur = await patchJob(db, cur, { status: "needs_attention", detail: prep.reason, options: prep.options });
+    await requestOwnerNotice(cur.id).catch(() => undefined);
+    return { status: "needs_attention", detail: cur.detail };
+  }
+  cur = await patchJob(db, cur, { understood: prep.understood });
+  log(`understood: ${prep.understood.join("; ")}`);
 
   // 2. render, QA, upload unlisted, supersede, email
   const deps: ReplacementDeps = {
@@ -98,7 +129,11 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
       return { publicationId: out.publicationId, videoId: out.videoId, emailed: Boolean(out.emailed) };
     },
   };
-  const outcome = await runReplacementJob(db, cur, review, deps, { final: input.attempt >= input.maxAttempts });
+  const outcome = await runReplacementJob(db, cur, review, deps, { final });
+  if (outcome.job.status === "internal_failure") {
+    await raiseOpsAlert(db, outcome.job, product.name, log);
+    return { status: "internal_failure", detail: outcome.job.detail };
+  }
   if (outcome.job.status === "needs_attention") {
     await requestOwnerNotice(outcome.job.id).catch(() => undefined);
     return { status: "needs_attention", detail: outcome.job.detail };

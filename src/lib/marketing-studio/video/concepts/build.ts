@@ -36,7 +36,7 @@ export function layoutConcept(c: Concept) {
     const out: Record<string, LineTime> = {};
     let t = 150;
     c.narration.forEach((l, i) => {
-      if (i > 0) t += l.sceneId === c.narration[i - 1].sceneId ? p.gaps.same : l.sceneId === "end" ? p.gaps.endLead : p.gaps.scene;
+      if (i > 0) t += (l.sceneId === c.narration[i - 1].sceneId ? p.gaps.same : l.sceneId === "end" ? p.gaps.endLead : p.gaps.scene) * (c.gapScale ?? 1);
       const d = durMs[l.id];
       if (!d) throw new Error(`no audio duration for line ${l.id}`);
       out[l.id] = { start: t, end: t + d, durMs: d };

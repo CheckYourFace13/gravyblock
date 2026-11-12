@@ -12,6 +12,7 @@ import { INTERNAL_SCOPE, type OwnerScope } from "../scope";
 import type { Deps } from "./adapters";
 import { consumeTransaction, openTransaction, verifyReviewToken, type ReviewClaims } from "./review-token";
 import { queueReplacement } from "./review-replacement";
+import { sendChangesReceivedEmail } from "./review-notify";
 import { QUICK_KINDS, WHERE_OPTIONS, type NoteHints } from "../revisions/types";
 import { isPaused, pauseProduct } from "./video-policy";
 import { approveReview, getReview, requestChanges, trackEvent, thumbUrlFor, watchUrlFor, type ReviewState } from "./video-review";
@@ -121,6 +122,7 @@ export async function submitChanges(db: StudioDb, input: { token: string; txn: s
   try {
     const next = await requestChanges("owner-email-link", t.claims.p, note, db, input.hints);
     await queueReplacement(db, "owner-email-link", next);
+    await sendChangesReceivedEmail(db, next.publicationId).catch(() => undefined);
     return { ok: true, state: next };
   } catch (e) {
     return { ok: false, status: 500, message: e instanceof Error ? e.message : "Could not record the request" };

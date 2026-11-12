@@ -175,7 +175,7 @@ export function ensureMarkers(c: Concept): string[] {
 const payId = (plateIdx: number, k: 0 | 1) => `c-pay${plateIdx + 1}${k === 0 ? "a" : "b"}`;
 const stepLine = (c: Concept, plateIdx: number, k: 0 | 1) => c.narration.find((l) => l.claims.includes(payId(plateIdx, k)));
 
-function setStep(c: Concept, plateIdx: number, k: 0 | 1, def: Step) {
+export function setStep(c: Concept, plateIdx: number, k: 0 | 1, def: Step) {
   const pl = c.capturePlan[plateIdx];
   const old = pl.clicks[k];
   pl.clicks[k] = def;
@@ -205,7 +205,7 @@ function setStep(c: Concept, plateIdx: number, k: 0 | 1, def: Step) {
 }
 
 /** Drops what nothing refers to any more, and refreshes what is derived from the script. */
-function settle(c: Concept) {
+export function settle(c: Concept) {
   const refs = new Set([...c.narration.flatMap((l) => l.claims), ...c.onScreen.map((o) => o.claim)]);
   c.claims = c.claims.filter((x) => refs.has(x.id));
   c.claimsUsed = c.claimsUsed.filter((x) => c.claims.some((y) => y.id === x.id) || !/^c-(ctx|pay)/.test(x.id));

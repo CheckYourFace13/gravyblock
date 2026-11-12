@@ -10,14 +10,17 @@ import { createHash } from "node:crypto";
 import { like } from "drizzle-orm";
 import { ms, type StudioDb } from "../db";
 import { enqueue, getSetting, setSetting } from "../runtime";
+import { classifyFailure, escalate, NO_STRATEGY, type Strategy } from "../revisions/heal";
 import { trackEvent, type ReviewState } from "./video-review";
 
 export const JOB_PREFIX = "video_review_job_";
 export const jobKey = (id: string) => `${JOB_PREFIX}${id}`;
 export const REPLACEMENT_JOB_KIND = "review_replacement" as const;
-export const MAX_ATTEMPTS = 3;
+/** Several automatic attempts, each rebuilt from the saved source, before an internal problem is handed to operations. */
+export const MAX_ATTEMPTS = 6;
 
-export type JobStatus = "queued" | "rendering" | "uploading" | "done" | "needs_attention";
+/** needs_attention is ONLY for a decision the customer must make. internal_failure is our own technical problem: it is logged for operations and never sent to the customer. */
+export type JobStatus = "queued" | "rendering" | "uploading" | "done" | "needs_attention" | "internal_failure";
 export type ReplacementJob = {
   id: string; // the publication being replaced
   productId: string;
@@ -36,6 +39,12 @@ export type ReplacementJob = {
   options?: string[];
   newPublicationId?: string;
   newVideoId?: string;
+  /** what earlier attempts taught, applied to the next rebuild (which always starts from the saved source) */
+  strategy?: Strategy;
+  /** every internal failure so far: which attempt, what kind, what it said */
+  failures?: Array<{ attempt: number; cls: string; message: string; at: string }>;
+  /** the "changes received" email has been sent */
+  ackedAt?: string;
 };
 
 /** A fingerprint of everything the owner sees and hears in a demo (including accepted edits), so a replacement that changes nothing is recognised. */
@@ -71,7 +80,7 @@ export async function queueReplacement(db: StudioDb, actor: string, review: Revi
 export async function requeueReplacement(db: StudioDb, publicationId: string): Promise<ReplacementJob> {
   const job = await getSetting<ReplacementJob | null>(jobKey(publicationId), null, db);
   if (!job) throw new Error("No replacement job for that review");
-  const next = await put(db, { ...job, status: "queued", generation: job.generation + 1, attempts: 0, detail: undefined, updatedAt: new Date().toISOString() });
+  const next = await put(db, { ...job, status: "queued", generation: job.generation + 1, attempts: 0, detail: undefined, strategy: undefined, failures: undefined, updatedAt: new Date().toISOString() });
   await enqueueFor(db, next);
   return next;
 }
@@ -102,18 +111,25 @@ export type RunOutcome = { job: ReplacementJob; retry: boolean };
  * and try again); a final one, or a blocked one, ends as NEEDS ATTENTION.
  */
 export async function runReplacementJob(db: StudioDb, job: ReplacementJob, old: ReviewState, deps: ReplacementDeps, opts: { final: boolean }): Promise<RunOutcome> {
-  if (job.status === "done" || job.status === "needs_attention") return { job, retry: false };
+  if (job.status === "done" || job.status === "needs_attention" || job.status === "internal_failure") return { job, retry: false };
   const slug = await deps.slugFor(job.productId);
   const specHash = await deps.currentSpecHash(slug);
   if (old.specHash && old.specHash === specHash) {
     await trackEvent(db, "review-worker", job.id, "FAILED", "nothing changed in the video");
+    const msg = "The rebuilt video came out identical to the one being replaced; the plan must change something the owner can see or hear.";
+    if (!opts.final) return { job: await patchJob(db, job, { status: "queued", detail: `Attempt ${job.attempts + 1} rebuilt an identical video; planning again`, strategy: escalate(job.strategy ?? NO_STRATEGY, msg) }), retry: true };
     return { job: await patchJob(db, job, { status: "needs_attention", detail: "The accepted change does not alter the video, so a replacement would be identical. Nothing was uploaded." }), retry: false };
   }
   let cur = await patchJob(db, job, { status: "rendering", attempts: job.attempts + 1, detail: undefined });
   await trackEvent(db, "review-worker", job.id, "REPLACEMENT_RENDERING", cur.note.slice(0, 200));
   const fail = async (message: string): Promise<RunOutcome> => {
     await trackEvent(db, "review-worker", job.id, "FAILED", message);
-    return opts.final ? { job: await patchJob(db, cur, { status: "needs_attention", detail: message.slice(0, 400) }), retry: false } : { job: await patchJob(db, cur, { status: "queued", detail: `Attempt ${cur.attempts} failed, will retry: ${message.slice(0, 300)}` }), retry: true };
+    const kind = classifyFailure(message);
+    const failures = [...(cur.failures ?? []), { attempt: cur.attempts, cls: kind.cls, message: message.slice(0, 400), at: new Date().toISOString() }];
+    // a decision only the customer can make ends here; a technical problem is repaired by rebuilding from the source with an adjusted strategy
+    if (kind.kind === "owner") return { job: await patchJob(db, cur, { status: "needs_attention", detail: message.slice(0, 400), failures }), retry: false };
+    if (opts.final) return { job: await patchJob(db, cur, { status: "internal_failure", detail: `Internal problem after ${cur.attempts} automatic attempts (${kind.cls}): ${message.slice(0, 300)}`, failures }), retry: false };
+    return { job: await patchJob(db, cur, { status: "queued", detail: `Attempt ${cur.attempts} failed (${kind.cls}), rebuilding from the source: ${message.slice(0, 300)}`, strategy: escalate(cur.strategy ?? NO_STRATEGY, message), failures }), retry: true };
   };
   try {
     const r = await deps.render(slug);

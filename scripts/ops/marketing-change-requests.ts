@@ -9,9 +9,10 @@ import { getSetting } from "../../src/lib/marketing-studio/runtime";
 import { jobKey, queueReplacement, requeueReplacement, type ReplacementJob } from "../../src/lib/marketing-studio/publishing/review-replacement";
 import { getReview, listReviews } from "../../src/lib/marketing-studio/publishing/video-review";
 import { prepareRevision } from "../../src/lib/marketing-studio/revisions/run";
-import { resetRevision } from "../../src/lib/marketing-studio/revisions/history";
-import { conceptKey } from "../../src/lib/marketing-studio/video/concepts/registry";
-import { DEMO_SPECS, demoSpecFor } from "../../src/lib/marketing-studio/video/demo/specs";
+import { boardOf, reconstructConcept, sourceKey, type RevisionSource } from "../../src/lib/marketing-studio/revisions/source";
+import { conceptKey, discoveryKey, type StoredConcept } from "../../src/lib/marketing-studio/video/concepts/registry";
+import type { PageDiscovery } from "../../src/lib/marketing-studio/video/concepts/types";
+import { demoSpecFor } from "../../src/lib/marketing-studio/video/demo/specs";
 import { ensureSpec } from "../../src/lib/marketing-studio/video/concepts/registry";
 import { spendNow } from "../../src/lib/marketing-studio/video/concepts/ai-budget";
 
@@ -45,16 +46,24 @@ async function main() {
     console.log("steps after:", rev.after.steps.join(" | "));
     return;
   }
-  if (cmd === "redo" && arg) {
+  if (cmd === "source" && arg) {
+    // what the saved source for this request is (or would be), rebuilt from the approved video's own record; nothing is stored
     const r = await getReview(db, arg);
     if (!r) throw new Error("no such review");
     const specId = r.specId ?? (await listProducts(INTERNAL_SCOPE, db)).find((p) => p.id === r.productId)!.slug;
-    const ok = await resetRevision(db, specId, r.publicationId, conceptKey);
-    if (ok) {
-      delete DEMO_SPECS[specId];
-      await ensureSpec(db, specId);
+    await ensureSpec(db, specId);
+    const saved = await getSetting<RevisionSource | null>(sourceKey(arg), null, db);
+    if (saved) {
+      console.log("saved source:", saved.origin, saved.savedAt);
+      for (const l of saved.concept?.narration ?? []) console.log(l.id, l.sceneId, l.spoken, l.claims.join(","));
+      return;
     }
-    console.log(ok ? "script restored to its pre-revision source; use queue to plan it again" : "no source was kept for this revision (it predates source saving)");
+    const cur = (await getSetting<StoredConcept | null>(conceptKey(specId), null, db))?.concept;
+    const board = await boardOf(db, arg);
+    const rebuilt = cur && board ? reconstructConcept(cur, board, ((await getSetting<PageDiscovery[] | null>(discoveryKey(cur.slug), null, db)) ?? []).filter(Boolean)) : null;
+    console.log(rebuilt ? "rebuilt from the approved video's record:" : "COULD NOT REBUILD", "est", rebuilt?.estSeconds);
+    for (const l of rebuilt?.narration ?? []) console.log(l.id, l.sceneId, l.spoken, l.claims.join(","));
+    console.log("steps:", rebuilt?.capturePlan.map((p) => p.clicks.map((k) => k.name + " -> " + k.payoff.slice(0, 50)).join(" | ")).join(" || "));
     return;
   }
   if (cmd === "queue" && arg) {

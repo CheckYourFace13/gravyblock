@@ -243,16 +243,19 @@ describe("owner review flow: one click, scanner safe, replacement loop (database
     assert.equal(calls.renders, 1);
   });
 
-  test("a change that alters nothing is not rendered again: it ends as NEEDS ATTENTION and nothing is uploaded", async () => {
+  test("a change that alters nothing is planned again, and only when no attempts remain does it become a question for the owner; nothing is uploaded", async () => {
     const r = await reviewed("Unchanged video");
     const { job } = await requestChange(r, "The voice is slightly too fast.");
     const { deps, calls } = fakeDeps({ currentSpecHash: () => "hash-1" });
     const out = await runReplacementJob(db(), job, (await getReview(db(), r.pub.id))!, deps, { final: false });
-    assert.equal(out.job.status, "needs_attention");
+    assert.equal(out.job.status, "queued", "an identical rebuild is our problem first: plan again");
+    assert.equal(out.retry, true);
+    const last = await runReplacementJob(db(), out.job, (await getReview(db(), r.pub.id))!, deps, { final: true });
+    assert.equal(last.job.status, "needs_attention");
     assert.deepEqual([calls.renders, calls.uploads], [0, 0]);
   });
 
-  test("failures retry safely, then surface as NEEDS ATTENTION only when no attempts remain; QA must pass before any upload", async () => {
+  test("technical failures retry safely, then become an internal failure for operations (never a question for the customer); QA must pass before any upload", async () => {
     const r = await reviewed("Failing video");
     const { job } = await requestChange(r, "The voice is slightly too fast.");
     let uploaded = 0;
@@ -262,7 +265,7 @@ describe("owner review flow: one click, scanner safe, replacement loop (database
     assert.equal(first.job.status, "queued", "back in the queue for the next attempt");
     const last = await runReplacementJob(db(), first.job, (await getReview(db(), r.pub.id))!, failing, { final: true });
     assert.equal(last.retry, false);
-    assert.equal(last.job.status, "needs_attention");
+    assert.equal(last.job.status, "internal_failure");
     assert.equal(uploaded, 0, "a video that did not pass QA is never uploaded");
     assert.ok((await getReview(db(), r.pub.id))?.events?.some((e) => e.event === "FAILED"));
     assert.equal((await getReview(db(), r.pub.id))?.status, "changes_requested", "the reviewed video is untouched");

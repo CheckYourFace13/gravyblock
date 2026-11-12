@@ -31,7 +31,7 @@ export const embedKey = (productId: string) => `video_embed_${productId}`;
 export const REVIEW_PREFIX = "video_review_";
 
 export type ReviewStatus = "unlisted_live" | "changes_requested" | "approved_pending_public" | "approved_public" | "superseded";
-export type ReviewEvent = "REVERTED_TO_UNLISTED" | "EMAIL_SENT" | "VIEWED" | "APPROVED" | "CHANGES_REQUESTED" | "REPLACEMENT_RENDERING" | "REPLACEMENT_READY" | "PUBLIC" | "FAILED" | "PAUSED";
+export type ReviewEvent = "REVERTED_TO_UNLISTED" | "EMAIL_SENT" | "VIEWED" | "APPROVED" | "CHANGES_REQUESTED" | "REPLACEMENT_RENDERING" | "REPLACEMENT_READY" | "PUBLIC" | "FAILED" | "PAUSED" | "INTERNAL_FAILURE" | "CHANGES_RECEIVED";
 export type ReviewState = {
   /** Every step of the review is recorded here. An email being SENT is never an owner decision. */
   events?: Array<{ at: string; event: ReviewEvent; detail?: string }>;
@@ -68,6 +68,8 @@ export type ReviewState = {
   changesHints?: NoteHints;
   changesRequestedAt?: string;
   supersededBy?: string;
+  /** this video is the replacement made after the owner asked for changes (the email says so) */
+  updated?: boolean;
 };
 
 export type EmbedEntry = { publicationId: string; videoId: string; watchUrl: string; embedUrl: string; iframe: string; visibility: "unlisted" | "public"; recommendedPlacement: string; note: string };
@@ -142,7 +144,7 @@ export type ReviewLinks = { approve: string; changes: string; pause: string };
 export function buildReviewEmail(r: ReviewState, links: ReviewLinks): { subject: string; html: string; text: string } {
   const dur = r.durationSec ? `${r.durationSec.toFixed(1)} seconds` : "unknown";
   const tag = r.library ? `Video ${r.library.position} of ${r.library.of}: ${r.library.roleLabel}` : "";
-  const subject = `Review${tag ? ` (${tag})` : ""}: ${r.productName}, ${r.title}`.slice(0, 150);
+  const subject = (r.updated ? `Your updated video is ready for review: ${r.productName}, ${r.title}` : `Review${tag ? ` (${tag})` : ""}: ${r.productName}, ${r.title}`).slice(0, 150);
   const rows: Array<[string, string]> = [
     ["Duration", dur],
     ["CTA destination", `${r.ctaText} -> ${r.ctaUrl}`],
@@ -201,6 +203,7 @@ export async function recordUnlistedReview(db: StudioDb, actor: string, r: Omit<
   for (const old of await listReviews(db)) {
     // A new version supersedes only an earlier version of the SAME script; a product's other library videos are separate reviews.
     if (old.productId === r.productId && old.publicationId !== r.publicationId && (old.specId ?? "") === (r.specId ?? "") && (old.status === "unlisted_live" || old.status === "changes_requested")) {
+      if (old.status === "changes_requested") state.updated = true;
       await setSetting(reviewKey(old.publicationId), { ...old, status: "superseded", supersededBy: r.publicationId }, actor, db);
       await audit(db, { actor, action: "video_review.superseded", entity: "publication", entityId: old.publicationId, productId: r.productId, detail: { by: r.publicationId } });
     }

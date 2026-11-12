@@ -31,6 +31,11 @@ import { pageVocabulary } from "../video/concepts/validate";
 import type { Concept, PageDiscovery } from "../video/concepts/types";
 import type { Manifest } from "../video/demo/types";
 import type { EditPlan } from "../revisions/types";
+import { applyStrategy, classifyFailure, escalate, NO_STRATEGY } from "../revisions/heal";
+import { captureSource, reconstructConcept, restoreSource } from "../revisions/source";
+import { saveRevision } from "../revisions/history";
+import { sendChangesReceivedEmail } from "../publishing/review-notify";
+import { stripMarkers } from "../revisions/text";
 
 const HAVE_DB = Boolean(process.env.STUDIO_TEST_DATABASE_URL);
 
@@ -585,6 +590,140 @@ describe("change requests V2: Product Truth recheck and the whole loop (database
     assert.ok(oldNow && ["superseded", "changes_requested"].includes(oldNow.status), "the reviewed copy is superseded and was never made public");
     assert.equal((await getReview(db(), out.job.newPublicationId!))?.status, "unlisted_live", "the new copy waits unlisted for the owner");
     assert.ok((await listReviewsByStatus("approved_public")) === 0, "nothing was published automatically");
+  });
+
+  let channel = 0;
+  const reviewOf = async (title: string) => {
+    channel++;
+    const videoId = `vsrc${String(channel).padStart(7, "0")}`.slice(0, 11);
+    const conn = await connectAccount(INTERNAL_SCOPE, "t", productId, { platform: "youtube", accountLabel: "iScream Studio (@iscreamstudio)", externalAccountId: `UC_v3_channel${channel}`, tokens: { accessToken: "ya29.fake", refreshToken: "1//fake", accessExpiresAt: Date.now() + 3_000_000 }, scopes: [YT_SCOPE_UPLOAD, YT_SCOPE_READ, YT_SCOPE_MANAGE], tokenExpiresAt: null });
+    const [pub] = await db().insert(ms.msPublications).values({ productId, assetId: randomUUID(), connectionId: conn.id, platform: "youtube", mode: "direct", status: "published", title, caption: title, ctaUrl: "https://boatingchicago.com/marinas", dedupeKey: randomUUID(), externalPostId: videoId, publishedAt: new Date() }).returning();
+    await recordUnlistedReview(db(), "t", { publicationId: pub.id, productId, productName: "BoatingChicago", videoRowId: randomUUID(), videoId, title, description: title, durationSec: 30, ctaText: "Go", ctaUrl: "https://boatingchicago.com/marinas", intendedUse: "t", specHash: "h1", specId: "boatingchicago:loop-v3" }, "home");
+    await requestChanges("t", pub.id, "Remove the part about inland lakes", db());
+    return { pub, review: (await getReview(db(), pub.id))! };
+  };
+  const storedConcept = async () => (await import("../runtime")).getSetting<{ concept: Concept } | null>(conceptKey(specId), null, db());
+
+  test("every attempt starts from the saved source: a failed attempt never becomes the new starting point", async () => {
+    const c = marina(3);
+    await storeConcept(c);
+    const old = await reviewOf("Source test");
+    const src = await captureSource(db(), { specId, publicationId: old.pub.id, productId });
+    assert.equal(src.origin, "request");
+    assert.deepEqual(src.concept?.narration, { ...c, specId }.narration, "the accepted script is what was saved");
+    const base = { productId, slug: "boatingchicago", productName: "BoatingChicago", origin: "https://boatingchicago.com", specId, supersedes: old.pub.id, note: "Make the Lake Michigan line more exciting." };
+    const planner: Planner = async () => ({ micros: 0, plan: { summary: ["x"], ops: [{ op: "rewrite_line", line: "L7", spoken: "Tap Lake Michigan and watch all thirteen verified marinas fill in." }] } });
+    const first = await prepareRevision(db(), { ...base, fresh: true }, { planner, replan: true });
+    assert.ok(first.ok);
+    assert.notDeepEqual((await storedConcept())!.concept.narration, c.narration, "the attempt rewrote the stored script");
+    // the render of that attempt failed: the next one restores the source first
+    await restoreSource(db(), productId, src);
+    assert.deepEqual((await storedConcept())!.concept.narration, c.narration, "the stored script is the source again, not the failed attempt");
+    const again = await prepareRevision(db(), { ...base, fresh: true }, { planner, replan: true });
+    assert.ok(again.ok && first.ok && JSON.stringify(again.revision.after) === JSON.stringify(first.revision.after), "planning again from the source gives a clean result");
+    assert.equal((await captureSource(db(), { specId, publicationId: old.pub.id, productId })).savedAt, src.savedAt, "the source is saved once");
+  });
+
+  test("a plan that fails validation is replanned (not sent to the owner) when the loop asks for it", async () => {
+    const c = marina(3);
+    await storeConcept(c);
+    const base = { productId, slug: "boatingchicago", productName: "BoatingChicago", origin: "https://boatingchicago.com", specId, supersedes: "pub-replan", note: "Make the Lake Michigan line more exciting.", fresh: true };
+    const bad: Planner = async () => ({ micros: 0, plan: { summary: ["x"], ops: [{ op: "rewrite_line", line: "L7", spoken: "Guaranteed best slips, unlimited fuel, instantly." }] } });
+    const r = await prepareRevision(db(), base, { planner: bad, replan: true });
+    assert.ok(!r.ok && r.kind === "replan", "the loop tries again with the exact problems instead of asking the owner");
+  });
+
+  test("technical failures are rebuilt automatically and never reach the customer; only a real decision does", async () => {
+    const old = await reviewOf("Loop test");
+    let job = await queueReplacement(db(), "t", old.review);
+    const depsFailing = (reason: string): ReplacementDeps => ({ currentSpecHash: () => "h-new", slugFor: async () => "boatingchicago", render: async () => ({ ok: false as const, reason }), upload: async () => { throw new Error("must not upload"); } });
+    let out = await runReplacementJob(db(), job, old.review, depsFailing("QA did not pass: no_dead_air: pause of 0.76s between spoken lines"), { final: false });
+    assert.equal(out.job.status, "queued");
+    assert.equal(out.retry, true);
+    assert.ok((out.job.strategy?.gapScale ?? 1) < 1, "the next build tightens the pauses");
+    assert.equal(out.job.failures?.length, 1);
+    out = await runReplacementJob(db(), out.job, old.review, depsFailing("QA did not pass: duration: 19.3s (target 20 to 35s, planned 19.3s)"), { final: false });
+    assert.ok((out.job.strategy?.holdMs ?? 0) >= 2200, `hold ${out.job.strategy?.holdMs}`);
+    assert.equal(out.job.status, "queued");
+    out = await runReplacementJob(db(), out.job, old.review, depsFailing("QA did not pass: visual_alignment: line L2 runs ahead of the screen"), { final: true });
+    assert.equal(out.job.status, "internal_failure", "an internal problem that survives every attempt is for operations, not for the customer");
+    assert.equal(out.retry, false);
+    job = await (await import("../publishing/review-replacement")).requeueReplacement(db(), old.pub.id);
+    out = await runReplacementJob(db(), job, old.review, depsFailing("made-for-kids declared by the owner: not set"), { final: false });
+    assert.equal(out.job.status, "needs_attention", "a declaration only the owner can make is the one thing that escalates");
+  });
+
+  test("a legacy request whose script an older attempt already rewrote is never trusted as a source", async () => {
+    const c = marina(3);
+    await storeConcept(c);
+    const old = await reviewOf("Legacy test");
+    await saveRevision(db(), specId, { id: "rev-legacy", round: 1, at: new Date().toISOString(), supersedes: old.pub.id, note: "x", interpretedBy: "rules", aiMicros: 0, plan: { summary: [], ops: [] }, before: snapshotOf(c), after: snapshotOf(c), scenesAffected: [], status: "applied", updatedAt: new Date().toISOString() } as never);
+    const src = await captureSource(db(), { specId, publicationId: old.pub.id, productId });
+    assert.equal(src.origin, "unrecoverable", "with no approved-video record to rebuild from, it is reported rather than guessed");
+  });
+
+  test("Changes received: one acknowledgement email per request, then nothing more", async () => {
+    const old = await reviewOf("Ack test");
+    await queueReplacement(db(), "t", old.review);
+    process.env.RESEND_API_KEY = "re_test";
+    const sent: Array<{ subject: string; text: string }> = [];
+    const fake = (async (_u: string, init: { body: string }) => {
+      sent.push(JSON.parse(init.body));
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    const one = await sendChangesReceivedEmail(db(), old.pub.id, fake);
+    const two = await sendChangesReceivedEmail(db(), old.pub.id, fake);
+    delete process.env.RESEND_API_KEY;
+    assert.equal(one.sent, true);
+    assert.equal(two.sent, false);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].text, /Changes received. GravyBlock is creating your updated video./);
+  });
+});
+
+describe("autonomous revision loop: failure handling and source rebuild (pure)", () => {
+  test("failures are classified: technical ones are ours to fix, only declarations and missing assets go to the owner", () => {
+    for (const m of ["no_dead_air: pause of 0.76s between spoken lines", "duration: 19.3s (target 20 to 35s, planned 19.3s)", 'visual_alignment: line L2 runs ahead of the screen: "tuesday" only appears later', 'capture: after "Tue" the page no longer shows "Texas Union"', "ffmpeg exited with code 1", "marker b2 missing", "cached old script"]) assert.equal(classifyFailure(m).kind, "internal", m);
+    for (const m of ["made-for-kids declared by the owner: not set", "no logo was supplied"]) assert.equal(classifyFailure(m).kind, "owner", m);
+  });
+
+  test("each failure changes the next attempt: tighter pauses, a longer hold, a different capture, a cut that removes what the voice ran ahead on", () => {
+    let s = escalate(NO_STRATEGY, "no_dead_air: pause of 0.76s");
+    assert.ok(s.gapScale < 1);
+    s = escalate(s, "duration: 19.3s (target 20 to 35s, planned 19.3s)");
+    assert.ok(s.holdMs >= 2200);
+    s = escalate(s, 'capture: after "Tue" the page no longer shows "Texas Union Building (UNB)"');
+    assert.deepEqual(s.avoid, ["Texas Union Building (UNB)"]);
+    s = escalate(s, 'visual_alignment: line L4 runs ahead of the screen: "confirmed, dockage" only appears later');
+    assert.deepEqual(s.dropWords.map((d) => d.word), ["confirmed", "dockage"]);
+    assert.equal(s.rounds, 4);
+  });
+
+  test("the strategy is applied to the rebuilt script: pauses scale, the closing frame holds, ahead-of-screen wording is cut and the taps keep their words", () => {
+    const c = marina(2);
+    const before = timing(c.narration, personalityFor(c.slug)).estSeconds;
+    const problems = applyStrategy(c, { ...NO_STRATEGY, gapScale: 0.5, holdMs: 1500, dropWords: [{ line: "L4", word: "for confirmed transient dockage" }] });
+    assert.deepEqual(problems, []);
+    assert.equal(c.gapScale, 0.5);
+    assert.equal(c.gapExtraMs, 1500);
+    assert.ok(!/confirmed transient dockage/.test(stripMarkers(c.narration.find((l) => l.id === "L4")!.spoken)));
+    assert.ok(markersIn(c.narration.find((l) => l.id === "L4")!.spoken).includes("a2"), "the tap marker survives the cut");
+    assert.ok(c.estSeconds > 0 && Math.abs(c.estSeconds - before) < 6);
+  });
+
+  test("a script is rebuilt from the approved video's own record, not from a half-edited stored copy", () => {
+    const orig = marina(2);
+    const board = {
+      transcript: orig.narration.map((l) => ({ id: l.id, text: stripMarkers(l.spoken), ...(l.caption ? { caption: l.caption } : {}), sceneId: l.sceneId })),
+      claims: orig.claims.map((x) => ({ id: x.id, text: x.text, sources: x.sources.map((q) => ({ quote: q.quote })) })),
+    };
+    const edited = ok(applyPlan(orig, plan([{ op: "consolidate", lines: ["L2", "L3"], spoken: "Tap Fuel, then Pump-out, and the list narrows to marinas with each one confirmed." }]), ctxFor(orig))).concept;
+    assert.notEqual(edited.narration.length, orig.narration.length);
+    const rebuilt = reconstructConcept(edited, board);
+    assert.ok(rebuilt, "rebuilt");
+    assert.deepEqual(rebuilt!.narration.map((l) => [l.id, stripMarkers(l.spoken), l.claims]), orig.narration.map((l) => [l.id, stripMarkers(l.spoken), l.claims]), "every line, and the claim it carries, is back as approved");
+    assert.deepEqual(rebuilt!.capturePlan.map((p) => p.clicks.map((k) => [k.name, k.payoff])), orig.capturePlan.map((p) => p.clicks.map((k) => [k.name, k.payoff])));
+    assert.deepEqual(ensureMarkers(rebuilt!), []);
   });
 });
 

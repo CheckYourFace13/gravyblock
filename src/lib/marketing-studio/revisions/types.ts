@@ -73,8 +73,6 @@ export type Revision = {
   status: "planned" | "applied" | "rendered" | "sent" | "needs_owner" | "failed";
   detail?: string;
   updatedAt: string;
-  /** the script exactly as it was before this revision changed it, so a failed render can be rebuilt from the source instead of on top of a half-good result */
-  sourceConcept?: unknown;
 };
 
 export const revisionsKey = (specId: string) => `video_revisions_${specId.replace(/[^a-z0-9]+/gi, "_")}`;

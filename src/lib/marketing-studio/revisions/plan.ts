@@ -236,12 +236,12 @@ export function aiPlanner(db: StudioDb, specId: string): Planner {
 }
 
 /** Rules first, then the model for what is left. Praise is never an error and an unresolved sentence is reported back, never dropped. */
-export async function interpretNote(note: string, view: PlanView, opts: { hints?: NoteHints; planner?: Planner }): Promise<Planned> {
+export async function interpretNote(note: string, view: PlanView, opts: { hints?: NoteHints; planner?: Planner; earlierProblems?: string[] }): Promise<Planned> {
   const rules = rulesPlan(note, view);
   if (!rules.unresolved.length) return { plan: rules.plan, by: "rules", micros: 0 };
   if (!opts.planner) return { plan: { ...rules.plan, unresolved: rules.unresolved }, by: "rules", micros: 0 };
   const handled = rules.plan.summary;
-  const ask = await opts.planner({ note, hints: opts.hints, view, handled });
+  const ask = await opts.planner({ note, hints: opts.hints, view, handled, ...(opts.earlierProblems?.length ? { problems: opts.earlierProblems } : {}) });
   const ops = [...rules.plan.ops, ...ask.plan.ops.filter((o) => !rules.plan.ops.some((r) => JSON.stringify(r) === JSON.stringify(o)))];
   const factual = ask.plan.factual ?? rules.plan.factual;
   return { plan: { ...ask.plan, ops, summary: [...rules.plan.summary, ...ask.plan.summary], ...(factual ? { factual } : {}) }, by: rules.plan.ops.length ? "both" : "language_model", micros: ask.micros };

@@ -20,6 +20,7 @@ import { candidatesFor } from "./candidates";
 import { applyScriptEdits, loadScriptEdits, planHandwritten, scriptEditsKey, type ScriptEdits } from "./handwritten";
 import { earlierFeedback, revisionFor, saveRevision } from "./history";
 import { aiPlanner, interpretNote, isPraise, sentencesOf, type PlanView, type Planner } from "./plan";
+import { applyStrategy, type Strategy } from "./heal";
 import { flagForCorrection, flaggedPhrases, recheckProductTruth } from "./recheck";
 import { removePhrase, stripMarkers } from "./text";
 import type { EditPlan, NoteHints, Revision, ScriptSnapshot } from "./types";
@@ -27,12 +28,13 @@ import type { EditPlan, NoteHints, Revision, ScriptSnapshot } from "./types";
 const ACTOR = "change-request-engine";
 const norm = (s: string) => s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim();
 
-export type PrepareInput = { productId: string; slug: string; productName: string; origin: string; specId: string; supersedes: string; note: string; hints?: NoteHints };
-export type PrepareDeps = { planner?: Planner; fetchText?: (url: string) => Promise<string | null>; now?: () => Date; /** plan and validate only: nothing is stored, flagged or changed (a preview of what a note would do) */ dry?: boolean };
+export type PrepareInput = { productId: string; slug: string; productName: string; origin: string; specId: string; supersedes: string; note: string; hints?: NoteHints; /** what earlier attempts of this request taught: applied to the rebuilt script and given to the planner */ strategy?: Strategy; /** plan again from the source even if an earlier attempt left a revision behind */ fresh?: boolean };
+export type PrepareDeps = { planner?: Planner; fetchText?: (url: string) => Promise<string | null>; now?: () => Date; /** a plan that fails validation is reported as `replan` (the caller tries again) instead of asking the owner */ replan?: boolean; /** plan and validate only: nothing is stored, flagged or changed (a preview of what a note would do) */ dry?: boolean };
 export type Prepared =
   | { ok: true; revision: Revision; understood: string[]; concept: Concept | null }
   | { ok: false; kind: "needs_owner"; reason: string; options: string[]; revision?: Revision }
-  | { ok: false; kind: "retry"; reason: string };
+  | { ok: false; kind: "retry"; reason: string }
+  | { ok: false; kind: "replan"; reason: string };
 
 const DEFAULT_OPTIONS = ["Tell us the exact words or scene to change (for example: remove the second sentence)", "Approve this video as it is"];
 
@@ -72,7 +74,7 @@ export async function prepareRevision(db: StudioDb, input: PrepareInput, deps: P
   const stored = spec.concept ? await getSetting<StoredConcept | null>(conceptKey(input.specId), null, db) : null;
   const concept = stored?.concept ?? null;
   const existing = await revisionFor(db, input.specId, input.supersedes);
-  if (existing && (existing.status === "applied" || existing.status === "rendered" || existing.status === "sent")) {
+  if (!input.fresh && existing && (existing.status === "applied" || existing.status === "rendered" || existing.status === "sent")) {
     // a retry of the same request: the script was already rebuilt
     return { ok: true, revision: existing, understood: existing.plan.summary, concept };
   }
@@ -82,13 +84,13 @@ export async function prepareRevision(db: StudioDb, input: PrepareInput, deps: P
   const facts = (await listFacts(INTERNAL_SCOPE, input.productId, db)).filter((f) => f.status === "current" && f.verifiedAt);
   const prohibited = (await listClaims(INTERNAL_SCOPE, input.productId, db)).filter((c) => c.kind === "prohibited").map((c) => c.text);
   const factStrings = [...new Set([...(concept?.claimsUsed.map((u) => u.quote) ?? []), ...facts.map((f) => f.factValue)])];
-  const candidates = concept ? candidatesFor(concept, discoveries, flagged) : [];
+  const candidates = concept ? candidatesFor(concept, discoveries, [...flagged, ...(input.strategy?.avoid ?? [])]) : [];
   const view = viewOf(spec, concept, { origin: input.origin, productName: input.productName, facts: factStrings, prohibited, earlier: await earlierFeedback(db, input.specId, input.supersedes), candidates, voiceFacts: facts.map((f) => ({ key: f.factKey, value: f.factValue })) });
 
   const planner = deps.planner ?? aiPlanner(db, input.specId);
   let planned;
   try {
-    planned = await interpretNote(input.note, view, { hints: input.hints, planner });
+    planned = await interpretNote(input.note, view, { hints: input.hints, planner, earlierProblems: input.strategy?.planProblems });
   } catch (e) {
     return { ok: false, kind: "retry", reason: `the edit could not be interpreted yet (${e instanceof Error ? e.message : String(e)}); it will be tried again` };
   }
@@ -110,11 +112,11 @@ export async function prepareRevision(db: StudioDb, input: PrepareInput, deps: P
 
   // ---- apply and validate; one model repair attempt with the exact problems ----
   const cx: ApplyContext = { candidates, vocabulary: pageVocabulary(discoveries), factText: norm(discoveries.flatMap((d) => [...d.lines, ...d.groups.flatMap((g) => g.sequence.map((s) => s.newText.replace(/ \| /g, " ")))]).join(" \n ")), prohibited, flagged: [...flagged, ...(plan.factual?.phrases ?? [])] };
-  type Applied = { ok: true; concept: Concept | null; changes: string[]; affected: string[]; intents: Intent[]; edits?: ScriptEdits } | { ok: false; reason: string };
+  type Applied = { ok: true; concept: Concept | null; changes: string[]; affected: string[]; intents: Intent[]; edits?: ScriptEdits } | { ok: false; reason: string; kind?: string };
   const run = (p: EditPlan): Applied => {
     if (concept) {
       const r = applyPlan(concept, p, { ...cx, flagged: [...flagged, ...(p.factual?.phrases ?? [])] });
-      return r.ok ? r : { ok: false, reason: r.reason };
+      return r.ok ? r : { ok: false, reason: r.reason, kind: r.kind };
     }
     const h = planHandwritten(spec, p);
     if (!h.ok) return { ok: false, reason: h.reason };
@@ -139,8 +141,13 @@ export async function prepareRevision(db: StudioDb, input: PrepareInput, deps: P
       /* the first problem stands */
     }
   }
+  if (!result.ok && deps.replan && (result.kind === "invalid" || result.kind === undefined)) return { ok: false, kind: "replan", reason: result.reason };
   if (!result.ok) return needs(`The change could not be made safely: ${result.reason}`, DEFAULT_OPTIONS, plan);
   const ok = result;
+  if (ok.concept && input.strategy) {
+    const left = applyStrategy(ok.concept, input.strategy);
+    if (left.length) return deps.replan ? { ok: false, kind: "replan", reason: left.join("; ") } : needs(`The change could not be made safely: ${left.join("; ")}`, DEFAULT_OPTIONS, plan);
+  }
 
   // ---- Product Truth recheck ----
   const recheck = concept ? await recheckProductTruth(db, { productId: input.productId, origin: input.origin, before: concept, after: ok.concept, plan, note: input.note, fetchText: deps.fetchText }) : undefined;
@@ -163,6 +170,6 @@ export async function prepareRevision(db: StudioDb, input: PrepareInput, deps: P
   if (ok.intents.length) await saveOverrides(db, ACTOR, input.productId, mergeOverrides(await getOverrides(db, input.productId), ok.intents, input.note));
 
   const after: ScriptSnapshot = ok.concept ? snapshotOf(ok.concept) : { ...before, lines: demoSpecFor(input.specId).narration.map((l) => ({ id: l.id, scene: l.sceneId, spoken: stripMarkers(l.spoken), ...(l.caption ? { caption: l.caption } : {}) })) };
-  const revision = await saveRevision(db, input.specId, { ...base, aiMicros: micros, plan, ...(recheck ? { recheck } : {}), before, after, scenesAffected: ok.affected, status: "applied", detail: ok.changes.join("; "), ...(concept ? { sourceConcept: concept } : {}) });
+  const revision = await saveRevision(db, input.specId, { ...base, aiMicros: micros, plan, ...(recheck ? { recheck } : {}), before, after, scenesAffected: ok.affected, status: "applied", detail: ok.changes.join("; ") });
   return { ok: true, revision, understood: [...(plan.summary.length ? plan.summary : ok.changes), ...(recheck?.note && recheck.entries.length ? [recheck.note] : [])], concept: ok.concept ?? null };
 }
