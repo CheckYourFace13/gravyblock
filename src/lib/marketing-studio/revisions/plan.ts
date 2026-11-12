@@ -158,7 +158,7 @@ Rules:
 - Repetition: when several lines repeat the same phrase, say the options once: one line per scene that names both of its taps in order, then remove the now-redundant line of that scene (for example "Tap Fuel, then Pump-out, and the list narrows to marinas with each one confirmed.", then remove_line the second line of the scene). Keep every tap named in order.
 - If the owner says something looks wrong or is an error, put the claim's verbatim words in factual.phrases and remove it.
 - Praise (like "I like this") is not an edit: set sentiment, no op. Do not put it in unresolved.
-- Use needsOwner only if the request is contradictory or impossible to do safely, and give two or three simple options. Otherwise make your best safe interpretation.
+- Never use needsOwner for ambiguity, taste, or because several options would work: choose the most reasonable verified option yourself (CANDIDATES lists real alternatives, FACTS the verified wording). Use needsOwner ONLY when two requested edits contradict each other, a requested claim cannot be verified from FACTS or CANDIDATES and no safe alternative exists, or a brand asset or legal declaration is missing; then give two or three simple options.
 - hints (quick controls the owner ticked, and where in the video) help you decide; the note itself decides.`;
 
 const OP_NAMES = new Set(["remove_text", "remove_line", "remove_scene", "remove_step", "replace_step", "rewrite_line", "consolidate", "replace_text", "expand_abbreviations", "pronunciation", "pace", "cta_text", "cta_url", "reorder_scenes", "zoom", "recapture"]);

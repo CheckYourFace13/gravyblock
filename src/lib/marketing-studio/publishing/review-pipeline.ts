@@ -77,7 +77,7 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
       return { status: cur.status, detail: cur.detail };
     }
     // several plans, none safe: that is a real question for the owner
-    cur = await patchJob(db, cur, { status: "needs_attention", detail: `No safe way to make that change was found: ${prep.reason}`, options: ["Tell us the exact words or scene to change (for example: remove the second sentence)", "Approve this video as it is"] });
+    cur = await patchJob(db, cur, { status: "needs_attention", detail: `No safe way to make that change was found: ${prep.reason}`, options: (prep.kind === "replan" && prep.options?.length ? prep.options : ["Tell us the exact words or scene to change (for example: remove the second sentence)", "Approve this video as it is"]) });
     await requestOwnerNotice(cur.id).catch(() => undefined);
     return { status: "needs_attention", detail: cur.detail };
   }

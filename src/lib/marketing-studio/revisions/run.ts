@@ -34,7 +34,7 @@ export type Prepared =
   | { ok: true; revision: Revision; understood: string[]; concept: Concept | null }
   | { ok: false; kind: "needs_owner"; reason: string; options: string[]; revision?: Revision }
   | { ok: false; kind: "retry"; reason: string }
-  | { ok: false; kind: "replan"; reason: string };
+  | { ok: false; kind: "replan"; reason: string; options?: string[] };
 
 const DEFAULT_OPTIONS = ["Tell us the exact words or scene to change (for example: remove the second sentence)", "Approve this video as it is"];
 
@@ -104,7 +104,7 @@ export async function prepareRevision(db: StudioDb, input: PrepareInput, deps: P
   };
 
   let plan = planned.plan;
-  if (plan.needsOwner) return needs(plan.needsOwner.reason, plan.needsOwner.options.length ? plan.needsOwner.options : DEFAULT_OPTIONS, plan);
+  if (plan.needsOwner) return deps.replan ? { ok: false, kind: "replan", reason: `the planner asked the owner ("${plan.needsOwner.reason}") but this is yours to settle: pick the most reasonable verified option from CANDIDATES or FACTS`, options: plan.needsOwner.options } : needs(plan.needsOwner.reason, plan.needsOwner.options.length ? plan.needsOwner.options : DEFAULT_OPTIONS, plan);
   if (!plan.ops.length) {
     const only = sentencesOf(input.note).every(isPraise);
     return needs(only ? "The note says what you liked but not what to change, so there is nothing to rebuild." : `No edit could be found for: ${(plan.unresolved?.length ? plan.unresolved : [input.note]).join(" ")}`, DEFAULT_OPTIONS, plan);
@@ -135,7 +135,7 @@ export async function prepareRevision(db: StudioDb, input: PrepareInput, deps: P
       const again = await planner({ note: input.note, hints: input.hints, view, handled: [], problems: [result.reason], previous: plan });
       micros += again.micros;
       plan = { ...again.plan, factual: again.plan.factual ?? plan.factual };
-      if (plan.needsOwner) return needs(plan.needsOwner.reason, plan.needsOwner.options.length ? plan.needsOwner.options : DEFAULT_OPTIONS, plan);
+      if (plan.needsOwner) return deps.replan ? { ok: false, kind: "replan", reason: `the planner asked the owner ("${plan.needsOwner.reason}") but this is yours to settle: pick the most reasonable verified option from CANDIDATES or FACTS`, options: plan.needsOwner.options } : needs(plan.needsOwner.reason, plan.needsOwner.options.length ? plan.needsOwner.options : DEFAULT_OPTIONS, plan);
       result = run(plan);
     } catch {
       /* the first problem stands */

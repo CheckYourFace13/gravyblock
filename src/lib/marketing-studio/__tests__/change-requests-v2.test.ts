@@ -633,6 +633,17 @@ describe("change requests V2: Product Truth recheck and the whole loop (database
     assert.ok(!r.ok && r.kind === "replan", "the loop tries again with the exact problems instead of asking the owner");
   });
 
+  test("a planner that asks the owner about something it can settle is sent back to plan again, not forwarded to the customer", async () => {
+    const c = marina(3);
+    await storeConcept(c);
+    const base = { productId, slug: "boatingchicago", productName: "BoatingChicago", origin: "https://boatingchicago.com", specId, supersedes: "pub-ask", note: "Make the Lake Michigan line more exciting.", fresh: true };
+    const asks: Planner = async () => ({ micros: 0, plan: { summary: ["x"], ops: [], needsOwner: { reason: "which wording do you prefer?", options: ["a", "b"] } } });
+    const looped = await prepareRevision(db(), base, { planner: asks, replan: true });
+    assert.ok(!looped.ok && looped.kind === "replan" && looped.options?.length === 2, "inside the loop it plans again first");
+    const direct = await prepareRevision(db(), { ...base, supersedes: "pub-ask2" }, { planner: asks });
+    assert.ok(!direct.ok && direct.kind === "needs_owner", "outside the loop (a preview) the question is shown as before");
+  });
+
   test("technical failures are rebuilt automatically and never reach the customer; only a real decision does", async () => {
     const old = await reviewOf("Loop test");
     let job = await queueReplacement(db(), "t", old.review);
