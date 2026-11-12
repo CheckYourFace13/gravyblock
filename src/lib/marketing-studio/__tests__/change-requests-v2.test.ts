@@ -755,6 +755,15 @@ describe("autonomous revision loop: failure handling and source rebuild (pure)",
     assert.equal(swapFlaggedTaps(bad, '"Something else" is reported as wrong but is still in the video', view), null, "nothing to swap when no tap shows it");
   });
 
+  test("a scroll step's internal name is never a quote of a claim: QA checks quotes against the live page", () => {
+    const c = marina(2);
+    c.capturePlan[1].clicks[1] = { kind: "scroll", name: "scroll-/marinas-2", payoff: "Showing 4 of 13 verified marinas with confirmed boat launch ramp." };
+    const ctx = c.claims.find((x) => x.id === "c-ctx2")!;
+    ctx.sources = [{ plate: "p2", quote: "Marinas & Harbors Near Chicago" }, { plate: "p2", quote: "scroll-/marinas-2" }];
+    const r = ok(applyPlan(c, plan([{ op: "rewrite_line", line: "L6", spoken: "Pick your harbor and go." }]), ctxFor(c)));
+    assert.deepEqual(r.concept.claims.find((x) => x.id === "c-ctx2")!.sources.map((q) => q.quote), ["Marinas & Harbors Near Chicago"]);
+  });
+
   test("a script is rebuilt from the approved video's own record, not from a half-edited stored copy", () => {
     const orig = marina(2);
     const board = {

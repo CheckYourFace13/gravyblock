@@ -196,7 +196,8 @@ export function setStep(c: Concept, plateIdx: number, k: 0 | 1, def: Step) {
   const names = pl.clicks.map((s) => (s.kind === "scroll" ? s.name : s.name));
   if (ctx) {
     ctx.text = ctx.text.replace(/shown with: .*$/, `shown with: ${names[0]} and ${names[1]}.`);
-    const q = [pl.heading, ...names].filter(Boolean);
+    // a scroll step's name is internal ("scroll-/page-2"), never text on the page, so it is never a quote
+    const q = [pl.heading, ...pl.clicks.filter((x) => x.kind !== "scroll").map((x) => x.name)].filter(Boolean);
     ctx.sources = q.map((quote) => ({ plate: pl.id, quote }));
     const usedCtx = c.claimsUsed.find((x) => x.id === ctx.id);
     if (usedCtx) usedCtx.text = ctx.text;
@@ -206,6 +207,12 @@ export function setStep(c: Concept, plateIdx: number, k: 0 | 1, def: Step) {
 
 /** Drops what nothing refers to any more, and refreshes what is derived from the script. */
 export function settle(c: Concept) {
+  // whatever produced a claim, its quotes must be text of the live page: drop a scroll step's internal name from any context claim
+  c.capturePlan.forEach((pl, i) => {
+    const internal = new Set(pl.clicks.filter((x) => x.kind === "scroll").map((x) => x.name));
+    const ctx = c.claims.find((x) => x.id === `c-ctx${i + 1}`);
+    if (ctx && internal.size) ctx.sources = ctx.sources.filter((s) => !internal.has(s.quote));
+  });
   const refs = new Set([...c.narration.flatMap((l) => l.claims), ...c.onScreen.map((o) => o.claim)]);
   c.claims = c.claims.filter((x) => refs.has(x.id));
   c.claimsUsed = c.claimsUsed.filter((x) => c.claims.some((y) => y.id === x.id) || !/^c-(ctx|pay)/.test(x.id));

@@ -19,7 +19,11 @@ import { scriptEditsKey, type ScriptEdits } from "./handwritten";
 const ACTOR = "change-request-engine";
 export const sourceKey = (publicationId: string) => `video_revision_source_${publicationId}`;
 
+/** Bumped when the rebuild from an approved video's record improves; an older rebuilt (never a request-time) source is rebuilt again the next time it is used. */
+export const SOURCE_VERSION = 2;
+
 export type RevisionSource = {
+  v?: number;
   publicationId: string;
   specId: string;
   savedAt: string;
@@ -85,6 +89,8 @@ export function reconstructConcept(current: Concept, board: Board, discoveries: 
         } else if (cur.kind === "link" || cur.kind === "search" || cur.kind === "fill") def = { ...cur, name, payoff };
       } else if (scroll && cur.kind === "scroll") def = { ...cur, payoff: scroll[1] };
       if (!def) return null;
+      // a step that is the same as it was approved is left exactly alone
+      if (def.kind === cur.kind && def.name === cur.name && def.payoff === cur.payoff && !cur.display) continue;
       setStep(c, pi, k, def);
     }
   }
@@ -117,12 +123,13 @@ export async function boardOf(db: StudioDb, publicationId: string): Promise<Boar
  */
 export async function captureSource(db: StudioDb, input: { specId: string; publicationId: string; productId: string }): Promise<RevisionSource> {
   const existing = await getSetting<RevisionSource | null>(sourceKey(input.publicationId), null, db);
-  if (existing) return existing;
+  if (existing && (existing.origin !== "recovered" || existing.v === SOURCE_VERSION)) return existing;
   await ensureSpec(db, input.specId).catch(() => undefined);
   const stored = await getSetting<StoredConcept | null>(conceptKey(input.specId), null, db);
-  let concept = stored?.concept ? structuredClone(stored.concept) : null;
+  // an older rebuilt source is improved from its own structure, never from what an attempt has written to the stored script since
+  let concept = existing?.concept ? structuredClone(existing.concept) : stored?.concept ? structuredClone(stored.concept) : null;
   let origin: RevisionSource["origin"] = "request";
-  const rewrittenBefore = (await revisionFor(db, input.specId, input.publicationId)) !== null;
+  const rewrittenBefore = existing !== null || (await revisionFor(db, input.specId, input.publicationId)) !== null;
   if (concept && rewrittenBefore) {
     const board = await boardOf(db, input.publicationId);
     const discoveries = ((await getSetting<PageDiscovery[] | null>(discoveryKey(concept.slug), null, db)) ?? []).filter(Boolean);
@@ -130,10 +137,12 @@ export async function captureSource(db: StudioDb, input: { specId: string; publi
     if (rebuilt) {
       concept = rebuilt;
       origin = "recovered";
-    } else origin = "unrecoverable";
+    } else if (existing) return existing;
+    else origin = "unrecoverable";
   }
   const facts = (await listFacts(INTERNAL_SCOPE, input.productId, db)).filter((f) => f.status === "current" && f.verifiedAt).map((f) => f.factValue);
   const source: RevisionSource = {
+    v: SOURCE_VERSION,
     publicationId: input.publicationId,
     specId: input.specId,
     savedAt: new Date().toISOString(),
