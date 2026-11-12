@@ -4,7 +4,7 @@ import { verifyEmailUrl } from "@/lib/auth/email-verify";
 export async function sendVerificationEmail(businessId: string, email: string, businessName: string): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return;
-  const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
+  const from = CUSTOMER_FROM;
   const url = verifyEmailUrl(businessId, email);
 
   const html = `<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.6;color:#1a1a1a;max-width:520px;margin:0 auto;padding:32px 20px">
@@ -19,7 +19,8 @@ export async function sendVerificationEmail(businessId: string, email: string, b
     await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ from, to: [email], subject: `Confirm your GravyBlock email`, html, text, tags: [{ name: "type", value: "email_verification" }] }),
+      body: JSON.stringify({ from, reply_to: CUSTOMER_REPLY_TO, to: [email], subject: `Confirm your GravyBlock email`, html, text, tags: [{ name: "type", value: "email_verification" }] }),
     });
   } catch { /* best-effort */ }
 }
+import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";

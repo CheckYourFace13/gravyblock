@@ -5,6 +5,7 @@
  * testimonial_request_<businessId>). Runs once/day from the worker.
  */
 
+import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";
 import { isOptedOut, unsubscribeFooter } from "@/lib/email/optout";
 import { randomUUID } from "node:crypto";
 import { and, eq, gte, inArray, lte, ne } from "drizzle-orm";
@@ -16,7 +17,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
 function resendConfig() {
   return {
     apiKey: process.env.RESEND_API_KEY ?? "",
-    from: process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>",
+    from: CUSTOMER_FROM,
   };
 }
 
@@ -96,6 +97,7 @@ export async function runTestimonialRequestBatch(batchSize = 10): Promise<{ sent
         headers: { "content-type": "application/json", authorization: `Bearer ${cfg.apiKey}` },
         body: JSON.stringify({
           from: cfg.from,
+      reply_to: CUSTOMER_REPLY_TO,
           to: [biz.email],
           subject: `How's GravyBlock working for ${biz.name}?`,
           html,

@@ -8,6 +8,7 @@
  * Worker calls runAbandonedCheckoutBatch() every tick; deduped via jobs table.
  */
 
+import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";
 import { and, eq, isNotNull, isNull, gte, sql } from "drizzle-orm";
 import { getDb, businesses, jobs } from "@/lib/db";
 import { assertOutreachSendingAllowed } from "@/lib/outreach/pause-guard";
@@ -99,7 +100,7 @@ function buildFollowUpEmail(businessName: string, _plan: string): { subject: str
 async function sendEmail(to: string, subject: string, htmlIn: string): Promise<boolean> {
   let html = htmlIn;
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
+  const from = CUSTOMER_FROM;
   if (!apiKey) return false;
 
   // Authoritative pause check, right at the send boundary — a business with
@@ -114,7 +115,7 @@ async function sendEmail(to: string, subject: string, htmlIn: string): Promise<b
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ from, to: [to], subject, html }),
+    body: JSON.stringify({ from, reply_to: CUSTOMER_REPLY_TO, to: [to], subject, html }),
   });
   return res.ok;
 }

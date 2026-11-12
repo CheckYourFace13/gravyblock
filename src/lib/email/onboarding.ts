@@ -1,4 +1,5 @@
 import { and, eq, gte, inArray, ne, sql } from "drizzle-orm";
+import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";
 import { getDb, businesses, leads, jobs, visibilitySnapshots } from "@/lib/db";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
@@ -165,12 +166,12 @@ async function recordOnboardSent(businessId: string, day: number) {
 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
+  const from = CUSTOMER_FROM;
   if (!apiKey) return false;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ from, to: [to], subject, html }),
+    body: JSON.stringify({ from, reply_to: CUSTOMER_REPLY_TO, to: [to], subject, html }),
   });
   return res.ok;
 }

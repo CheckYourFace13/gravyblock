@@ -5,6 +5,7 @@
  * diagnostic invocation and the normal admin path can never drift into two
  * different implementations of "what does the test email actually send."
  */
+import { CUSTOMER_FROM } from "@/lib/email/identity";
 import { getDb, jobs } from "@/lib/db";
 import { recordOutreachSendRow } from "@/lib/outreach/outreach-sends";
 
@@ -14,8 +15,8 @@ export async function sendInternalWebhookTestEmail(to: string): Promise<WebhookT
   if (!to || !to.includes("@")) return { ok: false, error: "Enter a valid email you control" };
 
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
-  if (!apiKey || !from) return { ok: false, error: "Resend not configured" };
+  const from = CUSTOMER_FROM;
+  if (!apiKey) return { ok: false, error: "Resend not configured" };
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",

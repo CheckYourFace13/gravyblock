@@ -1,4 +1,5 @@
 import type { Prospect } from "./prospect-finder";
+import { CUSTOMER_FROM_NAME, outreachFrom } from "@/lib/email/identity";
 import type { ProspectPreScan } from "./prospect-prescan";
 import { isOptedOut, coldOutreachFooter } from "@/lib/email/optout";
 import { assertOutreachSendingAllowed } from "./pause-guard";
@@ -7,7 +8,7 @@ import { classifyFindingStrength, naturalFindingPhrase, findingSubjectPhrase } f
 type SendEmailResult = { ok: boolean; skipped?: boolean; reason?: string; resendEmailId?: string | null };
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
-const SENDER_NAME = "Chris";
+const SENDER_NAME = CUSTOMER_FROM_NAME;
 const SENDER_TITLE = "GravyBlock";
 
 function resendConfig() {
@@ -18,10 +19,7 @@ function resendConfig() {
     // gravyblock.com, which transactional mail (receipts, login links,
     // reports) depends on. Links in the emails still point at gravyblock.com.
     // Falls back to the main from-address until the outreach domain exists.
-    from:
-      process.env.OUTREACH_FROM_EMAIL ??
-      process.env.RESEND_FROM_EMAIL ??
-      `${SENDER_NAME} at GravyBlock <hello@gravyblock.com>`,
+    from: outreachFrom(),
   };
 }
 

@@ -19,6 +19,7 @@
  * (evidence trail: when, what, exact URLs).
  */
 
+import { CUSTOMER_REPLY_TO, outreachFrom } from "@/lib/email/identity";
 import { fullAccessWhere } from "@/lib/entitlement";
 import { recordProof } from "@/lib/proof/ledger";
 import { recordOpportunity, markActed, recordMeasurementByDedupeKey, getMeasurementPlanByDedupeKey } from "@/lib/opportunities/queue";
@@ -563,7 +564,7 @@ export async function getSourceTypeStats(db: Db = getDb()!): Promise<SourceTypeS
 /* ─────────────── 3. pitch + send ─────────────── */
 
 function replyToFor(biz: { accountType: string; accountEmail: string | null; billingEmail: string | null }, truth: BusinessTruth): string | null {
-  if (biz.accountType === "house") return "chris@gravyblock.com";
+  if (biz.accountType === "house") return CUSTOMER_REPLY_TO;
   const truthEmail = truth.facts.find((f) => f.key === "email")?.value;
   return biz.accountEmail || biz.billingEmail || truthEmail || null;
 }
@@ -639,7 +640,7 @@ async function buildPitch(truth: BusinessTruth, r: { sourceName: string; sourceT
 }
 
 function fromAddress(): { name: string; email: string } | null {
-  const raw = process.env.OUTREACH_FROM_EMAIL ?? process.env.RESEND_FROM_EMAIL ?? "";
+  const raw = outreachFrom();
   const m = raw.match(/<([^>]+)>/) ?? raw.match(/([^\s<>]+@[^\s<>]+)/);
   return m?.[1] ? { name: "", email: m[1] } : null;
 }
@@ -650,7 +651,7 @@ export async function sendAuthorityEmail(input: { businessId: string; to: string
   const [biz] = await db.select({ name: businesses.name, accountType: businesses.accountType, accountEmail: businesses.accountEmail, billingEmail: businesses.billingEmail }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1);
   if (!biz) return { ok: false, error: "no_business" };
   if (await preflight(input.to)) return { ok: false, error: "suppressed" };
-  const replyTo = biz.accountType === "house" ? "chris@gravyblock.com" : biz.accountEmail || biz.billingEmail;
+  const replyTo = biz.accountType === "house" ? CUSTOMER_REPLY_TO : biz.accountEmail || biz.billingEmail;
   if (!replyTo) return { ok: false, error: "no_reply_to" };
   return sendPitch({ to: input.to, business: biz.name, subject: input.subject, text: input.text, replyTo });
 }

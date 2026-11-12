@@ -46,7 +46,8 @@ export async function sendSetupEmail(businessId: string, businessName: string, e
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "GravyBlock <hello@gravyblock.com>",
+        from: CUSTOMER_FROM,
+        reply_to: CUSTOMER_REPLY_TO,
         to: [email],
         subject: `Set up your GravyBlock autopilot for ${businessName}`,
         html,
@@ -57,3 +58,4 @@ export async function sendSetupEmail(businessId: string, businessName: string, e
     return false;
   }
 }
+import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";

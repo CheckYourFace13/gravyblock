@@ -10,6 +10,7 @@
  * email. Never add selectivity here.
  */
 
+import { outreachFrom } from "@/lib/email/identity";
 import { randomBytes } from "crypto";
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { getDb, businesses, businessConfigs, reviewRequests, jobs } from "@/lib/db";
@@ -149,7 +150,7 @@ export async function runReviewRequestSendBatch(
   const utcMidnight = new Date(now);
   utcMidnight.setUTCHours(0, 0, 0, 0);
 
-  const baseFrom = process.env.OUTREACH_FROM_EMAIL ?? process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
+  const baseFrom = outreachFrom();
   const fromAddress = bareAddress(baseFrom);
 
   const cols = {

@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";
 import { businesses, getDb } from "@/lib/db";
 import { memoryStore } from "@/lib/db/memory-store";
 import { getStripeServerClient } from "@/lib/stripe/server";
@@ -6,7 +7,7 @@ import { getStripeServerClient } from "@/lib/stripe/server";
 function resendConfig() {
   return {
     apiKey: process.env.RESEND_API_KEY ?? "",
-    from: process.env.RESEND_FROM_EMAIL ?? "",
+    from: CUSTOMER_FROM,
   };
 }
 
@@ -23,6 +24,7 @@ async function sendEmail(input: { to: string; subject: string; html: string }) {
     },
     body: JSON.stringify({
       from: cfg.from,
+      reply_to: CUSTOMER_REPLY_TO,
       to: [input.to],
       subject: input.subject,
       html: input.html,

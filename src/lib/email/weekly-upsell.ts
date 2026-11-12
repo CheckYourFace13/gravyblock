@@ -1,4 +1,5 @@
 import { desc, eq, gte, and, ne, sql } from "drizzle-orm";
+import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";
 import { isOptedOut } from "@/lib/email/optout";
 import { getDb, businesses, leads, visibilitySnapshots, jobs, contentQueue, operatorTasks, publishedContent, aiVisibilityChecks, auditFindings } from "@/lib/db";
 import { normalizePlanTierFromDb, planFeatures, type PlanTier } from "@/lib/plans";
@@ -119,7 +120,7 @@ async function sendUpsellEmail(
   extras?: { aeoScore?: number | null; geoScore?: number | null },
 ) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
+  const from = CUSTOMER_FROM;
   if (!apiKey) return;
 
   const nextTier = NEXT_TIER[tier];
@@ -200,7 +201,7 @@ async function sendUpsellEmail(
   await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: [to], subject: `GravyBlock weekly update — ${businessName}`, html }),
+    body: JSON.stringify({ from, reply_to: CUSTOMER_REPLY_TO, to: [to], subject: `GravyBlock weekly update — ${businessName}`, html }),
   }).catch((err) => console.error("[upsell-email] send failed", err));
 }
 

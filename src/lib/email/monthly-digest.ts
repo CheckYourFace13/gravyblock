@@ -4,6 +4,7 @@
  * Tracked via jobs table: type = "monthly_digest_sent", payload = { businessId }.
  */
 
+import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";
 import { and, count, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { getDb, businesses, contentQueue, publishedContent, visibilitySnapshots, operatorTasks, jobs, aiVisibilityChecks, auditFindings, citationMonitors, socialProfiles, businessIssues } from "@/lib/db";
 import { normalizePlanTierFromDb, planFeatures } from "@/lib/plans";
@@ -17,7 +18,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
 function resendConfig() {
   return {
     apiKey: process.env.RESEND_API_KEY ?? "",
-    from: process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>",
+    from: CUSTOMER_FROM,
   };
 }
 
@@ -27,7 +28,7 @@ async function sendEmail(to: string, subject: string, html: string) {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${cfg.apiKey}` },
-    body: JSON.stringify({ from: cfg.from, to: [to], subject, html }),
+    body: JSON.stringify({ from: cfg.from, reply_to: CUSTOMER_REPLY_TO, to: [to], subject, html }),
   });
   if (!res.ok) throw new Error(`Resend error: ${res.status} ${await res.text()}`);
 }

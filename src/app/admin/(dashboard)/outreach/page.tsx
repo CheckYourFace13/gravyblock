@@ -39,9 +39,9 @@ export default async function OutreachPage() {
         <p className="mt-1 text-sm text-zinc-500">
           Automated cold email acquisition. Emails send from{" "}
           <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs font-mono text-zinc-700">
-            {process.env.RESEND_FROM_EMAIL ?? "hello@gravyblock.com"}
+            Casey at GravyBlock &lt;hello@gravyblock.com&gt;
           </code>
-          {" "}— change via <code className="rounded bg-zinc-100 px-1 text-xs font-mono">RESEND_FROM_EMAIL</code> env var.
+          {" "}— a dedicated outreach domain can be set with <code className="rounded bg-zinc-100 px-1 text-xs font-mono">OUTREACH_FROM_EMAIL</code>.
         </p>
       </div>
 
@@ -426,11 +426,9 @@ export default async function OutreachPage() {
       <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
         <p className="text-sm font-semibold text-amber-900 mb-2">📧 Sender email setup</p>
         <p className="text-sm text-amber-800 leading-relaxed">
-          Cold emails send from <strong>{process.env.RESEND_FROM_EMAIL ?? "hello@gravyblock.com"}</strong>.
-          For best deliverability with cold outreach, set <code className="bg-amber-100 px-1 rounded text-xs">RESEND_FROM_EMAIL</code> to a
-          personal-looking address like <strong>chris@gravyblock.com</strong> and make sure
-          SPF, DKIM, and DMARC are configured for gravyblock.com in Resend's domain settings.
-          A personal sender name gets significantly higher open rates than a brand name.
+          Cold emails send as <strong>Casey at GravyBlock &lt;hello@gravyblock.com&gt;</strong>.
+          For best deliverability with cold outreach, make sure SPF, DKIM, and DMARC are configured for gravyblock.com in Resend's domain settings.
+          A dedicated outreach domain can be set with <code className="bg-amber-100 px-1 rounded text-xs">OUTREACH_FROM_EMAIL</code>; a personal name or mailbox is never used.
         </p>
       </section>
     </div>

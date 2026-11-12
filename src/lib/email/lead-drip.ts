@@ -1,4 +1,5 @@
 import { and, eq, gte, inArray, lt, ne, notInArray, sql } from "drizzle-orm";
+import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";
 import { getDb, leads, businesses, jobs, visibilitySnapshots } from "@/lib/db";
 import { isOptedOut, unsubscribeFooter } from "@/lib/email/optout";
 import { assertOutreachSendingAllowed } from "@/lib/outreach/pause-guard";
@@ -131,7 +132,7 @@ async function recordDripSent(leadId: string, day: number) {
 
 async function sendDripEmail(lead: { email: string }, subject: string, html: string) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL ?? "GravyBlock <hello@gravyblock.com>";
+  const from = CUSTOMER_FROM;
   if (!apiKey) return false;
 
   // Authoritative pause check, right at the send boundary — lead drip
@@ -143,7 +144,7 @@ async function sendDripEmail(lead: { email: string }, subject: string, html: str
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ from, to: [lead.email], subject, html }),
+    body: JSON.stringify({ from, reply_to: CUSTOMER_REPLY_TO, to: [lead.email], subject, html }),
   });
   return res.ok;
 }

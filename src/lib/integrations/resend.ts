@@ -49,7 +49,7 @@ type OutreachEmailPayload = {
 function resendConfig() {
   return {
     apiKey: process.env.RESEND_API_KEY ?? "",
-    from: process.env.RESEND_FROM_EMAIL ?? "",
+    from: CUSTOMER_FROM,
     internalTo: process.env.LEAD_NOTIFICATION_EMAIL ?? "",
     confirmationsEnabled: (process.env.RESEND_SEND_CONFIRMATION_TO_LEAD ?? "true").toLowerCase() === "true",
   };
@@ -68,6 +68,7 @@ async function sendEmail(input: { to: string; subject: string; html: string; tag
     },
     body: JSON.stringify({
       from: cfg.from,
+      reply_to: CUSTOMER_REPLY_TO,
       to: [input.to],
       subject: input.subject,
       html: input.html,
@@ -386,3 +387,4 @@ export async function sendSiteWatchdogAlertEmail(payload: { to: string; business
     tags: [{ name: "type", value: "site_watchdog_alert" }],
   });
 }
+import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";

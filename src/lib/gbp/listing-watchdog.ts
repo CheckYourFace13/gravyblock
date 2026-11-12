@@ -14,6 +14,7 @@
  * app already pays for.
  */
 
+import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";
 import { fullAccessWhere } from "@/lib/entitlement";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
@@ -93,8 +94,8 @@ async function sendChangeAlertEmail(params: {
   changes: ListingChange[];
 }): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
-  if (!apiKey || !from) return false;
+  const from = CUSTOMER_FROM;
+  if (!apiKey) return false;
 
   const rows = params.changes
     .map(
@@ -135,6 +136,7 @@ async function sendChangeAlertEmail(params: {
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         from,
+        reply_to: CUSTOMER_REPLY_TO,
         to: [params.to],
         subject: `⚠ Your Google listing changed — ${params.businessName}`,
         html,
