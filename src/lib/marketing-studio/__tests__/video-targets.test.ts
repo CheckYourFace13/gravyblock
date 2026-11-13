@@ -137,6 +137,21 @@ describe("game production and targets (database)", { skip: !HAVE_DB }, () => {
     assert.match(await gameTick(db(), g, { force: true, review: [{ status: "unlisted_live" }], activeJobs: 0 }), /queued the next game video/);
   });
 
+  test("a format blocked as too similar when nothing was ever delivered was blocked by a mistake: it is reopened and queued again", async () => {
+    const g = await product(gameId);
+    const { setSetting } = await import("../runtime");
+    const { angleKey } = await import("../library");
+    const { updateAngle } = await import("../library-store");
+    await db().delete(ms.msMediaJobs);
+    await setSetting(angleKey(g.slug), [], "t", db());
+    await setTarget(db(), "owner", gameId, 5);
+    await ensureGameAngles(db(), g);
+    const spec = gameSpecId(g.slug, "gameplay_hook");
+    await updateAngle(db(), "t", g.slug, (e) => e.specId === spec, { status: "blocked" });
+    await setSetting(`video_game_block_${spec.replace(/[^a-z0-9]+/gi, "_")}`, { at: new Date().toISOString(), reason: "too similar to an earlier clip" }, "t", db());
+    assert.ok((await gameTick(db(), g, { force: false, review: [], activeJobs: 0 })).includes("queued the next game video (gameplay_hook)"));
+  });
+
   test("a game with no automatic real-gameplay capture makes nothing and says why", async () => {
     await db().delete(ms.msMediaJobs);
     const mibble = (await createProduct(INTERNAL_SCOPE, "t", { name: "Mibble Meadow", kind: "mobile_game", publicUrl: "https://iscreamstudio.com/mibblemeadow/" })).id;

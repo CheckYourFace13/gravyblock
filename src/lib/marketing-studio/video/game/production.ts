@@ -87,9 +87,12 @@ const blockKey = (specId: string) => `video_game_block_${specId.replace(/[^a-z0-
 /** A blocked format is tried again after a day (a fresh capture may now support it), so the target is never stuck on one weak session. */
 async function reopenBlocked(db: StudioDb, p: GameProduct): Promise<number> {
   let n = 0;
+  const deliveredCount = (await getAngles(db, p.slug)).filter((x) => ["unlisted_review", "approved", "public"].includes(x.status)).length;
   for (const a of (await getAngles(db, p.slug)).filter((x) => x.status === "blocked" && x.specId && formatOfSpec(x.specId))) {
-    const b = await getSetting<{ at: string } | null>(blockKey(a.specId as string), null, db);
-    if (!b || Date.now() - Date.parse(b.at) > 24 * 3_600_000) {
+    const b = await getSetting<{ at: string; reason?: string } | null>(blockKey(a.specId as string), null, db);
+    // "too similar to an earlier clip" with no delivered clip at all cannot be true: it is reopened at once
+    const mistaken = Boolean(b?.reason?.startsWith("too similar")) && deliveredCount === 0;
+    if (!b || mistaken || Date.now() - Date.parse(b.at) > 24 * 3_600_000) {
       await updateAngle(db, ACTOR, p.slug, (e) => e.id === a.id, { status: "planned" });
       n++;
     }
@@ -100,6 +103,7 @@ async function reopenBlocked(db: StudioDb, p: GameProduct): Promise<number> {
 /** One pass of the loop for a game: queue the next distinct format when the target wants more and nothing is in the way. Returns what it did, in words. */
 export async function gameTick(db: StudioDb, p: GameProduct, ctx: { force: boolean; review: Array<{ status: string }>; activeJobs: number }, log: (m: string) => void = () => {}): Promise<string> {
   await ensureGameAngles(db, p);
+  await reopenBlocked(db, p);
   const stats = await targetStats(db, p);
   if (!ctx.force && stats.remaining !== null && stats.remaining <= 0) return `target reached: ${stats.approved + stats.waiting + stats.making} of ${stats.target} distinct game videos are approved, in review or being made`;
   if (!ctx.force && ctx.review.some((r) => r.status === "unlisted_live")) return "waiting for your review of the game video already sent";
@@ -153,10 +157,15 @@ export async function ensureSession(slug: string, log: (m: string) => void, o: {
   return dir;
 }
 
-/** The levels earlier clips of this game already showed, so the next one shows different ones. */
-async function priorClips(db: StudioDb, productId: string, exceptVideo?: string): Promise<GameClip[]> {
-  const rows = await db.select({ id: ms.msVideos.id, storyboard: ms.msVideos.storyboard, status: ms.msVideos.status }).from(ms.msVideos).where(and(eq(ms.msVideos.productId, productId), sql`${ms.msVideos.storyboard}->>'kind' = 'game'`, inArray(ms.msVideos.status, ["ready_for_review", "approved"])));
-  return rows.filter((r) => r.id !== exceptVideo).flatMap((r) => ((r.storyboard as { gameClip?: GameClip } | null)?.gameClip ? [(r.storyboard as { gameClip: GameClip }).gameClip] : []));
+/**
+ * The clips of this game that were actually DELIVERED (uploaded for review, approved or public), so the next one shows different levels. A clip that was cut but never sent (a failed upload)
+ * does not count, and is retired so it can never block a later attempt.
+ */
+async function priorClips(db: StudioDb, p: { id: string; slug: string }, exceptVideo?: string): Promise<GameClip[]> {
+  const delivered = new Set((await getAngles(db, p.slug)).filter((a) => ["unlisted_review", "approved", "public"].includes(a.status) && a.videoRowId).map((a) => a.videoRowId as string));
+  const rows = await db.select({ id: ms.msVideos.id, storyboard: ms.msVideos.storyboard, status: ms.msVideos.status, createdAt: ms.msVideos.createdAt }).from(ms.msVideos).where(and(eq(ms.msVideos.productId, p.id), sql`${ms.msVideos.storyboard}->>'kind' = 'game'`, inArray(ms.msVideos.status, ["ready_for_review", "approved"])));
+  for (const r of rows.filter((x) => !delivered.has(x.id) && x.id !== exceptVideo && Date.now() - x.createdAt.getTime() > 30 * 60_000)) await db.update(ms.msVideos).set({ status: "superseded" }).where(eq(ms.msVideos.id, r.id));
+  return rows.filter((r) => delivered.has(r.id) && r.id !== exceptVideo).flatMap((r) => ((r.storyboard as { gameClip?: GameClip } | null)?.gameClip ? [(r.storyboard as { gameClip: GameClip }).gameClip] : []));
 }
 
 export type GameRunResult = { status: string; detail?: string; publicationId?: string; videoId?: string };
@@ -174,14 +183,16 @@ export async function runGameVideo(db: StudioDb, input: { specId: string; attemp
   if (!input.replacing && ["unlisted_review", "approved", "public"].includes(angle.status)) return { status: angle.status, detail: "this video already exists" };
   const before = angle.status;
   if (!input.replacing) await updateAngle(db, ACTOR, slug, (e) => e.id === angle.id, { status: "in_production" });
+  let cutRow: string | null = null;
   const fail = async (e: unknown): Promise<GameRunResult> => {
+    if (cutRow) await db.update(ms.msVideos).set({ status: "superseded" }).where(and(eq(ms.msVideos.id, cutRow), eq(ms.msVideos.status, "ready_for_review"))).catch(() => undefined);
     // a temporary failure goes back to the queue for another attempt; the last one returns the angle to planned so the loop can try again later
     await updateAngle(db, ACTOR, slug, (x) => x.id === angle.id && x.status === "in_production", { status: input.replacing ? before : "planned" });
     throw e instanceof Error ? e : new Error(String(e));
   };
   try {
     const sessionDir = await ensureSession(slug, log, { fresh: Boolean(input.replacing) });
-    const prior = await priorClips(db, product.id, input.replacing?.videoRowId);
+    const prior = await priorClips(db, product, input.replacing?.videoRowId);
     const used = new Set(prior.flatMap((c) => c.moments.filter((m) => m.source === "real_capture").map((m) => m.level)));
     const made = await makeGameClip(db, product, format, { sessionDir, usedLevels: used, log });
     if (!made.ok) {
@@ -227,6 +238,7 @@ export async function runGameVideo(db: StudioDb, input: { specId: string; attemp
     };
     const qa = { passed: true, checks: [...made.checks.map((c) => ({ id: `game_${c.id}`, ok: c.ok, severity: "fail", detail: c.detail })), { id: "logo_integrity", ok: made.logo.ok, severity: "fail", detail: `mean ${made.logo.mean}/255, strong ${made.logo.strongShare}` }], metrics: { durationSec: +(made.durationMs / 1000).toFixed(1) } };
     const [row] = await db.insert(ms.msVideos).values({ productId: product.id, title: record.title, storyboard: record as never, targetSeconds: 30, assetId: stored.id, width: 1080, height: 1920, durationMs: made.durationMs, bytes: stored.bytes, status: "ready_for_review", qa: qa as never }).returning();
+    cutRow = row.id;
     const all = await getAngles(db, slug);
     const out = await prepareReview(db, {
       slug,
