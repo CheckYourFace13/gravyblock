@@ -6,11 +6,16 @@ import { contactSummary } from "@/lib/marketing-studio/publishing/review-contact
 import { listReviews } from "@/lib/marketing-studio/publishing/video-review";
 import { youtubeConnectionFor } from "@/lib/marketing-studio/publishing/youtube-share";
 import { OFFERED_VOICES, TONES, voiceCards, voiceSettingFor } from "@/lib/marketing-studio/video/voices";
-import { changeReviewEmailAction, changeVoiceAction, declareKidsAction, pauseVideoMarketingAction, resumeVideoMarketingAction } from "../../actions";
+import { productStatus } from "@/lib/marketing-studio/portfolio-loop";
+import { isGame, PRESET_TARGETS, targetStats } from "@/lib/marketing-studio/video-target";
+import { changeReviewEmailAction, changeVoiceAction, declareKidsAction, generateNextVideoAction, pauseVideoMarketingAction, resumeVideoMarketingAction, setVideoTargetAction } from "../../actions";
 
 /** Pause, resume and the one-time YouTube declaration for one product. Resume lives only here, behind the GravyBlock login. */
-export async function VideoMarketingCard({ product }: { product: { id: string; ownerKind: string; slug?: string } }) {
+export async function VideoMarketingCard({ product }: { product: { id: string; ownerKind: string; slug?: string; kind?: string } }) {
   const db = requireStudioDb();
+  const tp = { id: product.id, slug: product.slug ?? "", kind: product.kind, ownerKind: product.ownerKind };
+  const stats = await targetStats(db, tp);
+  const state = await productStatus(db, tp as never).catch(() => ({ status: "ACTIVE", detail: null as string | null }));
   const policy = await getPolicy(db, product.id);
   const kids = await kidsFor(db, product);
   const voice = await voiceSettingFor(db, product.id);
@@ -40,6 +45,40 @@ export async function VideoMarketingCard({ product }: { product: { id: string; o
           <button className="mt-3 rounded-md border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800">Pause new videos</button>
         </form>
       )}
+      <div className="mt-5 border-t border-zinc-100 pt-4">
+        <p className="text-sm font-medium text-zinc-900">Video target</p>
+        <p className="mt-1 text-xs text-zinc-600">
+          {stats.target === null ? "No target set: videos follow the plan's pace." : `Target: ${stats.target} distinct video${stats.target === 1 ? "" : "s"}.`} GravyBlock keeps making different, approved-quality videos by itself until the target is reached or you pause.
+          {isGame(tp) ? " Games are made only from real gameplay by the game video engine." : ""} A change request never reduces what is left.
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {PRESET_TARGETS.map((n) => (
+            <form key={n} action={setVideoTargetAction}>
+              <input type="hidden" name="productId" value={product.id} />
+              <input type="hidden" name="preset" value={n} />
+              <button className={`rounded-md border px-3 py-1.5 text-sm font-semibold ${stats.target === n ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 text-zinc-800"}`}>{n}</button>
+            </form>
+          ))}
+          <form action={setVideoTargetAction} className="flex items-center gap-2">
+            <input type="hidden" name="productId" value={product.id} />
+            <input type="hidden" name="preset" value="custom" />
+            <input name="custom" type="number" min={1} max={50} placeholder="Custom" className="w-24 rounded-md border border-zinc-300 px-2 py-1.5 text-sm" />
+            <button className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-semibold text-zinc-800">Set</button>
+          </form>
+          <form action={generateNextVideoAction}>
+            <input type="hidden" name="productId" value={product.id} />
+            <button className="rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50" disabled={Boolean(policy.paused)}>Generate Next Video</button>
+          </form>
+        </div>
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-5">
+          <div><dt className="text-xs text-zinc-500">Approved / public</dt><dd className="font-medium">{stats.approved}</dd></div>
+          <div><dt className="text-xs text-zinc-500">Waiting for review</dt><dd className="font-medium">{stats.waiting}</dd></div>
+          <div><dt className="text-xs text-zinc-500">Rendering</dt><dd className="font-medium">{stats.making}</dd></div>
+          <div><dt className="text-xs text-zinc-500">Remaining target</dt><dd className="font-medium">{stats.remaining ?? "none set"}</dd></div>
+          <div><dt className="text-xs text-zinc-500">State</dt><dd className="font-medium">{policy.paused ? "Paused" : "Active"} · {state.status.replace(/_/g, " ").toLowerCase()}</dd></div>
+        </dl>
+        {state.detail ? <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">{state.detail}</p> : null}
+      </div>
       <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-zinc-100 pt-4 text-sm sm:grid-cols-3">
         <div><dt className="text-xs text-zinc-500">Plan</dt><dd className="font-medium">{ent.label}</dd></div>
         <div><dt className="text-xs text-zinc-500">New videos this {allow.period}</dt><dd className="font-medium">{allow.generated} of {allow.allowance ?? "no limit"}</dd></div>

@@ -14,7 +14,7 @@ export const OWNED_TARGET = 5;
 /** Products with their own inventory or kept out of the loop. */
 export const TARGET_EXEMPT = new Set(["gravyblock", "iscreamstudio"]);
 
-export const SLOT_PURPOSES: Record<4 | 5, { purpose: string; funnel: AngleEntry["funnel"]; goal: string; hook: string; benefit: string; audience: string }> = {
+export const SLOT_PURPOSES: Record<number, { purpose: string; funnel: AngleEntry["funnel"]; goal: string; hook: string; benefit: string; audience: string }> = {
   4: {
     purpose: "Objection or feature payoff",
     funnel: "interested",
@@ -33,8 +33,9 @@ export const SLOT_PURPOSES: Record<4 | 5, { purpose: string; funnel: AngleEntry[
   },
 };
 
-export function slotEntry(p: { slug: string; name: string; home: string }, position: 4 | 5): AngleEntry {
-  const s = SLOT_PURPOSES[position];
+export function slotEntry(p: { slug: string; name: string; home: string }, position: number): AngleEntry {
+  // positions beyond the five the owner first set are further open slots: each is a different customer intent, found only from verified Product Truth
+  const s = SLOT_PURPOSES[position] ?? { purpose: `Further distinct angle ${position - 5}`, funnel: (position % 2 ? "interested" : "cold") as AngleEntry["funnel"], goal: "find one more genuinely different, truthful reason to watch or try this product, using something the live product can really do that no earlier video showed", hook: "a real reason not yet shown in any earlier video", benefit: "a different story from every earlier video of this product", audience: "a likely customer who has not seen this angle" };
   return {
     id: `${p.slug}-slot-${position}`,
     slug: p.slug,
@@ -65,11 +66,12 @@ export function targetProgress(angles: Array<Pick<AngleEntry, "status" | "positi
 }
 
 /** Makes sure the two open slots exist for an owned product. Existing angles are never touched. Returns how many were added. */
-export async function ensureOwnedSlots(db: StudioDb, actor: string, p: { slug: string; name: string; home: string }): Promise<number> {
+export async function ensureOwnedSlots(db: StudioDb, actor: string, p: { slug: string; name: string; home: string }, target = OWNED_TARGET): Promise<number> {
   if (TARGET_EXEMPT.has(p.slug)) return 0;
   const existing = await getAngles(db, p.slug);
   if (!existing.length) return 0; // the original library has not been stored yet
-  const add = ([4, 5] as const).filter((pos) => !existing.some((a) => a.position === pos)).map((pos) => slotEntry(p, pos));
+  const positions = Array.from({ length: Math.max(5, target) - 3 }, (_, i) => i + 4);
+  const add = positions.filter((pos) => !existing.some((a) => a.position === pos)).map((pos) => slotEntry(p, pos));
   if (!add.length) return 0;
   await setSetting(angleKey(p.slug), [...existing, ...add], actor, db, { audited: false });
   return add.length;

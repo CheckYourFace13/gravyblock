@@ -10,6 +10,8 @@ import { ms, type StudioDb } from "./db";
 import { hasApprovedLogo } from "./brand/brand-kit";
 import { allowanceFor, spendCredit } from "./entitlements";
 import { ensureOwnedSlots, TARGET_EXEMPT } from "./portfolio-target";
+import { getTarget, isGame, targetStats } from "./video-target";
+import { gameTick } from "./video/game/production";
 import { PLAN_PRODUCTS } from "./library-plan";
 import { getAngles, updateAngle } from "./library-store";
 import { listFacts, listProducts } from "./repository";
@@ -135,11 +137,15 @@ async function generationOrder(db: StudioDb) {
   return [...PLAN_PRODUCTS].sort((a, b) => key(a.slug) - key(b.slug));
 }
 
-export async function portfolioTick(db: StudioDb, log: (m: string) => void = () => {}, opts: { generate?: boolean } = {}): Promise<TickReport> {
+/** `only` works on one product; `force` is the Generate Next Video button: it ignores the target and the one-review-at-a-time wait (never a pause, a plan allowance or a gate). */
+export async function portfolioTick(db: StudioDb, log: (m: string) => void = () => {}, opts: { generate?: boolean; only?: string; force?: boolean } = {}): Promise<TickReport> {
   const report: TickReport = [];
   const products = (await listProducts(INTERNAL_SCOPE, db)) as unknown as Product[];
   let generated = 0;
-  for (const plan of await generationOrder(db)) {
+  // the demo library's products, then the owner's games (they are made by the game video engine and have no demo library plan)
+  const served = [...(await generationOrder(db)), ...products.filter((x) => isGame(x as { kind?: string }) && !PLAN_PRODUCTS.some((pp) => pp.slug === x.slug)).map((x) => ({ slug: x.slug, name: x.name, host: "", home: (x as unknown as { publicUrl?: string }).publicUrl ?? "", blurb: "", inStudio: true }))];
+  for (const plan of served) {
+    if (opts.only && plan.slug !== opts.only) continue;
     if (OUT_OF_LOOP.has(plan.slug)) continue;
     const p = products.find((x) => x.slug === plan.slug);
     if (!p) continue;
@@ -155,8 +161,13 @@ export async function portfolioTick(db: StudioDb, log: (m: string) => void = () 
     }
     // durability: a job that died of a temporary problem (YouTube limit, site failure, closed browser, throttling) is revived, a few times, with no owner action
     await recoverStranded(db, p, log);
+    if (isGame(p as { kind?: string })) {
+      // a game is made by the game video engine: real gameplay only, one distinct format at a time, until the target is reached
+      say(await gameTick(db, p as never, { force: Boolean(opts.force), review: g.review, activeJobs: g.activeJobs }, log));
+      continue;
+    }
     // the owner's portfolio target is five distinct videos per product: make sure the two open slots exist (GravyBlock has its own inventory)
-    if (p.ownerKind !== "customer" && !TARGET_EXEMPT.has(p.slug)) await ensureOwnedSlots(db, "portfolio-tick", { slug: p.slug, name: p.name, home: plan.home }).catch(() => 0);
+    if (p.ownerKind !== "customer" && !TARGET_EXEMPT.has(p.slug)) await ensureOwnedSlots(db, "portfolio-tick", { slug: p.slug, name: p.name, home: plan.home }, (await getTarget(db, p)).target ?? undefined).catch(() => 0);
     await reviveTransient(db, p, log);
     if (status === "CHANGES_REQUESTED") {
       // a change request never waits on the owner again: make sure its replacement is queued (a pause, a restart or a dead job cannot strand it)
@@ -164,8 +175,14 @@ export async function portfolioTick(db: StudioDb, log: (m: string) => void = () 
       say("replacement for the requested changes is queued");
       continue;
     }
-    if (status === "WAITING_FOR_REVIEW" || status === "RENDERING" || status === "WAITING_FOR_UPLOAD_LIMIT") {
+    if ((status === "WAITING_FOR_REVIEW" && !opts.force) || status === "RENDERING" || status === "WAITING_FOR_UPLOAD_LIMIT") {
       say("waiting, nothing new to start");
+      continue;
+    }
+    // the target: once this many distinct videos are approved, waiting for review or being made, nothing more is started (Generate Next Video overrides it)
+    const stats = await targetStats(db, p as never);
+    if (!opts.force && stats.remaining !== null && stats.remaining <= 0) {
+      say(`target reached: ${stats.approved + stats.waiting + stats.making} of ${stats.target} distinct videos are approved, in review or being made`);
       continue;
     }
     // plan allowance: a ceiling on NEW videos only (replacements never come through here). Quality still decides whether anything is made at all.
@@ -204,7 +221,7 @@ export async function portfolioTick(db: StudioDb, log: (m: string) => void = () 
     }
     // nothing ready: look for a new distinct angle, but only when Product Truth changed or a day has passed since the last honest look
     const sig = await truthSignature(db, p.id);
-    const due = !g.policy.waiting || g.policy.waiting.truthSig !== sig || Date.now() - Date.parse(g.policy.waiting.checkedAt) > REASSESS_MS;
+    const due = Boolean(opts.force) || !g.policy.waiting || g.policy.waiting.truthSig !== sig || Date.now() - Date.parse(g.policy.waiting.checkedAt) > REASSESS_MS;
     if (!due) {
       say("WAITING_FOR_NEW_OPPORTUNITY: Product Truth has not changed since the last look");
       continue;

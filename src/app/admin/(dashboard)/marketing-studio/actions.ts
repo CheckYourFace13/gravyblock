@@ -25,7 +25,9 @@ import { approvePublication, cancelPublication, createPublication, markPublicati
 import { collectForPublication } from "@/lib/marketing-studio/measurement/collect";
 import { getSetting, setKillSwitch } from "@/lib/marketing-studio/runtime";
 import { requireStudioDb } from "@/lib/marketing-studio/db";
-import { declareKids, pauseProduct, resumeProduct } from "@/lib/marketing-studio/publishing/video-policy";
+import { declareKids, isPaused, pauseProduct, resumeProduct } from "@/lib/marketing-studio/publishing/video-policy";
+import { setTarget } from "@/lib/marketing-studio/video-target";
+import { enqueue, JOB_PRIORITY } from "@/lib/marketing-studio/runtime";
 import { saveVoiceSetting, type ToneKey } from "@/lib/marketing-studio/video/voices";
 import { sendVerificationEmail } from "@/lib/marketing-studio/publishing/review-notify";
 import { approveReview, requestChanges } from "@/lib/marketing-studio/publishing/video-review";
@@ -83,6 +85,29 @@ export async function pauseVideoMarketingAction(fd: FormData) {
   await guarded(`${base}/products/${id}`, async () => {
     await requireProduct(scope, id);
     await pauseProduct(requireStudioDb(), actor, id);
+  });
+}
+
+/** The video target: 1, 3, 5 or a custom number. GravyBlock then keeps producing distinct videos on its own until the number is reached or the product is paused. */
+export async function setVideoTargetAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    await requireProduct(scope, id);
+    const preset = s(fd, "preset");
+    await setTarget(requireStudioDb(), actor, id, preset === "custom" ? s(fd, "custom") : preset);
+  });
+}
+
+/** Generate Next Video: queues the next eligible distinct video now (resource limits, a pause and a customer's plan allowance still apply). */
+export async function generateNextVideoAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    const product = await requireProduct(scope, id);
+    const db = requireStudioDb();
+    if (await isPaused(db, id)) throw new Error("Video marketing is paused for this product. Resume it first.");
+    await enqueue({ kind: "portfolio_tick", weight: "heavy", priority: JOB_PRIORITY.remediation, productId: id, dedupeKey: `generate_next:${id}:${Math.floor(Date.now() / 60_000)}`, input: { only: product.slug, force: true, by: actor }, maxAttempts: 1 }, db);
   });
 }
 

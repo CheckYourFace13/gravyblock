@@ -19,6 +19,8 @@ import { escalate, NO_STRATEGY } from "../revisions/heal";
 import { markRevision, revisionFor } from "../revisions/history";
 import { cleanSceneEdits } from "../revisions/scene-edits";
 import { captureSource, restoreSource } from "../revisions/source";
+import { isGame } from "../video-target";
+import { runGameVideo } from "../video/game/production";
 import { requestOwnerNotice } from "./review-notify";
 import { capFreesAt } from "../library-production";
 import { AllowanceWait, enqueueReplacementAfter, jobKey, patchJob, runReplacementJob, type ReplacementDeps, type ReplacementJob } from "./review-replacement";
@@ -56,6 +58,26 @@ export async function runReviewReplacement(db: StudioDb, input: { publicationId:
   if (await isPaused(db, product.id)) return { status: "paused", detail: "new video generation is paused for this product; the replacement resumes when the owner resumes" };
   const slug = product.slug;
   const specId = review.specId ?? slug;
+
+  // a game clip is corrected by cutting the same format again from fresh real gameplay (the engine never edits footage or invents any)
+  if (isGame(product as { kind?: string })) {
+    const gameFinal = input.attempt >= input.maxAttempts;
+    try {
+      const made = await runGameVideo(db, { specId, attempt: input.attempt, maxAttempts: input.maxAttempts, replacing: { videoRowId: review.videoRowId } }, log);
+      if (made.status === "deferred") return { status: "waiting", detail: made.detail };
+      if (!made.publicationId) throw new Error(made.detail ?? "the corrected game clip was not uploaded");
+      const done = await patchJob(db, job, { status: "done", newPublicationId: made.publicationId, newVideoId: made.videoId, detail: made.detail });
+      return { status: done.status, detail: done.detail };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!gameFinal) {
+        await patchJob(db, job, { status: "queued", detail: `Attempt ${input.attempt} failed, cutting again from fresh gameplay: ${msg.slice(0, 200)}` });
+        throw new SoftRetry(msg);
+      }
+      const failed = await internalFailure(db, job, msg, product.name, log);
+      return { status: failed.status, detail: failed.detail };
+    }
+  }
 
   // 1. rebuild from the SAVED SOURCE on every attempt: the video as it was accepted plus the owner's note, never what an earlier attempt left behind. A technical problem
   // (timing, alignment, capture replay, render) adjusts the plan and tries again; only a decision the customer must make is ever sent to them.
