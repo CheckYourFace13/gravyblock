@@ -3,6 +3,7 @@
  * action. They are applied on top of the product's spec every time it renders, so a correction lasts for later versions too. The spoken lexicon and the
  * pace reach the voice only; captions, the screen and every Product Truth claim keep their written text.
  */
+import { randomUUID } from "node:crypto";
 import type { StudioDb } from "../../db";
 import { emptyOverrides, overridesKey, type VideoOverrides } from "../../publishing/review-intent";
 import { getSetting, setSetting } from "../../runtime";
@@ -21,6 +22,8 @@ export async function saveOverrides(db: StudioDb, actor: string, productId: stri
 
 /** The fingerprint of a product's video as it would render now, with the owner's accepted edits applied. */
 export async function effectiveSpecHash(db: StudioDb, productId: string, specId: string): Promise<string> {
+  // a game clip has no demo script: every clip is its own cut of real footage, so each one is its own version
+  if (specId.includes(":game-")) return `game:${specId}:${randomUUID().slice(0, 8)}`;
   const ov = await getOverrides(db, productId);
   await ensureSpec(db, specId);
   return specFingerprint(applyOverridesToSpec(demoSpecFor(specId), ov), { lexicon: ov.lexicon, pace: ov.paceFactor });

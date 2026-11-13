@@ -62,6 +62,13 @@ describe("game video engine: formats and footage (pure)", () => {
     assert.ok(GAME_LIBRARY_ORDER.includes("gameplay_hook") && GAME_LIBRARY_ORDER.includes("challenge") && GAME_LIBRARY_ORDER.includes("progression") && GAME_LIBRARY_ORDER.includes("reward_unlock") && GAME_LIBRARY_ORDER.includes("mechanic_spotlight") && GAME_LIBRARY_ORDER.includes("variety_montage") && GAME_LIBRARY_ORDER.includes("short_form"));
   });
 
+  test("a game clip has its own version fingerprint and needs no demo script", async () => {
+    const { effectiveSpecHash } = await import("../video/demo/overrides");
+    const one = await effectiveSpecHash(null as never, "p", "scribblezap:game-challenge");
+    const two = await effectiveSpecHash(null as never, "p", "scribblezap:game-challenge");
+    assert.ok(one.startsWith("game:scribblezap:game-challenge:") && one !== two, "every cut of footage is its own version");
+  });
+
   test("a later clip avoids the levels earlier clips showed, when the footage still allows the format", () => {
     const m = (level: string, kind: GameMoment["kind"], at: number): GameMoment => ({ startMs: at, endMs: at + 1500, kind, level, mechanic: "cut", intensity: 0.8, source: "real_capture" });
     const moments = [m("L1", "input", 0), m("L1", "reward", 2000), m("L2", "input", 4000), m("L2", "reward", 6000), m("L3", "input", 8000), m("L3", "reward", 10000)];
