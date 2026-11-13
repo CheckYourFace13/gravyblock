@@ -103,6 +103,9 @@ export async function videoCopyContext(db: StudioDb, productId: string, videoId:
     const caption = demo.transcript.slice(0, 2).map((l) => l.caption || l.text || "").filter(Boolean).join(" ");
     return { caption, headline: demo.transcript[0]?.caption ?? null, ctaText: demo.cta.text ?? null, ctaUrl: demo.cta.url, campaignId: null, family: "demo" };
   }
+  // a game clip (the game video engine): the post says what the clip's own copy says and links to the game's destination
+  const game = v?.storyboard as { kind?: string; title?: string; caption?: string; cta?: { text?: string; url?: string } } | undefined;
+  if (game?.kind === "game" && game.cta?.url) return { caption: (game.caption ?? game.title ?? "").trim(), headline: game.title ?? null, ctaText: game.cta.text ?? null, ctaUrl: game.cta.url, campaignId: null, family: "game" };
   const scenes = (v?.storyboard as { scenes?: Array<{ type?: string; headline?: string; subhead?: string }> } | undefined)?.scenes ?? [];
   const card = scenes.find((x) => x.type === "card" && x.subhead);
   if (!card) return undefined;

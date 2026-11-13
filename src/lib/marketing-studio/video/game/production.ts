@@ -14,6 +14,7 @@ import { angleKey, type AngleEntry } from "../../library";
 import { getAngles, updateAngle } from "../../library-store";
 import { capFreesAt } from "../../library-production";
 import { prepareReview } from "../../publishing/review-dispatch";
+import { gameAcquisitionPaused } from "../../publishing/pause";
 import { isPaused } from "../../publishing/video-policy";
 import { listFacts, listProducts } from "../../repository";
 import { enqueue, getSetting, JOB_PRIORITY, setSetting } from "../../runtime";
@@ -40,7 +41,7 @@ export const formatOfSpec = (specId: string): GameFormat | null => {
   return f && f in GAME_FORMATS ? f : null;
 };
 
-type GameProduct = { id: string; slug: string; name: string; ownerKind: string; publicUrl?: string };
+type GameProduct = { id: string; slug: string; name: string; kind?: string; ownerKind: string; publicUrl?: string };
 
 /** One angle per game format: each is a different kind of video (hook, challenge, mechanic, progression, reward, variety, short-form). */
 export function gameAngleEntries(p: Pick<GameProduct, "slug" | "name">, home: string, store: boolean): AngleEntry[] {
@@ -103,6 +104,7 @@ export async function gameTick(db: StudioDb, p: GameProduct, ctx: { force: boole
   if (!ctx.force && stats.remaining !== null && stats.remaining <= 0) return `target reached: ${stats.approved + stats.waiting + stats.making} of ${stats.target} distinct game videos are approved, in review or being made`;
   if (!ctx.force && ctx.review.some((r) => r.status === "unlisted_live")) return "waiting for your review of the game video already sent";
   if ((await activeProductionJobs(db, p.id)) > 0) return "a game video is already being made";
+  if (await gameAcquisitionPaused(db, { id: p.id, kind: p.kind ?? "mobile_game" })) return "WAITING_FOR_STORE_LISTING: game acquisition is paused until this game has a verified live store listing (owner rule 2026-11-07); nothing is made or sent for it yet";
   if (!captureReady(p.slug)) return `NEEDS CAPTURE: ${p.name} has no automatic real-gameplay capture yet; nothing is made without real gameplay`;
   if (p.ownerKind === "customer") {
     const allow = await allowanceFor(db, p);
@@ -204,6 +206,7 @@ export async function runGameVideo(db: StudioDb, input: { specId: string; attemp
     const ctaText = store ? "Get it on Google Play" : "Play it";
     const stored = await storeVideoFile(INTERNAL_SCOPE, ACTOR, product.id, made.file, { width: 1080, height: 1920, name: `${angle.yt?.title ?? angle.title}.mp4` }, db);
     const evidence = facts.slice(0, 3);
+    const record_title = (a: AngleEntry) => a.yt?.title ?? a.title;
     const record = {
       version: 2,
       kind: "game",
@@ -217,6 +220,7 @@ export async function runGameVideo(db: StudioDb, input: { specId: string; attemp
       onScreen: [],
       cta: { text: ctaText, url: product.publicUrl },
       endHeadline: product.name,
+      caption: angle.yt?.description ?? record_title(angle),
       gameClip: made.clip,
       gameFormat: format,
       capturedAt: new Date().toISOString(),
