@@ -17,7 +17,7 @@ import { hookProblems, scriptProblems } from "./video/concepts/validate";
 
 const ACTOR = "gravyblock-explainers";
 /** Bump when the explainer renderer or its QA changes in a way that could rescue a video that failed before. */
-export const EXPLAINER_VERSION = 2;
+export const EXPLAINER_VERSION = 3;
 const MAX_RETRIES = 3;
 const RETRY_AFTER_MS = 6 * 3_600_000;
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();

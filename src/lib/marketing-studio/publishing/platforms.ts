@@ -79,7 +79,7 @@ export const PLATFORM_SPECS: Record<Platform, PlatformSpec> = {
     platform: "youtube",
     label: "YouTube / Shorts",
     official_api: "YouTube Data API v3 videos.insert (resumable upload)",
-    media: { image: null, video: { aspects: VERTICAL, maxSeconds: 60, note: "Shorts are vertical video. Marketing Studio keeps them at 60 seconds or less." } },
+    media: { image: null, video: { aspects: [...VERTICAL, R("16:9", 16, 9)], maxSeconds: 60, note: "Shorts are vertical video (9:16); the game video engine's landscape formats go up as ordinary 16:9 videos. Marketing Studio keeps both at 60 seconds or less." } },
     direct: "available_with_healthy_connection",
     accountRequirements: ["A YouTube channel the connecting Google account owns or manages; the channel is chosen at Google consent and verified by id, never inferred", "youtube.readonly alongside youtube.upload: upload alone cannot identify the channel or confirm the uploaded video"],
     auth: { type: "oauth2", requiredScopes: ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly"], allowedScopes: ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.readonly", "https://www.googleapis.com/auth/youtube"] },
