@@ -11,6 +11,9 @@ import { momentsFor } from "../video/game/clip";
 import { GAME_FORMATS, GAME_LIBRARY_ORDER, type GameMoment } from "../video/game/engine";
 import { cleanMaxPending, cleanTarget, defaultMaxPending, defaultTarget, getMaxPending, getTarget, isGame, pendingCount, setMaxPending, setTarget, statsFrom, targetStats } from "../video-target";
 import { statusOf, type StatusFacts } from "../portfolio-loop";
+import { GRAVYBLOCK_EXPLAINERS } from "../gravyblock-explainers";
+import { registerGravyblockExplainers } from "../gravyblock-register";
+import { conceptKey } from "../video/concepts/registry";
 import { detectMibbleMoments, type MibbleEvent } from "../video/game/mibble";
 import { gameFunChecks, type GameClip } from "../video/game/engine";
 import { approveReview, reviewKey } from "../publishing/video-review";
@@ -264,6 +267,32 @@ describe("game production and targets (database)", { skip: !HAVE_DB }, () => {
     const shared = await youtubeConnectionFor(db(), sibling);
     assert.ok(shared && shared.productId === owner, "it posts through the owner's channel; no new connection was made");
     assert.equal(await ensureOwnedChannelShared(db(), "t", { id: sibling, ownerKind: "customer" }), false, "a customer is never given the owner's channel");
+  });
+
+  test("GravyBlock's first five explainers register themselves (no clickable controls needed) and a blocked one is tried again", async () => {
+    const { setSetting, getSetting } = await import("../runtime");
+    const { angleKey } = await import("../library");
+    await createProduct(INTERNAL_SCOPE, "t", { name: "GravyBlock", kind: "saas", publicUrl: "https://gravyblock.com/" });
+    const topics = GRAVYBLOCK_EXPLAINERS.map((e, i) => ({ ...slotEntry({ slug: "gravyblock", name: "GravyBlock", home: "https://gravyblock.com/" }, 6), id: e.angleId, position: i + 1, status: i === 0 ? "blocked" : "planned", slot: false }));
+    await setSetting(angleKey("gravyblock"), topics, "t", db());
+    const first = await registerGravyblockExplainers(db());
+    assert.deepEqual(first.problems, []);
+    assert.equal(first.stored.length, GRAVYBLOCK_EXPLAINERS.length, "all five are stored and attached");
+    const angles = await getAngles(db(), "gravyblock");
+    assert.ok(angles.every((a) => a.status === "planned" && a.specId && a.yt), "every one is ready for the loop, including the one that was blocked");
+    for (const e of GRAVYBLOCK_EXPLAINERS) assert.equal((await getSetting<{ status: string } | null>(conceptKey(e.def.specId), null, db()))?.status, "ready");
+    assert.equal((await registerGravyblockExplainers(db())).stored.length, 0, "nothing is redone when nothing changed");
+    // one is blocked again (a QA failure): it is noticed, and only tried again after hours, a bounded number of times
+    const { updateAngle } = await import("../library-store");
+    await updateAngle(db(), "t", "gravyblock", (x) => x.id === GRAVYBLOCK_EXPLAINERS[0].angleId, { status: "blocked" });
+    const soon = await registerGravyblockExplainers(db());
+    assert.deepEqual([soon.stored.length, soon.reopened.length], [0, 0], "not at once");
+    const fpKey = `video_explainer_fp_${GRAVYBLOCK_EXPLAINERS[0].def.specId.replace(/[^a-z0-9]+/gi, "_")}`;
+    const seen = (await getSetting<{ fp: string; retries: number; blockedSeen: string }>(fpKey, null as never, db()))!;
+    await setSetting(fpKey, { ...seen, blockedSeen: new Date(Date.now() - 7 * 3_600_000).toISOString() }, "t", db());
+    const later = await registerGravyblockExplainers(db());
+    assert.equal(later.reopened.length, 1, "after hours it is tried again with no one asking");
+    assert.equal((await getAngles(db(), "gravyblock")).find((x) => x.id === GRAVYBLOCK_EXPLAINERS[0].angleId)?.status, "planned");
   });
 
   test("a game with no automatic real-gameplay capture makes nothing and says why", async () => {

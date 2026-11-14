@@ -9,6 +9,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { ms, type StudioDb } from "./db";
 import { hasApprovedLogo } from "./brand/brand-kit";
 import { allowanceFor, spendCredit } from "./entitlements";
+import { registerGravyblockExplainers } from "./gravyblock-register";
 import { ensureOwnedSlots, TARGET_EXEMPT } from "./portfolio-target";
 import { getMaxPending, getTarget, isGame, pendingCount, targetStats } from "./video-target";
 import { gameTick } from "./video/game/production";
@@ -151,6 +152,8 @@ export async function portfolioTick(db: StudioDb, log: (m: string) => void = () 
     if (OUT_OF_LOOP.has(plan.slug)) continue;
     const p = products.find((x) => x.slug === plan.slug);
     if (!p) continue;
+    // GravyBlock's own first videos are explainers (no clickable controls): register them, and keep them moving, by itself
+    if (p.slug === "gravyblock") await registerGravyblockExplainers(db, log).catch((e) => log(`gravyblock explainers: ${e instanceof Error ? e.message : e}`));
     // an owned product with no channel posts its UNLISTED review uploads through the owner's existing channel (shared, never copied; no new sign-in)
     if (p.ownerKind !== "customer") await ensureOwnedChannelShared(db, "portfolio-tick", p).catch(() => false);
     const g = await gather(db, p);
