@@ -295,6 +295,25 @@ describe("game production and targets (database)", { skip: !HAVE_DB }, () => {
     assert.equal((await getAngles(db(), "gravyblock")).find((x) => x.id === GRAVYBLOCK_EXPLAINERS[0].angleId)?.status, "planned");
   });
 
+  test("an identical render of a file the retention policy purged restores it instead of pointing at nothing", async () => {
+    const { storeVideoFile } = await import("../video/store");
+    const { promises: fsp } = await import("node:fs");
+    const os = await import("node:os");
+    const path = await import("node:path");
+    const { eq } = await import("drizzle-orm");
+    const { STUDIO_DIRS } = await import("../config");
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), "restore-"));
+    const bytes = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from("ftypisom"), Buffer.alloc(2000, 7)]);
+    await fsp.writeFile(path.join(dir, "a.mp4"), bytes);
+    const first = await storeVideoFile(INTERNAL_SCOPE, "t", siteId, path.join(dir, "a.mp4"), { width: 10, height: 10, name: "x" }, db());
+    await db().update(ms.msAssets).set({ storagePath: `purged/${first.id}`, bytes: 0 }).where(eq(ms.msAssets.id, first.id));
+    await fsp.writeFile(path.join(dir, "b.mp4"), bytes);
+    const again = await storeVideoFile(INTERNAL_SCOPE, "t", siteId, path.join(dir, "b.mp4"), { width: 10, height: 10, name: "x" }, db());
+    assert.equal(again.id, first.id, "the same asset record is reused");
+    assert.ok(!again.storagePath.startsWith("purged/") && again.bytes === bytes.length);
+    assert.equal((await fsp.stat(path.join(STUDIO_DIRS.media, again.storagePath))).size, bytes.length, "and its file is back on disk");
+  });
+
   test("a game with no automatic real-gameplay capture makes nothing and says why", async () => {
     await db().delete(ms.msMediaJobs);
     const mibble = (await createProduct(INTERNAL_SCOPE, "t", { name: "Mibble Meadow", kind: "mobile_game", publicUrl: "https://iscreamstudio.com/mibblemeadow/" })).id;
