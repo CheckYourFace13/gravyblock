@@ -10,7 +10,7 @@ import { ms, type StudioDb } from "./db";
 import { hasApprovedLogo } from "./brand/brand-kit";
 import { allowanceFor, spendCredit } from "./entitlements";
 import { ensureOwnedSlots, TARGET_EXEMPT } from "./portfolio-target";
-import { getTarget, isGame, targetStats } from "./video-target";
+import { getMaxPending, getTarget, isGame, pendingCount, targetStats } from "./video-target";
 import { gameTick } from "./video/game/production";
 import { PLAN_PRODUCTS } from "./library-plan";
 import { getAngles, updateAngle } from "./library-store";
@@ -19,7 +19,7 @@ import { enqueue, getSetting, JOB_PRIORITY, setSetting } from "./runtime";
 import { INTERNAL_SCOPE } from "./scope";
 import { specFor } from "./publishing/platforms";
 import { reviewRecipient } from "./publishing/review-contact";
-import { youtubeConnectionFor } from "./publishing/youtube-share";
+import { ensureOwnedChannelShared, youtubeConnectionFor } from "./publishing/youtube-share";
 import { getPolicy, kidsFor, policyKey, type VideoPolicy } from "./publishing/video-policy";
 import { queueReplacement } from "./publishing/review-replacement";
 import { listReviews } from "./publishing/video-review";
@@ -65,14 +65,16 @@ export type StatusFacts = {
   activeJobs: number;
   uploadLimited: boolean;
   waiting: boolean;
+  /** how many videos may wait for the owner before production pauses (default 1 where unset) */
+  maxPending?: number;
 };
 
 /** Pure: the one status a product shows. Only NEEDS_OWNER_ACTION interrupts the owner. */
 export function statusOf(f: StatusFacts): ProductStatus {
   if (f.paused) return "PAUSED";
   if (f.needsOwner) return "NEEDS_OWNER_ACTION";
-  if (f.review.some((r) => r.status === "changes_requested")) return "CHANGES_REQUESTED";
-  if (f.review.some((r) => r.status === "unlisted_live")) return "WAITING_FOR_REVIEW";
+  // production pauses only when as many videos as the owner allows are already waiting for a decision
+  if (pendingCount(f.review) >= (f.maxPending ?? 1)) return f.review.some((r) => r.status === "changes_requested") ? "CHANGES_REQUESTED" : "WAITING_FOR_REVIEW";
   if (f.uploadLimited) return "WAITING_FOR_UPLOAD_LIMIT";
   if (f.activeJobs > 0) return "RENDERING";
   if (f.waiting) return "WAITING_FOR_NEW_OPPORTUNITY";
@@ -99,7 +101,7 @@ async function gather(db: StudioDb, p: Product): Promise<StatusFacts & { policy:
   else if (!(await hasApprovedLogo(db, p.id))) needsOwner = "NEEDS BRAND ASSET: no approved logo file is on record, and a logo is never invented";
   else if (!(await reviewRecipient(db, p.id))) needsOwner = "no verified review email is set for this product";
   else if (!(await youtubeConnectionFor(db, p.id))) needsOwner = "no healthy YouTube connection is available for this product";
-  return { paused: Boolean(policy.paused), needsOwner, review: reviews, activeJobs: jobs.length, uploadLimited: recent >= cap, waiting: Boolean(policy.waiting), policy };
+  return { paused: Boolean(policy.paused), needsOwner, review: reviews, activeJobs: jobs.length, uploadLimited: recent >= cap, waiting: Boolean(policy.waiting), maxPending: (await getMaxPending(db, p as never)).max, policy };
 }
 
 export async function productStatus(db: StudioDb, p: Product): Promise<{ status: ProductStatus; detail: string | null }> {
@@ -149,6 +151,8 @@ export async function portfolioTick(db: StudioDb, log: (m: string) => void = () 
     if (OUT_OF_LOOP.has(plan.slug)) continue;
     const p = products.find((x) => x.slug === plan.slug);
     if (!p) continue;
+    // an owned product with no channel posts its UNLISTED review uploads through the owner's existing channel (shared, never copied; no new sign-in)
+    if (p.ownerKind !== "customer") await ensureOwnedChannelShared(db, "portfolio-tick", p).catch(() => false);
     const g = await gather(db, p);
     const status = statusOf(g);
     const say = (action: string) => {
@@ -161,6 +165,8 @@ export async function portfolioTick(db: StudioDb, log: (m: string) => void = () 
     }
     // durability: a job that died of a temporary problem (YouTube limit, site failure, closed browser, throttling) is revived, a few times, with no owner action
     await recoverStranded(db, p, log);
+    // a change request never waits: its replacement is queued whatever else is going on (it is the same video, so it uses no allowance and does not change the target)
+    for (const r of (await listReviews(db)).filter((x) => x.productId === p.id && x.status === "changes_requested")) await queueReplacement(db, "portfolio-tick", r).catch(() => {});
     if (isGame(p as { kind?: string })) {
       // a game is made by the game video engine: real gameplay only, one distinct format at a time, until the target is reached
       say(await gameTick(db, p as never, { force: Boolean(opts.force), review: g.review, activeJobs: g.activeJobs }, log));

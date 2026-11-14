@@ -6,6 +6,10 @@
  * out of channel pages, search and recommendations. Review state lives in ms_settings (`video_review_<publicationId>`); website embed details in
  * `video_embed_<productId>`. Studio only RECOMMENDS where a video belongs on a House site; it never writes to any site.
  */
+import { gameAcquisitionPaused } from "./pause";
+import { assertRolloutOrder } from "./first-post";
+import { listProducts } from "../repository";
+import { INTERNAL_SCOPE } from "../scope";
 import { and, eq, like } from "drizzle-orm";
 import { audit } from "../audit";
 import { replyNote } from "./sender";
@@ -254,6 +258,10 @@ export async function approveReview(scope: OwnerScope, actor: string, publicatio
   if (!r) throw new Error("No review found for that video");
   if (r.status === "approved_public") return r;
   if (r.status === "superseded") throw new Error("This version was superseded by a newer one; review the newer version.");
+  // making it PUBLIC is gated for a game: it needs a verified live store listing, and Mibble Meadow follows ScribbleZap's proven first upload. The video stays unlisted and nothing is recorded.
+  const product = (await listProducts(INTERNAL_SCOPE, db)).find((p) => p.id === r.productId);
+  if (product && (await gameAcquisitionPaused(db, product))) throw new Error("This game cannot be made public yet: it has no verified live store listing, so the video stays unlisted for review. Approve it again once the listing is verified. (It can still be edited and reviewed meanwhile.)");
+  if (product) await assertRolloutOrder(db, product, "youtube");
   if (r.provider === "hosted") return (await import("../media/hosted-review")).approveHosted(db, actor, publicationId, note);
   const [pub] = await db.select().from(ms.msPublications).where(and(eq(ms.msPublications.id, publicationId), eq(ms.msPublications.productId, r.productId))).limit(1);
   if (!pub || pub.status !== "published" || pub.externalPostId !== r.videoId || !pub.connectionId) throw new Error("The uploaded video could not be matched to its publication");

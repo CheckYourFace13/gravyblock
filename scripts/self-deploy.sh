@@ -15,6 +15,10 @@ set -e
 REPO_DIR="/home/deploy/gravyblock"
 LOCK_FILE="/tmp/gravyblock-self-deploy.lock"
 
+# Gameplay capture requests from the Marketing Studio worker (Mibble Meadow runs in a container the worker may not start itself). A no-op unless a request is waiting;
+# it runs detached so a long capture never delays a deploy check.
+[ -f "$REPO_DIR/scripts/ops/capture-runner.sh" ] && ( setsid nohup bash "$REPO_DIR/scripts/ops/capture-runner.sh" >> /home/deploy/logs/capture-runner.log 2>&1 < /dev/null & ) 2>/dev/null || true
+
 # Prevent overlapping runs (build takes ~2 min, cron fires every 2 min)
 if [ -f "$LOCK_FILE" ]; then
   # Stale lock (>15 min old) gets cleared; otherwise another deploy is running

@@ -7,14 +7,15 @@ import { listReviews } from "@/lib/marketing-studio/publishing/video-review";
 import { youtubeConnectionFor } from "@/lib/marketing-studio/publishing/youtube-share";
 import { OFFERED_VOICES, TONES, voiceCards, voiceSettingFor } from "@/lib/marketing-studio/video/voices";
 import { productStatus } from "@/lib/marketing-studio/portfolio-loop";
-import { isGame, PRESET_TARGETS, targetStats } from "@/lib/marketing-studio/video-target";
-import { changeReviewEmailAction, changeVoiceAction, declareKidsAction, generateNextVideoAction, pauseVideoMarketingAction, resumeVideoMarketingAction, setVideoTargetAction } from "../../actions";
+import { getMaxPending, isGame, PRESET_TARGETS, targetStats } from "@/lib/marketing-studio/video-target";
+import { changeReviewEmailAction, changeVoiceAction, declareKidsAction, generateNextVideoAction, pauseVideoMarketingAction, resumeVideoMarketingAction, setMaxPendingAction, setVideoTargetAction } from "../../actions";
 
 /** Pause, resume and the one-time YouTube declaration for one product. Resume lives only here, behind the GravyBlock login. */
 export async function VideoMarketingCard({ product }: { product: { id: string; ownerKind: string; slug?: string; kind?: string } }) {
   const db = requireStudioDb();
   const tp = { id: product.id, slug: product.slug ?? "", kind: product.kind, ownerKind: product.ownerKind };
   const stats = await targetStats(db, tp);
+  const pending = await getMaxPending(db, tp);
   const state = await productStatus(db, tp as never).catch(() => ({ status: "ACTIVE", detail: null as string | null }));
   const policy = await getPolicy(db, product.id);
   const kids = await kidsFor(db, product);
@@ -70,6 +71,13 @@ export async function VideoMarketingCard({ product }: { product: { id: string; o
             <button className="rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50" disabled={Boolean(policy.paused)}>Generate Next Video</button>
           </form>
         </div>
+        <form action={setMaxPendingAction} className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+          <input type="hidden" name="productId" value={product.id} />
+          <label className="text-zinc-700" htmlFor={`max-${product.id}`}>Maximum pending reviews</label>
+          <input id={`max-${product.id}`} name="max" type="number" min={1} max={20} defaultValue={pending.max} className="w-20 rounded-md border border-zinc-300 px-2 py-1.5" />
+          <button className="rounded-md border border-zinc-300 px-3 py-1.5 font-semibold text-zinc-800">Set</button>
+          <span className="text-xs text-zinc-500">Production keeps going, one render at a time, until this many videos are waiting for your decision.</span>
+        </form>
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-5">
           <div><dt className="text-xs text-zinc-500">Approved / public</dt><dd className="font-medium">{stats.approved}</dd></div>
           <div><dt className="text-xs text-zinc-500">Waiting for review</dt><dd className="font-medium">{stats.waiting}</dd></div>

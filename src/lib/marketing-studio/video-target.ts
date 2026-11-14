@@ -71,3 +71,38 @@ export async function targetStats(db: StudioDb, p: TargetProduct): Promise<Targe
   const { target } = await getTarget(db, p);
   return statsFrom(await getAngles(db, p.slug), await activeProductionJobs(db, p.id), target);
 }
+
+// ---- maximum pending reviews --------------------------------------------------------------------------------------------------------------------
+
+/**
+ * How many videos may be waiting for the owner's decision at once before production pauses. Production does NOT stop at the first video waiting: it keeps going, one heavy render at a time,
+ * emailing each, until this many are pending (or the target is reached). The owner's own portfolio defaults to five per product or game; a customer's default follows their plan's cadence.
+ */
+export const maxPendingKey = (productId: string) => `video_max_pending_${productId}`;
+export const OWNED_MAX_PENDING = 5;
+export const CUSTOMER_MAX_PENDING_CAP = 3;
+export const MAX_PENDING_LIMIT = 20;
+
+export const defaultMaxPending = (p: Pick<TargetProduct, "ownerKind">): number => (p.ownerKind !== "customer" ? OWNED_MAX_PENDING : 1);
+
+export const cleanMaxPending = (n: unknown, p: Pick<TargetProduct, "ownerKind">): number | null => {
+  const v = typeof n === "number" ? n : Number(String(n ?? "").trim());
+  if (!Number.isInteger(v) || v < 1 || v > MAX_PENDING_LIMIT) return null;
+  return p.ownerKind === "customer" ? Math.min(v, CUSTOMER_MAX_PENDING_CAP) : v;
+};
+
+export async function getMaxPending(db: StudioDb, p: TargetProduct): Promise<{ max: number; explicit: boolean }> {
+  const s = await getSetting<{ max: number } | null>(maxPendingKey(p.id), null, db);
+  const v = cleanMaxPending(s?.max, p);
+  return v ? { max: v, explicit: true } : { max: defaultMaxPending(p), explicit: false };
+}
+
+export async function setMaxPending(db: StudioDb, actor: string, p: TargetProduct, n: unknown): Promise<number> {
+  const v = cleanMaxPending(n, p);
+  if (!v) throw new Error(`Maximum pending reviews is a whole number from 1 to ${MAX_PENDING_LIMIT}.`);
+  await setSetting(maxPendingKey(p.id), { max: v, setBy: actor, setAt: new Date().toISOString() }, actor, db, { audited: true });
+  return v;
+}
+
+/** Videos waiting for the owner: uploaded for review, or with changes requested (the correction is still the same video). */
+export const pendingCount = (reviews: Array<{ status: string }>) => reviews.filter((r) => r.status === "unlisted_live" || r.status === "changes_requested").length;

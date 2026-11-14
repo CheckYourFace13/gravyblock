@@ -32,8 +32,10 @@ export function momentsFor(moments: GameMoment[], format: GameFormat, usedLevels
 export async function makeGameClip(db: StudioDb, product: { id: string; slug: string; name: string }, format: GameFormat, o: { sessionDir: string; usedLevels?: ReadonlySet<string>; log?: (m: string) => void }): Promise<GameClipResult> {
   const log = o.log ?? (() => {});
   const frames = JSON.parse(await fs.readFile(path.join(o.sessionDir, "frames.json"), "utf8")) as SessionFrame[];
-  const sessionLog = JSON.parse(await fs.readFile(path.join(o.sessionDir, "log.json"), "utf8")) as SessionLog[];
-  const all = detectMoments(frames, sessionLog);
+  const sessionLog = (await fs.readFile(path.join(o.sessionDir, "log.json"), "utf8").then((t) => JSON.parse(t) as SessionLog[]).catch(() => [])) as SessionLog[];
+  // a session may carry its own moments (a game whose capture reports events rather than a HUD log); otherwise they are read from the HUD log
+  const stored = await fs.readFile(path.join(o.sessionDir, "moments.json"), "utf8").then((t) => JSON.parse(t) as GameMoment[]).catch(() => null);
+  const all = stored ?? detectMoments(frames, sessionLog);
   const kinds = all.reduce<Record<string, number>>((m, x) => ((m[x.kind] = (m[x.kind] ?? 0) + 1), m), {});
   log(`session: ${frames.length} real frames, ${sessionLog.length} HUD samples, moments ${JSON.stringify(kinds)}`);
   const moments = momentsFor(all, format, o.usedLevels ?? new Set());

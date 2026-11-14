@@ -49,3 +49,22 @@ export async function youtubeConnectionFor(db: StudioDb, productId: string) {
   for (const c of all) if (c.productId === productId || ((map[c.id] ?? []).includes(productId) && (await sameOwnerFamily(db, c.productId, productId)))) mine.push(c);
   return mine.find((c) => usable(evaluateHealth(c))) ?? null;
 }
+
+/**
+ * An owned product with no channel of its own posts its UNLISTED review uploads through the owner's existing YouTube channel: the connection is shared (never copied, no new sign-in), and only
+ * between the owner's own products. Customers are never given the owner's channel, and nothing here makes a video public.
+ */
+export async function ensureOwnedChannelShared(db: StudioDb, actor: string, product: { id: string; ownerKind: string }): Promise<boolean> {
+  if (product.ownerKind === "customer") return false;
+  if (await youtubeConnectionFor(db, product.id)) return true;
+  const { listProducts } = await import("../repository");
+  const { INTERNAL_SCOPE } = await import("../scope");
+  for (const sibling of (await listProducts(INTERNAL_SCOPE, db)).filter((x) => x.id !== product.id && x.ownerKind !== "customer")) {
+    const conn = await youtubeConnectionFor(db, sibling.id);
+    if (conn && conn.productId === sibling.id) {
+      await shareYoutubeConnection(db, actor, conn.id, product.id);
+      return true;
+    }
+  }
+  return false;
+}

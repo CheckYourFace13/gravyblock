@@ -121,9 +121,10 @@ export async function createPublication(
   db: StudioDb = requireStudioDb(),
 ): Promise<{ publication: Publication; duplicate: boolean }> {
   const product = await requireProduct(scope, productId, db);
-  if (await gameAcquisitionPaused(db, product)) throw new Error(GAME_PAUSE_MESSAGE);
-  // Rollout order: Mibble Meadow can only be prepared for a direct post once the first ScribbleZap post has proven the whole loop.
-  if ((input.mode ?? "export") === "direct") await assertRolloutOrder(db, product, input.platform);
+  // CREATION and private review are always open. Only PUBLIC publication is gated: a game with no verified live store listing, and the rollout order (Mibble Meadow follows ScribbleZap).
+  const reviewOnly = input.platform === "youtube" && (await getSetting<string | null>(youtubePrivacySetting(productId), null, db)) === "unlisted";
+  if (!reviewOnly && (await gameAcquisitionPaused(db, product))) throw new Error(GAME_PAUSE_MESSAGE);
+  if (!reviewOnly && (input.mode ?? "export") === "direct") await assertRolloutOrder(db, product, input.platform);
   const spec = specFor(input.platform);
   if (!spec) throw new Error("Unknown platform");
   await assertCreativeFresh(db, input.videoId);

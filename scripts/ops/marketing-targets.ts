@@ -10,7 +10,7 @@ import { listReviews } from "../../src/lib/marketing-studio/publishing/video-rev
 import { listProducts } from "../../src/lib/marketing-studio/repository";
 import { INTERNAL_SCOPE } from "../../src/lib/marketing-studio/scope";
 import { captureReady } from "../../src/lib/marketing-studio/video/game/production";
-import { getTarget, isGame, setTarget, targetStats, type TargetProduct } from "../../src/lib/marketing-studio/video-target";
+import { getMaxPending, getTarget, isGame, setTarget, targetStats, type TargetProduct } from "../../src/lib/marketing-studio/video-target";
 
 async function main() {
   const [cmd, arg, n] = process.argv.slice(2);
@@ -39,7 +39,7 @@ async function main() {
     if (st.status === "WAITING_FOR_NEW_OPPORTUNITY") totals.waitingForOpportunity++;
     if (st.status === "NEEDS_OWNER_ACTION") totals.blocked++;
     totals.emailsWaiting += waitingMail;
-    console.log(JSON.stringify({ slug: p.slug, kind: p.kind, game: isGame(p), target: t.target, explicit: t.explicit, approved: stats.approved, reviewPending: stats.waiting, renderingOrQueued: jobs[0]?.n ?? 0, remaining: stats.remaining, paused: Boolean(pol.paused), status: st.status, blocker: st.detail, blockedAngles: angles.filter((a) => a.status === "blocked").length, emailsWaiting: waitingMail, ...(isGame(p) ? { realGameCapture: captureReady(p.slug) } : {}) }));
+    console.log(JSON.stringify({ slug: p.slug, kind: p.kind, game: isGame(p), target: t.target, explicit: t.explicit, maxPendingReviews: (await getMaxPending(db, p)).max, approved: stats.approved, reviewPending: stats.waiting, renderingOrQueued: jobs[0]?.n ?? 0, remaining: stats.remaining, paused: Boolean(pol.paused), status: st.status, blocker: st.detail, blockedAngles: angles.filter((a) => a.status === "blocked").length, emailsWaiting: waitingMail, ...(isGame(p) ? { realGameCapture: captureReady(p.slug) } : {}) }));
   }
   console.log("TOTALS", JSON.stringify(totals));
 }

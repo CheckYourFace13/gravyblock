@@ -14,12 +14,11 @@ import { angleKey, type AngleEntry } from "../../library";
 import { getAngles, updateAngle } from "../../library-store";
 import { capFreesAt } from "../../library-production";
 import { prepareReview } from "../../publishing/review-dispatch";
-import { gameAcquisitionPaused } from "../../publishing/pause";
 import { isPaused } from "../../publishing/video-policy";
 import { listFacts, listProducts } from "../../repository";
 import { enqueue, getSetting, JOB_PRIORITY, setSetting } from "../../runtime";
 import { INTERNAL_SCOPE } from "../../scope";
-import { activeProductionJobs, targetStats } from "../../video-target";
+import { activeProductionJobs, getMaxPending, pendingCount, targetStats } from "../../video-target";
 import { storeVideoFile } from "../store";
 import { storeDestination } from "../demo/language-qa";
 import { GAME_FORMATS, GAME_LIBRARY_ORDER, gameRepeats, type GameClip, type GameFormat } from "./engine";
@@ -27,10 +26,15 @@ import { makeGameClip } from "./clip";
 
 const ACTOR = "game-video-engine";
 const SESSION_MAX_AGE_MS = 3 * 24 * 3_600_000;
+const NL = String.fromCharCode(10);
 
-/** Games with an automatic real-gameplay capture. A game without one makes nothing (gameplay is never faked). */
-export const GAME_CAPTURES: Record<string, { script: string; env: string }> = {
-  scribblezap: { script: "scripts/ops/marketing-sz-capture.mts", env: "STUDIO_GAME_CAPTURE_OUT" },
+/**
+ * Games with an automatic real-gameplay capture. A game without one makes nothing (gameplay is never faked).
+ * "script": a scripted browser plays the game's web build. "runner": the game runs in a disposable container started by the root-owned capture runner (the worker only leaves a request).
+ */
+export const GAME_CAPTURES: Record<string, { kind: "script"; script: string; env: string } | { kind: "runner"; levels: number }> = {
+  scribblezap: { kind: "script", script: "scripts/ops/marketing-sz-capture.mts", env: "STUDIO_GAME_CAPTURE_OUT" },
+  mibblemeadow: { kind: "runner", levels: 8 },
 };
 export const captureReady = (slug: string) => slug in GAME_CAPTURES;
 export const sessionDirFor = (slug: string) => path.join(STUDIO_DIRS.root, "captures", slug, "session");
@@ -106,9 +110,9 @@ export async function gameTick(db: StudioDb, p: GameProduct, ctx: { force: boole
   await reopenBlocked(db, p);
   const stats = await targetStats(db, p);
   if (!ctx.force && stats.remaining !== null && stats.remaining <= 0) return `target reached: ${stats.approved + stats.waiting + stats.making} of ${stats.target} distinct game videos are approved, in review or being made`;
-  if (!ctx.force && ctx.review.some((r) => r.status === "unlisted_live")) return "waiting for your review of the game video already sent";
+  const { max } = await getMaxPending(db, p);
+  if (!ctx.force && pendingCount(ctx.review) >= max) return `${pendingCount(ctx.review)} of ${max} allowed game videos are waiting for your review; more are made as you decide`;
   if ((await activeProductionJobs(db, p.id)) > 0) return "a game video is already being made";
-  if (await gameAcquisitionPaused(db, { id: p.id, kind: p.kind ?? "mobile_game" })) return "WAITING_FOR_STORE_LISTING: game acquisition is paused until this game has a verified live store listing (owner rule 2026-11-07); nothing is made or sent for it yet";
   if (!captureReady(p.slug)) return `NEEDS CAPTURE: ${p.name} has no automatic real-gameplay capture yet; nothing is made without real gameplay`;
   if (p.ownerKind === "customer") {
     const allow = await allowanceFor(db, p);
@@ -125,10 +129,11 @@ export async function gameTick(db: StudioDb, p: GameProduct, ctx: { force: boole
 }
 
 /** Runs the product's own scripted capture (real taps and swipes on the real game) as a child process. */
-function runCapture(slug: string, outDir: string, timeoutMs = 20 * 60_000): Promise<string> {
+async function runCapture(slug: string, outDir: string, log: (m: string) => void, timeoutMs = 20 * 60_000): Promise<string> {
   const a = GAME_CAPTURES[slug];
+  if (a.kind === "runner") return runRunnerCapture(slug, a.levels, outDir, log);
   return new Promise((resolve) => {
-    const child = spawn("npx", ["tsx", a.script], { cwd: process.cwd(), env: { ...process.env, [a.env]: outDir } });
+    const child = spawn("npx", ["tsx", (a as { script: string }).script], { cwd: process.cwd(), env: { ...process.env, [(a as { env: string }).env]: outDir } });
     let out = "";
     const timer = setTimeout(() => child.kill("SIGTERM"), timeoutMs);
     child.stdout.on("data", (d) => (out += String(d)));
@@ -136,6 +141,35 @@ function runCapture(slug: string, outDir: string, timeoutMs = 20 * 60_000): Prom
     child.on("close", () => (clearTimeout(timer), resolve(out)));
     child.on("error", () => (clearTimeout(timer), resolve(out)));
   });
+}
+
+/**
+ * A game that runs in a container (Mibble Meadow): leave a request for the root-owned capture runner, wait for its status, then turn the run into a session. The runner is the only thing with
+ * container access; it takes nothing from the request but a level count.
+ */
+async function runRunnerCapture(slug: string, levels: number, outDir: string, log: (m: string) => void): Promise<string> {
+  const reqDir = path.join(STUDIO_DIRS.root, "capture-requests");
+  const statusFile = path.join(STUDIO_DIRS.root, "capture-status", `${slug}.json`);
+  await fs.mkdir(reqDir, { recursive: true });
+  const id = Date.now();
+  await fs.writeFile(path.join(reqDir, `${slug}.request`), `id=${id}${NL}levels=${levels}${NL}`);
+  log(`asked the capture runner to play ${levels} levels of ${slug}`);
+  const deadline = Date.now() + 55 * 60_000;
+  let last = "";
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 15_000));
+    const st = await fs.readFile(statusFile, "utf8").then((t) => JSON.parse(t) as { id: number; state: string; detail: string }).catch(() => null);
+    if (!st || st.id !== id) continue;
+    if (st.detail !== last) log(`capture runner: ${st.state}: ${st.detail}`);
+    last = st.detail;
+    if (st.state === "failed") throw new Error(`the capture runner failed: ${st.detail}`);
+    if (st.state === "done") {
+      const { convertMibbleRun } = await import("./mibble");
+      await convertMibbleRun(path.join(STUDIO_DIRS.root, "captures", slug, "run"), outDir, log);
+      return st.detail;
+    }
+  }
+  throw new Error("the capture runner did not finish in time");
 }
 
 /** The gameplay session to cut from: the stored one while it is recent, else a fresh real capture. */
@@ -148,7 +182,7 @@ export async function ensureSession(slug: string, log: (m: string) => void, o: {
   await fs.rm(tmp, { recursive: true, force: true });
   await fs.mkdir(tmp, { recursive: true });
   log(`capturing real gameplay of ${slug}`);
-  const out = await runCapture(slug, tmp);
+  const out = await runCapture(slug, tmp, log);
   const frames = await fs.readFile(path.join(tmp, "frames.json"), "utf8").then((t) => (JSON.parse(t) as unknown[]).length).catch(() => 0);
   if (frames < 60) throw new Error(`capture produced no usable gameplay (${frames} frames): ${out.slice(-300)}`);
   await fs.rm(dir, { recursive: true, force: true });
