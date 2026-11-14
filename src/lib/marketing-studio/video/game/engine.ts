@@ -46,15 +46,34 @@ export function pickHighlights(moments: GameMoment[], format: GameFormat): GameM
 export type AudioMode = "gameplay_audio_music_captions" | "short_energetic_narration" | "reaction_copy" | "challenge_text" | "minimal_voice";
 /** Narration is a choice, not a default: the standard product narrator is never forced onto a game clip. */
 export const GAME_AUDIO_MODES: Record<GameFormat, AudioMode[]> = {
-  gameplay_hook: ["gameplay_audio_music_captions", "minimal_voice"],
+  gameplay_hook: ["minimal_voice", "gameplay_audio_music_captions"],
   challenge: ["challenge_text", "gameplay_audio_music_captions", "short_energetic_narration"],
-  progression: ["gameplay_audio_music_captions", "short_energetic_narration", "reaction_copy"],
+  progression: ["short_energetic_narration", "gameplay_audio_music_captions", "reaction_copy"],
   reward_unlock: ["reaction_copy", "gameplay_audio_music_captions", "minimal_voice"],
   mechanic_spotlight: ["short_energetic_narration", "gameplay_audio_music_captions", "minimal_voice"],
-  variety_montage: ["gameplay_audio_music_captions", "reaction_copy"],
+  variety_montage: ["reaction_copy", "gameplay_audio_music_captions"],
   short_form: ["gameplay_audio_music_captions", "challenge_text"],
 };
 export const MAX_NARRATION_WORDS: Record<AudioMode, number> = { short_energetic_narration: 40, reaction_copy: 25, minimal_voice: 14, gameplay_audio_music_captions: 0, challenge_text: 0 };
+/** A mode that promises a voice must really have one: the minimum spoken words. Modes that intentionally use gameplay audio, music and captions have none. */
+export const MIN_NARRATION_WORDS: Record<AudioMode, number> = { short_energetic_narration: 8, reaction_copy: 5, minimal_voice: 4, gameplay_audio_music_captions: 0, challenge_text: 0 };
+export const narrationExpected = (m: AudioMode) => MIN_NARRATION_WORDS[m] > 0;
+
+/** The spoken lines of a narrated game clip (true of any game footage: nothing here claims a feature). The last line carries the name over the end card. */
+export function gameNarrationLines(format: GameFormat, mode: AudioMode, name: string): string[] {
+  if (!narrationExpected(mode)) return [];
+  const body: Record<GameFormat, string> = {
+    gameplay_hook: "Quick taps. Big payoff.",
+    challenge: "Think you can beat this?",
+    progression: "Level by level, it gets trickier. Can you keep up?",
+    reward_unlock: "That feeling when it all clicks.",
+    mechanic_spotlight: "One move at a time, and every move counts.",
+    variety_montage: "Every stage brings something new.",
+    short_form: "One more try?",
+  };
+  const close = mode === "minimal_voice" ? `This is ${name}.` : mode === "reaction_copy" ? `Play ${name}.` : `That is the fun of ${name}.`;
+  return [body[format], close];
+}
 
 export type GameClip = {
   game: string;
@@ -64,6 +83,8 @@ export type GameClip = {
   audio: AudioMode;
   narrationWords: number;
   vertical: boolean;
+  /** the spoken lines as they sit in the finished file (set after the render), so the voice can be proved audible */
+  voiceLines?: Array<{ text: string; startMs: number; endMs: number }>;
 };
 export type GameCheck = { id: string; ok: boolean; detail: string };
 
@@ -91,7 +112,7 @@ export function gameFunChecks(c: GameClip): GameCheck[] {
     { id: "variety", ok: levels.size >= spec.minLevels && mechanics.size >= spec.minMechanics, detail: `${levels.size} levels (need ${spec.minLevels}), ${mechanics.size} mechanics (need ${spec.minMechanics})` },
     { id: "energy", ok: mean >= 0.45, detail: `average intensity ${mean.toFixed(2)}, at least 0.45` },
     { id: "length", ok: c.durationMs <= spec.maxSeconds * 1000, detail: `${Math.round(c.durationMs / 1000)}s, at most ${spec.maxSeconds}s` },
-    { id: "audio_choice", ok: GAME_AUDIO_MODES[c.format].includes(c.audio) && c.narrationWords <= MAX_NARRATION_WORDS[c.audio], detail: `${c.audio}, ${c.narrationWords} narrated words` },
+    { id: "audio_choice", ok: GAME_AUDIO_MODES[c.format].includes(c.audio) && c.narrationWords <= MAX_NARRATION_WORDS[c.audio] && c.narrationWords >= MIN_NARRATION_WORDS[c.audio], detail: `${c.audio}, ${c.narrationWords} narrated words (${narrationExpected(c.audio) ? `a voice is required, at least ${MIN_NARRATION_WORDS[c.audio]}` : "gameplay audio, music and captions by design"})` },
     { id: "format_shape", ok: c.vertical === spec.vertical, detail: spec.vertical ? "this format is vertical" : "this format is landscape" },
   ];
 }

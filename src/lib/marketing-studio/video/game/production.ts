@@ -21,7 +21,8 @@ import { INTERNAL_SCOPE } from "../../scope";
 import { activeProductionJobs, getMaxPending, pendingCount, targetStats } from "../../video-target";
 import { storeVideoFile } from "../store";
 import { storeDestination } from "../demo/language-qa";
-import { GAME_FORMATS, GAME_LIBRARY_ORDER, gameRepeats, type GameClip, type GameFormat } from "./engine";
+import { GAME_AUDIO_MODES, GAME_FORMATS, GAME_LIBRARY_ORDER, gameRepeats, narrationExpected, type GameClip, type GameFormat } from "./engine";
+import { getReview } from "../../publishing/video-review";
 import { makeGameClip } from "./clip";
 
 const ACTOR = "game-video-engine";
@@ -106,10 +107,36 @@ async function reopenBlocked(db: StudioDb, p: GameProduct): Promise<number> {
   return n;
 }
 
+/**
+ * A delivered clip whose format now promises a voice but has none (it was made before the voiceover existed for games) is made again, by itself, from fresh real gameplay: the new version
+ * has the voice, is uploaded unlisted and supersedes the old review. Only clips still in the owner's review are touched: nothing public, approved for public or already being changed.
+ */
+export async function reissueVoicelessGameClips(db: StudioDb, p: GameProduct, log: (m: string) => void = () => {}): Promise<string | null> {
+  for (const a of (await getAngles(db, p.slug)).filter((x) => x.status === "unlisted_review" && x.videoRowId && x.specId && formatOfSpec(x.specId))) {
+    const format = formatOfSpec(a.specId as string) as GameFormat;
+    if (!narrationExpected(GAME_AUDIO_MODES[format][0])) continue;
+    const [row] = await db.select({ storyboard: ms.msVideos.storyboard }).from(ms.msVideos).where(eq(ms.msVideos.id, a.videoRowId as string));
+    const clip = (row?.storyboard as { gameClip?: GameClip } | undefined)?.gameClip;
+    if (!clip || (clip.voiceLines?.length ?? 0) > 0) continue;
+    const pubs = await db.select({ id: ms.msPublications.id }).from(ms.msPublications).where(eq(ms.msPublications.videoId, a.videoRowId as string));
+    const reviews = await Promise.all(pubs.map((x) => getReview(db, x.id)));
+    if (reviews.some((r) => r && r.status !== "unlisted_live" && r.status !== "superseded")) continue;
+    const key = `game_video:${a.specId}:voice:${a.videoRowId}`;
+    const r = await enqueue({ kind: "game_video", weight: "heavy", priority: JOB_PRIORITY.normal, productId: p.id, dedupeKey: key, input: { specId: a.specId, replacing: { videoRowId: a.videoRowId } }, maxAttempts: 3 }, db);
+    log(`game ${p.slug}: ${a.specId} has no voice track, making it again with the voiceover`);
+    return r.id ? `remaking ${format} with its voiceover` : null;
+  }
+  return null;
+}
+
 /** One pass of the loop for a game: queue the next distinct format when the target wants more and nothing is in the way. Returns what it did, in words. */
 export async function gameTick(db: StudioDb, p: GameProduct, ctx: { force: boolean; review: Array<{ status: string }>; activeJobs: number }, log: (m: string) => void = () => {}): Promise<string> {
   await ensureGameAngles(db, p);
   await reopenBlocked(db, p);
+  if (!(await activeProductionJobs(db, p.id))) {
+    const remade = await reissueVoicelessGameClips(db, p, log);
+    if (remade) return remade;
+  }
   const stats = await targetStats(db, p);
   if (!ctx.force && stats.remaining !== null && stats.remaining <= 0) return `target reached: ${stats.approved + stats.waiting + stats.making} of ${stats.target} distinct game videos are approved, in review or being made`;
   const { max } = await getMaxPending(db, p);

@@ -7,7 +7,8 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { StudioDb } from "../../db";
 import { ffmpeg } from "../ffmpeg";
-import { synthMusic, writeWav } from "../demo/audio";
+import { STUDIO_TTS_DIR } from "../../config";
+import { mixAudio, placeLines, synthesizeLines, synthMusic, writeWav } from "../demo/audio";
 import { comparePixels } from "../../brand/logo-integrity";
 import type { SessionFrame } from "./moments";
 
@@ -33,6 +34,8 @@ export type GameRenderInput = {
   /** vertical 1080x1920 (the default) or landscape 1920x1080 for the formats that are landscape */
   vertical?: boolean;
   music?: { bpm: number; chords: Array<{ root: number; notes: number[] }> };
+  /** spoken lines (the voiceover): the first over the opening gameplay, the last over the end card */
+  narration?: { lines: string[]; voice: string; speed: number; ttsDir?: string };
 };
 
 const run = async (args: string[], ms = 240_000) => {
@@ -40,7 +43,7 @@ const run = async (args: string[], ms = 240_000) => {
   if (r.code !== 0) throw new Error(`ffmpeg failed (exit ${r.code ?? "none"}${r.code === null ? ", probably timed out" : ""}): ${(r.stderr ?? "").slice(-400)}`);
 };
 
-export async function renderGameClip(i: GameRenderInput): Promise<{ file: string; durationMs: number; endCard: { fromSec: number }; logoBox: { x: number; y: number; w: number; h: number } }> {
+export async function renderGameClip(i: GameRenderInput): Promise<{ voiceLines: Array<{ text: string; startMs: number; endMs: number }>; file: string; durationMs: number; endCard: { fromSec: number }; logoBox: { x: number; y: number; w: number; h: number } }> {
   await fs.mkdir(i.workDir, { recursive: true });
   const vertical = i.vertical !== false;
   const W = vertical ? 1080 : 1920;
@@ -71,7 +74,7 @@ export async function renderGameClip(i: GameRenderInput): Promise<{ file: string
     segs.push(seg);
   }
   // end card: brand colour, the untouched logo scaled uniformly, the call to action
-  const endSec = 1.8;
+  const endSec = i.narration?.lines.length ? 2.8 : 1.8;
   const lh = Math.round((LOGO_W * i.logoSize.h) / i.logoSize.w);
   const lx = Math.round((W - LOGO_W) / 2);
   const ly = Math.round((H - lh) / 2) - 90;
@@ -89,8 +92,27 @@ export async function renderGameClip(i: GameRenderInput): Promise<{ file: string
   const [ml, mr] = synthMusic(totalSec + 0.3, 44100, i.music ?? {});
   const music = path.join(i.workDir, "music.wav");
   await writeWav(music, [ml, mr], 44100);
-  await run(["-i", silent, "-i", music, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-af", `afade=t=in:d=0.4,afade=t=out:st=${Math.max(0, totalSec - 0.8)}:d=0.8,volume=0.8`, "-shortest", i.outFile]);
-  return { file: i.outFile, durationMs: Math.round(totalSec * 1000), endCard: { fromSec: totalSec - endSec }, logoBox: { x: lx, y: ly, w: LOGO_W, h: lh } };
+  const voiceLines: Array<{ text: string; startMs: number; endMs: number }> = [];
+  if (i.narration?.lines.length) {
+    // the voiceover: recorded line by line, placed on one track, mixed over the music (which ducks under it), and that mix is the only audio of the file
+    const synth = await synthesizeLines(i.narration.lines.map((text, k) => ({ id: "G" + k, text })), { ttsDir: i.narration.ttsDir ?? STUDIO_TTS_DIR, voice: i.narration.voice, speed: i.narration.speed, tmpDir: path.join(i.workDir, "tts") });
+    const rate = synth[0].rate;
+    const endStartMs = (totalSec - endSec) * 1000;
+    let cursor = 600;
+    synth.forEach((s, k) => {
+      const dur = Math.round((s.samples.length / s.rate) * 1000);
+      const start = k === synth.length - 1 && synth.length > 1 ? Math.max(cursor, endStartMs + 150) : cursor;
+      voiceLines.push({ text: i.narration!.lines[k], startMs: start, endMs: start + dur });
+      cursor = start + dur + 350;
+    });
+    const last = voiceLines[voiceLines.length - 1];
+    if (last.endMs > totalSec * 1000 - 150) throw new Error("the narration does not fit this clip (" + Math.round(last.endMs) + " ms of voice in " + Math.round(totalSec * 1000) + " ms)");
+    const vo = placeLines(synth.map((s, k) => ({ samples: s.samples, rate: s.rate, startMs: voiceLines[k].startMs })), totalSec * 1000 + 300, rate);
+    await writeWav(path.join(i.workDir, "vo.wav"), [vo], rate);
+    await mixAudio(path.join(i.workDir, "vo.wav"), music, path.join(i.workDir, "mix.wav"), totalSec);
+    await run(["-i", silent, "-i", path.join(i.workDir, "mix.wav"), "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-shortest", i.outFile]);
+  } else await run(["-i", silent, "-i", music, "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-af", `afade=t=in:d=0.4,afade=t=out:st=${Math.max(0, totalSec - 0.8)}:d=0.8,volume=0.8`, "-shortest", i.outFile]);
+  return { voiceLines, file: i.outFile, durationMs: Math.round(totalSec * 1000), endCard: { fromSec: totalSec - endSec }, logoBox: { x: lx, y: ly, w: LOGO_W, h: lh } };
 }
 
 /** The logo-integrity check for a finished game clip: the end-card logo, cut out of the real final frame, is compared with the canonical source. Same limits as the demo renderer. */

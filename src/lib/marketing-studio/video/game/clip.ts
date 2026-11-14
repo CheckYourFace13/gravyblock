@@ -11,7 +11,8 @@ import { canonicalizeLogo } from "../../brand/logo-integrity";
 import { STUDIO_DIRS } from "../../config";
 import { readAssetBytes } from "../../creative/context";
 import { ms, type StudioDb } from "../../db";
-import { GAME_AUDIO_MODES, GAME_FORMATS, gameFunChecks, pickHighlights, type GameCheck, type GameClip, type GameFormat, type GameMoment } from "./engine";
+import { narrationAudible } from "../voice-audible";
+import { GAME_AUDIO_MODES, GAME_FORMATS, gameFunChecks, gameNarrationLines, pickHighlights, type GameCheck, type GameClip, type GameFormat, type GameMoment } from "./engine";
 import { detectMoments, spansOf, type SessionFrame, type SessionLog } from "./moments";
 import { gameLogoCheck, renderGameClip } from "./render";
 
@@ -84,7 +85,9 @@ export async function makeGameClip(db: StudioDb, product: { id: string; slug: st
     }
     offset += s.toMs - s.fromMs;
   }
-  const clip: GameClip = { game: product.slug, format, moments: clipMoments, durationMs: offset, audio: GAME_AUDIO_MODES[format][0], narrationWords: 0, vertical: spec.vertical };
+  const audioMode = GAME_AUDIO_MODES[format][0];
+  const script = gameNarrationLines(format, audioMode, product.name);
+  const clip: GameClip = { game: product.slug, format, moments: clipMoments, durationMs: offset, audio: audioMode, narrationWords: script.join(" ").split(/\s+/).filter(Boolean).length, vertical: spec.vertical };
   const checks = gameFunChecks(clip);
   checks.forEach((c) => log(`  ${c.ok ? "PASS" : "FAIL"}  ${c.id}: ${c.detail}`));
   if (checks.some((c) => !c.ok)) return { ok: false, reason: `game QA: ${checks.filter((c) => !c.ok).map((c) => `${c.id} (${c.detail})`).join("; ")}`, checks };
@@ -120,8 +123,20 @@ export async function makeGameClip(db: StudioDb, product: { id: string; slug: st
     brand: { dark: "#101018", accent: "#f5b301" },
     endHeadline: kit?.approvedName ?? product.name,
     vertical: spec.vertical,
+    narration: script.length ? { lines: script, voice: "af_heart", speed: 1.06 } : undefined,
     music: { bpm: 128, chords: [{ root: 48, notes: [60, 64, 67] }, { root: 43, notes: [55, 59, 62] }, { root: 45, notes: [57, 60, 64] }, { root: 41, notes: [53, 57, 60] }] },
   });
+  // a clip that promises a voice must have one that can be HEARD in the finished file; a silent or dropped voice is a hard failure and the clip is not sent
+  if (script.length) {
+    const heard = await narrationAudible(rendered.file, rendered.voiceLines);
+    checks.push({ id: "narration_audible", ok: heard.audible, detail: heard.reason });
+    clip.voiceLines = rendered.voiceLines;
+    log(`  ${heard.audible ? "PASS" : "FAIL"}  narration_audible: ${heard.reason}`);
+    if (!heard.audible) {
+      await fs.rm(rendered.file, { force: true }).catch(() => undefined);
+      return { ok: false, reason: `game QA: narration_audible (${heard.reason})`, checks };
+    }
+  }
   const lc = await gameLogoCheck(rendered.file, rendered.endCard.fromSec, rendered.logoBox, bytes, size, work);
   log(`logo integrity: ${lc.ok ? "PASS" : "FAIL"} (mean ${lc.mean}/255, strong ${lc.strongShare})`);
   const st = await fs.stat(rendered.file);

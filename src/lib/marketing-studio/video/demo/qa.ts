@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import { registerKiller } from "../../active-work";
 import { ffprobe, run } from "../ffmpeg";
 import { captionWordsFor } from "./audio";
+import { narrationAudible } from "../voice-audible";
 import { CANVAS, WIN, type DemoRecord, type Manifest, type NarrationLine, type Timeline } from "./types";
 
 export type DemoQaCheck = { id: string; ok: boolean; severity: "fail" | "warn"; detail: string };
@@ -155,6 +156,10 @@ export async function runDemoQa(i: DemoQaInput): Promise<DemoQaResult> {
   metrics.musicPauseDb = +avgPause.toFixed(1);
   metrics.voiceDb = +avgVoice.toFixed(1);
   add("music_present", avgPause >= -42, `music level in the pauses ${avgPause.toFixed(1)} dBFS (needs at least -42, so it is audible)`);
+  // 3c. the narration is really AUDIBLE in the final file (the one that is uploaded), not just recorded: a muted, dropped or silent voice track is a hard failure
+  const heard = await narrationAudible(i.file, ordered.map((l) => ({ startMs: l.start, endMs: l.end })));
+  metrics.narrationLiftDb = heard.liftDb ?? 0;
+  add("narration_audible", heard.audible, heard.reason);
   add("music_under_voice", avgVoice - avgPause >= 3, `voice is ${(avgVoice - avgPause).toFixed(1)} dB louder than the music bed (needs 3 dB or more so words stay clear)`);
 
   // 4. captions match what is said and line up with the voice

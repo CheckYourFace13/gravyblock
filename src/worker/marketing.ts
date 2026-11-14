@@ -121,9 +121,9 @@ async function runJob(job: Job): Promise<Record<string, unknown>> {
     }
     case "game_video": {
       // One game clip from real gameplay: capture, fun-first QA, upload UNLISTED, review email. Never publishes.
-      const input = job.input as { specId?: string };
+      const input = job.input as { specId?: string; replacing?: { videoRowId: string } };
       if (!input.specId) throw new Error("game_video needs a specId");
-      return { ...(await runGameVideo(getStudioDb()!, { specId: input.specId, attempt: job.attempts, maxAttempts: job.maxAttempts }, (m) => void log(m))) };
+      return { ...(await runGameVideo(getStudioDb()!, { specId: input.specId, attempt: job.attempts, maxAttempts: job.maxAttempts, ...(input.replacing ? { replacing: input.replacing } : {}) }, (m) => void log(m))) };
     }
     case "portfolio_tick": {
       // The permanent loop: queue the next distinct video for every active product, generate when nothing is ready, wait honestly when nothing passes.
