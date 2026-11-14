@@ -97,8 +97,9 @@ export function gameFunChecks(c: GameClip): GameCheck[] {
 }
 export const gameClipPasses = (c: GameClip) => gameFunChecks(c).every((x) => x.ok);
 
-const signature = (c: GameClip) => new Set(c.moments.filter((m) => !DEAD.includes(m.kind)).flatMap((m) => [`L:${m.level}`, ...(m.mechanic ? [`M:${m.mechanic}`] : [])]));
-/** Pure: two videos of one game must not be the same format or show essentially the same levels and mechanics. Returns the pairs that repeat. */
+// what must differ between two videos of a game is the FOOTAGE: the levels shown. A game's mechanics are the same in every level by nature, so they never make two videos "the same".
+const signature = (c: GameClip) => new Set(c.moments.filter((m) => !DEAD.includes(m.kind)).map((m) => `L:${m.level}`));
+/** Pure: two videos of one game must not be the same format or show essentially the same levels. Returns the pairs that repeat. */
 export function gameRepeats(clips: GameClip[], limit = 0.6): Array<{ a: number; b: number; overlap: number }> {
   const out: Array<{ a: number; b: number; overlap: number }> = [];
   for (let i = 0; i < clips.length; i++)

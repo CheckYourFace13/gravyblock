@@ -54,6 +54,33 @@ describe("video targets (pure)", () => {
     assert.equal(statsFrom([angle("in_production")], 0, 3).making, 1, "in production counts even before its job row is seen");
   });
 
+  test("the first five formats of a game are cut from five different sets of levels, never five cuts of level 1", () => {
+    const events: MibbleEvent[] = [{ frame: 235, kind: "home" }];
+    let f = 300;
+    for (let lvl = 1; lvl <= 8; lvl++) {
+      const n = lvl < 4 ? 4 : 5;
+      events.push({ frame: f, kind: "level_loaded", level: lvl, size: n }, { frame: f + 40, kind: "marked_by_swipe" });
+      for (let r = 0; r < n; r++) events.push({ frame: f + 60 + r * 16, kind: "placed", row: r, col: r });
+      events.push({ frame: f + 60 + n * 16 + 10, kind: "level_complete", level: lvl }, { frame: f + 60 + n * 16 + 90, kind: "next_level_click" });
+      f += 260;
+    }
+    const moments = detectMibbleMoments(events, f);
+    const used = new Set<string>();
+    const picked: Record<string, string[]> = {};
+    for (const format of ["gameplay_hook", "challenge", "mechanic_spotlight", "progression", "reward_unlock"] as const) {
+      const levels = [...new Set(momentsFor(moments, format, used).filter((m) => !["menu", "instructions"].includes(m.kind)).map((m) => m.level))];
+      assert.ok(levels.length >= GAME_FORMATS[format].minLevels, `${format} has the levels it needs`);
+      assert.ok(levels.every((l) => !used.has(l)), `${format} shows only levels no earlier clip showed`);
+      levels.forEach((l) => used.add(l));
+      picked[format] = levels;
+      const needs = GAME_FORMATS[format].needs;
+      assert.ok(needs.every((k) => momentsFor(moments, format, new Set(used)).concat(moments.filter((m) => levels.includes(m.level))).some((m) => m.kind === k)), `${format} has the moments it needs`);
+    }
+    assert.equal(used.size, 7, "1 + 1 + 1 + 3 + 1 distinct levels");
+    assert.equal(picked.gameplay_hook.length, 1);
+    assert.equal(picked.progression.length, 3);
+  });
+
   test("production does not stop at the first video waiting: it pauses only when as many as the owner allows are pending", () => {
     const base: StatusFacts = { paused: false, needsOwner: null, review: [], activeJobs: 0, uploadLimited: false, waiting: false, maxPending: 5 };
     const wait = (n: number, status = "unlisted_live") => Array.from({ length: n }, () => ({ status }));
@@ -139,7 +166,7 @@ describe("game video engine: formats and footage (pure)", () => {
     const next = momentsFor(moments, "gameplay_hook", new Set(["L1"]));
     assert.ok(!next.some((x) => x.level === "L1"), "the level already shown is set aside");
     const none = momentsFor(moments, "gameplay_hook", new Set(["L1", "L2", "L3"]));
-    assert.equal(none.length, moments.length, "when every level was used the format can still be attempted, and the distinctness gate decides");
+    assert.ok(none.length > 0 && none.length < moments.length, "when every level was used the format can still be attempted from one level, and the distinctness gate decides");
     assert.ok(GAME_FORMATS.gameplay_hook.firstActionMaxMs <= 800, "fun first: action within 800 ms");
   });
 });

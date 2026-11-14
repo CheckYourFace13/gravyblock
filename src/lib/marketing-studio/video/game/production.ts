@@ -86,6 +86,8 @@ export async function ensureGameAngles(db: StudioDb, p: GameProduct): Promise<nu
   return add.length;
 }
 
+/** Bumped when the way clips are cut changes, so formats blocked by an older version get a fresh try on their own. */
+export const GAME_ENGINE_VERSION = 2;
 const blockKey = (specId: string) => `video_game_block_${specId.replace(/[^a-z0-9]+/gi, "_")}`;
 
 /** A blocked format is tried again after a day (a fresh capture may now support it), so the target is never stuck on one weak session. */
@@ -93,10 +95,10 @@ async function reopenBlocked(db: StudioDb, p: GameProduct): Promise<number> {
   let n = 0;
   const deliveredCount = (await getAngles(db, p.slug)).filter((x) => ["unlisted_review", "approved", "public"].includes(x.status)).length;
   for (const a of (await getAngles(db, p.slug)).filter((x) => x.status === "blocked" && x.specId && formatOfSpec(x.specId))) {
-    const b = await getSetting<{ at: string; reason?: string } | null>(blockKey(a.specId as string), null, db);
+    const b = await getSetting<{ at: string; reason?: string; v?: number } | null>(blockKey(a.specId as string), null, db);
     // "too similar to an earlier clip" with no delivered clip at all cannot be true: it is reopened at once
     const mistaken = Boolean(b?.reason?.startsWith("too similar")) && deliveredCount === 0;
-    if (!b || mistaken || Date.now() - Date.parse(b.at) > 24 * 3_600_000) {
+    if (!b || mistaken || (b.v ?? 1) < GAME_ENGINE_VERSION || Date.now() - Date.parse(b.at) > 24 * 3_600_000) {
       await updateAngle(db, ACTOR, p.slug, (e) => e.id === a.id, { status: "planned" });
       n++;
     }
@@ -176,7 +178,10 @@ async function runRunnerCapture(slug: string, levels: number, outDir: string, lo
 export async function ensureSession(slug: string, log: (m: string) => void, o: { fresh?: boolean } = {}): Promise<string> {
   const dir = sessionDirFor(slug);
   const stat = await fs.stat(path.join(dir, "frames.json")).catch(() => null);
-  if (stat && !o.fresh && Date.now() - stat.mtimeMs < SESSION_MAX_AGE_MS) return dir;
+  if (stat && !o.fresh && Date.now() - stat.mtimeMs < SESSION_MAX_AGE_MS) {
+    if (GAME_CAPTURES[slug]?.kind === "runner") await (await import("./mibble")).refreshMibbleMoments(dir, path.join(STUDIO_DIRS.root, "captures", slug, "run")).catch(() => false);
+    return dir;
+  }
   if (!captureReady(slug)) throw new Error(`NEEDS CAPTURE: ${slug} has no automatic real-gameplay capture`);
   const tmp = `${dir}-new`;
   await fs.rm(tmp, { recursive: true, force: true });
@@ -231,7 +236,7 @@ export async function runGameVideo(db: StudioDb, input: { specId: string; attemp
     const made = await makeGameClip(db, product, format, { sessionDir, usedLevels: used, log });
     if (!made.ok) {
       if (input.replacing) throw new Error(`the corrected clip did not pass the game QA: ${made.reason}`);
-      await setSetting(blockKey(input.specId), { at: new Date().toISOString(), reason: made.reason }, ACTOR, db, { audited: false });
+      await setSetting(blockKey(input.specId), { at: new Date().toISOString(), reason: made.reason, v: GAME_ENGINE_VERSION }, ACTOR, db, { audited: false });
       await updateAngle(db, ACTOR, slug, (x) => x.id === angle.id, { status: "blocked" });
       log(`${input.specId}: blocked (${made.reason.slice(0, 200)})`);
       return { status: "blocked", detail: made.reason };
@@ -241,7 +246,7 @@ export async function runGameVideo(db: StudioDb, input: { specId: string; attemp
     const repeats = gameRepeats([...prior, made.clip]).filter((r) => r.b === prior.length || r.a === prior.length);
     if (repeats.length && input.replacing) throw new Error(`the corrected clip repeats earlier footage (overlap ${repeats.map((r) => r.overlap).join(", ")})`);
     if (repeats.length) {
-      await setSetting(blockKey(input.specId), { at: new Date().toISOString(), reason: "too similar to an earlier clip" }, ACTOR, db, { audited: false });
+      await setSetting(blockKey(input.specId), { at: new Date().toISOString(), reason: "too similar to an earlier clip", v: GAME_ENGINE_VERSION }, ACTOR, db, { audited: false });
       await updateAngle(db, ACTOR, slug, (x) => x.id === angle.id, { status: "blocked" });
       return { status: "blocked", detail: `too similar to an earlier clip (overlap ${repeats.map((r) => r.overlap).join(", ")})` };
     }

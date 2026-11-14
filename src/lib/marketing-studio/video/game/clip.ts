@@ -21,13 +21,23 @@ export type GameClipResult =
   | { ok: false; reason: string; checks: GameCheck[] }
   | { ok: true; vertical: boolean; file: string; durationMs: number; bytes: number; clip: GameClip; checks: GameCheck[]; logo: { ok: boolean; mean: number; strongShare: number }; spans: number; workDir: string };
 
-/** Pure: the moments to choose from. Levels earlier clips used are set aside when what is left can still make the format; otherwise everything is allowed and the distinctness gate decides. */
+const DEAD_KINDS = new Set<string>(["menu", "settings", "instructions", "static", "idle"]);
+const levelOrder = (l: string) => (l === "Ldaily" ? 1000 : Number(l.replace(/\D/g, "")) || 0);
+
+/**
+ * Pure: the footage this format is cut from. Every video of a game is cut from its OWN level (or run of levels when the format shows progression or variety), preferring levels earlier clips
+ * did not use and a run that really holds the moments the format needs, so five videos are never five cuts of the same few levels. When no unused run can make the format, any run of
+ * levels is allowed and the distinctness gate decides.
+ */
 export function momentsFor(moments: GameMoment[], format: GameFormat, usedLevels: ReadonlySet<string>): GameMoment[] {
   const spec = GAME_FORMATS[format];
-  const fresh = moments.filter((m) => !usedLevels.has(m.level));
-  const levels = new Set(fresh.filter((m) => m.source === "real_capture").map((m) => m.level));
-  const hasNeeds = spec.needs.every((k) => fresh.some((m) => m.kind === k));
-  return hasNeeds && levels.size >= spec.minLevels ? fresh : moments;
+  const real = moments.filter((m) => m.source === "real_capture");
+  const levels = [...new Set(real.filter((m) => !DEAD_KINDS.has(m.kind)).map((m) => m.level))].sort((a, b) => levelOrder(a) - levelOrder(b));
+  const need = Math.max(1, spec.minLevels);
+  const windows = (pool: string[]) => (pool.length < need ? [] : Array.from({ length: pool.length - need + 1 }, (_, i) => pool.slice(i, i + need)));
+  const holdsNeeds = (ls: string[]) => spec.needs.every((k) => real.some((m) => ls.includes(m.level) && m.kind === k));
+  const pick = windows(levels.filter((l) => !usedLevels.has(l))).find(holdsNeeds) ?? windows(levels).find(holdsNeeds);
+  return pick ? moments.filter((m) => pick.includes(m.level)) : moments;
 }
 
 export async function makeGameClip(db: StudioDb, product: { id: string; slug: string; name: string }, format: GameFormat, o: { sessionDir: string; usedLevels?: ReadonlySet<string>; log?: (m: string) => void }): Promise<GameClipResult> {
@@ -35,7 +45,7 @@ export async function makeGameClip(db: StudioDb, product: { id: string; slug: st
   const frames = JSON.parse(await fs.readFile(path.join(o.sessionDir, "frames.json"), "utf8")) as SessionFrame[];
   const sessionLog = (await fs.readFile(path.join(o.sessionDir, "log.json"), "utf8").then((t) => JSON.parse(t) as SessionLog[]).catch(() => [])) as SessionLog[];
   // a session may carry its own moments (a game whose capture reports events rather than a HUD log); otherwise they are read from the HUD log
-  const stored = await fs.readFile(path.join(o.sessionDir, "moments.json"), "utf8").then((t) => JSON.parse(t) as GameMoment[]).catch(() => null);
+  const stored = await fs.readFile(path.join(o.sessionDir, "moments.json"), "utf8").then((t) => { const j = JSON.parse(t) as GameMoment[] | { moments: GameMoment[] }; return Array.isArray(j) ? j : j.moments; }).catch(() => null);
   const all = stored ?? detectMoments(frames, sessionLog);
   const kinds = all.reduce<Record<string, number>>((m, x) => ((m[x.kind] = (m[x.kind] ?? 0) + 1), m), {});
   log(`session: ${frames.length} real frames, ${sessionLog.length} HUD samples, moments ${JSON.stringify(kinds)}`);

@@ -13,6 +13,8 @@ import type { SessionFrame } from "./moments";
 export type MibbleEvent = { frame: number; kind: string; level?: number | string; size?: number; row?: number; col?: number; regions?: number; solutions?: number };
 
 export const MIBBLE_FPS = 30;
+/** Bumped when the moments read from a run change, so a stored session is refreshed from its own events without another capture. */
+export const MIBBLE_MOMENTS_VERSION = 2;
 
 /** Pure: the moments of a Mibble Meadow run, in session milliseconds. */
 export function detectMibbleMoments(events: MibbleEvent[], totalFrames: number): GameMoment[] {
@@ -70,9 +72,21 @@ export async function convertMibbleRun(runDir: string, outDir: string, log: (m: 
   const moments = detectMibbleMoments(events, frames.length);
   await fs.writeFile(path.join(outDir, "frames.json"), JSON.stringify(frames));
   await fs.writeFile(path.join(outDir, "log.json"), JSON.stringify([]));
-  await fs.writeFile(path.join(outDir, "moments.json"), JSON.stringify(moments));
+  await fs.writeFile(path.join(outDir, "moments.json"), JSON.stringify({ v: MIBBLE_MOMENTS_VERSION, moments }));
+  await fs.copyFile(path.join(runDir, "events.json"), path.join(outDir, "events.json")).catch(() => undefined);
   await fs.rm(path.join(runDir, "mv"), { recursive: true, force: true });
   const levels = new Set(events.filter((e) => e.kind === "level_complete").map((e) => e.level)).size;
   log(`Mibble Meadow: ${frames.length} real frames, ${levels} levels cleared, ${moments.length} moments`);
   return { frames: frames.length, moments: moments.length, levels };
+}
+
+/** A stored Mibble Meadow session whose moments were read by an older version is re-read from the run's own event log (no new capture needed). */
+export async function refreshMibbleMoments(sessionDir: string, runDir: string): Promise<boolean> {
+  const cur = await fs.readFile(path.join(sessionDir, "moments.json"), "utf8").then((t) => JSON.parse(t) as { v?: number }).catch(() => null);
+  if (cur && !Array.isArray(cur) && cur.v === MIBBLE_MOMENTS_VERSION) return false;
+  const events = await fs.readFile(path.join(runDir, "events.json"), "utf8").then((t) => JSON.parse(t) as MibbleEvent[]).catch(() => null);
+  const frames = await fs.readFile(path.join(sessionDir, "frames.json"), "utf8").then((t) => (JSON.parse(t) as unknown[]).length).catch(() => 0);
+  if (!events || !frames) return false;
+  await fs.writeFile(path.join(sessionDir, "moments.json"), JSON.stringify({ v: MIBBLE_MOMENTS_VERSION, moments: detectMibbleMoments(events, frames) }));
+  return true;
 }
