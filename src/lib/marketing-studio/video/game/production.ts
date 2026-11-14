@@ -249,7 +249,8 @@ export async function runGameVideo(db: StudioDb, input: { specId: string; attemp
     if (!facts.length || !product.publicUrl) throw new Error(`NEEDS PRODUCT TRUTH: ${product.name} needs verified facts and a destination before a video can be sent`);
     const store = storeDestination(facts.map((f) => ({ value: f.factValue, verified: true })));
     const ctaText = store ? "Get it on Google Play" : "Play it";
-    const stored = await storeVideoFile(INTERNAL_SCOPE, ACTOR, product.id, made.file, { width: 1080, height: 1920, name: `${angle.yt?.title ?? angle.title}.mp4` }, db);
+    const dims = made.vertical ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 };
+    const stored = await storeVideoFile(INTERNAL_SCOPE, ACTOR, product.id, made.file, { ...dims, name: `${angle.yt?.title ?? angle.title}.mp4` }, db);
     const evidence = facts.slice(0, 3);
     const record_title = (a: AngleEntry) => a.yt?.title ?? a.title;
     const record = {
@@ -271,7 +272,7 @@ export async function runGameVideo(db: StudioDb, input: { specId: string; attemp
       capturedAt: new Date().toISOString(),
     };
     const qa = { passed: true, checks: [...made.checks.map((c) => ({ id: `game_${c.id}`, ok: c.ok, severity: "fail", detail: c.detail })), { id: "logo_integrity", ok: made.logo.ok, severity: "fail", detail: `mean ${made.logo.mean}/255, strong ${made.logo.strongShare}` }], metrics: { durationSec: +(made.durationMs / 1000).toFixed(1) } };
-    const [row] = await db.insert(ms.msVideos).values({ productId: product.id, title: record.title, storyboard: record as never, targetSeconds: 30, assetId: stored.id, width: 1080, height: 1920, durationMs: made.durationMs, bytes: stored.bytes, status: "ready_for_review", qa: qa as never }).returning();
+    const [row] = await db.insert(ms.msVideos).values({ productId: product.id, title: record.title, storyboard: record as never, targetSeconds: 30, assetId: stored.id, ...dims, durationMs: made.durationMs, bytes: stored.bytes, status: "ready_for_review", qa: qa as never }).returning();
     cutRow = row.id;
     const all = await getAngles(db, slug);
     const out = await prepareReview(db, {

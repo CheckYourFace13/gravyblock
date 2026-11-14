@@ -41,6 +41,8 @@ export function detectMibbleMoments(events: MibbleEvent[], totalFrames: number):
     else if (e.kind === "placed") {
       push("input", f - 2, f + 14, "place", 0.7);
       push("animation", f, f + 14, "place", 0.75);
+      // every animal placed visibly moves the board toward solved: that progress is the score
+      push("score", f, f + 14, "place", 0.6);
       // the last animal of a board is the tense one: the whole level hangs on it
       if (e.row === size - 1) push("close_call", f - 2, f + 14, "place", 1);
     } else if (e.kind === "level_complete") {

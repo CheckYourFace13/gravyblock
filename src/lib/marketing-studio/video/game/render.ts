@@ -12,8 +12,6 @@ import { comparePixels } from "../../brand/logo-integrity";
 import type { SessionFrame } from "./moments";
 
 const FONT = process.env.STUDIO_FONT_BOLD ?? "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
-const W = 1080;
-const H = 1920;
 const LOGO_W = 640;
 const hex = (c: string) => c.replace("#", "0x");
 const NL = String.fromCharCode(10);
@@ -32,6 +30,8 @@ export type GameRenderInput = {
   brand: { dark: string; accent: string };
   endHeadline: string;
   attribution?: string | null;
+  /** vertical 1080x1920 (the default) or landscape 1920x1080 for the formats that are landscape */
+  vertical?: boolean;
   music?: { bpm: number; chords: Array<{ root: number; notes: number[] }> };
 };
 
@@ -42,6 +42,9 @@ const run = async (args: string[], ms = 240_000) => {
 
 export async function renderGameClip(i: GameRenderInput): Promise<{ file: string; durationMs: number; endCard: { fromSec: number }; logoBox: { x: number; y: number; w: number; h: number } }> {
   await fs.mkdir(i.workDir, { recursive: true });
+  const vertical = i.vertical !== false;
+  const W = vertical ? 1080 : 1920;
+  const H = vertical ? 1920 : 1080;
   // the frames are played with their real timing: a frame stays until the next one arrived, so a pause in the game is a pause in the clip
   const list = i.frames.map((f, k) => `file '${path.join(i.sessionDir, path.basename(f.f))}'\nduration ${(k + 1 < i.frames.length ? Math.max(0.001, i.frames[k + 1].t - f.t) : 0.03).toFixed(4)}`).join("\n");
   const listFile = path.join(i.workDir, "frames.txt");
@@ -54,7 +57,7 @@ export async function renderGameClip(i: GameRenderInput): Promise<{ file: string
     const seg = path.join(i.workDir, `seg${k}.mp4`);
     const cap = s.caption ? path.join(i.workDir, `cap${k}.txt`) : null;
     if (cap) await fs.writeFile(cap, s.caption as string);
-    const draw = cap ? `,drawtext=fontfile=${FONT}:textfile=${cap}:fontsize=76:fontcolor=white:borderw=6:bordercolor=black@0.85:x=(w-text_w)/2:y=190` : "";
+    const draw = cap ? `,drawtext=fontfile=${FONT}:textfile=${cap}:fontsize=${vertical ? 76 : 64}:fontcolor=white:borderw=6:bordercolor=black@0.85:x=(w-text_w)/2:y=${vertical ? 190 : 60}` : "";
     // only this span's own frames go to ffmpeg (a long session has tens of thousands; walking all of them to seek made the render time out)
     const rel = (f: SessionFrame) => f.t - i.frames[0].t;
     const first = Math.max(0, i.frames.findIndex((f) => rel(f) > s.from) - 1);
@@ -64,7 +67,7 @@ export async function renderGameClip(i: GameRenderInput): Promise<{ file: string
     const subList = sub.map((f, n) => `file '${path.join(i.sessionDir, path.basename(f.f))}'${NL}duration ${(n + 1 < sub.length ? Math.max(0.001, sub[n + 1].t - f.t) : 0.03).toFixed(4)}`).join(NL);
     const segList = path.join(i.workDir, `frames${k}.txt`);
     await fs.writeFile(segList, subList);
-    await run(["-f", "concat", "-safe", "0", "-i", segList, "-ss", String(Math.max(0, s.from - rel(sub[0]))), "-t", String(s.to - s.from), "-filter_complex", `[0:v]fps=30,split[a][b];[a]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=40:6,eq=brightness=-0.12[bg];[b]scale=-2:1760[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2${draw}[v]`, "-map", "[v]", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "veryfast", "-crf", "20", "-r", "30", seg]);
+    await run(["-f", "concat", "-safe", "0", "-i", segList, "-ss", String(Math.max(0, s.from - rel(sub[0]))), "-t", String(s.to - s.from), "-filter_complex", `[0:v]fps=30,split[a][b];[a]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=40:6,eq=brightness=-0.12[bg];[b]scale=-2:${vertical ? 1760 : 980}[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2${draw}[v]`, "-map", "[v]", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "veryfast", "-crf", "20", "-r", "30", seg]);
     segs.push(seg);
   }
   // end card: brand colour, the untouched logo scaled uniformly, the call to action

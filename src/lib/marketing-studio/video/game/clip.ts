@@ -19,7 +19,7 @@ export const CAPTIONS: Record<GameFormat, string | null> = { gameplay_hook: null
 
 export type GameClipResult =
   | { ok: false; reason: string; checks: GameCheck[] }
-  | { ok: true; file: string; durationMs: number; bytes: number; clip: GameClip; checks: GameCheck[]; logo: { ok: boolean; mean: number; strongShare: number }; spans: number; workDir: string };
+  | { ok: true; vertical: boolean; file: string; durationMs: number; bytes: number; clip: GameClip; checks: GameCheck[]; logo: { ok: boolean; mean: number; strongShare: number }; spans: number; workDir: string };
 
 /** Pure: the moments to choose from. Levels earlier clips used are set aside when what is left can still make the format; otherwise everything is allowed and the distinctness gate decides. */
 export function momentsFor(moments: GameMoment[], format: GameFormat, usedLevels: ReadonlySet<string>): GameMoment[] {
@@ -53,8 +53,14 @@ export async function makeGameClip(db: StudioDb, product: { id: string; slug: st
   while (total() > maxMs && spans.length) {
     const longest = spans.reduce((a, b) => (b.toMs - b.fromMs > a.toMs - a.fromMs ? b : a));
     longest.toMs = Math.max(longest.fromMs + 900, longest.toMs - (total() - maxMs));
-    if (total() > maxMs && spans.length > 1) spans = spans.filter((s) => s !== spans.reduce((a, b) => (b.moments.reduce((n, m) => n + m.intensity, 0) < a.moments.reduce((n, m) => n + m.intensity, 0) ? b : a)));
-    else break;
+    if (total() > maxMs && spans.length > 1) {
+      // drop the weakest span whose loss still leaves every required moment of the format in the footage
+      const strength = (x: (typeof spans)[number]) => x.moments.reduce((n, m) => n + m.intensity, 0);
+      const covered = (rest: typeof spans) => spec.needs.every((k) => all.some((m) => m.kind === k && rest.some((x) => m.endMs > x.fromMs && m.startMs < x.toMs)));
+      const drop = [...spans].sort((a, b) => strength(a) - strength(b)).find((x) => covered(spans.filter((y) => y !== x)));
+      if (!drop) break;
+      spans = spans.filter((x) => x !== drop);
+    } else break;
   }
   if (!spans.length) return { ok: false, reason: "no real moments are strong enough for this format", checks: [] };
 
@@ -68,7 +74,7 @@ export async function makeGameClip(db: StudioDb, product: { id: string; slug: st
     }
     offset += s.toMs - s.fromMs;
   }
-  const clip: GameClip = { game: product.slug, format, moments: clipMoments, durationMs: offset, audio: GAME_AUDIO_MODES[format][0], narrationWords: 0, vertical: true };
+  const clip: GameClip = { game: product.slug, format, moments: clipMoments, durationMs: offset, audio: GAME_AUDIO_MODES[format][0], narrationWords: 0, vertical: spec.vertical };
   const checks = gameFunChecks(clip);
   checks.forEach((c) => log(`  ${c.ok ? "PASS" : "FAIL"}  ${c.id}: ${c.detail}`));
   if (checks.some((c) => !c.ok)) return { ok: false, reason: `game QA: ${checks.filter((c) => !c.ok).map((c) => `${c.id} (${c.detail})`).join("; ")}`, checks };
@@ -103,11 +109,12 @@ export async function makeGameClip(db: StudioDb, product: { id: string; slug: st
     logoSize: size,
     brand: { dark: "#101018", accent: "#f5b301" },
     endHeadline: kit?.approvedName ?? product.name,
+    vertical: spec.vertical,
     music: { bpm: 128, chords: [{ root: 48, notes: [60, 64, 67] }, { root: 43, notes: [55, 59, 62] }, { root: 45, notes: [57, 60, 64] }, { root: 41, notes: [53, 57, 60] }] },
   });
   const lc = await gameLogoCheck(rendered.file, rendered.endCard.fromSec, rendered.logoBox, bytes, size, work);
   log(`logo integrity: ${lc.ok ? "PASS" : "FAIL"} (mean ${lc.mean}/255, strong ${lc.strongShare})`);
   const st = await fs.stat(rendered.file);
   await fs.rm(work, { recursive: true, force: true });
-  return { ok: true, file: rendered.file, durationMs: rendered.durationMs, bytes: st.size, clip, checks, logo: lc, spans: spans.length, workDir: work };
+  return { ok: true, vertical: spec.vertical, file: rendered.file, durationMs: rendered.durationMs, bytes: st.size, clip, checks, logo: lc, spans: spans.length, workDir: work };
 }
