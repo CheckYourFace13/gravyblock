@@ -6,7 +6,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { eq } from "drizzle-orm";
-import { getBrandKit } from "../../brand/brand-kit";
+import { getBrandKit, saveCanonicalLogo } from "../../brand/brand-kit";
+import { canonicalizeLogo } from "../../brand/logo-integrity";
 import { STUDIO_DIRS } from "../../config";
 import { readAssetBytes } from "../../creative/context";
 import { ms, type StudioDb } from "../../db";
@@ -72,9 +73,15 @@ export async function makeGameClip(db: StudioDb, product: { id: string; slug: st
   checks.forEach((c) => log(`  ${c.ok ? "PASS" : "FAIL"}  ${c.id}: ${c.detail}`));
   if (checks.some((c) => !c.ok)) return { ok: false, reason: `game QA: ${checks.filter((c) => !c.ok).map((c) => `${c.id} (${c.detail})`).join("; ")}`, checks };
 
-  const kit = await getBrandKit(db, product.id);
-  const logo = kit?.logos[0];
-  if (!logo) throw new Error("NEEDS BRAND ASSET: no approved logo on file");
+  let kit = await getBrandKit(db, product.id);
+  let logo = kit?.logos[0];
+  if (!logo) {
+    // the kit records a canonical logo the first time a video uses the approved logo asset (a game that never had a demo render has none yet): record it now, exactly as the demo path does
+    const approved = (await db.select().from(ms.msAssets).where(eq(ms.msAssets.productId, product.id))).find((a) => a.kind === "logo" && a.approved === "true");
+    if (!approved) throw new Error("NEEDS BRAND ASSET: no approved logo on file");
+    kit = await saveCanonicalLogo(db, "game-video-engine", product.id, await canonicalizeLogo(approved, await readAssetBytes(approved)));
+    logo = kit.logos[0];
+  }
   const [asset] = await db.select().from(ms.msAssets).where(eq(ms.msAssets.id, logo.assetId));
   const bytes = await readAssetBytes(asset);
   const work = path.join(STUDIO_DIRS.tmp, `game-clip-${product.slug}-${format}-${Date.now()}`);
