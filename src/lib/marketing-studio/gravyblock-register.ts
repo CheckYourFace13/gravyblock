@@ -12,6 +12,7 @@ import { addFact, listClaims, listFacts, listProducts, verifyFact } from "./repo
 import { getSetting, setSetting } from "./runtime";
 import { INTERNAL_SCOPE } from "./scope";
 import { conceptFromExplainer } from "./video/concepts/explainer";
+import { creativeHistory, fingerprintOfConcept, similarityProblems, type CreativeFingerprint } from "./video/concepts/similarity";
 import { conceptKey, type StoredConcept } from "./video/concepts/registry";
 import { hookProblems, scriptProblems } from "./video/concepts/validate";
 
@@ -39,6 +40,9 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
     await verifyFact(INTERNAL_SCOPE, ACTOR, product.id, row.id, db);
   }
   const prohibited = (await listClaims(INTERNAL_SCOPE, product.id, db)).filter((c) => c.kind === "prohibited").map((c) => c.text);
+  // creative history: the product's videos already made (any script), then each concept accepted in this pass, so a set of videos is distinct from one another BEFORE anything is rendered
+  const accepted: CreativeFingerprint[] = [];
+  const baseHistory = await creativeHistory(db, product.id, "");
   for (const e of GRAVYBLOCK_EXPLAINERS) {
     const c = conceptFromExplainer(e.def);
     // GravyBlock videos use the REAL product (owner directive 2026-11-15): a video with no live tour is never rendered, and never as animated cards
@@ -46,6 +50,13 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
       report.problems.push(`${c.specId}: no live product tour, so it is not rendered (GravyBlock videos must show the real site)`);
       continue;
     }
+    const fpr = fingerprintOfConcept(c);
+    const dupes = similarityProblems(fpr, [...baseHistory, ...accepted]);
+    if (dupes.length) {
+      report.problems.push(`${c.specId}: not materially distinct: ${dupes.slice(0, 2).join(" | ")}`);
+      continue;
+    }
+    accepted.push(fpr);
     const problems = [...hookProblems(c.hook, c.productName), ...scriptProblems(c.narration.map((l) => ({ spoken: l.spoken.replace(/\{[^}]*\}/g, "") })), c.onScreen.map((o) => o.text), prohibited)];
     if (problems.length) {
       report.problems.push(`${c.specId}: ${problems.join(" | ")}`);

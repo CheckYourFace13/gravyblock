@@ -32,6 +32,7 @@ import { pickVoice, voiceKey, type VoiceSetting } from "../voices";
 import { ensureSpec } from "../concepts/registry";
 import { visualChecks } from "../concepts/align";
 import { tourChecks } from "../concepts/tour-checks";
+import { creativeHistory, fingerprintOfConcept, similarityProblems } from "../concepts/similarity";
 import { evaluateRecord } from "../concepts/validate";
 import { openingKey } from "../concepts/standard";
 
@@ -226,6 +227,13 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
   const prohibitedClaims = (await listClaims(scope, product.id, db)).filter((c) => c.kind === "prohibited").map((c) => c.text);
   const gate = evaluateRecord({ specId: myId, slug: spec.slug, productName: spec.productName, transcript: record.transcript.map((t) => ({ text: t.text, caption: t.caption })), durationMs: timeline.durationMs, firstActionMs: stateTimes.length ? Math.min(...stateTimes) : null, stateChanges: stateTimes.length, interactivePlates, verifiedClaims: record.claims.filter((c) => c.factsVerified).length, ctaText: spec.cta.text, onScreen: ON_SCREEN.map((o) => o.text), takenOpenings, concept: spec.concept ?? null, prohibited: prohibitedClaims });
   record.desirability = { ok: gate.ok, generated: Boolean(spec.concept), personality: spec.concept?.personality, firstActionMs: stateTimes.length ? Math.min(...stateTimes) : null, stateChanges: stateTimes.length, interactivePlates, checks: gate.checks.map((c) => ({ id: c.id, label: c.label, ok: c.ok, detail: c.detail })) };
+  // the product's creative history: this video must be materially distinct from its published, approved, pending and recently replaced videos (a hard failure, so nothing repetitive reaches the owner)
+  if (spec.concept) {
+    const fp = fingerprintOfConcept(spec.concept);
+    record.creative = { hook: fp.hook, problem: fp.problem, benefit: fp.benefit, visual: fp.visual, format: fp.format };
+    const problems = similarityProblems(fp, await creativeHistory(db, product.id, myId));
+    qa.checks.push({ id: "distinct_from_history", ok: problems.length === 0, severity: "fail", detail: problems.length ? problems.slice(0, 3).join(" | ") : "hook, opening, wording, closing line, problem and benefit, and the sequence shown on the real product are all materially different from this product's earlier videos" });
+  }
   // a generated video must pass the standard; a script written by hand before it is reported, not failed (see library-production.ts)
   if (spec.concept) {
     for (const c of gate.checks) qa.checks.push({ id: `desirability_${c.id}`, ok: c.ok, severity: "fail", detail: c.detail });

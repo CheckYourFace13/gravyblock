@@ -265,6 +265,8 @@ export function buildTourTimeline(c: Concept) {
 
 /** The DemoSpec for a concept: the existing pipeline renders it like any other video. */
 export function specFromConcept(c: Concept): DemoSpec {
+  // real product first, hard coded: animated cards, generic dark slides and anything that is not the real product being used can never become a video
+  if (c.explainer && !c.tour) throw new Error("animated cards are not allowed: a video must show the real product being used (a live tour)");
   const p = personalityFor(c.slug);
   const angle = c.specId.includes(":") ? c.specId.split(":")[1] : undefined;
   return {

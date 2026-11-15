@@ -127,6 +127,8 @@ export type DemoRecord = {
   cta: { text: string; url: string };
   /** Games only: the launch state the call to action was derived from (Product Truth), so later changes can flag stale creative. */
   ctaPhase?: "pre_launch" | "store_live";
+  /** The creative fingerprint kept as the product's creative history (hook, problem, benefit, the real interactions shown, format), so later videos can be compared with this one. */
+  creative?: { hook: string; problem: string; benefit: string; visual: string[]; format: string };
   /** Headline of the closing card, shown on the Review page. */
   endHeadline?: string;
   /** Set when the owner has approved this exact video as a production quality reference. */
