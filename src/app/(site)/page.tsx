@@ -1,4 +1,5 @@
 import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
+import { PlacedVideo } from "@/components/placed-video";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TestimonialsSection } from "./testimonials-section";
@@ -89,6 +90,7 @@ export default function HomePage() {
       </section>
 
       {/* ── THE LOOP ───────────────────────────────────────── */}
+      <PlacedVideo slot="home-what-it-does" heading="What GravyBlock does" />
       <section className="px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-5xl">
           <h2 className="text-center text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">
@@ -198,6 +200,7 @@ export default function HomePage() {
       </section>
 
       {/* ── HOW IT WORKS ───────────────────────────────────── */}
+      <PlacedVideo slot="home-no-extra-work" heading="No extra work" />
       <section className="border-y border-zinc-100 bg-zinc-50 px-4 py-12 sm:px-6">
         <div className="mx-auto max-w-4xl">
           <p className="mb-8 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">How it works</p>

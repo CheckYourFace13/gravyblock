@@ -1,4 +1,5 @@
 import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
+import { PlacedVideo } from "@/components/placed-video";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CAPABILITY_BY_ID, type Capability } from "@/lib/capabilities";
@@ -165,6 +166,7 @@ export default function FeaturesPage() {
           </section>
         ))}
 
+        <PlacedVideo slot="features-authority" heading="Authority and links" />
         <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-6 text-sm text-zinc-700">
           <h2 className="text-lg font-semibold text-zinc-900">Good to know</h2>
           <ul className="mt-3 list-disc space-y-2 pl-5">

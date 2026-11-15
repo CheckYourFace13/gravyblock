@@ -53,6 +53,7 @@ const staticRoutes: MetadataRoute.Sitemap = [
   entry("/features", 0.9),
   entry("/pricing", 0.9),
   entry("/scan", 0.9, "weekly"),
+  entry("/marketing-studio", 0.6, "monthly"),
   entry("/about", 0.5),
   entry("/contact", 0.5),
   entry("/support", 0.5),

@@ -1,4 +1,5 @@
 import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
+import { PlacedVideo } from "@/components/placed-video";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { COMPARE_PAGES, COMPARE_SLUGS } from "@/lib/content/compare-pages";
@@ -51,6 +52,7 @@ export default function CompareIndexPage() {
         </p>
       </div>
 
+      <PlacedVideo slot="compare-why-gravyblock" heading="Why GravyBlock" />
       {/* GravyBlock summary */}
       <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-6">
         <p className="text-xs font-bold uppercase tracking-widest text-red-700">Why GravyBlock is different</p>

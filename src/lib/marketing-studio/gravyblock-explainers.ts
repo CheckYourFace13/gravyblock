@@ -7,12 +7,12 @@
 import type { ExplainerDef, ExplainerNode } from "./video/concepts/explainer";
 import type { TourStep } from "./video/concepts/tour";
 
-const BRAND = { name: "GravyBlock", accent: "#f5b301", dark: "#0b1020", light: "#faf7f2" };
+export const GRAVYBLOCK_BRAND = { name: "GravyBlock", accent: "#f5b301", dark: "#0b1020", light: "#faf7f2" };
 const ORIGIN = "https://gravyblock.com";
 const CTA = { text: "Scan my business free", url: "https://gravyblock.com/scan", display: "gravyblock.com/scan" };
 
 const n = (step: string, line: string, say: string, path: string | undefined, fact: string = line): ExplainerNode => ({ step, line, say, path, fact });
-const base = { slug: "gravyblock", productName: "GravyBlock", origin: ORIGIN, ctaHost: "gravyblock.com", cta: CTA, brand: BRAND };
+const base = { slug: "gravyblock", productName: "GravyBlock", origin: ORIGIN, ctaHost: "gravyblock.com", cta: CTA, brand: GRAVYBLOCK_BRAND };
 
 /** The owner's own statements about Marketing Studio, entered as Product Truth (source: owner_entered). They describe what the product does for its owner today. */
 export const MARKETING_STUDIO_FACTS = [

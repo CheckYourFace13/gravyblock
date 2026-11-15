@@ -296,52 +296,44 @@ describe("game production and targets (database)", { skip: !HAVE_DB }, () => {
     assert.equal(await ensureOwnedChannelShared(db(), "t", { id: sibling, ownerKind: "customer" }), false, "a customer is never given the owner's channel");
   });
 
-  test("GravyBlock's first five explainers register themselves (no clickable controls needed) and a blocked one is tried again", async () => {
+  test("GravyBlock's videos are planned by the engine, replanned internally when a gate fails, and an approved video is never touched", async () => {
     const { setSetting, getSetting } = await import("../runtime");
     const { angleKey } = await import("../library");
+    const { GRAVYBLOCK_BRIEFS } = await import("../gravyblock-briefs");
+    const { MARKETING_STUDIO_FACTS } = await import("../gravyblock-explainers");
     await createProduct(INTERNAL_SCOPE, "t", { name: "GravyBlock", kind: "saas", publicUrl: "https://gravyblock.com/" });
-    const topics = GRAVYBLOCK_EXPLAINERS.map((e, i) => ({ ...slotEntry({ slug: "gravyblock", name: "GravyBlock", home: "https://gravyblock.com/" }, 6), id: e.angleId, position: i + 1, status: i === 0 ? "blocked" : "planned", slot: false }));
+    const [b1, b2, b3] = GRAVYBLOCK_BRIEFS;
+    const status = (id: string) => (id === b1.angleId ? "unlisted_review" : id === b2.angleId ? "planned" : "approved");
+    const topics = [b1, b2, b3].map((e, i) => ({ ...slotEntry({ slug: "gravyblock", name: "GravyBlock", home: "https://gravyblock.com/" }, 6), id: e.angleId, position: i + 1, status: status(e.angleId), slot: false }));
     await setSetting(angleKey("gravyblock"), topics, "t", db());
-    const first = await registerGravyblockExplainers(db());
-    // GravyBlock videos use the real product: every concept has a live tour (a concept without one would be held, never rendered as animated cards)
-    assert.deepEqual(first.problems, []);
-    const withTour = GRAVYBLOCK_EXPLAINERS.filter((e) => e.def.scenes.every((x) => x.tour));
-    assert.equal(withTour.length, 5);
-    assert.equal(first.stored.length, withTour.length, "every concept with a live tour is stored and attached");
-    const angles = await getAngles(db(), "gravyblock");
-    assert.ok(angles.filter((a) => a.specId).every((a) => a.status === "planned" && a.yt), "every tour is ready for the loop, including the one that was blocked");
-    for (const e of withTour) assert.equal((await getSetting<{ status: string } | null>(conceptKey(e.def.specId), null, db()))?.status, "ready");
-    assert.equal((await registerGravyblockExplainers(db())).stored.length, 0, "nothing is redone when nothing changed");
-    // one is blocked again (a QA failure): it is noticed, and only tried again after hours, a bounded number of times
-    const { updateAngle } = await import("../library-store");
-    await updateAngle(db(), "t", "gravyblock", (x) => x.id === GRAVYBLOCK_EXPLAINERS[0].angleId, { status: "blocked" });
-    const soon = await registerGravyblockExplainers(db());
-    assert.deepEqual([soon.stored.length, soon.reopened.length], [0, 0], "not at once");
-    const fpKey = `video_explainer_fp_${GRAVYBLOCK_EXPLAINERS[0].def.specId.replace(/[^a-z0-9]+/gi, "_")}`;
-    const seen = (await getSetting<{ fp: string; retries: number; blockedSeen: string }>(fpKey, null as never, db()))!;
-    await setSetting(fpKey, { ...seen, blockedSeen: new Date(Date.now() - 7 * 3_600_000).toISOString() }, "t", db());
-    const later = await registerGravyblockExplainers(db());
-    assert.equal(later.reopened.length, 1, "after hours it is tried again with no one asking");
-    assert.equal((await getAngles(db(), "gravyblock")).find((x) => x.id === GRAVYBLOCK_EXPLAINERS[0].angleId)?.status, "planned");
-  });
-
-  test("a card video still only in the owner's review is replaced once by a live tour; an approved or public one is never touched", async () => {
-    const { setSetting } = await import("../runtime");
-    const { angleKey } = await import("../library");
-    const { updateAngle } = await import("../library-store");
-    const topics = GRAVYBLOCK_EXPLAINERS.map((e, i) => ({ ...slotEntry({ slug: "gravyblock", name: "GravyBlock", home: "https://gravyblock.com/" }, 6), id: e.angleId, position: i + 1, status: i === 0 ? "unlisted_review" : i === 1 ? "approved" : "planned", slot: false }));
-    await setSetting(angleKey("gravyblock"), topics, "t", db());
-    const fpOf = (e: (typeof GRAVYBLOCK_EXPLAINERS)[number]) => `video_explainer_fp_${e.def.specId.replace(/[^a-z0-9]+/gi, "_")}`;
-    await setSetting(fpOf(GRAVYBLOCK_EXPLAINERS[0]), { fp: "old", retries: 0 }, "t", db());
-    const r = await registerGravyblockExplainers(db());
-    assert.ok(r.stored.includes(GRAVYBLOCK_EXPLAINERS[0].def.specId), "the review of a card video is replaced");
-    assert.ok(!r.stored.includes(GRAVYBLOCK_EXPLAINERS[1].def.specId), "an approved video is never touched");
+    const [F0, F1, F2] = MARKETING_STUDIO_FACTS;
+    const corpus = { origin: "https://gravyblock.com", at: new Date().toISOString(), pages: [{ path: "/", title: "GravyBlock", blocks: [{ id: "p0.b0", text: F0 }, { id: "p0.b1", text: F1 }, { id: "p0.b2", text: F2 }], controls: [] }] };
+    let flip = 0;
+    const F = [F0, F1, F2];
+    const plan = (hook: string, pick: number[], words: string[]) => (_s: string, user: string) => {
+      const idx = (f: string) => {
+        const hit = user.split(String.fromCharCode(10)).find((l) => l.includes(f.slice(0, 20)) && l.indexOf(": ") > 0 && l.indexOf(": ") < 4);
+        return hit ? Number(hit.split(":")[0]) : -1;
+      };
+      const node = (k: number, say: string) => ({ step: "STEP", block: "p0.b" + pick[k], say, fact: idx(F[pick[k]]) });
+      const sc = (h: string, ws: string[]) => ({ heading: h, nodes: [node(0, ws[0]), node(1, ws[1]), node(2, ws[2])], tour: [{ node: 1, do: "open", target: "/", shows: "p0.b" + pick[0] }, { node: 2, do: "scroll", target: "p0.b" + pick[1], shows: "p0.b" + pick[1] }, { node: 3, do: "scroll", target: "p0.b" + pick[2], shows: "p0.b" + pick[2] }] });
+      return Promise.resolve(JSON.stringify({ hook, problem: words[0], benefit: words[1], yt: { title: hook, description: "A description." }, scenes: [sc("First look", words.slice(0, 3)), sc("Second look", words.slice(3, 6))], endLine: words[6] + " at Gravy Block dot com.", endCaption: words[6] + " at gravyblock.com", endHeadline: words[7] }));
+    };
+    const asks: Record<string, ReturnType<typeof plan>> = {
+      [b1.key]: plan("Who would make marketing videos for you?", [0, 0, 1], ["Marketing Studio makes short marketing videos.", "Videos from your real website.", "Every video is emailed for review.", "Studio makes short marketing videos weekly.", "Real website, short videos.", "Each video is emailed for review first.", "Try a quiet first week", "A quiet first week"]),
+      [b2.key]: (_s: string, u: string) => (flip++ === 0 ? Promise.resolve("not json") : plan("What if the next video were already waiting?", [2, 2, 1], ["Approve it, or request changes by email.", "Pause new videos straight from the email.", "Every video is emailed to you for review.", "Request changes straight from the email.", "Approve it, request changes, or pause.", "Review each video, then approve it.", "See the first clip", "The first clip waits"])(_s, u)),
+    };
+    const deps = { corpus, ask: (specId: string) => ((s: string, u: string) => asks[specId.split(":")[1]](s, u)) as never };
+    const r = await registerGravyblockExplainers(db(), () => {}, deps);
+    assert.equal(r.problems.length, 0, r.problems.join(" | "));
+    assert.ok(r.reopened.includes("gravyblock:" + b1.key), "a card video still only in the owner's review is replaced by the planned tour");
+    assert.ok(r.stored.includes("gravyblock:" + b2.key), "the second brief was replanned internally after its first plan failed, and stored");
     const after = await getAngles(db(), "gravyblock");
-    assert.equal(after.find((a) => a.id === GRAVYBLOCK_EXPLAINERS[0].angleId)?.status, "planned");
-    assert.equal(after.find((a) => a.id === GRAVYBLOCK_EXPLAINERS[1].angleId)?.status, "approved");
-    // the replacement reaches the owner's review again: it is a tour now, so it is left as it is
-    await updateAngle(db(), "t", "gravyblock", (x) => x.id === GRAVYBLOCK_EXPLAINERS[0].angleId, { status: "unlisted_review" });
-    assert.equal((await registerGravyblockExplainers(db())).stored.includes(GRAVYBLOCK_EXPLAINERS[0].def.specId), false, "replaced once, not again");
+    assert.equal(after.find((x) => x.id === b3.angleId)?.status, "approved", "an approved video is never touched");
+    assert.equal(after.find((x) => x.id === b1.angleId)?.status, "planned");
+    const stored = await getSetting<{ concept: { tour?: unknown } } | null>(conceptKey("gravyblock:" + b1.key), null, db());
+    assert.ok(stored?.concept.tour, "the stored concept is a live tour");
+    assert.deepEqual((await registerGravyblockExplainers(db(), () => {}, deps)).stored, [], "nothing is planned again when nothing changed");
   });
 
   test("an identical render of a file the retention policy purged restores it instead of pointing at nothing", async () => {

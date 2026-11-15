@@ -1,92 +1,92 @@
 /**
- * Registers GravyBlock's own explainer videos (PRODUCT EXPLAINER / WORKFLOW VISUALIZATION: lit-up steps, no clickable site controls) with the portfolio loop, by itself.
- * GravyBlock works out of sight, so the generator that looks for real controls to click never finds anything; these approved explainers are the first five videos instead.
- * Each tick this stores the concepts, attaches them to their topic angles and keeps them moving: a concept that changed (or an engine fix, by bumping EXPLAINER_VERSION) gets a fresh try
- * automatically, and one that failed QA is tried again a bounded number of times. Nothing is published; every video still goes to the owner's review.
+ * GravyBlock's own videos, planned by the permanent engine. For each brief (gravyblock-briefs.ts) the AI concept planner writes a distinct live-tour concept from Product Truth and the real
+ * site; every plan passes the pre-render gates (script, grounding, narration against screen, real interactions, copy and visual similarity against the creative history) and is replanned
+ * with the exact problems when it does not, so nothing is left blocked for a person to repair. The stored concept is then produced by the same pipeline every product uses.
+ * Nothing is published; every video still goes to the owner's review, and a video the owner approved or made public is never touched.
  */
-import { createHash } from "node:crypto";
 import type { StudioDb } from "./db";
-import { GRAVYBLOCK_EXPLAINERS, MARKETING_STUDIO_FACTS } from "./gravyblock-explainers";
+import { GRAVYBLOCK_BRIEFS, GRAVYBLOCK_PLAN_PATHS } from "./gravyblock-briefs";
+import { GRAVYBLOCK_BRAND, MARKETING_STUDIO_FACTS } from "./gravyblock-explainers";
 import { getAngles, updateAngle } from "./library-store";
 import { addFact, listClaims, listFacts, listProducts, verifyFact } from "./repository";
 import { getSetting, setSetting } from "./runtime";
 import { INTERNAL_SCOPE } from "./scope";
+import { siteCorpus, type Corpus } from "./video/concepts/corpus";
 import { conceptFromExplainer } from "./video/concepts/explainer";
-import { creativeHistory, fingerprintOfConcept, similarityProblems, type CreativeFingerprint } from "./video/concepts/similarity";
 import { conceptKey, type StoredConcept } from "./video/concepts/registry";
-import { hookProblems, scriptProblems } from "./video/concepts/validate";
+import { creativeHistory, fingerprintOfConcept, type CreativeFingerprint } from "./video/concepts/similarity";
+import { aiAsk, planTour, type Ask } from "./video/concepts/tour-planner";
 
-const ACTOR = "gravyblock-explainers";
-/** Bump when the explainer renderer or its QA changes in a way that could rescue a video that failed before. */
-export const EXPLAINER_VERSION = 4;
-/** Videos made before the live product tour (animated cards) are replaced once, by themselves, while they are still only in the owner's review; anything approved or public is never touched. */
-export const TOUR_VERSION = 1;
-const MAX_RETRIES = 3;
-const RETRY_AFTER_MS = 6 * 3_600_000;
+const ACTOR = "gravyblock-concept-planner";
+/** Bump when the planner or its gates change in a way that should replace plans made before. */
+export const PLANNER_VERSION = 1;
+const RETRY_AFTER_MS = 2 * 3_600_000;
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 
 export type RegisterReport = { stored: string[]; reopened: string[]; problems: string[] };
+type PlanRecord = { v: number; at: string; ok: boolean; attempts: number; problems?: string[]; fp?: CreativeFingerprint };
+const planKey = (key: string) => `video_plan_gravyblock_${key.replace(/[^a-z0-9]+/gi, "_")}`;
 
-export async function registerGravyblockExplainers(db: StudioDb, log: (m: string) => void = () => {}): Promise<RegisterReport> {
+export async function registerGravyblockExplainers(db: StudioDb, log: (m: string) => void = () => {}, deps: { ask?: (specId: string) => Ask; corpus?: Corpus } = {}): Promise<RegisterReport> {
   const report: RegisterReport = { stored: [], reopened: [], problems: [] };
   const product = (await listProducts(INTERNAL_SCOPE, db)).find((p) => p.slug === "gravyblock");
   if (!product) return report;
   // the owner's own statements about Marketing Studio are Product Truth (owner-entered)
-  const facts = await listFacts(INTERNAL_SCOPE, product.id, db);
+  let facts = await listFacts(INTERNAL_SCOPE, product.id, db);
   for (const value of MARKETING_STUDIO_FACTS) {
     const have = facts.find((f) => f.status === "current" && norm(f.factValue) === norm(value));
     if (have?.verifiedAt) continue;
     const row = have ?? (await addFact(INTERNAL_SCOPE, ACTOR, product.id, { factKey: "capability", factValue: value, sourceKind: "owner_entered" }, db));
     await verifyFact(INTERNAL_SCOPE, ACTOR, product.id, row.id, db);
   }
+  facts = await listFacts(INTERNAL_SCOPE, product.id, db);
+  const verified = facts.filter((f) => f.status === "current" && f.verifiedAt).map((f) => f.factValue);
   const prohibited = (await listClaims(INTERNAL_SCOPE, product.id, db)).filter((c) => c.kind === "prohibited").map((c) => c.text);
-  // creative history: the product's videos already made (any script), then each concept accepted in this pass, so a set of videos is distinct from one another BEFORE anything is rendered
-  const accepted: CreativeFingerprint[] = [];
-  const baseHistory = await creativeHistory(db, product.id, "");
-  for (const e of GRAVYBLOCK_EXPLAINERS) {
-    const c = conceptFromExplainer(e.def);
-    // GravyBlock videos use the REAL product (owner directive 2026-11-15): a video with no live tour is never rendered, and never as animated cards
-    if (!c.tour) {
-      report.problems.push(`${c.specId}: no live product tour, so it is not rendered (GravyBlock videos must show the real site)`);
-      continue;
-    }
-    const fpr = fingerprintOfConcept(c);
-    const dupes = similarityProblems(fpr, [...baseHistory, ...accepted]);
-    if (dupes.length) {
-      report.problems.push(`${c.specId}: not materially distinct: ${dupes.slice(0, 2).join(" | ")}`);
-      continue;
-    }
-    accepted.push(fpr);
-    const problems = [...hookProblems(c.hook, c.productName), ...scriptProblems(c.narration.map((l) => ({ spoken: l.spoken.replace(/\{[^}]*\}/g, "") })), c.onScreen.map((o) => o.text), prohibited)];
-    if (problems.length) {
-      report.problems.push(`${c.specId}: ${problems.join(" | ")}`);
-      continue;
-    }
-    const angle = (await getAngles(db, "gravyblock")).find((a) => a.id === e.angleId);
+  const angles = await getAngles(db, "gravyblock");
+
+  // which briefs need a plan: no plan of this version yet, or a failed one whose retry time has come
+  const todo: typeof GRAVYBLOCK_BRIEFS = [];
+  for (const b of GRAVYBLOCK_BRIEFS) {
+    const angle = angles.find((a) => a.id === b.angleId);
     if (!angle) continue;
-    const fp = createHash("sha1").update(JSON.stringify(c)).update(String(EXPLAINER_VERSION)).digest("hex").slice(0, 12);
-    const fpKey = `video_explainer_fp_${c.specId.replace(/[^a-z0-9]+/gi, "_")}`;
-    const seen = await getSetting<{ fp: string; retries: number; blockedSeen?: string; tour?: number } | null>(fpKey, null, db);
-    // a video that is public or approved is left exactly as it is; one still only in the owner's review is replaced once if it was made before the live tour (the new upload supersedes it)
-    const inReview = ["unlisted_review", "ready_for_review"].includes(angle.status);
-    const upgrade = inReview && seen?.tour !== TOUR_VERSION;
-    if (["approved", "public", "in_production"].includes(angle.status) || (inReview && !upgrade)) continue;
-    const stored = await getSetting<StoredConcept | null>(conceptKey(c.specId), null, db);
-    const changed = !seen || seen.fp !== fp || !angle.specId || stored?.status !== "ready";
-    // QA-failed and blocked: tried again a few times, hours apart, with no one asking
-    const blockedSince = seen?.blockedSeen ? Date.parse(seen.blockedSeen) : null;
-    const retry = !changed && angle.status === "blocked" && (seen?.retries ?? 0) < MAX_RETRIES && blockedSince !== null && Date.now() - blockedSince > RETRY_AFTER_MS;
-    if (!changed && !retry) {
-      if (angle.status === "blocked" && !seen?.blockedSeen) await setSetting(fpKey, { ...(seen as { fp: string; retries: number; tour?: number }), blockedSeen: new Date().toISOString() }, ACTOR, db, { audited: false });
+    // a video that is public, approved or being made is left exactly as it is
+    if (["approved", "public", "in_production", "ready_for_review"].includes(angle.status)) continue;
+    const rec = await getSetting<PlanRecord | null>(planKey(b.key), null, db);
+    if (rec?.ok && rec.v === PLANNER_VERSION) continue;
+    if (rec && !rec.ok && rec.v === PLANNER_VERSION && Date.now() - Date.parse(rec.at) < RETRY_AFTER_MS) continue;
+    todo.push(b);
+  }
+  if (!todo.length) return report;
+
+  const corpus = deps.corpus ?? (await siteCorpus(db, "https://gravyblock.com", GRAVYBLOCK_PLAN_PATHS));
+  const accepted: CreativeFingerprint[] = [];
+  // plans already accepted for the other briefs count as history too, so the set is distinct from itself
+  for (const b of GRAVYBLOCK_BRIEFS) {
+    const rec = await getSetting<PlanRecord | null>(planKey(b.key), null, db);
+    if (rec?.ok && rec.fp && !todo.includes(b)) accepted.push(rec.fp);
+  }
+  const base = await creativeHistory(db, product.id, "");
+  const ctxBase = { corpus, facts: verified, prohibited, brand: GRAVYBLOCK_BRAND, slug: "gravyblock", productName: "GravyBlock", origin: "https://gravyblock.com", ctaHost: "gravyblock.com" };
+  for (const b of todo) {
+    const specId = `gravyblock:${b.key}`;
+    const others = [...base.filter((h) => h.specId !== specId), ...accepted];
+    const planned = await planTour(b, { ...ctxBase, history: others }, others, (deps.ask ?? ((id: string) => aiAsk(db, id)))(specId));
+    if (!planned.ok) {
+      await setSetting(planKey(b.key), { v: PLANNER_VERSION, at: new Date().toISOString(), ok: false, attempts: planned.attempts, problems: planned.problems } satisfies PlanRecord, ACTOR, db, { audited: false });
+      report.problems.push(`${specId}: no acceptable plan after ${planned.attempts} attempts: ${planned.problems.slice(0, 2).join(" | ")}`);
+      log(`gravyblock: planning ${specId} failed internally (${planned.problems[0] ?? "?"}); it will plan again later`);
       continue;
     }
-    const next: StoredConcept = { specId: c.specId, status: "ready", concept: c, alternates: [], nextVariant: 2, attempts: [], generatedAt: new Date().toISOString() };
-    await setSetting(conceptKey(c.specId), next, ACTOR, db, { audited: false });
-    const description = `${c.hook} ${e.yt.description}\n\n${c.cta.text}: ${c.cta.url}`;
-    await updateAngle(db, ACTOR, "gravyblock", (a) => a.id === e.angleId, { specId: c.specId, hook: c.hook, yt: { title: e.yt.title, description }, scenes: c.capturePlan.map((p) => p.heading), status: "planned" });
-    await setSetting(fpKey, { fp, retries: changed ? 0 : (seen?.retries ?? 0) + 1, tour: TOUR_VERSION }, ACTOR, db, { audited: false });
-    (retry ? report.reopened : report.stored).push(c.specId);
-    log(`gravyblock: ${retry ? "tried again" : "registered"} explainer ${c.specId}`);
+    const c = conceptFromExplainer(planned.def);
+    const next: StoredConcept = { specId, status: "ready", concept: c, alternates: [], nextVariant: 2, attempts: [], generatedAt: new Date().toISOString() };
+    await setSetting(conceptKey(specId), next, ACTOR, db, { audited: false });
+    const fp = fingerprintOfConcept(c);
+    accepted.push(fp);
+    await setSetting(planKey(b.key), { v: PLANNER_VERSION, at: new Date().toISOString(), ok: true, attempts: planned.attempts, fp } satisfies PlanRecord, ACTOR, db, { audited: false });
+    await updateAngle(db, ACTOR, "gravyblock", (a) => a.id === b.angleId, { specId, hook: c.hook, yt: planned.yt, scenes: c.capturePlan.map((p) => p.heading), status: "planned" });
+    const was = angles.find((a) => a.id === b.angleId)?.status;
+    (was === "unlisted_review" || was === "blocked" ? report.reopened : report.stored).push(specId);
+    log(`gravyblock: planned ${specId} in ${planned.attempts} attempt(s): "${c.hook}"`);
   }
   return report;
 }
