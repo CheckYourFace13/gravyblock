@@ -9,6 +9,7 @@ import type { DemoSpec } from "../demo/specs";
 import { PLATE_CSS_W, TRANSITION_MS, type CameraKey, type CursorKey, type Manifest, type Rect, type SpotKey, type StageScene, type Timeline, type WordTime } from "../demo/types";
 import { captureConcept } from "./capture";
 import { captureExplainer } from "./explainer";
+import { captureTour, type TourStep } from "./tour";
 import { personalityFor } from "./standard";
 import type { Concept, PlatePlan, Step } from "./types";
 
@@ -170,6 +171,98 @@ export function buildExplainerTimeline(c: Concept) {
   };
 }
 
+/**
+ * A live product tour: every scene is the real site, and the number of real interactions is whatever the narration has time for (no cap of two). The steps that belong to one spoken line are
+ * spread across the time that line is spoken; the first real action lands within the first seconds; the camera follows the thing being used and then the result it leaves on the page.
+ */
+export function buildTourTimeline(c: Concept) {
+  const p = personalityFor(c.slug);
+  return (manifest: Manifest, lt: Record<string, LineTime>): BuiltDkDemo => {
+    const tour = c.tour;
+    if (!tour) throw new Error("not a tour concept");
+    const parsed = Object.fromEntries(c.narration.map((l) => [l.id, parseSpoken(l.spoken)]));
+    const spokenWords: Record<string, WordTime[]> = Object.fromEntries(c.narration.map((l) => [l.id, wordTimings(parsed[l.id].words, lt[l.id].durMs)]));
+    const lastLine = c.narration[c.narration.length - 1];
+    const order = tour.scenes.map((_, i) => `a${i + 1}`);
+    const lastEnd = (scene: string) => Math.max(...c.narration.filter((l) => l.sceneId === scene).map((l) => lt[l.id].end));
+    const win: Record<string, { s: number; e: number }> = {};
+    order.forEach((id, i) => {
+      win[id] = { s: i === 0 ? 0 : win[order[i - 1]].e - TRANSITION_MS, e: lastEnd(id) + (i === order.length - 1 ? 1300 : 600) };
+    });
+    const endStart = win[order[order.length - 1]].e - TRANSITION_MS;
+    const durationMs = lt[lastLine.id].end + 1500 + (c.gapExtraMs ?? 0);
+    const scenes: StageScene[] = [];
+    const zr = p.zoom.rest + (c.zoomBias ?? 0);
+    const zt = p.zoom.tap + (c.zoomBias ?? 0);
+
+    tour.scenes.forEach((ts, i) => {
+      const id = `a${i + 1}`;
+      const plate = `x${i + 1}`;
+      const P = manifest.plates[plate];
+      const S = win[id].s;
+      const E = win[id].e - S;
+      const lines = c.narration.filter((l) => l.sceneId === id);
+      const lineStart = (n: number) => Math.max(0, lt[lines[n].id].start - S);
+      const lineEnd = (n: number) => Math.max(0, lt[lines[n].id].end - S);
+      const steps = ts.steps.slice(1);
+      // when each step happens: the steps of one spoken line share that line's time, so the screen keeps changing while it is being said
+      const at: number[] = [];
+      for (const n of [0, 1, 2] as const) {
+        const mine = steps.map((s, k) => ({ s, k })).filter((x) => x.s.node === n);
+        const from = (i === 0 && n === 0 ? Math.max(900, lineStart(0) + 700) : lineStart(n) + 350);
+        const to = Math.max(from + 700 * mine.length, (n === 2 ? lineEnd(2) : lineStart(n + 1)) - 250);
+        mine.forEach((x, j) => (at[x.k] = Math.round(from + (j * (to - from)) / Math.max(1, mine.length))));
+      }
+      const times = ascending(at.map((t) => ({ t })), 520).map((x) => x.t);
+      const states = [{ at: 0, state: "s0" }, ...times.map((t, k) => ({ at: t + 120, state: `t${k + 1}` }))];
+      const tapped = (s: TourStep) => s.do === "click" || s.do === "type" || s.do === "submit";
+      const f = (k: number) => P.rects[`f${k}`] ?? P.rects.f0;
+      const r = (k: number) => P.rects[`r${k}`] ?? f(k);
+      const cursor: CursorKey[] = [{ t: 250, x: 330, y: center(f(0))[1] - 110 }];
+      const camera: CameraKey[] = [{ t: 0, cx: 195, cy: center(f(0))[1], zoom: zr }];
+      const spots: SpotKey[] = [];
+      steps.forEach((s, k) => {
+        const t = times[k];
+        const n = k + 1;
+        const nextT = times[k + 1] ?? E;
+        if (tapped(s)) {
+          cursor.push({ t: Math.max(300, t - 320), x: center(f(n))[0], y: center(f(n))[1] });
+          cursor.push({ t, x: center(f(n))[0], y: center(f(n))[1], tap: true });
+        }
+        camera.push({ t: Math.max(200, t - 380), cx: 195, cy: center(f(n))[1], zoom: zr });
+        camera.push({ t: t + 520, cx: 195, cy: center(r(n))[1], zoom: zt });
+        const nav = (P.meta?.[`nav${n}`] ?? 0) === 1;
+        spots.push({ from: Math.max(0, t - 150), to: nav ? t + 90 : Math.max(t + 700, t - 100), rect: f(n), ...(tapped(s) ? { label: s.label ?? s.text ?? s.field ?? "" } : {}) });
+        if (nextT - t > 1500) spots.push({ from: t + 760, to: nextT - 260, rect: r(n) });
+      });
+      cursor.push({ t: E - 300, x: center(f(steps.length))[0], y: center(f(steps.length))[1], hide: true });
+      camera.push({ t: E, cx: 195, cy: center(r(steps.length))[1] + 30, zoom: zt + 0.02 });
+      const hookEnd = i === 0 ? lt[c.narration[0].id].end - S : 0;
+      scenes.push({ id, kind: "screen", start: S, end: win[id].e, plate, states, camera: withDrift(ascending(camera, 220), E), cursor: ascending(cursor, 140), spots, headline: { text: c.headlines[id], from: 60, to: Math.max(1500, i === 0 ? hookEnd + 400 : (times[0] ?? 1500) - 150) } });
+    });
+    scenes.push({ id: "end", kind: "end", start: endStart, end: durationMs, end_card: { headline: c.headlines.end, button: c.cta.text, url: c.cta.display } });
+
+    const lineWords: Record<string, WordTime[]> = {};
+    const captions: Timeline["captions"] = [];
+    for (const l of c.narration) {
+      const words = l.caption ? wordTimings(captionWordsFor(l), lt[l.id].durMs) : spokenWords[l.id];
+      lineWords[l.id] = spokenWords[l.id];
+      captions.push(...groupCaptions(words, lt[l.id].start));
+    }
+    const plates: Timeline["plates"] = {};
+    tour.scenes.forEach((_, i) => {
+      const m = manifest.plates[`x${i + 1}`];
+      plates[m.id] = { w: PLATE_CSS_W, h: m.h, states: Object.fromEntries(Object.entries(m.states).map(([k, s]) => [k, s.file])) };
+    });
+    const a = c.brand.accent;
+    return {
+      timeline: { durationMs, brand: { name: c.brand.name, accent: a, dark: c.brand.dark, light: c.brand.light, logo: manifest.logo, palette: { blobs: [shade(a, 255, 0.45), c.brand.dark], endFrom: a, endMid: shade(a, 0, 0.35), endTo: c.brand.dark, button: shade(a, 0, 0.18), ripple: `rgba(${parseInt(a.slice(1, 3), 16)},${parseInt(a.slice(3, 5), 16)},${parseInt(a.slice(5, 7), 16)},.25)` } }, plates, scenes, captions },
+      lineWords,
+      scenes,
+    };
+  };
+}
+
 /** The DemoSpec for a concept: the existing pipeline renders it like any other video. */
 export function specFromConcept(c: Concept): DemoSpec {
   const p = personalityFor(c.slug);
@@ -186,9 +279,9 @@ export function specFromConcept(c: Concept): DemoSpec {
     facts: c.facts,
     onScreen: c.onScreen,
     sceneMeta: c.sceneMeta,
-    capture: c.explainer ? captureExplainer(c) : captureConcept(c),
+    capture: c.tour ? captureTour(c) : c.explainer ? captureExplainer(c) : captureConcept(c),
     layout: layoutConcept(c),
-    build: c.explainer ? buildExplainerTimeline(c) : buildConceptTimeline(c),
+    build: c.tour ? buildTourTimeline(c) : c.explainer ? buildExplainerTimeline(c) : buildConceptTimeline(c),
     pace: p.pace,
     music: p.music,
     concept: c,

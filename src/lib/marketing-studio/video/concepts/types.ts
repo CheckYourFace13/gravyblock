@@ -110,6 +110,8 @@ export type Concept = {
   gate?: { ok: boolean; checks: DesirabilityCheck[] };
   /** set for a PRODUCT EXPLAINER / WORKFLOW VISUALIZATION: the steps shown as animated cards instead of live clicks (see explainer.ts) */
   explainer?: { scenes: Array<{ heading: string; nodes: [{ step: string; line: string; say: string; path?: string; fact: string }, { step: string; line: string; say: string; path?: string; fact: string }, { step: string; line: string; say: string; path?: string; fact: string }] }> };
+  /** set for a LIVE PRODUCT TOUR: every scene is a sequence of real interactions on the live site (see tour.ts), as many as the narration has time for */
+  tour?: { scenes: Array<{ steps: import("./tour").TourStep[] }> };
   /** owner edit: a larger value zooms the camera closer in every scene, a smaller one wider (0 = the personality default) */
   zoomBias?: number;
   /** owner edit: extra hold (ms) on the closing frame when a revision came out shorter than the 20s minimum */

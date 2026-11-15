@@ -8,6 +8,7 @@ import { registerKiller } from "../../active-work";
 import { ffprobe, run } from "../ffmpeg";
 import { captionWordsFor } from "./audio";
 import { narrationAudible } from "../voice-audible";
+import { judgeScreen, windowFrames } from "../screen-qa";
 import { CANVAS, WIN, type DemoRecord, type Manifest, type NarrationLine, type Timeline } from "./types";
 
 export type DemoQaCheck = { id: string; ok: boolean; severity: "fail" | "warn"; detail: string };
@@ -192,6 +193,14 @@ export async function runDemoQa(i: DemoQaInput): Promise<DemoQaResult> {
   metrics.screenMotionShare = +moving.toFixed(2);
   add("no_static_stretch", stillWin <= 0.8, `the product screen is still for at most ${stillWin.toFixed(2)}s (limit 0.8s)`);
   add("motion_throughout", moving >= 0.85, `${Math.round(moving * 100)}% of the screen time has movement (needs 85%)`);
+  // 5b. what the viewer SEES in the product window of the finished file: never black, never an empty dark area, never blank (a short transition is allowed)
+  const sv = judgeScreen(await windowFrames(i.file, 5, screenEnd, W0), 5);
+  metrics.screenMeanLuma = sv.meanLuma;
+  metrics.blackScreenSec = sv.blackSec;
+  metrics.blankScreenSec = sv.blankSec;
+  const darkReasons = sv.reasons.filter((r) => !/blank or one flat/.test(r));
+  add("no_black_screen", darkReasons.length === 0, darkReasons.length ? darkReasons.join("; ") : `the product window is never black or empty dark space (longest dark stretch ${Math.max(sv.blackSec, sv.mostlyDarkSec).toFixed(2)}s, average brightness ${sv.meanLuma} of 255)`);
+  add("no_blank_screen", !sv.reasons.some((r) => /blank or one flat/.test(r)), sv.reasons.find((r) => /blank or one flat/.test(r)) ?? `the product window is never blank (longest flat stretch ${sv.blankSec.toFixed(2)}s)`);
   const endSec = i.endStartMs / 1000;
   const endPart = await rawGray(i.file, "scale=108:192", 108, 192, fpsA, endSec + 0.8, Math.max(0.5, dur - endSec - 0.8));
   const endStill = endPart.frames > 2 ? longestStill(frameDiffs(endPart.data, 108, 192, endPart.frames), fpsA, 0.05) : 0;

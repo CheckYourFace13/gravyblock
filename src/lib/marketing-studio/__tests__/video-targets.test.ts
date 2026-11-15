@@ -303,11 +303,14 @@ describe("game production and targets (database)", { skip: !HAVE_DB }, () => {
     const topics = GRAVYBLOCK_EXPLAINERS.map((e, i) => ({ ...slotEntry({ slug: "gravyblock", name: "GravyBlock", home: "https://gravyblock.com/" }, 6), id: e.angleId, position: i + 1, status: i === 0 ? "blocked" : "planned", slot: false }));
     await setSetting(angleKey("gravyblock"), topics, "t", db());
     const first = await registerGravyblockExplainers(db());
+    // GravyBlock videos use the real product: every concept has a live tour (a concept without one would be held, never rendered as animated cards)
     assert.deepEqual(first.problems, []);
-    assert.equal(first.stored.length, GRAVYBLOCK_EXPLAINERS.length, "all five are stored and attached");
+    const withTour = GRAVYBLOCK_EXPLAINERS.filter((e) => e.def.scenes.every((x) => x.tour));
+    assert.equal(withTour.length, 5);
+    assert.equal(first.stored.length, withTour.length, "every concept with a live tour is stored and attached");
     const angles = await getAngles(db(), "gravyblock");
-    assert.ok(angles.every((a) => a.status === "planned" && a.specId && a.yt), "every one is ready for the loop, including the one that was blocked");
-    for (const e of GRAVYBLOCK_EXPLAINERS) assert.equal((await getSetting<{ status: string } | null>(conceptKey(e.def.specId), null, db()))?.status, "ready");
+    assert.ok(angles.filter((a) => a.specId).every((a) => a.status === "planned" && a.yt), "every tour is ready for the loop, including the one that was blocked");
+    for (const e of withTour) assert.equal((await getSetting<{ status: string } | null>(conceptKey(e.def.specId), null, db()))?.status, "ready");
     assert.equal((await registerGravyblockExplainers(db())).stored.length, 0, "nothing is redone when nothing changed");
     // one is blocked again (a QA failure): it is noticed, and only tried again after hours, a bounded number of times
     const { updateAngle } = await import("../library-store");
@@ -320,6 +323,25 @@ describe("game production and targets (database)", { skip: !HAVE_DB }, () => {
     const later = await registerGravyblockExplainers(db());
     assert.equal(later.reopened.length, 1, "after hours it is tried again with no one asking");
     assert.equal((await getAngles(db(), "gravyblock")).find((x) => x.id === GRAVYBLOCK_EXPLAINERS[0].angleId)?.status, "planned");
+  });
+
+  test("a card video still only in the owner's review is replaced once by a live tour; an approved or public one is never touched", async () => {
+    const { setSetting } = await import("../runtime");
+    const { angleKey } = await import("../library");
+    const { updateAngle } = await import("../library-store");
+    const topics = GRAVYBLOCK_EXPLAINERS.map((e, i) => ({ ...slotEntry({ slug: "gravyblock", name: "GravyBlock", home: "https://gravyblock.com/" }, 6), id: e.angleId, position: i + 1, status: i === 0 ? "unlisted_review" : i === 1 ? "approved" : "planned", slot: false }));
+    await setSetting(angleKey("gravyblock"), topics, "t", db());
+    const fpOf = (e: (typeof GRAVYBLOCK_EXPLAINERS)[number]) => `video_explainer_fp_${e.def.specId.replace(/[^a-z0-9]+/gi, "_")}`;
+    await setSetting(fpOf(GRAVYBLOCK_EXPLAINERS[0]), { fp: "old", retries: 0 }, "t", db());
+    const r = await registerGravyblockExplainers(db());
+    assert.ok(r.stored.includes(GRAVYBLOCK_EXPLAINERS[0].def.specId), "the review of a card video is replaced");
+    assert.ok(!r.stored.includes(GRAVYBLOCK_EXPLAINERS[1].def.specId), "an approved video is never touched");
+    const after = await getAngles(db(), "gravyblock");
+    assert.equal(after.find((a) => a.id === GRAVYBLOCK_EXPLAINERS[0].angleId)?.status, "planned");
+    assert.equal(after.find((a) => a.id === GRAVYBLOCK_EXPLAINERS[1].angleId)?.status, "approved");
+    // the replacement reaches the owner's review again: it is a tour now, so it is left as it is
+    await updateAngle(db(), "t", "gravyblock", (x) => x.id === GRAVYBLOCK_EXPLAINERS[0].angleId, { status: "unlisted_review" });
+    assert.equal((await registerGravyblockExplainers(db())).stored.includes(GRAVYBLOCK_EXPLAINERS[0].def.specId), false, "replaced once, not again");
   });
 
   test("an identical render of a file the retention policy purged restores it instead of pointing at nothing", async () => {

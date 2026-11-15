@@ -29,11 +29,14 @@ describe("GravyBlock explainer concepts", () => {
     }
     assert.equal(hooks.size, 5, "no two videos open the same way");
   });
-  test("the Marketing Studio video says only what the owner's three facts say, and nothing publishes without approval", () => {
+  test("the Marketing Studio video narrates only what the real pages show, rests on the owner's facts, and its end card says nothing publishes without approval", () => {
     const c = conceptFromExplainer(GRAVYBLOCK_EXPLAINERS[2].def);
     const said = c.narration.map((l) => l.spoken).join(" ");
-    assert.ok(/before anything is published/.test(said) && /approve it, request changes, or pause/i.test(said));
-    for (const f of MARKETING_STUDIO_FACTS) assert.ok(c.explainer?.scenes[0].nodes.some((n) => n.line === f));
+    assert.ok(/Marketing Studio reads your real website/.test(said), "it is about Marketing Studio and what the real site shows");
+    assert.ok(!/emailed|approve it|pause new/i.test(said), "the review-email promises are not narrated over pictures that cannot show them");
+    assert.ok(c.claims.some((cl) => cl.facts.includes(MARKETING_STUDIO_FACTS[0])), "the studio claim rests on the owner's verified fact");
+    assert.equal(c.headlines.end, "Nothing publishes until you approve.");
+    assert.ok(c.tour, "its visuals are the real site, used for real");
     assert.ok(!/automatically publish/i.test(said), "it never claims to publish on its own");
   });
   test("the timeline builds, every marker the lines name exists, and no cursor is drawn", () => {

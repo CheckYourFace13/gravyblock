@@ -31,6 +31,7 @@ import { getSetting } from "../../runtime";
 import { pickVoice, voiceKey, type VoiceSetting } from "../voices";
 import { ensureSpec } from "../concepts/registry";
 import { visualChecks } from "../concepts/align";
+import { tourChecks } from "../concepts/tour-checks";
 import { evaluateRecord } from "../concepts/validate";
 import { openingKey } from "../concepts/standard";
 
@@ -229,7 +230,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
   if (spec.concept) {
     for (const c of gate.checks) qa.checks.push({ id: `desirability_${c.id}`, ok: c.ok, severity: "fail", detail: c.detail });
     // the finished video against what was really on screen, and the framing of every payoff
-    qa.checks.push(...(await visualChecks({ concept: spec.concept, manifest, lineTimes, timeline, platesDir })));
+    qa.checks.push(...(await (spec.concept.tour ? tourChecks : visualChecks)({ concept: spec.concept, manifest, lineTimes, timeline, platesDir })));
     qa.passed = qa.checks.every((c) => c.ok || c.severity === "warn");
   }
   // logo fidelity is a permanent HARD gate, for every video: source hash, no decoration, true proportions, pixels match the source

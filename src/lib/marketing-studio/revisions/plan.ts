@@ -135,7 +135,7 @@ const OPS_HELP = `ops (each an object with "op" and the fields shown):
  {"op":"remove_text","line":"L4","phrase":"like a missing unsubscribe link"}   cut a phrase, clause or sentence out of one line
  {"op":"remove_line","line":"L5"}   delete a whole line (never the first or last, never a scene's only line)
  {"op":"remove_scene","scene":"a2"}   delete a whole scene with its lines
- {"op":"remove_step","plate":"p1","step":2}   the video shows two real taps per scene; replace tap 1 or 2 by a different real one (the engine picks)
+ {"op":"remove_step","plate":"p1","step":2}   a click walkthrough shows two real taps per scene; replace tap 1 or 2 by a different real one (the engine picks). GravyBlock's own videos are live product tours of the real site with NO limit of two: never refuse or ask the owner because of a tap limit, ask for the interaction they want shown (the scene, the page and what should be visible) and keep the rest
  {"op":"replace_step","plate":"p1","step":2,"candidate":"p1.2.5.3"}   same, using one id from CANDIDATES (use it to change which place or example is shown)
  {"op":"rewrite_line","line":"L3","spoken":"...","caption":"optional, only for a closing line that spells a web address"}   new wording for one line
  {"op":"consolidate","lines":["L2","L3"],"spoken":"..."}   merge repeated lines of ONE scene into one line

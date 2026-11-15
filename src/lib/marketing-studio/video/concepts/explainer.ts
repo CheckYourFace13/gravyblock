@@ -12,6 +12,7 @@ import { PLATE_CSS_W, type Manifest, type PlateManifest, type Rect } from "../de
 import { VIEW } from "../demo/plates";
 import { openBrowsed, openPage } from "./browse";
 import type { Concept, PlatePlan } from "./types";
+import type { TourStep } from "./tour";
 
 export type ExplainerNode = {
   /** small label above the step ("READS", "DOES", "PROVES") */
@@ -25,7 +26,7 @@ export type ExplainerNode = {
   /** a fragment of the verified fact that supports it (resolved to fact ids at render time) */
   fact: string;
 };
-export type ExplainerScene = { heading: string; nodes: [ExplainerNode, ExplainerNode, ExplainerNode] };
+export type ExplainerScene = { heading: string; nodes: [ExplainerNode, ExplainerNode, ExplainerNode]; /** the real interactions on the live product that show this scene (the first step opens the page); when every scene has them the video is a live product tour */ tour?: TourStep[] };
 export type ExplainerDef = {
   specId: string;
   slug: string;
@@ -129,6 +130,7 @@ export function conceptFromExplainer(d: ExplainerDef): Concept {
     estSeconds: Math.round(words / 2.6 + d.scenes.length * 2 + 3),
     estFirstTapMs: 1800,
     explainer: { scenes: d.scenes },
+    ...(d.scenes.every((x) => x.tour && x.tour.length >= 3) ? { tour: { scenes: d.scenes.map((x) => ({ steps: x.tour as TourStep[] })) } } : {}),
   };
 }
 

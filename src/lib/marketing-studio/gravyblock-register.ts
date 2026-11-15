@@ -17,7 +17,9 @@ import { hookProblems, scriptProblems } from "./video/concepts/validate";
 
 const ACTOR = "gravyblock-explainers";
 /** Bump when the explainer renderer or its QA changes in a way that could rescue a video that failed before. */
-export const EXPLAINER_VERSION = 3;
+export const EXPLAINER_VERSION = 4;
+/** Videos made before the live product tour (animated cards) are replaced once, by themselves, while they are still only in the owner's review; anything approved or public is never touched. */
+export const TOUR_VERSION = 1;
 const MAX_RETRIES = 3;
 const RETRY_AFTER_MS = 6 * 3_600_000;
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
@@ -39,6 +41,11 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
   const prohibited = (await listClaims(INTERNAL_SCOPE, product.id, db)).filter((c) => c.kind === "prohibited").map((c) => c.text);
   for (const e of GRAVYBLOCK_EXPLAINERS) {
     const c = conceptFromExplainer(e.def);
+    // GravyBlock videos use the REAL product (owner directive 2026-11-15): a video with no live tour is never rendered, and never as animated cards
+    if (!c.tour) {
+      report.problems.push(`${c.specId}: no live product tour, so it is not rendered (GravyBlock videos must show the real site)`);
+      continue;
+    }
     const problems = [...hookProblems(c.hook, c.productName), ...scriptProblems(c.narration.map((l) => ({ spoken: l.spoken.replace(/\{[^}]*\}/g, "") })), c.onScreen.map((o) => o.text), prohibited)];
     if (problems.length) {
       report.problems.push(`${c.specId}: ${problems.join(" | ")}`);
@@ -46,25 +53,27 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
     }
     const angle = (await getAngles(db, "gravyblock")).find((a) => a.id === e.angleId);
     if (!angle) continue;
-    // an explainer that already reached the owner is left exactly as it is
-    if (["unlisted_review", "approved", "public", "in_production", "ready_for_review"].includes(angle.status)) continue;
     const fp = createHash("sha1").update(JSON.stringify(c)).update(String(EXPLAINER_VERSION)).digest("hex").slice(0, 12);
     const fpKey = `video_explainer_fp_${c.specId.replace(/[^a-z0-9]+/gi, "_")}`;
-    const seen = await getSetting<{ fp: string; retries: number; blockedSeen?: string } | null>(fpKey, null, db);
+    const seen = await getSetting<{ fp: string; retries: number; blockedSeen?: string; tour?: number } | null>(fpKey, null, db);
+    // a video that is public or approved is left exactly as it is; one still only in the owner's review is replaced once if it was made before the live tour (the new upload supersedes it)
+    const inReview = ["unlisted_review", "ready_for_review"].includes(angle.status);
+    const upgrade = inReview && seen?.tour !== TOUR_VERSION;
+    if (["approved", "public", "in_production"].includes(angle.status) || (inReview && !upgrade)) continue;
     const stored = await getSetting<StoredConcept | null>(conceptKey(c.specId), null, db);
     const changed = !seen || seen.fp !== fp || !angle.specId || stored?.status !== "ready";
     // QA-failed and blocked: tried again a few times, hours apart, with no one asking
     const blockedSince = seen?.blockedSeen ? Date.parse(seen.blockedSeen) : null;
     const retry = !changed && angle.status === "blocked" && (seen?.retries ?? 0) < MAX_RETRIES && blockedSince !== null && Date.now() - blockedSince > RETRY_AFTER_MS;
     if (!changed && !retry) {
-      if (angle.status === "blocked" && !seen?.blockedSeen) await setSetting(fpKey, { ...(seen as { fp: string; retries: number }), blockedSeen: new Date().toISOString() }, ACTOR, db, { audited: false });
+      if (angle.status === "blocked" && !seen?.blockedSeen) await setSetting(fpKey, { ...(seen as { fp: string; retries: number; tour?: number }), blockedSeen: new Date().toISOString() }, ACTOR, db, { audited: false });
       continue;
     }
     const next: StoredConcept = { specId: c.specId, status: "ready", concept: c, alternates: [], nextVariant: 2, attempts: [], generatedAt: new Date().toISOString() };
     await setSetting(conceptKey(c.specId), next, ACTOR, db, { audited: false });
     const description = `${c.hook} ${e.yt.description}\n\n${c.cta.text}: ${c.cta.url}`;
     await updateAngle(db, ACTOR, "gravyblock", (a) => a.id === e.angleId, { specId: c.specId, hook: c.hook, yt: { title: e.yt.title, description }, scenes: c.capturePlan.map((p) => p.heading), status: "planned" });
-    await setSetting(fpKey, { fp, retries: changed ? 0 : (seen?.retries ?? 0) + 1 }, ACTOR, db, { audited: false });
+    await setSetting(fpKey, { fp, retries: changed ? 0 : (seen?.retries ?? 0) + 1, tour: TOUR_VERSION }, ACTOR, db, { audited: false });
     (retry ? report.reopened : report.stored).push(c.specId);
     log(`gravyblock: ${retry ? "tried again" : "registered"} explainer ${c.specId}`);
   }
