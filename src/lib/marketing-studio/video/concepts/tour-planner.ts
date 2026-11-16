@@ -209,11 +209,11 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
       pageAfter[steps.length - 1] = page;
     });
     // a node with no interaction of its own gets one: bring its block into view, inserted after the previous node's steps, when that block is on the page then showing
-    for (const n of [1, 2] as const) {
+    for (const n of (si === 0 ? [0, 1, 2] : [1, 2]) as Array<0 | 1 | 2>) {
       if (steps.some((x) => x.node === n && x.do !== "open")) continue;
       let at = -1;
       steps.forEach((x, i) => {
-        if (x.node < n) at = i;
+        if (x.node < n || (n === 0 && i === 0)) at = i;
       });
       const pageThen = at >= 0 ? pageAfter[at] : null;
       const nd = nodes[n];
@@ -269,6 +269,9 @@ export function gateDef(def: ExplainerDef, ctx: PlanContext, others: CreativeFin
       if (words.length >= 3 && missing.length / words.length > 0.5) out.push(`scene ${si + 1} node ${ni + 1}: the line "${n.say}" talks about ${missing.slice(0, 4).join(", ")}, which its screen does not show; say what the screen shows`);
     });
   });
+  // the video has to be 20 to 35 seconds, with room either side: judged from the words spoken
+  const spokenWords = c.narration.reduce((n, l) => n + l.spoken.replace(/{[^}]*}/g, "").split(/s+/).filter(Boolean).length, 0);
+  if (c.estSeconds < 23 || c.estSeconds > 32) out.push(`the video would run about ${c.estSeconds} seconds (${spokenWords} spoken words); it must run 23 to 32 seconds: ${c.estSeconds < 23 ? "add a few words to the lines" : "shorten the lines"}`);
   out.push(...similarityProblems(fingerprintOfConcept(c), others));
   return out;
 }
@@ -278,8 +281,8 @@ export type Ask = (system: string, user: string, attempt: number) => Promise<str
 export const MAX_PLAN_ATTEMPTS = 6;
 
 /** Plans, gates, and on any failure replans with the exact problems as feedback. Pure of side effects except the (injectable) model call. */
-export async function planTour(b: Brief, ctx: PlanContext, others: CreativeFingerprint[], ask: Ask, maxAttempts = MAX_PLAN_ATTEMPTS): Promise<Planned> {
-  let feedback: string[] = [];
+export async function planTour(b: Brief, ctx: PlanContext, others: CreativeFingerprint[], ask: Ask, maxAttempts = MAX_PLAN_ATTEMPTS, seedFeedback: string[] = []): Promise<Planned> {
+  let feedback: string[] = [...seedFeedback];
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     let raw: Raw | null = null;
     let reply = "";

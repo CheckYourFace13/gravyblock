@@ -334,6 +334,16 @@ describe("game production and targets (database)", { skip: !HAVE_DB }, () => {
     const stored = await getSetting<{ concept: { tour?: unknown } } | null>(conceptKey("gravyblock:" + b1.key), null, db());
     assert.ok(stored?.concept.tour, "the stored concept is a live tour");
     assert.deepEqual((await registerGravyblockExplainers(db(), () => {}, deps)).stored, [], "nothing is planned again when nothing changed");
+    // a rendered video that failed full QA is replanned internally with what the QA found, without anyone being asked
+    const [gbp] = (await (await import("../repository")).listProducts(INTERNAL_SCOPE, db())).filter((p) => p.slug === "gravyblock");
+    await db().insert(ms.msVideos).values({ productId: gbp.id, title: "t", storyboard: { specId: "gravyblock:" + b1.key }, targetSeconds: 25, status: "qa_failed", qa: { passed: false, checks: [{ id: "duration", ok: false, severity: "fail", detail: "17.0s (target 20 to 35s)" }] } } as never);
+    const { updateAngle } = await import("../library-store");
+    await updateAngle(db(), "t", "gravyblock", (x) => x.id === b1.angleId, { status: "blocked" });
+    let seenFeedback = "";
+    const spy = { corpus, ask: (specId: string) => ((s2: string, u: string) => { seenFeedback += u; return asks[specId.split(":")[1]](s2, u); }) as never };
+    const re = await registerGravyblockExplainers(db(), () => {}, spy);
+    assert.match(seenFeedback, /the rendered video failed duration: 17.0s/);
+    assert.ok([...re.stored, ...re.reopened].includes("gravyblock:" + b1.key) || re.problems.some((p) => p.includes(b1.key)), "it was replanned, not left blocked for a person");
   });
 
   test("an identical render of a file the retention policy purged restores it instead of pointing at nothing", async () => {

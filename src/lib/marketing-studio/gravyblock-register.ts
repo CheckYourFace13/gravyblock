@@ -4,7 +4,8 @@
  * with the exact problems when it does not, so nothing is left blocked for a person to repair. The stored concept is then produced by the same pipeline every product uses.
  * Nothing is published; every video still goes to the owner's review, and a video the owner approved or made public is never touched.
  */
-import type { StudioDb } from "./db";
+import { eq } from "drizzle-orm";
+import { ms, type StudioDb } from "./db";
 import { GRAVYBLOCK_BRIEFS, GRAVYBLOCK_PLAN_PATHS } from "./gravyblock-briefs";
 import { GRAVYBLOCK_BRAND, MARKETING_STUDIO_FACTS } from "./gravyblock-explainers";
 import { getAngles, updateAngle } from "./library-store";
@@ -24,8 +25,17 @@ const RETRY_AFTER_MS = 2 * 3_600_000;
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 
 export type RegisterReport = { stored: string[]; reopened: string[]; problems: string[] };
-type PlanRecord = { v: number; at: string; ok: boolean; attempts: number; problems?: string[]; fp?: CreativeFingerprint };
+type PlanRecord = { v: number; at: string; ok: boolean; attempts: number; problems?: string[]; fp?: CreativeFingerprint; qaReplans?: number };
 const planKey = (key: string) => `video_plan_gravyblock_${key.replace(/[^a-z0-9]+/gi, "_")}`;
+
+/** The hard QA failures of the latest rendered video of a script, as plain instructions for the planner. */
+async function renderFailures(db: StudioDb, productId: string, specId: string): Promise<string[]> {
+  const rows = await db.select({ sb: ms.msVideos.storyboard, status: ms.msVideos.status, qa: ms.msVideos.qa, at: ms.msVideos.createdAt }).from(ms.msVideos).where(eq(ms.msVideos.productId, productId));
+  const mine = rows.filter((r) => (r.sb as { specId?: string } | null)?.specId === specId).sort((x, y) => y.at.getTime() - x.at.getTime())[0];
+  if (!mine || mine.status !== "qa_failed") return [];
+  const checks = ((mine.qa as { checks?: Array<{ id: string; ok: boolean; severity: string; detail: string }> } | null)?.checks ?? []).filter((c) => !c.ok && c.severity === "fail");
+  return checks.slice(0, 6).map((c) => `the rendered video failed ${c.id}: ${c.detail}`);
+}
 
 export async function registerGravyblockExplainers(db: StudioDb, log: (m: string) => void = () => {}, deps: { ask?: (specId: string) => Ask; corpus?: Corpus; retryNow?: boolean } = {}): Promise<RegisterReport> {
   const report: RegisterReport = { stored: [], reopened: [], problems: [] };
@@ -46,12 +56,23 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
 
   // which briefs need a plan: no plan of this version yet, or a failed one whose retry time has come
   const todo: typeof GRAVYBLOCK_BRIEFS = [];
+  const seeds = new Map<string, string[]>();
   for (const b of GRAVYBLOCK_BRIEFS) {
     const angle = angles.find((a) => a.id === b.angleId);
     if (!angle) continue;
     // a video that is public, approved or being made is left exactly as it is
     if (["approved", "public", "in_production", "ready_for_review"].includes(angle.status)) continue;
     const rec = await getSetting<PlanRecord | null>(planKey(b.key), null, db);
+    // a plan whose RENDER failed full QA is replanned with what the QA found, internally, a bounded number of times: it never waits for a person
+    if (rec?.ok && rec.v === PLANNER_VERSION && angle.status === "blocked" && (rec.qaReplans ?? 0) < 6) {
+      const failed = await renderFailures(db, product.id, `gravyblock:${b.key}`);
+      if (failed.length) {
+        seeds.set(b.key, failed);
+        await setSetting(planKey(b.key), { ...rec, qaReplans: (rec.qaReplans ?? 0) + 1 }, ACTOR, db, { audited: false });
+        todo.push(b);
+        continue;
+      }
+    }
     if (rec?.ok && rec.v === PLANNER_VERSION) continue;
     if (rec && !rec.ok && rec.v === PLANNER_VERSION && !deps.retryNow && Date.now() - Date.parse(rec.at) < RETRY_AFTER_MS) continue;
     todo.push(b);
@@ -70,7 +91,7 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
   for (const b of todo) {
     const specId = `gravyblock:${b.key}`;
     const others = [...base.filter((h) => h.specId !== specId), ...accepted];
-    const planned = await planTour(b, { ...ctxBase, history: others }, others, (deps.ask ?? ((id: string) => aiAsk(db, id)))(specId));
+    const planned = await planTour(b, { ...ctxBase, history: others }, others, (deps.ask ?? ((id: string) => aiAsk(db, id)))(specId), undefined, seeds.get(b.key) ?? []);
     if (!planned.ok) {
       await setSetting(planKey(b.key), { v: PLANNER_VERSION, at: new Date().toISOString(), ok: false, attempts: planned.attempts, problems: planned.problems } satisfies PlanRecord, ACTOR, db, { audited: false });
       report.problems.push(`${specId}: no acceptable plan after ${planned.attempts} attempts: ${planned.problems.slice(0, 2).join(" | ")}`);
