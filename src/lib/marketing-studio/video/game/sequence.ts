@@ -76,7 +76,7 @@ export const SHAPES: Record<GameFormat, Shape> = {
   progression: { spans: 3, minMs: 5000, maxMs: 9000, ok: someResult, levels: "ascending" },
   reward_unlock: { spans: 1, minMs: 7000, maxMs: 14000, ok: (s) => someResult(s) && s.hasReward, levels: "any" },
   mechanic_spotlight: { spans: 1, minMs: 9000, maxMs: 16000, ok: (s) => someResult(s) && (s.topMechanic?.inputs ?? 0) >= 3, prefer: (s) => Math.min(1, (s.topMechanic?.inputs ?? 0) / 8), levels: "any" },
-  character_collection: { spans: 1, minMs: 7000, maxMs: 14000, ok: (s) => someResult(s) && s.hasReward, prefer: (s) => (s.hasCharacter ? 1 : 0), levels: "any" },
+  character_collection: { spans: 1, minMs: 7000, maxMs: 14000, ok: (s) => someResult(s) && s.hasReward && s.hasCharacter, levels: "any" },
   variety_montage: { spans: 3, minMs: 5000, maxMs: 8500, ok: someResult, levels: "distinct" },
   one_more_try: { spans: 1, minMs: 10000, maxMs: 22000, ok: (s) => s.hasLoss && s.hasWin, levels: "any" },
   short_form: { spans: 1, minMs: 5000, maxMs: 9500, ok: someResult, prefer: (s) => s.intensity, levels: "any" },

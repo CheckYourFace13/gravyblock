@@ -29,10 +29,10 @@ export function gameVoiceFor(profile: Pick<GameProfile, "voice" | "energy">, slu
 
 /** What a measured voice must reach for an energy level: pace in words per second of speech and how much the pitch moves (semitones). A flat reading fails. */
 export const VOICE_ENERGY_MIN: Record<Energy, { wps: number; spread: number }> = {
-  relaxed: { wps: 2.9, spread: 1.0 },
-  fun: { wps: 3.4, spread: 1.4 },
-  energetic: { wps: 3.7, spread: 1.6 },
-  very_energetic: { wps: 3.9, spread: 1.8 },
+  relaxed: { wps: 3.0, spread: 1.0 },
+  fun: { wps: 3.3, spread: 1.4 },
+  energetic: { wps: 3.5, spread: 1.6 },
+  very_energetic: { wps: 3.7, spread: 1.8 },
 };
 export function voiceEnergyCheck(m: { wordsPerSec: number; pitchSpread: number | null }, energy: Energy): { ok: boolean; detail: string } {
   const need = VOICE_ENERGY_MIN[energy];
@@ -102,8 +102,10 @@ export function writeScript(o: {
   const e = E[o.profile.energy];
   const kinds = new Set(o.moments.map((m) => m.kind));
   const has = (...k: GameMomentKind[]) => k.some((x) => kinds.has(x));
-  const mechs = o.profile.mechanics;
-  const chars = o.profile.characters;
+  // only what is really on screen in THIS footage may be named: a mechanic the captured moments show (matched by stem), a character a moment carries
+  const shown = [...new Set(o.moments.map((m) => m.mechanic).filter((x): x is string => Boolean(x)))].map((x) => x.toLowerCase().slice(0, 4));
+  const mechs = o.profile.mechanics.filter((x) => shown.some((s) => s.length >= 3 && x.toLowerCase().includes(s)));
+  const chars = o.moments.some((m) => m.character) ? o.profile.characters : [];
   const v = o.variant ?? 0;
   const seed = hash(o.name) + v * 7 + o.history.lines.length * 3;
   const fill = (tpl: string, pick: { mech?: string; char?: string }) => {

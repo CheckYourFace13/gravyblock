@@ -78,7 +78,7 @@ try {
     // line the sound up with the first frame, then keep it only if something audible was really recorded
     const delta = frames[0].t - stopped.start;
     const align = delta >= 0 ? ["-ss", delta.toFixed(3)] : [];
-    const pad = delta < 0 ? ["-af", `adelay=${Math.round(-delta * 1000)}:all=1`] : [];
+    const pad = delta < 0 ? ["-af", `adelay=${Math.round(-delta * 1000)}|${Math.round(-delta * 1000)}`] : [];
     execFileSync("ffmpeg", ["-hide_banner", "-nostdin", "-y", "-loglevel", "error", ...align, "-i", `${OUT}/audio.webm`, ...pad, "-ar", "44100", "-ac", "2", `${OUT}/audio.wav`]);
     const vd = spawnSync("ffmpeg", ["-hide_banner", "-nostdin", "-i", `${OUT}/audio.wav`, "-af", "volumedetect", "-f", "null", "-"], { encoding: "utf8" }).stderr ?? "";
     const mean = Number(/mean_volume: (-?[d.]+) dB/.exec(vd)?.[1] ?? -91);

@@ -147,7 +147,9 @@ describe("continuity: a few whole stretches, never a shuffle", () => {
     assert.equal(formatUnsupported("gameplay_hook", session()), null);
     assert.match(formatUnsupported("one_more_try", session()) ?? "", /needs 1/, "no loss then win in the footage");
     assert.match(formatUnsupported("character_collection", session()) ?? "", /no characters/);
-    assert.equal(formatUnsupported("character_collection", session(), { hasCharacters: true }), null);
+    assert.match(formatUnsupported("character_collection", session(), { hasCharacters: true }) ?? "", /needs 1/, "characters set up but none visible in the footage");
+    const withChar = Array.from({ length: 2 }, (_, i) => level(i + 1, i * 15_000, { character: "Zappy" })).flat();
+    assert.equal(formatUnsupported("character_collection", withChar, { hasCharacters: true }), null);
     assert.match(formatUnsupported("progression", session(2)) ?? "", /needs 3/);
     const withLoss = [...level(1, 0, { loss: true, win: false }), ...level(1, 0).map((x) => ({ ...x, startMs: x.startMs + 20_000, endMs: x.endMs + 20_000 }))];
     void withLoss;
@@ -391,5 +393,18 @@ describe("game hard QA", () => {
     assert.ok(d.w <= 1080 && d.h <= 1920);
     const w = fitFootage({ w: 1920, h: 1080 }, { w: 1080, h: 1920 }, true);
     assert.ok(w.w <= 1080 && w.h <= 1920, "landscape footage in a portrait frame still fits");
+  });
+});
+
+describe("narration only names what is on screen", () => {
+  test("a mode that is not in the footage is never mentioned", () => {
+    const p = pickSequences(session(), "how_you_play");
+    assert.ok(p.ok);
+    if (!p.ok) return;
+    const c = clipMomentsOf(session(), p.spans);
+    for (let v = 0; v < 12; v++) {
+      const text = writeScript({ format: "how_you_play", profile: profile({ mechanics: ["drawing cuts", "daily challenge", "endless run"] }), name: "G", moments: c.moments, durationMs: c.durationMs, storeLive: false, history: { lines: [], uses: [] }, variant: v }).map((l) => l.text).join(" ");
+      assert.doesNotMatch(text, /daily challenge|endless run/i);
+    }
   });
 });
