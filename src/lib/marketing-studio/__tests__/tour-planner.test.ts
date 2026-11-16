@@ -64,6 +64,11 @@ describe("tour planner", () => {
     const r = await planTour(brief, ctx([earlier]), [earlier], async () => (++n === 1 ? planJson("Who has time for another marketing task?") : planJson("What would you do with the hours your marketing eats?", { endLine: "Look at your own number at Gravy Block dot com.", endCaption: "Look at your own number at gravyblock.com", endHeadline: "Your number is waiting." })));
     assert.equal(r.attempts >= 2, true);
   });
+  test("a plan with no usable tour is completed from its own nodes, with a real page opened first", async () => {
+    const r = await planTour(brief, ctx(), [], async () => { const j = JSON.parse(planJson("Who has time for another marketing task?")); j.scenes.forEach((x: { tour?: unknown }) => delete x.tour); return JSON.stringify(j); });
+    assert.equal(r.ok, true, JSON.stringify(r));
+    if (r.ok) assert.ok(r.def.scenes.every((sc) => sc.tour![0].do === "open" && sc.tour!.length >= 3));
+  });
   test("when every attempt fails the plan is reported, never produced", async () => {
     const r = await planTour(brief, ctx(), [], async () => "not json", 2);
     assert.equal(r.ok, false);

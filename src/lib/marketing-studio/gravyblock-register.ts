@@ -27,7 +27,7 @@ export type RegisterReport = { stored: string[]; reopened: string[]; problems: s
 type PlanRecord = { v: number; at: string; ok: boolean; attempts: number; problems?: string[]; fp?: CreativeFingerprint };
 const planKey = (key: string) => `video_plan_gravyblock_${key.replace(/[^a-z0-9]+/gi, "_")}`;
 
-export async function registerGravyblockExplainers(db: StudioDb, log: (m: string) => void = () => {}, deps: { ask?: (specId: string) => Ask; corpus?: Corpus } = {}): Promise<RegisterReport> {
+export async function registerGravyblockExplainers(db: StudioDb, log: (m: string) => void = () => {}, deps: { ask?: (specId: string) => Ask; corpus?: Corpus; retryNow?: boolean } = {}): Promise<RegisterReport> {
   const report: RegisterReport = { stored: [], reopened: [], problems: [] };
   const product = (await listProducts(INTERNAL_SCOPE, db)).find((p) => p.slug === "gravyblock");
   if (!product) return report;
@@ -53,7 +53,7 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
     if (["approved", "public", "in_production", "ready_for_review"].includes(angle.status)) continue;
     const rec = await getSetting<PlanRecord | null>(planKey(b.key), null, db);
     if (rec?.ok && rec.v === PLANNER_VERSION) continue;
-    if (rec && !rec.ok && rec.v === PLANNER_VERSION && Date.now() - Date.parse(rec.at) < RETRY_AFTER_MS) continue;
+    if (rec && !rec.ok && rec.v === PLANNER_VERSION && !deps.retryNow && Date.now() - Date.parse(rec.at) < RETRY_AFTER_MS) continue;
     todo.push(b);
   }
   if (!todo.length) return report;

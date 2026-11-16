@@ -94,7 +94,7 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
   const scenes: ExplainerScene[] = [];
   raw.scenes!.forEach((rs, si) => {
     const tag = `scene ${si + 1}`;
-    if (!need(Array.isArray(rs.nodes) && rs.nodes.length === 3 && Array.isArray(rs.tour) && rs.tour.length >= 3, `${tag} needs 3 nodes and at least 3 tour steps`)) return;
+    if (!need(Array.isArray(rs.nodes) && rs.nodes.length === 3, `${tag} needs exactly 3 nodes`)) return;
     const nodes: ExplainerNode[] = [];
     rs.nodes!.forEach((rn, ni) => {
       const hit = rn.block ? blockById(ctx.corpus, rn.block) : null;
@@ -110,14 +110,40 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
     const steps: TourStep[] = [];
     let page: string | null = null;
     const visited = new Set<string>();
+    const pageAfter: Array<string | null> = [];
     // a plan whose first step does not open a page is repaired, not refused: the page of what it shows is opened first
-    const rawSteps = [...rs.tour!];
+    let rawSteps: RawStep[] = Array.isArray(rs.tour) ? [...rs.tour] : [];
+    // a tour that is missing or too short is completed from the nodes themselves: open the page of the first block, then bring each node's own block into view (opening a page when the block is on another)
+    if (rawSteps.length < 3) {
+      let cur = "";
+      rawSteps = [];
+      rs.nodes!.forEach((rn, ni) => {
+        const h = rn.block ? blockById(ctx.corpus, rn.block) : null;
+        if (!h) return;
+        if (h.page.path !== cur) {
+          rawSteps.push({ node: ni + 1, do: "open", target: h.page.path, shows: h.block.id });
+          cur = h.page.path;
+          if (ni > 0) return;
+        }
+        rawSteps.push({ node: ni + 1, do: "scroll", target: h.block.id, shows: h.block.id });
+      });
+    }
     const firstShows = rawSteps[0]?.shows ? blockById(ctx.corpus, rawSteps[0].shows) : null;
     if (rawSteps[0] && rawSteps[0].do !== "open" && firstShows) rawSteps.unshift({ node: 1, do: "open", target: firstShows.page.path, shows: rawSteps[0].shows });
     rawSteps.forEach((st, k) => {
       const t = `${tag} step ${k + 1}`;
       const n = Math.min(2, Math.max(0, (st.node ?? 1) - 1)) as 0 | 1 | 2;
-      const showsHit = st.shows ? blockById(ctx.corpus, st.shows) : null;
+      let showsHit = st.shows ? blockById(ctx.corpus, st.shows) : null;
+      // what a step shows is repaired, not refused, when it is on the wrong page: a scroll shows its own target, a click shows the top of the page it opens, a type shows its field
+      if (k > 0 && st.target) {
+        const tgtBlock = st.do === "scroll" ? blockById(ctx.corpus, st.target) : null;
+        const tgtCtl = st.do === "click" || st.do === "type" ? controlById(ctx.corpus, st.target) : null;
+        const destPath = tgtBlock ? tgtBlock.page.path : tgtCtl ? (st.do === "click" && tgtCtl.control.kind === "link" && tgtCtl.control.to ? tgtCtl.control.to : tgtCtl.page.path) : null;
+        if (destPath && (!showsHit || showsHit.page.path !== destPath)) {
+          const fix = tgtBlock ? tgtBlock.block : (ctx.corpus.pages.find((x) => x.path === destPath)?.blocks[0] ?? null);
+          if (fix) showsHit = { page: ctx.corpus.pages.find((x) => x.path === destPath)!, block: fix };
+        }
+      }
       if (!need(showsHit, `${t}: shows block "${st.shows}" is not on the real site`)) return;
       const shows = trim90(showsHit!.block.text);
       if (k === 0) {
@@ -128,6 +154,7 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
         page = p!.path;
         visited.add(p!.path);
         steps.push({ node: 0, do: "open", path: p!.path, shows });
+        pageAfter[steps.length - 1] = page;
         return;
       }
       // a step on a page other than the current one is a move to that page first (a real navigation, shown), not an error
@@ -168,7 +195,21 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
         need(showsHit!.page.path === page, `${t}: what it shows must be on the current page`);
         steps.push({ node: n, do: "type", field: c!.control.text, value, shows });
       } else need(false, `${t}: unknown action "${st.do}"`);
+      pageAfter[steps.length - 1] = page;
     });
+    // a node with no interaction of its own gets one: bring its block into view, inserted after the previous node's steps, when that block is on the page then showing
+    for (const n of [1, 2] as const) {
+      if (steps.some((x) => x.node === n && x.do !== "open")) continue;
+      let at = -1;
+      steps.forEach((x, i) => {
+        if (x.node < n) at = i;
+      });
+      const pageThen = at >= 0 ? pageAfter[at] : null;
+      const nd = nodes[n];
+      const b3 = rs.nodes![n].block ? blockById(ctx.corpus, rs.nodes![n].block!) : null;
+      if (b3 && pageThen === b3.page.path) steps.splice(at + 1, 0, { node: n, do: "scroll", text: trim90(b3.block.text), shows: trim90(b3.block.text) });
+      void nd;
+    }
     nodes.forEach((nd, ni) => need(visited.has(nd.path as string), `${tag} node ${ni + 1}: its block is on ${nd.path}, a page this scene never shows`));
     for (const n of [0, 1, 2]) need(steps.some((x) => x.node === n && x.do !== "open") || (n === 0 && steps.length > 0), `${tag}: node ${n + 1} has no interaction on screen while it is spoken`);
     scenes.push({ heading: (rs.heading ?? "").trim().slice(0, 40), nodes: nodes as ExplainerScene["nodes"], tour: steps });
