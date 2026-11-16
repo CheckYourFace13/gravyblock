@@ -6,9 +6,10 @@ import { contactSummary } from "@/lib/marketing-studio/publishing/review-contact
 import { listReviews } from "@/lib/marketing-studio/publishing/video-review";
 import { youtubeConnectionFor } from "@/lib/marketing-studio/publishing/youtube-share";
 import { OFFERED_VOICES, TONES, voiceCards, voiceSettingFor } from "@/lib/marketing-studio/video/voices";
+import { getAutoApprove } from "@/lib/marketing-studio/publishing/auto-approve";
 import { productStatus } from "@/lib/marketing-studio/portfolio-loop";
 import { getMaxPending, isGame, PRESET_TARGETS, targetStats } from "@/lib/marketing-studio/video-target";
-import { changeReviewEmailAction, changeVoiceAction, declareKidsAction, generateNextVideoAction, pauseVideoMarketingAction, resumeVideoMarketingAction, setMaxPendingAction, setVideoTargetAction } from "../../actions";
+import { changeReviewEmailAction, changeVoiceAction, declareKidsAction, generateNextVideoAction, pauseVideoMarketingAction, resumeVideoMarketingAction, setAutoApproveAction, setMaxPendingAction, setVideoTargetAction } from "../../actions";
 
 /** Pause, resume and the one-time YouTube declaration for one product. Resume lives only here, behind the GravyBlock login. */
 export async function VideoMarketingCard({ product }: { product: { id: string; ownerKind: string; slug?: string; kind?: string } }) {
@@ -16,6 +17,7 @@ export async function VideoMarketingCard({ product }: { product: { id: string; o
   const tp = { id: product.id, slug: product.slug ?? "", kind: product.kind, ownerKind: product.ownerKind };
   const stats = await targetStats(db, tp);
   const pending = await getMaxPending(db, tp);
+  const autoApprove = await getAutoApprove(db, product);
   const state = await productStatus(db, tp as never).catch(() => ({ status: "ACTIVE", detail: null as string | null }));
   const policy = await getPolicy(db, product.id);
   const kids = await kidsFor(db, product);
@@ -78,6 +80,15 @@ export async function VideoMarketingCard({ product }: { product: { id: string; o
           <button className="rounded-md border border-zinc-300 px-3 py-1.5 font-semibold text-zinc-800">Set</button>
           <span className="text-xs text-zinc-500">Production keeps going, one render at a time, until this many videos are waiting for your decision.</span>
         </form>
+        {product.ownerKind !== "customer" ? (
+          <form action={setAutoApproveAction} className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <input type="hidden" name="productId" value={product.id} />
+            <input type="hidden" name="on" value={autoApprove ? "off" : "on"} />
+            <span className="text-zinc-700">Auto-approve owned videos after full QA: <strong>{autoApprove ? "ON" : "OFF"}</strong></span>
+            <button className="rounded-md border border-zinc-300 px-3 py-1.5 font-semibold text-zinc-800">{autoApprove ? "Turn off" : "Turn on"}</button>
+            <span className="text-xs text-zinc-500">Your own products only. A video is published and placed only when every hard check passes; otherwise it is planned again and you are not asked.</span>
+          </form>
+        ) : null}
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-5">
           <div><dt className="text-xs text-zinc-500">Approved / public</dt><dd className="font-medium">{stats.approved}</dd></div>
           <div><dt className="text-xs text-zinc-500">Waiting for review</dt><dd className="font-medium">{stats.waiting}</dd></div>

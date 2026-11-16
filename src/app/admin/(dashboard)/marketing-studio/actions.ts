@@ -27,6 +27,7 @@ import { getSetting, setKillSwitch } from "@/lib/marketing-studio/runtime";
 import { requireStudioDb } from "@/lib/marketing-studio/db";
 import { declareKids, isPaused, pauseProduct, resumeProduct } from "@/lib/marketing-studio/publishing/video-policy";
 import { setMaxPending, setTarget } from "@/lib/marketing-studio/video-target";
+import { setAutoApprove } from "@/lib/marketing-studio/publishing/auto-approve";
 import { enqueue, JOB_PRIORITY } from "@/lib/marketing-studio/runtime";
 import { saveVoiceSetting, type ToneKey } from "@/lib/marketing-studio/video/voices";
 import { sendVerificationEmail } from "@/lib/marketing-studio/publishing/review-notify";
@@ -106,6 +107,16 @@ export async function setMaxPendingAction(fd: FormData) {
   await guarded(`${base}/products/${id}`, async () => {
     const product = await requireProduct(scope, id);
     await setMaxPending(requireStudioDb(), actor, { id, slug: product.slug, kind: product.kind, ownerKind: product.ownerKind }, s(fd, "max"));
+  });
+}
+
+/** Auto-approve owned videos after full QA (the owner's own products only; refused for a customer product). */
+export async function setAutoApproveAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    const product = await requireProduct(scope, id);
+    await setAutoApprove(requireStudioDb(), actor, { id, ownerKind: product.ownerKind }, s(fd, "on") === "on");
   });
 }
 

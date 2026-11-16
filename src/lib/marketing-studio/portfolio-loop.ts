@@ -11,6 +11,7 @@ import { hasApprovedLogo } from "./brand/brand-kit";
 import { allowanceFor, spendCredit } from "./entitlements";
 import { registerGravyblockExplainers } from "./gravyblock-register";
 import { ensureOwnedSlots, TARGET_EXEMPT } from "./portfolio-target";
+import { autoApprovePending } from "./publishing/auto-approve";
 import { getMaxPending, getTarget, isGame, pendingCount, targetStats } from "./video-target";
 import { gameTick } from "./video/game/production";
 import { PLAN_PRODUCTS } from "./library-plan";
@@ -143,6 +144,8 @@ async function generationOrder(db: StudioDb) {
 /** `only` works on one product; `force` is the Generate Next Video button: it ignores the target and the one-review-at-a-time wait (never a pause, a plan allowance or a gate). */
 export async function portfolioTick(db: StudioDb, log: (m: string) => void = () => {}, opts: { generate?: boolean; only?: string; force?: boolean } = {}): Promise<TickReport> {
   const report: TickReport = [];
+  // owned videos waiting after a failed or interrupted auto-approval are considered again (only where the owner switched auto-approve on)
+  await autoApprovePending(db, log).catch((e) => log(`auto-approve sweep: ${e instanceof Error ? e.message : e}`));
   const products = (await listProducts(INTERNAL_SCOPE, db)) as unknown as Product[];
   let generated = 0;
   // the demo library's products, then the owner's games (they are made by the game video engine and have no demo library plan)

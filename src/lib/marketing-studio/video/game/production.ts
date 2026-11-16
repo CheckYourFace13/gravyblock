@@ -14,6 +14,7 @@ import { angleKey, type AngleEntry } from "../../library";
 import { getAngles, updateAngle } from "../../library-store";
 import { capFreesAt } from "../../library-production";
 import { prepareReview } from "../../publishing/review-dispatch";
+import { maybeAutoApprove } from "../../publishing/auto-approve";
 import { isPaused } from "../../publishing/video-policy";
 import { listFacts, listProducts } from "../../repository";
 import { enqueue, getSetting, JOB_PRIORITY, setSetting } from "../../runtime";
@@ -325,6 +326,8 @@ export async function runGameVideo(db: StudioDb, input: { specId: string; attemp
       return { status: "deferred", detail: `posting allowance used; queued again for ${again.toISOString()}` };
     }
     if (!out.ok || !out.publicationId || !out.videoId) throw new Error(out.blocked ?? "the upload did not complete");
+    const auto = await maybeAutoApprove(db, out.publicationId, log).catch(() => null);
+    if (auto?.approved) return { status: "public", detail: "approved automatically after full QA", publicationId: out.publicationId, videoId: out.videoId };
     return { status: "unlisted_review", detail: out.emailed ? "review email sent" : "uploaded; the review email could not be sent", publicationId: out.publicationId, videoId: out.videoId };
   } catch (e) {
     return await fail(e);

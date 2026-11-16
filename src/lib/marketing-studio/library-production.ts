@@ -11,6 +11,7 @@ import { OWNED_TARGET } from "./portfolio-target";
 import { getAngles, updateAngle } from "./library-store";
 import { specFor } from "./publishing/platforms";
 import { prepareReview } from "./publishing/review-dispatch";
+import { maybeAutoApprove } from "./publishing/auto-approve";
 import { isPaused } from "./publishing/video-policy";
 import { enqueue } from "./runtime";
 import { listProducts } from "./repository";
@@ -159,6 +160,9 @@ export async function runLibraryVideo(db: StudioDb, input: { specId: string; att
     }
     if (!out.ok || !out.publicationId || !out.videoId) return await fail(out.blocked ?? "the upload did not complete");
     await updateAngle(db, ACTOR, product.slug, (e) => e.id === entry.id, { status: "unlisted_review", approval: "pending", videoRowId: video.id, youtubeId: out.videoId, publicationId: out.publicationId, publicationUrl: `https://www.youtube.com/watch?v=${out.videoId}` });
+    // the owner's auto-approve (owned products only, default off): approves only when every hard gate passes; otherwise the script is planned again
+    const auto = await maybeAutoApprove(db, out.publicationId, log).catch(() => null);
+    if (auto?.approved) return { status: "public", detail: "approved automatically after full QA" };
     return { status: "unlisted_review", detail: out.emailed ? "review email sent" : "uploaded; the review email could not be sent" };
   } catch (e) {
     return await fail(e instanceof Error ? e.message : String(e));
