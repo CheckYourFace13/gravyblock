@@ -29,16 +29,32 @@ You are given: a BRIEF (a subject and a customer question; it is not a script), 
 
 Rules:
 - The video has exactly 2 scenes. Each scene has exactly 3 nodes. Spoken lines: scene 1 node 1 is replaced by the HOOK (spoken first), every other node has its own "say" line. Then one closing line.
-- Each node points at ONE text block (its "block" id) that is on the real site: that is the thing on screen when the node is spoken. The "say" line must be about what that block (and the page around it) shows, in your own words; it may not claim anything the verified facts and the site do not support. Never invent numbers, results, customers, speed or savings. Do not use: best, #1, guarantee, instantly, seconds, minutes, hours, only, fastest, percent figures.
-- "fact" is the number of the verified fact that supports the node's line. Choose a fact that really says what the block says.
-- "tour" lists the real interactions of the scene in order. Each step: node (1, 2 or 3: the node whose line it accompanies), do ("open" for the first step of a scene, then "scroll", "click" or "type"), target (scroll: a block id; click: a control id; type: a field control id; open: a page path), value (type only: use the product's own name or website address, nothing personal), shows (a block id that is VISIBLE on the screen after the step; for a click on a link it must be on the page the link opens). Every node needs at least one step; the scene's first step is "open" with node 1. Use more than two interactions across the video, mix scroll, click and type, and keep to real pages and controls from the list.
+- Each node points at ONE text block (its "block" id) that is on the real site: that is the thing on screen when the node is spoken. The "say" line must be about what that block (and the page around it) shows, in your own words; it may not claim anything the verified facts and the site do not support. Never invent numbers, results, customers, speed or savings. NEVER use these words or ideas: best, #1, only, guarantee, instantly, seconds, minutes, hours, fastest, forever, risk-free, percent figures, "this page", "this screen", "overview", "solution", "platform", "feature", "dashboard".
+- Every "say" line must clearly connect to its block: reuse at least half of the block's key words (its nouns and verbs) in your own sentence, so what is spoken is what the viewer is looking at. Do not describe anything the block does not show.
+- Every block you are shown is already backed by a verified fact; your "say" line must not go beyond what the block and the facts say.
+- "tour" lists the real interactions of the scene in order. Each step: node (1, 2 or 3: the node whose line it accompanies), do ("open" (a page path; the first step of a scene always opens a page, and a later "open" moves to another page), then "scroll", "click" or "type"), target (scroll: a block id; click: a control id; type: a field control id; open: a page path), value (type only: use the product's own name or website address, nothing personal), shows (a block id that is VISIBLE on the screen after the step; for a click on a link it must be on the page the link opens). Every node needs at least one step; the scene's first step is "open" with node 1. Use more than two interactions across the video, mix scroll, click and type, and keep to real pages and controls from the list.
 - Write like a person who wants the viewer to try the product: a specific hook with real tension (a question or a "you"), a point of view, a payoff, short spoken lines (4 to 14 words), no documentation language, no "Welcome", "Introducing", "In this video". Each video must sound individually written: vary the structure, the rhythm and the closing. Avoid stock phrases such as "does the work automatically" or "nothing publishes until you approve" unless the HISTORY shows they are unused.
 - The closing line (endLine) invites the viewer and ends with the words "Gravy Block dot com" (how the voice says the site). endCaption is the same invitation written with "gravyblock.com". endHeadline is a short on-screen line (max 6 words). The closing and headline must not repeat any earlier video's.
-Return: {"hook","problem","benefit","yt":{"title","description"},"scenes":[{"heading","nodes":[{"step","block","say","fact"}x3],"tour":[{"node","do","target","value","shows"}...]}x2],"endLine","endCaption","endHeadline"}
+Return: {"hook","problem","benefit","yt":{"title","description"},"scenes":[{"heading","nodes":[{"step","block","say"}x3],"tour":[{"node","do","target","value","shows"}...]}x2],"endLine","endCaption","endHeadline"}
 "step" is a 1 to 2 word label in capitals. "heading" is a 2 to 5 word on-screen heading. problem and benefit are one plain sentence each.`;
 
 const norm = (s: string) => s.toLowerCase().replace(/[‘’]/g, "'").replace(/\s+/g, " ").trim();
 const trim90 = (s: string) => (s.length > 90 ? s.slice(0, 90).replace(/\s+\S*$/, "") : s);
+
+/** The verified fact that backs a block of site text: the one that says the same thing, or null. Product Truth grounding is decided here, not by the model. */
+export function factFor(text: string, facts: string[]): string | null {
+  let best: { f: string; s: number } | null = null;
+  for (const f of facts) {
+    const s = norm(f).includes(norm(text)) || norm(text).includes(norm(f)) ? 1 : jaccard(content(f), content(text));
+    if (!best || s > best.s) best = { f, s };
+  }
+  return best && best.s >= 0.34 ? best.f : null;
+}
+
+/** Only text that a verified fact backs is offered to the planner, so a plan cannot rest on a claim Product Truth does not support. */
+export function groundedCorpus(c: Corpus, facts: string[]): Corpus {
+  return { ...c, pages: c.pages.map((p) => ({ ...p, blocks: p.blocks.filter((b) => factFor(b.text, facts)) })) };
+}
 
 export function renderPrompt(b: Brief, ctx: PlanContext, feedback: string[]): string {
   const pages = ctx.corpus.pages
@@ -85,10 +101,8 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
       if (!need(hit, `${tag} node ${ni + 1}: block "${rn.block}" is not on the real site`)) return;
       const say = (rn.say ?? "").trim();
       if (!need(say.split(/\s+/).length >= 3, `${tag} node ${ni + 1}: the spoken line is missing`)) return;
-      const fact = typeof rn.fact === "number" ? ctx.facts[rn.fact] : undefined;
-      if (!need(fact, `${tag} node ${ni + 1}: fact ${rn.fact} does not exist`)) return;
-      // the fact has to be about what the block says (Product Truth grounding of every claim)
-      need(jaccard(content(fact!), content(hit!.block.text)) >= 0.3 || norm(fact!).includes(norm(hit!.block.text)) || norm(hit!.block.text).includes(norm(fact!)), `${tag} node ${ni + 1}: fact ${rn.fact} is not what the block "${hit!.block.text.slice(0, 40)}" says`);
+      const fact = factFor(hit!.block.text, ctx.facts);
+      if (!need(fact, `${tag} node ${ni + 1}: no verified fact backs the block "${hit!.block.text.slice(0, 40)}"; choose a block that says something verified`)) return;
       nodes.push({ step: (rn.step ?? "STEP").toUpperCase().slice(0, 16), line: hit!.block.text, say, path: hit!.page.path, fact: fact! });
     });
     if (nodes.length !== 3) return;
@@ -96,7 +110,11 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
     const steps: TourStep[] = [];
     let page: string | null = null;
     const visited = new Set<string>();
-    rs.tour!.forEach((st, k) => {
+    // a plan whose first step does not open a page is repaired, not refused: the page of what it shows is opened first
+    const rawSteps = [...rs.tour!];
+    const firstShows = rawSteps[0]?.shows ? blockById(ctx.corpus, rawSteps[0].shows) : null;
+    if (rawSteps[0] && rawSteps[0].do !== "open" && firstShows) rawSteps.unshift({ node: 1, do: "open", target: firstShows.page.path, shows: rawSteps[0].shows });
+    rawSteps.forEach((st, k) => {
       const t = `${tag} step ${k + 1}`;
       const n = Math.min(2, Math.max(0, (st.node ?? 1) - 1)) as 0 | 1 | 2;
       const showsHit = st.shows ? blockById(ctx.corpus, st.shows) : null;
@@ -112,7 +130,24 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
         steps.push({ node: 0, do: "open", path: p!.path, shows });
         return;
       }
-      if (st.do === "scroll") {
+      // a step on a page other than the current one is a move to that page first (a real navigation, shown), not an error
+      const need2 = st.target && (st.do === "scroll" ? blockById(ctx.corpus, st.target)?.page.path : st.do === "click" || st.do === "type" ? controlById(ctx.corpus, st.target)?.page.path : undefined);
+      if (k > 0 && need2 && need2 !== page) {
+        const first = st.do === "scroll" ? blockById(ctx.corpus, st.target!)!.block : (ctx.corpus.pages.find((x) => x.path === need2)?.blocks[0] ?? null);
+        if (first) {
+          steps.push({ node: n, do: "open", path: need2, shows: trim90(first.text) });
+          page = need2;
+          visited.add(need2);
+        }
+      }
+      if (st.do === "open") {
+        const p = ctx.corpus.pages.find((x) => x.path === st.target);
+        if (!need(p, `${t}: page "${st.target}" is not on the real site`)) return;
+        need(showsHit!.page.path === p!.path, `${t}: what it shows must be on the page it opens`);
+        page = p!.path;
+        visited.add(p!.path);
+        steps.push({ node: n, do: "open", path: p!.path, shows });
+      } else if (st.do === "scroll") {
         const b2 = st.target ? blockById(ctx.corpus, st.target) : null;
         if (!need(b2 && b2.page.path === page, `${t}: scroll target must be a block of the current page`)) return;
         need(showsHit!.page.path === page, `${t}: what it shows must be on the current page`);
@@ -139,6 +174,7 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
     scenes.push({ heading: (rs.heading ?? "").trim().slice(0, 40), nodes: nodes as ExplainerScene["nodes"], tour: steps });
   });
   need(!!raw.hook && raw.hook.trim().length > 8, "a hook is missing");
+  problems.splice(0, problems.length, ...[...new Set(problems)]);
   need(!!raw.endLine && /gravy block dot com/i.test(raw.endLine), 'the closing line must end with "Gravy Block dot com"');
   need(!!raw.endCaption && /gravyblock\.com/i.test(raw.endCaption), 'the closing caption must contain "gravyblock.com"');
   need(!!raw.endHeadline && raw.endHeadline.trim().split(/\s+/).length <= 7, "the closing headline is missing or too long");
@@ -187,20 +223,22 @@ export function gateDef(def: ExplainerDef, ctx: PlanContext, others: CreativeFin
 
 export type Ask = (system: string, user: string, attempt: number) => Promise<string>;
 
-export const MAX_PLAN_ATTEMPTS = 4;
+export const MAX_PLAN_ATTEMPTS = 6;
 
 /** Plans, gates, and on any failure replans with the exact problems as feedback. Pure of side effects except the (injectable) model call. */
 export async function planTour(b: Brief, ctx: PlanContext, others: CreativeFingerprint[], ask: Ask, maxAttempts = MAX_PLAN_ATTEMPTS): Promise<Planned> {
   let feedback: string[] = [];
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     let raw: Raw | null = null;
+    let reply = "";
     try {
-      raw = parseJson<Raw>(await ask(SYSTEM, renderPrompt(b, ctx, feedback), attempt));
+      reply = await ask(SYSTEM, renderPrompt(b, ctx, feedback), attempt);
+      raw = parseJson<Raw>(reply);
     } catch (e) {
       return { ok: false, problems: [`the model step failed: ${e instanceof Error ? e.message : e}`], attempts: attempt };
     }
     if (!raw) {
-      feedback = ["the reply was not valid JSON in the requested shape"];
+      feedback = [`the reply was not valid JSON in the requested shape (${reply.length} characters, ends with: ${JSON.stringify(reply.slice(-60))})`];
       continue;
     }
     const built = buildDef(raw, b, ctx);
@@ -220,4 +258,4 @@ export async function planTour(b: Brief, ctx: PlanContext, others: CreativeFinge
 
 /** The production model call: cached and counted against the monthly cap by askJson. A higher temperature on a replan, so the second plan really is different. */
 export const aiAsk = (db: StudioDb, specId: string): Ask => async (system, user, attempt) =>
-  (await askJson(db, { specId, purpose: attempt === 1 ? "tour_plan" : `tour_replan_${attempt}`, system, user, maxTokens: 7000, temperature: Math.min(1, 0.7 + attempt * 0.08) })).text;
+  (await askJson(db, { specId, purpose: attempt === 1 ? "tour_plan" : `tour_replan_${attempt}`, system, user, maxTokens: 14000, temperature: Math.min(1, 0.7 + attempt * 0.08) })).text;

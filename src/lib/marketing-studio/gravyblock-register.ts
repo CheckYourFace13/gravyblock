@@ -15,11 +15,11 @@ import { siteCorpus, type Corpus } from "./video/concepts/corpus";
 import { conceptFromExplainer } from "./video/concepts/explainer";
 import { conceptKey, type StoredConcept } from "./video/concepts/registry";
 import { creativeHistory, fingerprintOfConcept, type CreativeFingerprint } from "./video/concepts/similarity";
-import { aiAsk, planTour, type Ask } from "./video/concepts/tour-planner";
+import { aiAsk, groundedCorpus, planTour, type Ask } from "./video/concepts/tour-planner";
 
 const ACTOR = "gravyblock-concept-planner";
 /** Bump when the planner or its gates change in a way that should replace plans made before. */
-export const PLANNER_VERSION = 1;
+export const PLANNER_VERSION = 2;
 const RETRY_AFTER_MS = 2 * 3_600_000;
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 
@@ -66,7 +66,7 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
     if (rec?.ok && rec.fp && !todo.includes(b)) accepted.push(rec.fp);
   }
   const base = await creativeHistory(db, product.id, "");
-  const ctxBase = { corpus, facts: verified, prohibited, brand: GRAVYBLOCK_BRAND, slug: "gravyblock", productName: "GravyBlock", origin: "https://gravyblock.com", ctaHost: "gravyblock.com" };
+  const ctxBase = { corpus: groundedCorpus(corpus, verified), facts: verified, prohibited, brand: GRAVYBLOCK_BRAND, slug: "gravyblock", productName: "GravyBlock", origin: "https://gravyblock.com", ctaHost: "gravyblock.com" };
   for (const b of todo) {
     const specId = `gravyblock:${b.key}`;
     const others = [...base.filter((h) => h.specId !== specId), ...accepted];
