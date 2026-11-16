@@ -5,6 +5,7 @@
  */
 import { and, eq, ne } from "drizzle-orm";
 import { audit } from "../audit";
+import { isGameKind } from "../config";
 import { ms, requireStudioDb, type StudioDb } from "../db";
 import { probeUrl } from "../remote-import";
 import { INTERNAL_SCOPE, type OwnerScope } from "../scope";
@@ -65,7 +66,7 @@ async function renderConceptWith(concept: ConceptLike, sizes: SizeKey[], scope: 
   try {
     for (const size of sizes) {
       const needsShot = family === "screenshot_showcase";
-      const useShot = shot && (needsShot || (family === "feature_highlight" && !payload.noShot && product.kind !== "mobile_game" && product.kind !== "web_game") || payload.useScreenshot);
+      const useShot = shot && (needsShot || (family === "feature_highlight" && !payload.noShot && !isGameKind(product.kind)) || payload.useScreenshot);
       const input: CreativeInput = {
         family,
         size,
@@ -81,7 +82,7 @@ async function renderConceptWith(concept: ConceptLike, sizes: SizeKey[], scope: 
         logo,
         screenshot: useShot ? shot : null,
         // Games with no screenshots get a deliberate teaser layout built around the real app icon instead of an empty text card.
-        hero: !useShot && Boolean(logo) && (product.kind === "mobile_game" || product.kind === "web_game") && family !== "educational_tip",
+        hero: !useShot && Boolean(logo) && isGameKind(product.kind) && family !== "educational_tip",
       };
       const built = buildCreative(input);
       const { png, measure } = await renderCreative(handle.browser, built, size);

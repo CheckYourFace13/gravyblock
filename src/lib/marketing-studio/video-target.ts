@@ -19,7 +19,7 @@ export type StoredTarget = { target: number; setBy: string; setAt: string };
 export type TargetProduct = { id: string; slug: string; kind?: string; ownerKind: string };
 
 /** A game is made by the game video engine, never the product-demo storyteller. */
-export const isGame = (p: { kind?: string }) => p.kind === "mobile_game" || p.kind === "game";
+export const isGame = (p: { kind?: string }) => p.kind === "mobile_game" || p.kind === "game" || p.kind === "web_game";
 
 /** The target a product has until someone sets one: five for the owner's own products and games, none (the plan's pace decides) for a customer. */
 export const defaultTarget = (p: Pick<TargetProduct, "ownerKind" | "slug">): number | null => (p.ownerKind !== "customer" && !TARGET_EXEMPT.has(p.slug) ? OWNED_TARGET : null);

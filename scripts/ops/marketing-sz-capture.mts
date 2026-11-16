@@ -2,7 +2,8 @@
 // picker, the home screen and a Daily Challenge, inside a disposable browser profile. GET only to iscreamstudio.com, nothing is saved or changed,
 // no code is touched, nothing is deployed. Frames come from a CDP screencast (about 50 fps while the game moves); a HUD text log is kept beside it.
 // Run on the VPS as the Studio user; output goes to STUDIO_GAME_CAPTURE_OUT. See docs/marketing-studio/ROLLOUT-AND-PAID-ROADMAP.md.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { launchBrowser } from "../../src/lib/marketing-studio/creative/render";
 const OUT = process.env.STUDIO_GAME_CAPTURE_OUT ?? "/tmp/szcap";
 const MAX_LEVELS = Number(process.env.STUDIO_GAME_CAPTURE_LEVELS ?? 10);
@@ -10,6 +11,9 @@ mkdirSync(OUT, { recursive: true });
 const h = await launchBrowser();
 const ctx = await h.browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 await ctx.route("**/*", (r) => { const u = new URL(r.request().url()); return u.hostname === "iscreamstudio.com" && r.request().method() === "GET" ? r.continue() : r.abort(); });
+// The game's own sound: every connection to the audio output is also sent to a recorder inside the page, so the real sound effects and music of the real game are captured with the footage.
+// Best effort: if the page's audio cannot be recorded, the capture goes on without it (the video then uses music and voice only).
+await ctx.addInitScript(`(function(){try{var orig=AudioNode.prototype.connect;var taps=new WeakMap();window.__audioStart=null;window.__stopAudio=null;AudioNode.prototype.connect=function(dest){try{if(dest&&dest instanceof AudioDestinationNode&&!window.__stopAudio){var ctx=this.context;var sd=ctx.createMediaStreamDestination();taps.set(ctx,sd);var chunks=[];var rec=new MediaRecorder(sd.stream);rec.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};window.__audioStart=Date.now()/1000;rec.start();window.__stopAudio=function(){return new Promise(function(res){rec.onstop=function(){var fr=new FileReader();fr.onload=function(){res(fr.result)};fr.readAsDataURL(new Blob(chunks,{type:"audio/webm"}))};rec.stop()})};orig.call(this,sd)}}catch(e){}return orig.apply(this,arguments)}}catch(e){}})()`);
 const p = await ctx.newPage();
 await p.goto("https://iscreamstudio.com/test/scribblezap/play/", { waitUntil: "networkidle", timeout: 60000 });
 await p.waitForTimeout(2000);
@@ -67,4 +71,25 @@ const dur = frames.length > 1 ? frames[frames.length - 1].t - frames[0].t : 0;
 console.log(`levels cleared ${played}; frames ${frames.length} over ${dur.toFixed(1)}s = ${(frames.length / dur).toFixed(1)} fps`);
 writeFileSync(`${OUT}/frames.json`, JSON.stringify(frames));
 writeFileSync(`${OUT}/log.json`, JSON.stringify(log));
+try {
+  const stopped = (await p.evaluate(`window.__stopAudio ? window.__stopAudio().then(function(d){return {data:d,start:window.__audioStart}}) : null`)) as { data: string; start: number } | null;
+  if (stopped && frames.length) {
+    writeFileSync(`${OUT}/audio.webm`, Buffer.from(stopped.data.split(",")[1] ?? "", "base64"));
+    // line the sound up with the first frame, then keep it only if something audible was really recorded
+    const delta = frames[0].t - stopped.start;
+    const align = delta >= 0 ? ["-ss", delta.toFixed(3)] : [];
+    const pad = delta < 0 ? ["-af", `adelay=${Math.round(-delta * 1000)}:all=1`] : [];
+    execFileSync("ffmpeg", ["-hide_banner", "-nostdin", "-y", "-loglevel", "error", ...align, "-i", `${OUT}/audio.webm`, ...pad, "-ar", "44100", "-ac", "2", `${OUT}/audio.wav`]);
+    const vd = spawnSync("ffmpeg", ["-hide_banner", "-nostdin", "-i", `${OUT}/audio.wav`, "-af", "volumedetect", "-f", "null", "-"], { encoding: "utf8" }).stderr ?? "";
+    const mean = Number(/mean_volume: (-?[d.]+) dB/.exec(vd)?.[1] ?? -91);
+    console.log(`game audio recorded: mean ${mean} dB`);
+    if (mean < -55) {
+      rmSync(`${OUT}/audio.wav`, { force: true });
+      console.log("the recording is silent: it is not kept");
+    }
+  }
+} catch (e) {
+  console.log("game audio not captured:", String(e).slice(0, 160));
+  rmSync(`${OUT}/audio.wav`, { force: true });
+}
 await h.close();

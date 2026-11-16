@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireStudioAccess } from "@/lib/marketing-studio/auth";
-import { LIMITS, PRODUCT_KINDS } from "@/lib/marketing-studio/config";
+import { isGameKind, LIMITS, PRODUCT_TYPES } from "@/lib/marketing-studio/config";
 import { getStudioDb } from "@/lib/marketing-studio/db";
 import { desc } from "drizzle-orm";
 import { ms } from "@/lib/marketing-studio/db";
@@ -192,11 +192,11 @@ export default async function MarketingStudioHome({ searchParams }: { searchPara
             <input name="name" required defaultValue={q.name ?? ""} className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm" />
           </label>
           <label className="text-sm">
-            Type
-            <select name="kind" defaultValue={q.kind ?? "website"} className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm">
-              {PRODUCT_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {k.replace("_", " ")}
+            What are we marketing?
+            <select name="kind" defaultValue={isGameKind(q.kind) ? "game" : (q.kind ?? "website")} className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm">
+              {PRODUCT_TYPES.map((t) => (
+                <option key={t.kind} value={t.kind}>
+                  {t.label}
                 </option>
               ))}
             </select>

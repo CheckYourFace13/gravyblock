@@ -4,12 +4,15 @@
  * opens on a menu, settings, a feature list, a static screen, instructions or long narration, and every frame of gameplay is REAL capture: nothing here fabricates gameplay.
  * This file holds the pure decisions: the formats, what a captured moment is worth, the fun-first QA and the distinctness rule between a game's videos.
  */
-export type GameFormat = "gameplay_hook" | "challenge" | "progression" | "reward_unlock" | "mechanic_spotlight" | "variety_montage" | "short_form";
+export type GameFormat = "gameplay_hook" | "how_you_play" | "challenge" | "progression" | "reward_unlock" | "mechanic_spotlight" | "character_collection" | "variety_montage" | "one_more_try" | "short_form";
 
 export type GameMomentKind = "input" | "stage_transition" | "win" | "loss" | "score" | "unlock" | "reward" | "animation" | "close_call" | "restart" | "menu" | "settings" | "instructions" | "static" | "idle";
 
 export type GameFormatSpec = { label: string; maxSeconds: number; vertical: boolean; firstActionMaxMs: number; needs: GameMomentKind[]; minLevels: number; minMechanics: number; promise: string };
 export const GAME_FORMATS: Record<GameFormat, GameFormatSpec> = {
+  how_you_play: { label: "How you play", maxSeconds: 25, vertical: true, firstActionMaxMs: 1000, needs: ["input", "animation"], minLevels: 1, minMechanics: 1, promise: "the whole idea, shown by playing it" },
+  character_collection: { label: "Character and collection", maxSeconds: 25, vertical: true, firstActionMaxMs: 1200, needs: ["input", "reward"], minLevels: 1, minMechanics: 1, promise: "the characters and what you collect" },
+  one_more_try: { label: "One more try", maxSeconds: 30, vertical: true, firstActionMaxMs: 1200, needs: ["input", "loss", "win"], minLevels: 1, minMechanics: 1, promise: "close calls, a slip, and the win that follows" },
   gameplay_hook: { label: "Gameplay hook", maxSeconds: 20, vertical: true, firstActionMaxMs: 800, needs: ["input", "reward"], minLevels: 1, minMechanics: 1, promise: "immediate, satisfying gameplay" },
   challenge: { label: "Challenge", maxSeconds: 25, vertical: true, firstActionMaxMs: 1200, needs: ["input", "close_call"], minLevels: 1, minMechanics: 1, promise: "can you beat this?" },
   progression: { label: "Progression", maxSeconds: 35, vertical: false, firstActionMaxMs: 1500, needs: ["input", "stage_transition", "score"], minLevels: 3, minMechanics: 1, promise: "easy, then harder, then surprising" },
@@ -19,7 +22,7 @@ export const GAME_FORMATS: Record<GameFormat, GameFormatSpec> = {
   short_form: { label: "Short-form", maxSeconds: 15, vertical: true, firstActionMaxMs: 500, needs: ["input"], minLevels: 1, minMechanics: 1, promise: "a very fast vertical clip for discovery" },
 };
 
-export type GameMoment = { startMs: number; endMs: number; kind: GameMomentKind; level: string; mechanic?: string; /** 0 to 1: how striking the moment is on screen */ intensity: number; source: "real_capture" | "synthetic" };
+export type GameMoment = { startMs: number; endMs: number; kind: GameMomentKind; level: string; mechanic?: string; /** a character or collectible on screen, when the capture knows it */ character?: string; /** 0 to 1: how striking the moment is on screen */ intensity: number; source: "real_capture" | "synthetic" };
 
 /** Moments that are never worth showing. */
 const DEAD: GameMomentKind[] = ["menu", "settings", "instructions", "static", "idle"];
@@ -46,6 +49,9 @@ export function pickHighlights(moments: GameMoment[], format: GameFormat): GameM
 export type AudioMode = "gameplay_audio_music_captions" | "short_energetic_narration" | "reaction_copy" | "challenge_text" | "minimal_voice";
 /** Narration is a choice, not a default: the standard product narrator is never forced onto a game clip. */
 export const GAME_AUDIO_MODES: Record<GameFormat, AudioMode[]> = {
+  how_you_play: ["short_energetic_narration", "gameplay_audio_music_captions"],
+  character_collection: ["reaction_copy", "gameplay_audio_music_captions"],
+  one_more_try: ["short_energetic_narration", "reaction_copy"],
   gameplay_hook: ["minimal_voice", "gameplay_audio_music_captions"],
   challenge: ["challenge_text", "gameplay_audio_music_captions", "short_energetic_narration"],
   progression: ["short_energetic_narration", "gameplay_audio_music_captions", "reaction_copy"],
@@ -63,6 +69,9 @@ export const narrationExpected = (m: AudioMode) => MIN_NARRATION_WORDS[m] > 0;
 export function gameNarrationLines(format: GameFormat, mode: AudioMode, name: string): string[] {
   if (!narrationExpected(mode)) return [];
   const body: Record<GameFormat, string> = {
+    how_you_play: "Here is the whole idea, one move at a time.",
+    character_collection: "Meet the stars of the show.",
+    one_more_try: "So close. Okay, one more try.",
     gameplay_hook: "Quick taps. Big payoff.",
     challenge: "Think you can beat this?",
     progression: "Level by level, it gets trickier. Can you keep up?",
@@ -83,6 +92,10 @@ export type GameClip = {
   audio: AudioMode;
   narrationWords: number;
   vertical: boolean;
+  /** the real footage this clip is cut from (session, level, session milliseconds): what later videos must not repeat */
+  footage?: Array<{ sessionId: string; level: string; fromMs: number; toMs: number }>;
+  /** the lines spoken in this clip, with the slot each filled and the profile values it used: the game's creative history */
+  script?: Array<{ text: string; slot: string; uses: string[] }>;
   /** the spoken lines as they sit in the finished file (set after the render), so the voice can be proved audible */
   voiceLines?: Array<{ text: string; startMs: number; endMs: number }>;
 };
@@ -135,7 +148,7 @@ export function gameRepeats(clips: GameClip[], limit = 0.6): Array<{ a: number; 
 }
 
 /** The game video types a library should cover, in the order they are made. */
-export const GAME_LIBRARY_ORDER: GameFormat[] = ["gameplay_hook", "challenge", "mechanic_spotlight", "progression", "reward_unlock", "variety_montage", "short_form"];
+export const GAME_LIBRARY_ORDER: GameFormat[] = ["gameplay_hook", "challenge", "mechanic_spotlight", "progression", "reward_unlock", "variety_montage", "short_form", "how_you_play", "one_more_try", "character_collection"];
 
 /** The game engine never uses the product-storytelling stage or narrator template. */
 export const isGameProduct = (p: { kind?: string }) => p.kind === "game";

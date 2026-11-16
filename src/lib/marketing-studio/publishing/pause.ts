@@ -8,9 +8,10 @@ import { listFacts } from "../repository";
 import { getSetting } from "../runtime";
 import { INTERNAL_SCOPE } from "../scope";
 import { storeDestination } from "../video/demo/language-qa";
+import { isMobileGame } from "../video/game/profile";
 
 export async function gameAcquisitionPaused(db: StudioDb, product: { id: string; kind: string }): Promise<boolean> {
-  if (product.kind !== "mobile_game") return false;
+  if (product.kind !== "mobile_game" && !(product.kind === "game" && (await isMobileGame(db, product.id)))) return false;
   if (!(await getSetting<boolean>(GAME_ACQUISITION_PAUSE.setting, false, db))) return false;
   const facts = (await listFacts(INTERNAL_SCOPE, product.id, db)).filter((f) => f.status === "current").map((f) => ({ value: f.factValue, verified: Boolean(f.verifiedAt) }));
   return !storeDestination(facts);

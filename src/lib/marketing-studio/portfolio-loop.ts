@@ -13,7 +13,7 @@ import { registerGravyblockExplainers } from "./gravyblock-register";
 import { ensureOwnedSlots, TARGET_EXEMPT } from "./portfolio-target";
 import { autoApprovePending } from "./publishing/auto-approve";
 import { getMaxPending, getTarget, isGame, pendingCount, targetStats } from "./video-target";
-import { gameTick } from "./video/game/production";
+import { classifyOwnedGames, gameTick } from "./video/game/production";
 import { PLAN_PRODUCTS } from "./library-plan";
 import { getAngles, updateAngle } from "./library-store";
 import { listFacts, listProducts } from "./repository";
@@ -145,6 +145,7 @@ async function generationOrder(db: StudioDb) {
 export async function portfolioTick(db: StudioDb, log: (m: string) => void = () => {}, opts: { generate?: boolean; only?: string; force?: boolean } = {}): Promise<TickReport> {
   const report: TickReport = [];
   // owned videos waiting after a failed or interrupted auto-approval are considered again (only where the owner switched auto-approve on)
+  await classifyOwnedGames(db, log).catch((e) => log(`game classification: ${e instanceof Error ? e.message : e}`));
   await autoApprovePending(db, log).catch((e) => log(`auto-approve sweep: ${e instanceof Error ? e.message : e}`));
   const products = (await listProducts(INTERNAL_SCOPE, db)) as unknown as Product[];
   let generated = 0;

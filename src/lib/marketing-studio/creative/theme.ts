@@ -87,7 +87,7 @@ const PRESETS: Record<LayoutStyle, Omit<Theme, "accent" | "accentFg" | "accentTe
 
 export function layoutFor(kind: ProductKind): LayoutStyle {
   if (kind === "website") return "editorial";
-  if (kind === "web_game" || kind === "mobile_game") return "playful";
+  if (kind === "web_game" || kind === "mobile_game" || kind === "game") return "playful";
   return "clean";
 }
 

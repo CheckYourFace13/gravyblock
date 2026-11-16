@@ -123,7 +123,7 @@ export async function VideoMarketingCard({ product }: { product: { id: string; o
           <button className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm">Send confirmation</button>
         </div>
       </form>
-      <form action={changeVoiceAction} className="mt-5 border-t border-zinc-100 pt-4">
+      {isGame(tp) ? null : <form action={changeVoiceAction} className="mt-5 border-t border-zinc-100 pt-4">
         <p className="text-sm font-medium text-zinc-900">Brand voice</p>
         <p className="mt-1 text-xs text-zinc-600">One narrator for every video. Free, offline voices only. Tone changes the pace. Currently {voice.voice}, {voice.tone}, {voice.variation === "none" ? "never varied" : voice.variation === "pacing" ? "same narrator, pace varied slightly" : "approved alternate narrators allowed"}.</p>
         <input type="hidden" name="productId" value={product.id} />
@@ -143,7 +143,7 @@ export async function VideoMarketingCard({ product }: { product: { id: string; o
           <button className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm">Save voice</button>
         </div>
         <textarea name="pronunciations" defaultValue={Object.entries(voice.pronunciations ?? {}).map(([k, v]) => `${k}=${v}`).join(String.fromCharCode(10))} placeholder={"Pronunciations, one per line: Knird=nerd"} className="mt-2 w-full max-w-md rounded-md border border-zinc-300 px-3 py-1.5 text-xs" rows={2} />
-      </form>
+      </form>}
       <form action={declareKidsAction} className="mt-5 border-t border-zinc-100 pt-4">
         <p className="text-sm font-medium text-zinc-900">YouTube: are this product&apos;s videos &ldquo;made for kids&rdquo;?</p>
         <p className="mt-1 text-xs text-zinc-600">

@@ -3,7 +3,11 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireStudioAccess } from "@/lib/marketing-studio/auth";
-import { UPLOAD_KINDS, FACT_SOURCES, PRODUCT_KINDS, type UploadKind, type ProductKind } from "@/lib/marketing-studio/config";
+import { UPLOAD_KINDS, FACT_SOURCES, PRODUCT_KINDS, PRODUCT_TYPES, type UploadKind, type ProductKind } from "@/lib/marketing-studio/config";
+import { saveGameProfile } from "@/lib/marketing-studio/video/game/profile";
+import { audit } from "@/lib/marketing-studio/audit";
+import { ms } from "@/lib/marketing-studio/db";
+import { eq } from "drizzle-orm";
 import {
   addClaim,
   addFact,
@@ -117,6 +121,43 @@ export async function setAutoApproveAction(fd: FormData) {
   await guarded(`${base}/products/${id}`, async () => {
     const product = await requireProduct(scope, id);
     await setAutoApprove(requireStudioDb(), actor, { id, ownerKind: product.ownerKind }, s(fd, "on") === "on");
+  });
+}
+
+/** "What are we marketing?": stored permanently on the product. The owner's own choice, also for a customer's product (it is never guessed for them). */
+export async function setProductTypeAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    const product = await requireProduct(scope, id);
+    const kind = s(fd, "kind");
+    if (!PRODUCT_TYPES.some((t) => t.kind === kind)) throw new Error("Choose what you are marketing");
+    const db = requireStudioDb();
+    await db.update(ms.msProducts).set({ kind }).where(eq(ms.msProducts.id, product.id));
+    await audit(db, { actor, action: "product.type_set", entity: "product", entityId: product.id, productId: product.id, detail: { from: product.kind, to: kind } });
+  });
+}
+
+/** Game setup and the game voice, energy, formats and audio choices. Each form sends only its own section. */
+export async function saveGameProfileAction(fd: FormData) {
+  const { scope, actor } = await requireStudioAccess();
+  const id = s(fd, "productId");
+  await guarded(`${base}/products/${id}`, async () => {
+    await requireProduct(scope, id);
+    const section = s(fd, "section");
+    const patch: Record<string, unknown> = {};
+    if (section === "voice") {
+      patch.voice = s(fd, "voice") || "auto";
+      patch.energy = s(fd, "energy");
+      patch.keepGameAudio = fd.get("keepGameAudio") === "on";
+      patch.narrationDefault = fd.get("narrationDefault") === "on";
+    } else if (section === "formats") patch.preferredFormats = fd.getAll("format").map(String);
+    else {
+      for (const k of ["testerUrl", "orientation", "controls", "genre", "objective", "funFactor", "progression", "levelsModes", "visualStyle", "audience", "ctaDestination", "storeListings", "mechanics", "characters"]) patch[k] = s(fd, k);
+      patch.platforms = fd.getAll("platform").map(String);
+      patch.preferredSeconds = s(fd, "preferredSeconds") ? Number(s(fd, "preferredSeconds")) : null;
+    }
+    await saveGameProfile(requireStudioDb(), actor, id, patch as never);
   });
 }
 

@@ -8,6 +8,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { allowanceFor } from "../../entitlements";
+import { audit } from "../../audit";
 import { STUDIO_DIRS } from "../../config";
 import { ms, type StudioDb } from "../../db";
 import { angleKey, type AngleEntry } from "../../library";
@@ -22,24 +23,19 @@ import { INTERNAL_SCOPE } from "../../scope";
 import { activeProductionJobs, getMaxPending, pendingCount, targetStats } from "../../video-target";
 import { storeVideoFile } from "../store";
 import { storeDestination } from "../demo/language-qa";
-import { GAME_AUDIO_MODES, GAME_FORMATS, GAME_LIBRARY_ORDER, gameRepeats, narrationExpected, type GameClip, type GameFormat } from "./engine";
+import { GAME_AUDIO_MODES, GAME_FORMATS, GAME_LIBRARY_ORDER, narrationExpected, type GameClip, type GameFormat } from "./engine";
+import { captureReady, GAME_CAPTURES, sessionDirFor } from "./capture-sources";
+import { archiveCurrent, loadSessions, readinessOf, supportedFormats, type Readiness } from "./library";
+import { getGameProfile, KNOWN_OWNED_GAMES, profileGaps, saveGameProfile, seedFor } from "./profile";
+import { makeGameClip, type GameClipResult } from "./clip";
+import { usageOf } from "./library";
 import { getReview } from "../../publishing/video-review";
-import { makeGameClip } from "./clip";
 
 const ACTOR = "game-video-engine";
 const SESSION_MAX_AGE_MS = 3 * 24 * 3_600_000;
 const NL = String.fromCharCode(10);
 
-/**
- * Games with an automatic real-gameplay capture. A game without one makes nothing (gameplay is never faked).
- * "script": a scripted browser plays the game's web build. "runner": the game runs in a disposable container started by the root-owned capture runner (the worker only leaves a request).
- */
-export const GAME_CAPTURES: Record<string, { kind: "script"; script: string; env: string } | { kind: "runner"; levels: number }> = {
-  scribblezap: { kind: "script", script: "scripts/ops/marketing-sz-capture.mts", env: "STUDIO_GAME_CAPTURE_OUT" },
-  mibblemeadow: { kind: "runner", levels: 8 },
-};
-export const captureReady = (slug: string) => slug in GAME_CAPTURES;
-export const sessionDirFor = (slug: string) => path.join(STUDIO_DIRS.root, "captures", slug, "session");
+export { GAME_CAPTURES, captureReady, sessionDirFor };
 
 export const gameSpecId = (slug: string, format: GameFormat) => `${slug}:game-${format}`;
 export const formatOfSpec = (specId: string): GameFormat | null => {
@@ -80,16 +76,63 @@ export function gameAngleEntries(p: Pick<GameProduct, "slug" | "name">, home: st
 /** Makes sure every game format exists as an angle. Existing angles are never touched. */
 export async function ensureGameAngles(db: StudioDb, p: GameProduct): Promise<number> {
   const home = p.publicUrl ?? "";
+  const profile = await getGameProfile(db, p.id);
+  const sessions = await loadSessions(p.slug).catch(() => []);
+  // a format is only offered when the actual game supports it: with no captured gameplay yet, the first formats are offered and the rest follow once the footage proves them
+  const offer = sessions.length ? supportedFormats(sessions, profile.characters.length > 0, GAME_LIBRARY_ORDER).supported : GAME_LIBRARY_ORDER.slice(0, 7);
+  const wanted = profile.preferredFormats.length ? offer.filter((f) => profile.preferredFormats.includes(f)) : offer;
   const facts = (await listFacts(INTERNAL_SCOPE, p.id, db)).filter((f) => f.status === "current" && f.verifiedAt);
   const store = Boolean(storeDestination(facts.map((f) => ({ value: f.factValue, verified: true }))));
   const existing = await getAngles(db, p.slug);
-  const add = gameAngleEntries(p, home, store).filter((a) => !existing.some((e) => e.specId === a.specId));
+  const add = gameAngleEntries(p, home, store).filter((a) => !existing.some((e) => e.specId === a.specId) && wanted.includes(formatOfSpec(a.specId as string) as GameFormat));
   if (add.length) await setSetting(angleKey(p.slug), [...existing, ...add], ACTOR, db, { audited: false });
   return add.length;
 }
 
+/** What the owner sees about a game's gameplay: written by the worker (which can read the footage), read by the admin page from the database. */
+export type GameReadiness = Readiness & { supported: GameFormat[]; unsupported: Array<{ format: GameFormat; reason: string }>; storeVerified: boolean; at: string };
+export const readinessKey = (slug: string) => `game_readiness_${slug}`;
+export async function refreshReadiness(db: StudioDb, p: GameProduct): Promise<GameReadiness> {
+  const profile = await getGameProfile(db, p.id);
+  const sessions = await loadSessions(p.slug).catch(() => []);
+  const base = await readinessOf(p.slug, captureReady(p.slug) ? GAME_CAPTURES[p.slug].kind : "none");
+  const sup = supportedFormats(sessions, profile.characters.length > 0, GAME_LIBRARY_ORDER);
+  const facts = (await listFacts(INTERNAL_SCOPE, p.id, db)).filter((f) => f.status === "current" && f.verifiedAt);
+  const out: GameReadiness = { ...base, supported: sup.supported, unsupported: sup.unsupported, storeVerified: Boolean(storeDestination(facts.map((f) => ({ value: f.factValue, verified: true })))), at: new Date().toISOString() };
+  await setSetting(readinessKey(p.slug), out, ACTOR, db, { audited: false });
+  return out;
+}
+
+/** How many times one video is planned, cut and checked again (new footage, new words, a fixed render, a fresh capture) before the format is set aside for a day. */
+const MAX_PLAN_ATTEMPTS = 5;
+
+/** More levels than any delivered video has used, so a fresh capture can reach footage no earlier video touched. */
+const captureLevelsFor = (prior: GameClip[]) => Math.min(20, Math.max(10, usageOf(prior).usedLevels.size + 6));
+
+/** The owner's known games become Product Type = Game by themselves (their own products only; an outside customer's product is never classified for them). */
+export async function classifyOwnedGames(db: StudioDb, log: (m: string) => void = () => {}): Promise<string[]> {
+  const done: string[] = [];
+  for (const p of await listProducts(INTERNAL_SCOPE, db)) {
+    if (p.ownerKind === "customer" || !(p.slug in KNOWN_OWNED_GAMES) || p.kind === "game") continue;
+    await db.update(ms.msProducts).set({ kind: "game" }).where(eq(ms.msProducts.id, p.id));
+    await audit(db, { actor: ACTOR, action: "product.type_classified", entity: "product", entityId: p.id, productId: p.id, detail: { from: p.kind, to: "game" } });
+    log(`classified ${p.slug} as a Game (was ${p.kind})`);
+    done.push(p.slug);
+  }
+  return done;
+}
+
+/** An owner's known game is classified as a Game and given its profile (only fields the owner has not set), once, by itself. Never done for an outside customer's product. */
+export async function seedKnownGame(db: StudioDb, p: GameProduct): Promise<void> {
+  if (p.ownerKind === "customer") return;
+  if (p.kind !== "game" && !(p.slug in KNOWN_OWNED_GAMES)) return;
+  const cur = await getGameProfile(db, p.id);
+  const patch = seedFor(p.slug, cur);
+  if (Object.keys(patch).length) await saveGameProfile(db, "game-product-type", p.id, patch);
+}
+
 /** Bumped when the way clips are cut changes, so formats blocked by an older version get a fresh try on their own. */
-export const GAME_ENGINE_VERSION = 2;
+export const GAME_ENGINE_VERSION = 3;
 const blockKey = (specId: string) => `video_game_block_${specId.replace(/[^a-z0-9]+/gi, "_")}`;
 
 /** A blocked format is tried again after a day (a fresh capture may now support it), so the target is never stuck on one weak session. */
@@ -132,7 +175,9 @@ export async function reissueVoicelessGameClips(db: StudioDb, p: GameProduct, lo
 
 /** One pass of the loop for a game: queue the next distinct format when the target wants more and nothing is in the way. Returns what it did, in words. */
 export async function gameTick(db: StudioDb, p: GameProduct, ctx: { force: boolean; review: Array<{ status: string }>; activeJobs: number }, log: (m: string) => void = () => {}): Promise<string> {
+  await seedKnownGame(db, p);
   await ensureGameAngles(db, p);
+  await refreshReadiness(db, p).catch(() => undefined);
   await reopenBlocked(db, p);
   if (!(await activeProductionJobs(db, p.id))) {
     const remade = await reissueVoicelessGameClips(db, p, log);
@@ -144,6 +189,8 @@ export async function gameTick(db: StudioDb, p: GameProduct, ctx: { force: boole
   if (!ctx.force && pendingCount(ctx.review) >= max) return `${pendingCount(ctx.review)} of ${max} allowed game videos are waiting for your review; more are made as you decide`;
   if ((await activeProductionJobs(db, p.id)) > 0) return "a game video is already being made";
   if (!captureReady(p.slug)) return `NEEDS CAPTURE: ${p.name} has no automatic real-gameplay capture yet; nothing is made without real gameplay`;
+  const gaps = profileGaps(await getGameProfile(db, p.id));
+  if (gaps.length) return `NEEDS GAME SETUP: ${p.name} still needs ${gaps.join(", ")} before its videos can be planned; nothing is invented for a game`;
   if (p.ownerKind === "customer") {
     const allow = await allowanceFor(db, p);
     if (!allow.eligible) return `plan allowance: ${allow.reason}; next new video eligible ${allow.nextEligibleAt ?? "now"}`;
@@ -159,11 +206,11 @@ export async function gameTick(db: StudioDb, p: GameProduct, ctx: { force: boole
 }
 
 /** Runs the product's own scripted capture (real taps and swipes on the real game) as a child process. */
-async function runCapture(slug: string, outDir: string, log: (m: string) => void, timeoutMs = 20 * 60_000): Promise<string> {
+async function runCapture(slug: string, outDir: string, log: (m: string) => void, levels: number, timeoutMs = 30 * 60_000): Promise<string> {
   const a = GAME_CAPTURES[slug];
-  if (a.kind === "runner") return runRunnerCapture(slug, a.levels, outDir, log);
+  if (a.kind === "runner") return runRunnerCapture(slug, Math.max(a.levels, Math.min(levels, 14)), outDir, log);
   return new Promise((resolve) => {
-    const child = spawn("npx", ["tsx", (a as { script: string }).script], { cwd: process.cwd(), env: { ...process.env, [(a as { env: string }).env]: outDir } });
+    const child = spawn("npx", ["tsx", (a as { script: string }).script], { cwd: process.cwd(), env: { ...process.env, [(a as { env: string }).env]: outDir, STUDIO_GAME_CAPTURE_LEVELS: String(levels) } });
     let out = "";
     const timer = setTimeout(() => child.kill("SIGTERM"), timeoutMs);
     child.stdout.on("data", (d) => (out += String(d)));
@@ -203,7 +250,7 @@ async function runRunnerCapture(slug: string, levels: number, outDir: string, lo
 }
 
 /** The gameplay session to cut from: the stored one while it is recent, else a fresh real capture. */
-export async function ensureSession(slug: string, log: (m: string) => void, o: { fresh?: boolean } = {}): Promise<string> {
+export async function ensureSession(slug: string, log: (m: string) => void, o: { fresh?: boolean; levels?: number } = {}): Promise<string> {
   const dir = sessionDirFor(slug);
   const stat = await fs.stat(path.join(dir, "frames.json")).catch(() => null);
   if (stat && !o.fresh && Date.now() - stat.mtimeMs < SESSION_MAX_AGE_MS) {
@@ -215,10 +262,11 @@ export async function ensureSession(slug: string, log: (m: string) => void, o: {
   await fs.rm(tmp, { recursive: true, force: true });
   await fs.mkdir(tmp, { recursive: true });
   log(`capturing real gameplay of ${slug}`);
-  const out = await runCapture(slug, tmp, log);
+  const out = await runCapture(slug, tmp, log, o.levels ?? 10);
   const frames = await fs.readFile(path.join(tmp, "frames.json"), "utf8").then((t) => (JSON.parse(t) as unknown[]).length).catch(() => 0);
   if (frames < 60) throw new Error(`capture produced no usable gameplay (${frames} frames): ${out.slice(-300)}`);
-  await fs.rm(dir, { recursive: true, force: true });
+  // the session being replaced stays in the game's library (one older session is kept); the library is what the next videos choose their footage from
+  await archiveCurrent(slug);
   await fs.rename(tmp, dir);
   log(`captured ${frames} real frames`);
   return dir;
@@ -258,26 +306,52 @@ export async function runGameVideo(db: StudioDb, input: { specId: string; attemp
     throw e instanceof Error ? e : new Error(String(e));
   };
   try {
-    const sessionDir = await ensureSession(slug, log, { fresh: Boolean(input.replacing) });
+    await seedKnownGame(db, product);
+    const profile = await getGameProfile(db, product.id);
+    const gaps = profileGaps(profile);
+    if (gaps.length) throw new Error(`NEEDS GAME SETUP: ${product.name} still needs ${gaps.join(", ")}`);
     const prior = await priorClips(db, product, input.replacing?.videoRowId);
-    const used = new Set(prior.flatMap((c) => c.moments.filter((m) => m.source === "real_capture").map((m) => m.level)));
-    const made = await makeGameClip(db, product, format, { sessionDir, usedLevels: used, log });
+    const factsNow = (await listFacts(INTERNAL_SCOPE, product.id, db)).filter((f) => f.status === "current" && f.verifiedAt);
+    const storeLive = Boolean(storeDestination(factsNow.map((f) => ({ value: f.factValue, verified: true }))));
+    // the Game pipeline replans, re-edits and re-captures by itself: a clip that fails the game QA is never sent to the owner to fix
+    let sessionDir = await ensureSession(slug, log, { fresh: Boolean(input.replacing), levels: captureLevelsFor(prior) });
+    let recaptured = Boolean(input.replacing);
+    const skip = new Set<string>();
+    let variant = 0;
+    let energyBoost = 0;
+    let made: GameClipResult = { ok: false, reason: "not started", checks: [], failure: null };
+    const tried: string[] = [];
+    for (let attempt = 1; attempt <= MAX_PLAN_ATTEMPTS; attempt++) {
+      made = await makeGameClip(db, product, format, { sessionDir, prior, profile, storeLive, variant, skip, energyBoost, log });
+      if (made.ok || made.failure === "setup") break;
+      tried.push(`#${attempt} ${made.failure ?? "?"}: ${made.reason.slice(0, 160)}`);
+      log(`${input.specId}: attempt ${attempt} did not pass (${made.failure}); ${made.failure === "footage" ? "choosing other footage" : made.failure === "script" ? "writing new words" : "rendering again with a fix"}`);
+      if (made.failure === "footage") {
+        for (const l of made.levels ?? []) skip.add(l);
+        // not enough distinct material left: capture fresh gameplay (deeper levels), once
+        if ((made.needsMore || skip.size >= 3 || attempt >= 3) && !recaptured && captureReady(slug)) {
+          log(`${slug}: the library has no more distinct material for ${format}; capturing fresh gameplay`);
+          sessionDir = await ensureSession(slug, log, { fresh: true, levels: captureLevelsFor(prior) });
+          recaptured = true;
+          skip.clear();
+        } else if (made.needsMore) break;
+        else variant++;
+      } else if (made.failure === "script") variant++;
+      else {
+        // a render problem: a flat voice gets more pace, anything else renders again with another take of the words
+        if (/voice_energy/.test(made.reason)) energyBoost += 0.05;
+        variant++;
+      }
+    }
     if (!made.ok) {
-      if (input.replacing) throw new Error(`the corrected clip did not pass the game QA: ${made.reason}`);
+      const reason = made.reason + (tried.length > 1 ? ` | earlier attempts: ${tried.slice(0, -1).join(" | ")}` : "");
+      if (input.replacing) throw new Error(`the corrected clip did not pass the game QA: ${reason}`);
       await setSetting(blockKey(input.specId), { at: new Date().toISOString(), reason: made.reason, v: GAME_ENGINE_VERSION }, ACTOR, db, { audited: false });
       await updateAngle(db, ACTOR, slug, (x) => x.id === angle.id, { status: "blocked" });
-      log(`${input.specId}: blocked (${made.reason.slice(0, 200)})`);
-      return { status: "blocked", detail: made.reason };
+      log(`${input.specId}: blocked (${reason.slice(0, 300)})`);
+      return { status: "blocked", detail: reason };
     }
     if (!made.logo.ok) throw new Error("the logo failed the integrity check; the clip was not sent");
-    // distinct from every earlier clip of this game: a different format and not mostly the same levels and mechanics
-    const repeats = gameRepeats([...prior, made.clip]).filter((r) => r.b === prior.length || r.a === prior.length);
-    if (repeats.length && input.replacing) throw new Error(`the corrected clip repeats earlier footage (overlap ${repeats.map((r) => r.overlap).join(", ")})`);
-    if (repeats.length) {
-      await setSetting(blockKey(input.specId), { at: new Date().toISOString(), reason: "too similar to an earlier clip", v: GAME_ENGINE_VERSION }, ACTOR, db, { audited: false });
-      await updateAngle(db, ACTOR, slug, (x) => x.id === angle.id, { status: "blocked" });
-      return { status: "blocked", detail: `too similar to an earlier clip (overlap ${repeats.map((r) => r.overlap).join(", ")})` };
-    }
     const facts = (await listFacts(INTERNAL_SCOPE, product.id, db)).filter((f) => f.status === "current" && f.verifiedAt);
     if (!facts.length || !product.publicUrl) throw new Error(`NEEDS PRODUCT TRUTH: ${product.name} needs verified facts and a destination before a video can be sent`);
     const store = storeDestination(facts.map((f) => ({ value: f.factValue, verified: true })));

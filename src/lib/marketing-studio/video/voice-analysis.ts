@@ -37,6 +37,39 @@ export function medianPitch(samples: Float32Array, rate: number): number | null 
   return Math.round(found[Math.floor(found.length / 2)]);
 }
 
+/** How much the pitch moves while speaking: the spread (standard deviation, in semitones) of the voiced frames' pitch. A flat, monotone reading is low; an expressive one is high. */
+export function pitchSpread(samples: Float32Array, rate: number): number | null {
+  const frame = Math.round(rate * 0.04);
+  const hop = Math.round(rate * 0.02);
+  const minLag = Math.floor(rate / 400);
+  const maxLag = Math.ceil(rate / 70);
+  const found: number[] = [];
+  for (let s = 0; s + frame + maxLag < samples.length; s += hop) {
+    let e0 = 0;
+    for (let i = 0; i < frame; i++) e0 += samples[s + i] * samples[s + i];
+    if (Math.sqrt(e0 / frame) < 0.02) continue;
+    let best = 0;
+    let bestLag = 0;
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let c = 0;
+      let e1 = 0;
+      for (let i = 0; i < frame; i++) {
+        c += samples[s + i] * samples[s + i + lag];
+        e1 += samples[s + i + lag] * samples[s + i + lag];
+      }
+      const r = c / Math.sqrt(e0 * e1 || 1);
+      if (r > best) {
+        best = r;
+        bestLag = lag;
+      }
+    }
+    if (best > 0.6 && bestLag) found.push(12 * Math.log2(rate / bestLag / 100));
+  }
+  if (found.length < 8) return null;
+  const mean = found.reduce((a, b) => a + b, 0) / found.length;
+  return +Math.sqrt(found.reduce((a, b) => a + (b - mean) * (b - mean), 0) / found.length).toFixed(2);
+}
+
 /** Seconds of audible speech: the 20 ms windows above a small level, so pauses do not count. */
 export function speechSeconds(samples: Float32Array, rate: number): number {
   const win = Math.round(rate * 0.02);

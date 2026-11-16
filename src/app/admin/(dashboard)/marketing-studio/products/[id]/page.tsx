@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireStudioAccess } from "@/lib/marketing-studio/auth";
-import { UPLOAD_KINDS, FACT_SOURCES } from "@/lib/marketing-studio/config";
+import { UPLOAD_KINDS, FACT_SOURCES, isGameKind, PRODUCT_TYPES } from "@/lib/marketing-studio/config";
 import { StudioAccessError } from "@/lib/marketing-studio/scope";
 import { CreativeSections } from "./creative-sections";
 import { VideoMarketingCard } from "./video-marketing-card";
+import { GameMarketingCard } from "./game-marketing-card";
+import { setProductTypeAction } from "../../actions";
 import { PublishingSections } from "./publishing-sections";
 import { getBrandProfile, listAssets, listCampaigns, listClaims, listFacts, requireProduct, truthReadiness } from "@/lib/marketing-studio/repository";
 import {
@@ -59,7 +61,7 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
         </Link>
         <h1 className="mt-1 text-2xl font-semibold text-zinc-900">{product.name}</h1>
         <p className="text-sm text-zinc-600">
-          {product.kind.replace("_", " ")} · {product.ownerKind} · {product.status}
+          {PRODUCT_TYPES.find((t) => t.kind === product.kind)?.label ?? (isGameKind(product.kind) ? "Game" : product.kind.replace("_", " "))} · {product.ownerKind} · {product.status}
           {product.publicUrl ? (
             <>
               {" "}
@@ -80,6 +82,19 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
           ))}
         </form>
       </div>
+      {isGameKind(product.kind) ? (
+        <GameMarketingCard product={product} />
+      ) : (
+        <form action={setProductTypeAction} className="flex flex-wrap items-center gap-2 text-sm">
+          <input type="hidden" name="productId" value={product.id} />
+          <label className="text-zinc-700" htmlFor="ptype">What are we marketing?</label>
+          <select id="ptype" name="kind" defaultValue={product.kind} className="rounded-md border border-zinc-300 px-2 py-1.5">
+            {PRODUCT_TYPES.map((t) => <option key={t.kind} value={t.kind}>{t.label}</option>)}
+          </select>
+          <button className="rounded-md border border-zinc-300 px-3 py-1.5 font-semibold text-zinc-800">Save</button>
+          <span className="text-xs text-zinc-500">Choose Game to get the game controls (gameplay, voice and energy).</span>
+        </form>
+      )}
       <VideoMarketingCard product={product} />
       {q.e ? <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{q.e}</p> : null}
       {q.connect ? <p className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-900">{q.connect}</p> : null}

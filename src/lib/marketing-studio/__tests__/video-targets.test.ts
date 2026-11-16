@@ -208,7 +208,8 @@ describe("game production and targets (database)", { skip: !HAVE_DB }, () => {
 
   test("a game gets one planned angle per format, and the tick queues them one at a time until the target is met", async () => {
     const g = await product(gameId);
-    assert.equal(await ensureGameAngles(db(), g), GAME_LIBRARY_ORDER.length);
+    assert.equal(await ensureGameAngles(db(), g), 7, "with no captured gameplay yet the first seven formats are offered; the rest follow once the footage proves them");
+    assert.ok(GAME_LIBRARY_ORDER.length > 7);
     assert.equal(await ensureGameAngles(db(), g), 0, "nothing is added twice");
     const first = await gameTick(db(), g, { force: false, review: [], activeJobs: 0 });
     assert.match(first, /queued the next game video \(gameplay_hook\)/);

@@ -44,7 +44,17 @@ export const LIMITS = {
 
 export const SELF_DEPLOY_LOCK = "/tmp/gravyblock-self-deploy.lock";
 
-export const PRODUCT_KINDS = ["website", "saas", "mobile_app", "web_game", "mobile_game"] as const;
+/** Every kind a product may have. "web_game" and "mobile_game" are the older game kinds, still valid on existing products; new products use "game" (the platforms are part of the game's profile). */
+export const PRODUCT_KINDS = ["website", "saas", "mobile_app", "game", "other", "web_game", "mobile_game"] as const;
+/** "What are we marketing?": the five choices offered during setup. */
+export const PRODUCT_TYPES = [
+  { kind: "website", label: "Website / Business" },
+  { kind: "saas", label: "Software / SaaS" },
+  { kind: "game", label: "Game" },
+  { kind: "mobile_app", label: "Mobile App" },
+  { kind: "other", label: "Other" },
+] as const;
+export const isGameKind = (kind: string | null | undefined) => kind === "game" || kind === "mobile_game" || kind === "web_game";
 export const OWNER_KINDS = ["internal", "house", "customer"] as const;
 /** Kinds an operator may upload or import. */
 export const UPLOAD_KINDS = ["logo", "screenshot", "icon", "gameplay_capture", "app_capture", "font", "audio", "other"] as const;
