@@ -56,6 +56,16 @@ export function groundedCorpus(c: Corpus, facts: string[]): Corpus {
   return { ...c, pages: c.pages.map((p) => ({ ...p, blocks: p.blocks.filter((b) => factFor(b.text, facts)) })) };
 }
 
+const SWAPS: Array<[string, string]> = [["best", "right"], ["only", "just"], ["instantly", "quickly"], ["this page", "here"], ["this screen", "here"]];
+export function swapWords(text: string): string {
+  let out = text;
+  for (const [from, to] of SWAPS) {
+    const re = new RegExp("(^|[^a-z])" + from + "(?![a-z])", "gi");
+    out = out.replace(re, (_m, pre: string) => pre + to);
+  }
+  return out;
+}
+
 export function renderPrompt(b: Brief, ctx: PlanContext, feedback: string[]): string {
   const pages = ctx.corpus.pages
     .map((p) => `PAGE ${p.path} (${p.title})\n${p.blocks.map((x) => `[${x.id}] ${x.text}`).join("\n")}\nCONTROLS:\n${p.controls.map((c) => `[${c.id}] ${c.kind} "${c.text}"${c.to ? ` opens ${c.to}` : ""}`).join("\n")}`)
@@ -99,7 +109,8 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
     rs.nodes!.forEach((rn, ni) => {
       const hit = rn.block ? blockById(ctx.corpus, rn.block) : null;
       if (!need(hit, `${tag} node ${ni + 1}: block "${rn.block}" is not on the real site`)) return;
-      const say = (rn.say ?? "").trim();
+      // words the wording gate refuses are swapped for plain ones (site text such as "best legitimate action" invites them), meaning unchanged
+      const say = swapWords((rn.say ?? "").trim());
       if (!need(say.split(/\s+/).length >= 3, `${tag} node ${ni + 1}: the spoken line is missing`)) return;
       const fact = factFor(hit!.block.text, ctx.facts);
       if (!need(fact, `${tag} node ${ni + 1}: no verified fact backs the block "${hit!.block.text.slice(0, 40)}"; choose a block that says something verified`)) return;

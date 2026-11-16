@@ -3,7 +3,7 @@ import "./setup";
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import type { Corpus } from "../video/concepts/corpus";
-import { planTour, type Ask, type Brief, type PlanContext } from "../video/concepts/tour-planner";
+import { planTour, swapWords, type Ask, type Brief, type PlanContext } from "../video/concepts/tour-planner";
 
 export const FACTS = ["Marketing Studio makes short marketing videos from your real website.", "Every video is emailed to you for review before anything is published.", "Reads your real website and connected profiles.", "Automatically performs the best legitimate action available.", "See your Google visibility score in 60 seconds.", "Find your business, get a score across 6 ranking factors."];
 export const corpus: Corpus = {
@@ -68,6 +68,9 @@ describe("tour planner", () => {
     const r = await planTour(brief, ctx(), [], async () => { const j = JSON.parse(planJson("Who has time for another marketing task?")); j.scenes.forEach((x: { tour?: unknown }) => delete x.tour); return JSON.stringify(j); });
     assert.equal(r.ok, true, JSON.stringify(r));
     if (r.ok) assert.ok(r.def.scenes.every((sc) => sc.tour![0].do === "open" && sc.tour!.length >= 3));
+  });
+  test("refused words are swapped for plain ones without touching other words", () => {
+    assert.equal(swapWords("It takes the best step, only once, lonely on this page."), "It takes the right step, just once, lonely on here.");
   });
   test("when every attempt fails the plan is reported, never produced", async () => {
     const r = await planTour(brief, ctx(), [], async () => "not json", 2);
