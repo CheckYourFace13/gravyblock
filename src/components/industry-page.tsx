@@ -93,7 +93,7 @@ export function IndustryPageShell({
         </ul>
       </Section>
 
-      <Section title="What Base and Pro improve over time">
+      <Section title="How GravyBlock helps over time">
         <p>{model.ongoingBody}</p>
       </Section>
 

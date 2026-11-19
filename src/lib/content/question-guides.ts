@@ -9,162 +9,63 @@ export type QuestionGuide = {
 
 const related = [
   { href: "/guides", label: "All guides" },
-  { href: "/industries", label: "Industry pages" },
+  { href: "/guides/website-trust-signals", label: "Website trust signals and local conversion" },
   { href: "/examples/sample-local-growth-report", label: "Sample local growth report" },
 ];
 
+/**
+ * Question guides that are kept as their own pages. Short, overlapping question pages (calls from a Business Profile, near-me conversion,
+ * local trust, AI search, location pages and the four use-case guides) were merged into the full guides below and into the standalone
+ * guides, and their old URLs 301 to those (see lib/seo/merged-urls.ts).
+ */
 export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
   "how-to-rank-higher-in-google-maps": {
     slug: "how-to-rank-higher-in-google-maps",
-    metaTitle: "How to rank higher in Google Maps for local businesses",
-    metaDescription: "Practical steps to improve Google Maps visibility with profile quality, trust signals, and conversion-ready local pages.",
+    metaTitle: "How to rank higher in Google Maps, and get more calls from your profile",
+    metaDescription: "What Google says decides local rankings, and the practical profile, website and review steps that improve Maps visibility and turn it into calls.",
     model: {
       eyebrow: "Question guide",
-      title: "How to rank higher in Google Maps",
-      directAnswer: "Rank higher in Google Maps by completing your Google Business Profile fully, collecting genuine reviews consistently, keeping your name/address/phone identical across all listings, and publishing local content that confirms your service area.",
-      intro: "Google Maps visibility improves when your profile facts, trust signals, and local conversion pathways all support each other.",
-      meaningForBusiness: "Your ranking chance improves when Google and customers see consistent local relevance and quality signals, not when you chase hacks.",
+      title: "How to rank higher in Google Maps (and turn it into calls)",
+      directAnswer: "Google says local results are based mainly on relevance, distance and prominence. You cannot change distance, but you can improve relevance with a complete, accurate Business Profile and a website that confirms it, and prominence with genuine reviews, consistent listings and real local mentions.",
+      intro: "There is no hack that moves a business up the map. What works is a profile that is complete and accurate, a website that agrees with it, a steady flow of real reviews, and a way for people to contact you the moment they decide to.",
+      meaningForBusiness: "Maps visibility is only worth something if it becomes calls, directions and bookings, so the same steps that improve ranking should also make the profile easier to act on.",
       sections: [
-        { title: "Start with profile quality", body: "Primary categories, services, hours, photos, and recurring updates set the baseline for local relevance." },
-        { title: "Make your website confirm your profile", body: "Your homepage and location content should mirror profile facts and clearly route visitors to call, book, or request service." },
-        { title: "Strengthen proof signals", body: "Reviews, social mentions, and trust elements influence whether visibility becomes action.", bullets: ["Ask for review quality, not review volume spam.", "Keep NAP details consistent everywhere.", "Respond to reviews in a human and helpful tone."] },
-      ],
-      relatedLinks: related,
-    },
-  },
-  "how-to-improve-local-trust-on-your-website": {
-    slug: "how-to-improve-local-trust-on-your-website",
-    metaTitle: "How to improve local trust on your website",
-    metaDescription: "Improve local business website trust with clear contact paths, policy clarity, social proof, and conversion-ready design.",
-    model: {
-      eyebrow: "Question guide",
-      title: "How to improve local trust on your website",
-      intro: "Most local traffic arrives skeptical. Trust grows when your site removes uncertainty fast.",
-      meaningForBusiness: "Trust improvements reduce bounce and increase calls, form fills, and bookings from the same traffic.",
-      sections: [
-        { title: "Show clear business identity", body: "Make your name, service areas, phone, and operating details easy to verify above the fold." },
-        { title: "Make proof easy to scan", body: "Use authentic reviews, process clarity, and plain-language guarantees without overclaiming." },
-        { title: "Reduce conversion friction", body: "Fast mobile pages, visible CTAs, and simple forms raise lead quality.", bullets: ["One primary action per section.", "Mobile-first tap targets.", "Contact details repeated in footer and key pages."] },
-      ],
-      relatedLinks: related,
-    },
-  },
-  "how-to-show-up-in-ai-search-for-local-businesses": {
-    slug: "how-to-show-up-in-ai-search-for-local-businesses",
-    metaTitle: "How to show up in AI search for local businesses",
-    metaDescription: "Improve AI-search visibility through clean business facts, trustworthy sources, and easy-to-summarize local pages.",
-    model: {
-      eyebrow: "Question guide",
-      title: "How to show up in AI search for local businesses",
-      directAnswer: "Show up in AI search by keeping your business name, address, and service descriptions identical across your website, Google Business Profile, and major listing sites. AI tools cite businesses whose facts are consistent and easy to verify.",
-      intro: "AI search tools summarize local options from signals they can verify and reconcile.",
-      meaningForBusiness: "If your facts are inconsistent, assistants hesitate to recommend you even when your service quality is strong.",
-      sections: [
-        { title: "Keep entity facts consistent", body: "Name, categories, location details, and service descriptions should match across profile, website, and key listings." },
-        { title: "Publish direct-answer content", body: "Answer common customer questions plainly so assistants can quote and summarize accurately." },
-        { title: "Strengthen corroboration", body: "Build consistent proof across reviews, social profiles, and reputable local mentions." },
-      ],
-      relatedLinks: related,
-    },
-  },
-  "how-to-get-more-calls-from-google-business-profile": {
-    slug: "how-to-get-more-calls-from-google-business-profile",
-    metaTitle: "How to get more calls from Google Business Profile",
-    metaDescription: "Increase calls from Google Business Profile with stronger profile completion, trust signals, and conversion-ready messaging.",
-    model: {
-      eyebrow: "Question guide",
-      title: "How to get more calls from Google Business Profile",
-      intro: "More calls come from profile clarity and confidence, not just more impressions.",
-      meaningForBusiness: "When profile details answer urgent questions instantly, more searchers call instead of comparing another listing.",
-      sections: [
-        { title: "Prioritize the call decision factors", body: "Hours, categories, services, and photos should remove doubt in seconds." },
-        { title: "Align website and profile intent", body: "Profile visitors still inspect your site. Make the first screen call-friendly with supporting trust cues." },
-        { title: "Fix weak trust signals", body: "Sparse or stale reviews, conflicting details, and thin proof hurt call conversion." },
-      ],
-      relatedLinks: related,
-    },
-  },
-  "how-to-improve-near-me-conversion": {
-    slug: "how-to-improve-near-me-conversion",
-    metaTitle: "How to improve near me conversion for local businesses",
-    metaDescription: "Turn near-me search traffic into calls and bookings through clearer trust, relevance, and conversion design.",
-    model: {
-      eyebrow: "Question guide",
-      title: "How to improve near me conversion",
-      intro: "Near-me traffic is high intent but impatient. Friction and doubt kill conversion quickly.",
-      meaningForBusiness: "Conversion improves when local relevance and trust are visible on both profile and website in under ten seconds.",
-      sections: [
-        { title: "Match location intent", body: "Use clear city, service area, and access details where searchers can see them quickly." },
-        { title: "Strengthen immediate trust", body: "Show proof signals that matter for your category: reviews, credentials, or service guarantees." },
-        { title: "Optimize for action", body: "Use one primary CTA and remove extra steps.", bullets: ["Call and booking buttons above the fold.", "Simple forms.", "Fast page load on mobile networks."] },
-      ],
-      relatedLinks: related,
-    },
-  },
-  "how-to-build-better-location-pages": {
-    slug: "how-to-build-better-location-pages",
-    metaTitle: "How to build better location pages for local SEO",
-    metaDescription: "Create location pages that improve local visibility, trust, and conversion without duplicate or thin content.",
-    model: {
-      eyebrow: "Question guide",
-      title: "How to build better location pages",
-      intro: "Great location pages answer local buyer questions clearly and uniquely.",
-      meaningForBusiness: "Better location pages help you appear in local search while improving conversion from map and organic visits.",
-      sections: [
-        { title: "Include local specifics", body: "Address practical questions: service boundaries, parking, hours, and what people can expect." },
-        { title: "Avoid thin duplicates", body: "Each page should include distinct context, proof, and examples from that location or area." },
-        { title: "Tie pages to conversion", body: "Each location page needs clear next actions tied to that local audience." },
-      ],
-      relatedLinks: related,
-    },
-  },
-  "local-seo-for-apartment-complexes": {
-    slug: "local-seo-for-apartment-complexes",
-    metaTitle: "Local SEO for apartment complexes",
-    metaDescription: "Improve apartment community visibility and leasing conversion with stronger profile trust and location-page clarity.",
-    model: {
-      eyebrow: "Use-case guide",
-      title: "Local SEO for apartment complexes",
-      intro: "Leasing teams compete on trust, clarity, and speed to tour booking.",
-      meaningForBusiness: "Stronger profile and website alignment increases qualified tour traffic and reduces mismatched leads.",
-      sections: [
-        { title: "Leasing-intent profile optimization", body: "Use accurate amenities, office hours, and access details that match the actual leasing experience." },
-        { title: "Website trust and conversion", body: "Tour paths, fee clarity, and policy transparency matter as much as photos." },
-        { title: "AI visibility implications", body: "AI summaries favor communities with consistent amenity and location facts across channels." },
-      ],
-      relatedLinks: related,
-    },
-  },
-  "local-seo-for-home-services": {
-    slug: "local-seo-for-home-services",
-    metaTitle: "Local SEO for home services companies",
-    metaDescription: "Home service businesses can improve local calls and bookings with profile, trust, and conversion readiness improvements.",
-    model: {
-      eyebrow: "Use-case guide",
-      title: "Local SEO for home services",
-      intro: "Home service demand is urgent and trust-sensitive. Visibility and conversion must work together.",
-      meaningForBusiness: "When local signals are consistent and trust is obvious, more high-intent calls convert into booked jobs.",
-      sections: [
-        { title: "Profile foundations for service-area operators", body: "Keep categories, service areas, and schedule expectations accurate and current." },
-        { title: "Website conversion priorities", body: "Phone-first UX, clear service pages, and trust proof outperform broad generic copy." },
-        { title: "Reputation and AI readiness", body: "Consistent facts and quality reviews improve map conversion and AI citation quality." },
-      ],
-      relatedLinks: related,
-    },
-  },
-  "local-seo-for-law-firms": {
-    slug: "local-seo-for-law-firms",
-    metaTitle: "Local SEO for law firms",
-    metaDescription: "Law firms can improve local intake quality with stronger profile credibility, website trust, and conversion clarity.",
-    model: {
-      eyebrow: "Use-case guide",
-      title: "Local SEO for law firms",
-      intro: "Legal clients compare credibility and responsiveness fast. Local trust determines who gets the first call.",
-      meaningForBusiness: "Better local trust and intake UX improves both lead quantity and lead quality.",
-      sections: [
-        { title: "Profile and practice clarity", body: "Align profile categories and services with your actual practice strengths and local offices." },
-        { title: "Trust and intake conversion", body: "Make contact routes clear and reduce uncertainty with plain-language credibility cues." },
-        { title: "AI answer-engine impact", body: "Consistent legal service facts improve how assistants summarize and recommend firms." },
+        {
+          title: "Know what Google says it is ranking",
+          body: "Google describes local ranking as a mix of relevance (how well your profile matches what was searched), distance (how far you are from the searcher or the place they named) and prominence (how well known and trusted you appear, using things like reviews, links and information from across the web). Distance is outside your control, so your effort belongs on relevance and prominence, and on being found for the searches that match what you really do.",
+        },
+        {
+          title: "Complete the profile properly",
+          body: "Start with the fields people and Google both read, and keep them accurate.",
+          bullets: [
+            "Choose the primary category that best matches your main service, then add secondary categories only for services you genuinely offer.",
+            "List your services, products or menu with plain descriptions, and keep opening hours exact, including holidays and special hours.",
+            "Use your real business name. Adding keywords or a city to the name breaks Google's guidelines and can get the profile suspended.",
+            "Add photos of your premises, team and work, and keep adding them. Real photos earn more trust than stock images.",
+            "Post updates and offers regularly so the profile shows that the business is active.",
+          ],
+        },
+        {
+          title: "Make the website confirm the profile",
+          body: "Your site should repeat the same name, address, phone number, services and hours as the profile, and give each core service or location its own clear page. Link the profile to the most relevant page, not always the homepage. When the site and the profile disagree, search systems have to guess, and visitors lose confidence. See the guide on website trust signals for the checks that most often fail.",
+        },
+        {
+          title: "Build prominence with real signals",
+          body: "Prominence comes from being trusted by customers and by other sources.",
+          bullets: [
+            "Reviews: ask every satisfied customer and keep the flow steady. Recent, specific reviews help both ranking and conversion (see the guide on getting more Google reviews).",
+            "Citations: keep your name, address and phone number identical on the major directories and the sites that matter in your trade.",
+            "Local mentions: sponsorships, partners, suppliers, chambers of commerce and local press that link to you are worth more than a pile of low-quality directory entries.",
+          ],
+        },
+        {
+          title: "Turn visibility into calls",
+          body: "Ranking gets you seen, and the profile and site have to get you contacted. Make sure the call button works and the number is right, answer or return calls quickly, switch messaging on only if you can reply promptly, and put a tap-to-call number and today's hours at the top of the page the profile links to. Check the Business Profile performance figures for calls, direction requests and website visits, and look at them month by month rather than day by day.",
+        },
+        {
+          title: "What to avoid",
+          body: "Do not buy reviews, create profiles for places where you have no staffed premises, stuff keywords into the name or description, or duplicate profiles for the same address. These shortcuts can lead to suspension, which costs far more than any gain. Results also take time: changes to a profile and its reviews usually show up over weeks, not days.",
+        },
       ],
       relatedLinks: related,
     },
@@ -172,34 +73,43 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
   "how-to-get-more-google-reviews": {
     slug: "how-to-get-more-google-reviews",
     metaTitle: "How to get more Google reviews for your local business",
-    metaDescription: "Get more Google reviews with proven ask timing, direct review links, and a response strategy that encourages future reviewers.",
+    metaDescription: "When to ask, how to make it easy, what the rules allow, and how to respond, so a steady flow of genuine Google reviews builds trust and visibility.",
     model: {
       eyebrow: "Question guide",
       title: "How to get more Google reviews",
-      directAnswer: "Get more Google reviews by asking every satisfied customer immediately after the job, making it easy with a direct review link, and responding to every existing review to show future reviewers their feedback matters.",
-      intro: "Reviews are the most visible trust signal in local search and the easiest to improve with consistent effort.",
-      meaningForBusiness: "More recent, genuine reviews improve your Google Maps ranking and convert more searchers into paying customers.",
+      directAnswer: "Get more Google reviews by asking every satisfied customer soon after the job, making it easy with a direct review link, never offering rewards or screening who you ask, and responding to the reviews you already have.",
+      intro: "Reviews are the most visible trust signal in local search and the easiest one to improve with steady, honest effort. The goal is a regular flow of recent, specific reviews from real customers, not a one-off burst.",
+      meaningForBusiness: "More recent, genuine reviews help people choose you and support your visibility in Google Maps, and how you answer them shows future customers what to expect.",
       sections: [
-        { title: "Ask at the right moment", body: "The best time to ask for a review is immediately after a job is complete and the customer is satisfied. Waiting even a few hours reduces the likelihood they follow through. Train every team member to make the ask part of the closing interaction." },
-        { title: "Make it effortless with a direct link", body: "Create a short link directly to your Google review form and share it via text message after every job. Customers should be able to leave a review in under 30 seconds. Remove every extra click or login step possible.", bullets: ["Use your Google Business Profile short URL.", "Send via text — not email — for higher open rates.", "Include the link in your follow-up message template."] },
-        { title: "Respond to every review you already have", body: "Responding to existing reviews signals to future reviewers that their feedback will be acknowledged. It also shows Google your profile is actively managed, which supports local ranking.", bullets: ["Thank positive reviewers by name.", "Address negative reviews calmly and offer to resolve the issue offline.", "Keep responses short and human — avoid template-sounding replies."] },
-      ],
-      relatedLinks: related,
-    },
-  },
-  "local-seo-for-dentists": {
-    slug: "local-seo-for-dentists",
-    metaTitle: "Local SEO for dentists and dental practices",
-    metaDescription: "Dental practices can improve local patient acquisition through stronger profile trust and website conversion readiness.",
-    model: {
-      eyebrow: "Use-case guide",
-      title: "Local SEO for dentists",
-      intro: "Dental patients compare trust and convenience quickly. Local consistency drives booking confidence.",
-      meaningForBusiness: "Tight profile and website alignment improves appointment conversion from local search and map traffic.",
-      sections: [
-        { title: "Profile and provider consistency", body: "Keep services, hours, and provider details aligned across profile and website." },
-        { title: "Website trust and booking UX", body: "Use simple appointment pathways and clear treatment framing without heavy jargon." },
-        { title: "Reviews and AI visibility", body: "Reviews and corroborated facts influence both human decisions and assistant summaries." },
+        {
+          title: "Ask at the right moment",
+          body: "The best time to ask is right after a job is done or a visit has gone well, when the experience is fresh and the customer is happy. Waiting days lowers the number who follow through. Make asking part of the routine: add it to the checklist for closing a job, the receipt, the appointment follow-up or the handover, and make sure every member of the team knows how to ask in a sentence or two.",
+        },
+        {
+          title: "Make it take under a minute",
+          body: "Every extra step costs reviews, so remove them.",
+          bullets: [
+            "Use the review link from your Google Business Profile (the 'Get more reviews' option) so the customer lands directly on the review box.",
+            "Send it by text message or email straight after the job, with one short sentence and the link. A printed QR code works in places where customers are still on site, such as a counter, an invoice or a leaflet left behind.",
+            "Tell customers that a few honest words about what you did and how it went is plenty. Specific reviews help later customers more than long ones.",
+          ],
+        },
+        {
+          title: "Stay inside the rules",
+          body: "Google's review policies prohibit several shortcuts that businesses are tempted by. Do not offer discounts, gifts or payment in return for reviews, do not ask only happy customers while steering unhappy ones elsewhere (review gating), do not write or buy reviews, and do not review your own business or competitors. In the United States, rules on fake and incentivised reviews also apply. Reviews that break the rules can be removed and can put the profile at risk, so ask everyone, accept what they say, and let the ratings be real.",
+        },
+        {
+          title: "Respond to every review",
+          body: "Reply to the reviews you already have, positive and negative, in a calm and specific way. Thank people by name and mention something about their visit. For a negative review, apologise for the experience without arguing, state briefly what you will do or have done, and offer an offline way to resolve it. Future customers read the replies as closely as the reviews, and a considered response to criticism often builds more trust than a spotless score. If a review breaks Google's policy (spam, off-topic or fake), flag it for removal instead of arguing in public.",
+        },
+        {
+          title: "Use what the reviews tell you",
+          body: "Read your reviews for repeating themes: a slow response, a confusing price, a rude moment or a service people keep praising. Fix the problems in operations and put the strengths in your website and profile. Ask for reviews on the other sites that matter in your trade as well, since some customers check those rather than Google.",
+        },
+        {
+          title: "Keep it steady",
+          body: "A small, steady flow beats a burst. Aim for a regular number of new reviews each week or month that matches the volume of customers you serve, and track the count and recency alongside your calls and direction requests. If reviews stall, the cause is usually that the ask stopped being part of the routine.",
+        },
       ],
       relatedLinks: related,
     },

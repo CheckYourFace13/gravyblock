@@ -34,10 +34,10 @@ export const professionalServicesPage: IndustryPageModel = {
     "A report you can share with marketing without drowning in spreadsheets.",
   ],
   ongoingBody:
-    "Base keeps monthly checks and summaries so drift gets caught. Pro layers in queues for deeper execution where your workspace supports it, including content and reputation workflows.",
+    "GravyBlock keeps checking on a recurring schedule and does the eligible work automatically once your website and Google account are connected, so drift in your listing, site and reviews is caught and handled instead of piling up as a to-do list.",
   relatedGuides: [
     { href: "/guides/website-trust-signals", label: "Website trust signals" },
-    { href: "/guides/social-proof-and-local-conversion", label: "Social proof and local conversion" },
+    { href: "/guides/website-trust-signals", label: "Website trust signals and local conversion" },
     { href: "/guides/ai-search-local-businesses", label: "AI search for local businesses" },
     { href: "/guides/multi-location-local-seo", label: "Multi-location local SEO" },
   ],

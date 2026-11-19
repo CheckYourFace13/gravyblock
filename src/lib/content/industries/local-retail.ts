@@ -31,12 +31,12 @@ export const localRetailPage: IndustryPageModel = {
   scanHelps: [
     "Readiness score and verdict with top findings across listing, site, and sampled signals.",
     "Report sections after unlock for deeper fixes and email handoff.",
-    "Workspace path when you want ongoing monitoring with Base or Pro.",
+    "Recurring monitoring and automatic work once your website and Google account are connected.",
   ],
   ongoingBody:
-    "Base keeps monthly checks and summaries so seasonal drift gets caught. Pro adds faster refresh and workspace queues for content, citations, and reviews where supported.",
+    "GravyBlock keeps checking on a recurring schedule and does the eligible work automatically once your website and Google account are connected, so drift in your listing, site and reviews is caught and handled instead of piling up as a to-do list.",
   relatedGuides: [
-    { href: "/guides/social-proof-and-local-conversion", label: "Social proof and local conversion" },
+    { href: "/guides/website-trust-signals", label: "Website trust signals and local conversion" },
     { href: "/guides/website-trust-signals", label: "Website trust signals" },
     { href: "/guides/ai-search-local-businesses", label: "AI search for local businesses" },
   ],

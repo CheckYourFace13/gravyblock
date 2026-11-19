@@ -56,7 +56,26 @@ export function groundedCorpus(c: Corpus, facts: string[]): Corpus {
   return { ...c, pages: c.pages.map((p) => ({ ...p, blocks: p.blocks.filter((b) => factFor(b.text, facts)) })) };
 }
 
-const SWAPS: Array<[string, string]> = [["best", "right"], ["only", "just"], ["instantly", "quickly"], ["this page", "here"], ["this screen", "here"]];
+const SWAPS: Array<[string, string]> = [["best", "right"], ["only", "just"], ["instantly", "quickly"], ["this page", "here"], ["this screen", "here"], ["business hours", "opening times"], ["opening hours", "opening times"]];
+
+/** Pure: a hook that runs past 12 words is cut back to its first complete thought (a sentence or clause that fits), keeping a question a question. */
+export function fitHook(hook: string): string {
+  const h = hook.trim().replace(/\s+/g, " ");
+  const count = (s: string) => s.split(/\s+/).filter(Boolean).length;
+  if (count(h) <= 12) return h;
+  const sentences = h.match(/[^.!?]+[.!?]+/g)?.map((x) => x.trim()) ?? [];
+  const fit = sentences.find((x) => count(x) <= 12 && count(x) >= 4);
+  if (fit) return fit;
+  const clauses = h.split(/(?<=[,;:])\s+/);
+  let acc = "";
+  for (const c of clauses) {
+    const next = acc ? acc + " " + c : c;
+    if (count(next) > 12) break;
+    acc = next;
+  }
+  const base = (acc || h.split(" ").slice(0, 12).join(" ")).replace(/[,;:\s]+$/, "");
+  return /[.!?]$/.test(base) ? base : base + (h.includes("?") ? "?" : ".");
+}
 export function swapWords(text: string): string {
   let out = text;
   for (const [from, to] of SWAPS) {
@@ -219,6 +238,17 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
       const nd = nodes[n];
       const b3 = rs.nodes![n].block ? blockById(ctx.corpus, rs.nodes![n].block!) : null;
       if (b3 && pageThen === b3.page.path) steps.splice(at + 1, 0, { node: n, do: "scroll", text: trim90(b3.block.text), shows: trim90(b3.block.text) });
+      else if (b3 && at === steps.length - 1) {
+        // the last node's block is on another page: go there for real (a shown navigation) and bring the block into view
+        const top = b3.page.blocks[0];
+        steps.push({ node: n, do: "open", path: b3.page.path, shows: trim90(top.text) });
+        pageAfter[steps.length - 1] = b3.page.path;
+        visited.add(b3.page.path);
+        if (top.id !== b3.block.id) {
+          steps.push({ node: n, do: "scroll", text: trim90(b3.block.text), shows: trim90(b3.block.text) });
+          pageAfter[steps.length - 1] = b3.page.path;
+        }
+      }
       void nd;
     }
     nodes.forEach((nd, ni) => need(visited.has(nd.path as string), `${tag} node ${ni + 1}: its block is on ${nd.path}, a page this scene never shows`));
@@ -241,7 +271,7 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
     specId: `${ctx.slug}:${b.key}`,
     angle: { id: b.angleId, role: b.role, title: b.title, funnel: b.funnel },
     title: raw.yt!.title!.trim().slice(0, 90),
-    hook: raw.hook!.trim(),
+    hook: fitHook(raw.hook!),
     audience: b.audience,
     problem: (raw.problem ?? b.goal).trim(),
     whyItMatters: (raw.benefit ?? b.coreBenefit).trim(),

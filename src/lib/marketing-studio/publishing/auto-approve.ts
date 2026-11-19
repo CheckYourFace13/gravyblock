@@ -14,7 +14,7 @@ import { getSetting, setSetting } from "../runtime";
 import { INTERNAL_SCOPE } from "../scope";
 import { slotOfSpec, GRAVYBLOCK_BRIEFS } from "../gravyblock-briefs";
 import { isPaused } from "./video-policy";
-import { approveReview, getReview, listReviews } from "./video-review";
+import { approveReview, getReview, listReviews, reviewKey } from "./video-review";
 
 export const autoApproveKey = (productId: string) => `video_auto_approve_${productId}`;
 const ACTOR = "owned-auto-approve";
@@ -115,6 +115,9 @@ export async function maybeAutoApprove(db: StudioDb, publicationId: string, log:
       const qa = (row.qa as { checks?: Check[] } | null) ?? {};
       await db.update(ms.msVideos).set({ status: "qa_failed", qa: { ...qa, passed: false } as never }).where(eq(ms.msVideos.id, row.id));
       await updateAngle(db, ACTOR, product.slug, (a) => a.publicationId === publicationId, { status: "blocked" });
+      // this version will not be published: it is retired from the review queue (a replacement is planned and made internally), so it is not held again on every sweep
+      await setSetting(reviewKey(publicationId), { ...review, status: "superseded", supersededBy: "auto-approve-replan" }, ACTOR, db);
+      await audit(db, { actor: ACTOR, action: "video_review.superseded", entity: "publication", entityId: publicationId, productId: product.id, detail: { by: "auto-approve-replan" } });
     }
     await audit(db, { actor: ACTOR, action: "video_review.auto_approve_held", entity: "publication", entityId: publicationId, productId: product.id, detail: { problems: problems.slice(0, 6) } });
     return { approved: false, problems };

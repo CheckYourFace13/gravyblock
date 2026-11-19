@@ -644,7 +644,7 @@ function buildVsPages(): Record<string, ComparePage> {
       ],
       differenceBody:
         "Once you connect your booking or invoicing system, GravyBlock automatically emails your real completed customers asking for a review, and it replies to your Google reviews automatically once Google is connected.",
-      extraLinks: [{ href: "/guides/how-to-show-up-in-ai-search-for-local-businesses", label: "How to show up in AI search" }],
+      extraLinks: [{ href: "/guides/ai-search-local-businesses", label: "How to show up in AI search" }],
     },
     {
       slug: "gravyblock-vs-whitespark",

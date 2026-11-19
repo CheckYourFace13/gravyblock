@@ -31,14 +31,14 @@ export const propertyVenuesPage: IndustryPageModel = {
   scanHelps: [
     "Readiness score with prioritized fixes across GBP and homepage signals.",
     "Top findings before unlock; deeper report after email capture.",
-    "Workspace monitoring path with Base or Pro when you want recurring checks.",
+    "Recurring monitoring and automatic work once your website and Google account are connected.",
   ],
   ongoingBody:
-    "Base delivers monthly monitoring and summaries. Pro adds faster refresh and workspace queues for content, citations, and local pages where your data model supports it.",
+    "GravyBlock keeps checking on a recurring schedule and does the eligible work automatically once your website and Google account are connected, so drift in your listing, site and reviews is caught and handled instead of piling up as a to-do list.",
   relatedGuides: [
     { href: "/guides/multi-location-local-seo", label: "Multi-location local SEO" },
     { href: "/guides/website-trust-signals", label: "Website trust signals" },
-    { href: "/guides/social-proof-and-local-conversion", label: "Social proof and local conversion" },
+    { href: "/guides/website-trust-signals", label: "Website trust signals and local conversion" },
   ],
   trades: [
     {

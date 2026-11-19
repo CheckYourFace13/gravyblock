@@ -78,3 +78,20 @@ describe("tour planner", () => {
     assert.equal(r.attempts, 2);
   });
 });
+
+describe("planner repairs: a long hook and business hours", () => {
+  test("a hook past 12 words is cut back to its first complete thought, keeping a question a question", async () => {
+    const { fitHook } = await import("../video/concepts/tour-planner");
+    const words = (s: string) => s.split(/\s+/).length;
+    const long = "Still spending your evenings on marketing nobody asked you to do? GravyBlock reads your business and handles the rest while you run it.";
+    const fit = fitHook(long);
+    assert.ok(words(fit) <= 12 && fit.endsWith("?"), fit);
+    const noStop = "You run the business and then you also have to run all of the marketing for it every single week";
+    assert.ok(words(fitHook(noStop)) <= 12);
+    assert.equal(fitHook("What does it actually do for you?"), "What does it actually do for you?");
+  });
+  test("business hours is said as opening times, so a site sentence stays usable", async () => {
+    const { swapWords } = await import("../video/concepts/tour-planner");
+    assert.equal(swapWords("Keep your business hours right everywhere"), "Keep your opening times right everywhere");
+  });
+});

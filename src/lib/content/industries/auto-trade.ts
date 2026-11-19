@@ -34,9 +34,9 @@ export const autoTradePage: IndustryPageModel = {
     "Workspace handoff when you want recurring monitoring.",
   ],
   ongoingBody:
-    "Base runs monthly checks and summaries. Pro increases refresh cadence and unlocks workspace queues for citations, reviews, content, and local pages where supported.",
+    "GravyBlock keeps checking on a recurring schedule and does the eligible work automatically once your website and Google account are connected, so drift in your listing, site and reviews is caught and handled instead of piling up as a to-do list.",
   relatedGuides: [
-    { href: "/guides/social-proof-and-local-conversion", label: "Social proof and local conversion" },
+    { href: "/guides/website-trust-signals", label: "Website trust signals and local conversion" },
     { href: "/guides/website-trust-signals", label: "Website trust signals" },
     { href: "/guides/service-area-business-visibility", label: "Service-area business visibility" },
   ],

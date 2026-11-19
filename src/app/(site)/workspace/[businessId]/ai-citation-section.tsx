@@ -120,7 +120,7 @@ export function AiCitationSection({ stats, businessId, canRunCheck }: Props) {
           AI search tools like ChatGPT and Perplexity answer local questions by summarizing businesses they can find and verify online. A higher mention rate means your business is more likely to be recommended when a potential customer asks an AI assistant for help.
         </p>
         <a
-          href="/guides/how-to-show-up-in-ai-search-for-local-businesses"
+          href="/guides/ai-search-local-businesses"
           className="mt-2 inline-block text-sm font-semibold text-red-800 hover:text-red-900"
         >
           See how to improve your AI visibility &rarr;

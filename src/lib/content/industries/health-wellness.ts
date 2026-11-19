@@ -34,9 +34,9 @@ export const healthWellnessPage: IndustryPageModel = {
     "Email-unlocked report sections for deeper fixes and workspace handoff.",
   ],
   ongoingBody:
-    "Base adds recurring monitoring and monthly summaries. Pro increases refresh cadence and opens workspace queues for content, citations, reviews, and local pages where supported.",
+    "GravyBlock keeps checking on a recurring schedule and does the eligible work automatically once your website and Google account are connected, so drift in your listing, site and reviews is caught and handled instead of piling up as a to-do list.",
   relatedGuides: [
-    { href: "/guides/social-proof-and-local-conversion", label: "Social proof and local conversion" },
+    { href: "/guides/website-trust-signals", label: "Website trust signals and local conversion" },
     { href: "/guides/website-trust-signals", label: "Website trust signals" },
     { href: "/guides/ai-search-local-businesses", label: "AI search for local businesses" },
     { href: "/guides/multi-location-local-seo", label: "Multi-location local SEO" },

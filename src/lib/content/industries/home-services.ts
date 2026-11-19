@@ -7,7 +7,7 @@ export const homeServicesPage: IndustryPageModel = {
   eyebrow: "Home services",
   h1: "Local home services: get found before the emergency scrolls past you",
   intro:
-    "Home services brands win on speed, proof, and clarity. Customers compare photos, reviews, service areas, and how fast you answer the phone. GravyBlock helps you see where your listing, site, and trust signals fall short, then stay on it with Base or Pro.",
+    "Home services brands win on speed, proof, and clarity. Customers compare photos, reviews, service areas, and how fast you answer the phone. GravyBlock helps you see where your listing, site, and trust signals fall short, then stay on it automatically.",
   whyFit:
     "Most home service revenue still starts with a search or map tap. GravyBlock is built around that reality: one scan ties your Google context to your website and public trust signals, without promising rankings you cannot control.",
   winCustomers: [
@@ -34,11 +34,11 @@ export const homeServicesPage: IndustryPageModel = {
     "Full report sections after unlock, including what to fix first for calls and bookings.",
   ],
   ongoingBody:
-    "Base adds recurring monitoring, summaries, and content ideas on a monthly cadence. Pro adds faster refresh and workspace queues for content, citations, reviews, and local pages where your setup supports it.",
+    "GravyBlock keeps checking on a recurring schedule and does the eligible work automatically once your website and Google account are connected, so drift in your listing, site and reviews is caught and handled instead of piling up as a to-do list.",
   relatedGuides: [
     { href: "/guides/service-area-business-visibility", label: "Service-area business visibility" },
     { href: "/guides/website-trust-signals", label: "Website trust signals" },
-    { href: "/guides/social-proof-and-local-conversion", label: "Social proof and local conversion" },
+    { href: "/guides/website-trust-signals", label: "Website trust signals and local conversion" },
     { href: "/guides/ai-search-local-businesses", label: "AI search for local businesses" },
   ],
   trades: [

@@ -25,7 +25,7 @@ const RETRY_AFTER_MS = 2 * 3_600_000;
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 
 export type RegisterReport = { stored: string[]; reopened: string[]; problems: string[] };
-type PlanRecord = { v: number; at: string; ok: boolean; attempts: number; problems?: string[]; fp?: CreativeFingerprint; qaReplans?: number };
+type PlanRecord = { v: number; at: string; ok: boolean; attempts: number; problems?: string[]; fp?: CreativeFingerprint; qaReplans?: number; qaReplanAt?: string };
 const planKey = (key: string) => `video_plan_gravyblock_${key.replace(/[^a-z0-9]+/gi, "_")}`;
 
 /** The hard QA failures of the latest rendered video of a script, as plain instructions for the planner. */
@@ -64,11 +64,17 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
     if (["approved", "public", "in_production", "ready_for_review"].includes(angle.status)) continue;
     const rec = await getSetting<PlanRecord | null>(planKey(b.key), null, db);
     // a plan whose RENDER failed full QA is replanned with what the QA found, internally, a bounded number of times: it never waits for a person
-    if (rec?.ok && rec.v === PLANNER_VERSION && angle.status === "blocked" && (rec.qaReplans ?? 0) < 6) {
-      const failed = await renderFailures(db, product.id, `gravyblock:${b.key}`);
-      if (failed.length) {
-        seeds.set(b.key, failed);
-        await setSetting(planKey(b.key), { ...rec, qaReplans: (rec.qaReplans ?? 0) + 1 }, ACTOR, db, { audited: false });
+    // a concept the render marked blocked is stuck the same way whatever its angle says (it is never made again until replanned)
+    const stored = await getSetting<StoredConcept | null>(conceptKey(`gravyblock:${b.key}`), null, db);
+    const stuck = stored?.status === "blocked";
+    if (rec?.ok && rec.v === PLANNER_VERSION && (angle.status === "blocked" || stuck)) {
+      // a bounded number of replans a day: another round is allowed once a day has passed, so a concept never stays stuck for good
+      const fresh = Date.now() - Date.parse(rec.qaReplanAt ?? rec.at) > 24 * 3_600_000;
+      const used = fresh ? 0 : rec.qaReplans ?? 0;
+      if (used < 6) {
+        const failed = await renderFailures(db, product.id, `gravyblock:${b.key}`);
+        seeds.set(b.key, failed.length ? failed : ["the last finished video did not pass the creative standard: choose a different hook, different screens and a clearer payoff"]);
+        await setSetting(planKey(b.key), { ...rec, qaReplans: used + 1, qaReplanAt: new Date().toISOString() }, ACTOR, db, { audited: false });
         todo.push(b);
         continue;
       }

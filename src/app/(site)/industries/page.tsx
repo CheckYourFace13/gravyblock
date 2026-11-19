@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { INDUSTRY_PAGES, INDUSTRY_SLUGS } from "@/lib/content/industries/registry";
-import { INDIVIDUAL_INDUSTRY_SLUGS, INDIVIDUAL_INDUSTRY_PAGES } from "@/lib/content/industries/individual";
 
 export const metadata: Metadata = {
   title: "Local SEO by industry — restaurants, dentists, contractors, salons & more",
@@ -43,22 +42,6 @@ export default function IndustriesIndexPage() {
           </li>
         ))}
       </ul>
-
-      <section className="mt-12 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-6">
-        <h2 className="text-lg font-semibold text-zinc-900">High-intent business type pages</h2>
-        <p className="mt-2 text-sm text-zinc-600">
-          Deeper pages for specific categories with fit guidance, common issues, scan focus, and ongoing Base/Pro paths.
-        </p>
-        <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-          {INDIVIDUAL_INDUSTRY_SLUGS.map((slug) => (
-            <li key={slug}>
-              <Link href={`/industries/${slug}`} className="text-sm font-medium text-red-800 hover:underline">
-                {INDIVIDUAL_INDUSTRY_PAGES[slug].name}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
 
       <section className="mt-12 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-6">
         <h2 className="text-lg font-semibold text-zinc-900">Hospitality deep dives</h2>

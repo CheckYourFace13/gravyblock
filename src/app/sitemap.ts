@@ -3,8 +3,6 @@ import { CITIES, INDUSTRIES } from "@/lib/local-seo/markets";
 import { GLOSSARY_TERMS } from "@/lib/content/glossary";
 import { COMPARE_SLUGS } from "@/lib/content/compare-pages";
 import { QUESTION_GUIDE_SLUGS } from "@/lib/content/question-guides";
-import { EXAMPLE_SLUGS } from "@/lib/content/example-pages";
-import { INDIVIDUAL_INDUSTRY_SLUGS } from "@/lib/content/industries/individual";
 import { INDUSTRY_SLUGS } from "@/lib/content/industries/registry";
 import { getAllBlogPosts } from "@/lib/blog/posts";
 import { isCityHubIndexable, isCityIndustryIndexable, isLocalDirectoryIndexable } from "@/lib/seo/indexing";
@@ -44,7 +42,6 @@ const STANDALONE_GUIDES = [
   "multi-location-local-seo",
   "service-area-business-visibility",
   "website-trust-signals",
-  "social-proof-and-local-conversion",
 ];
 
 const staticRoutes: MetadataRoute.Sitemap = [
@@ -78,12 +75,9 @@ const staticRoutes: MetadataRoute.Sitemap = [
   ...STANDALONE_GUIDES.map((slug) => entry(`/guides/${slug}`, 0.7)),
   entry("/industries", 0.7),
   ...INDUSTRY_SLUGS.map((slug) => entry(`/industries/${slug}`, 0.6)),
-  ...INDIVIDUAL_INDUSTRY_SLUGS.map((slug) => entry(`/industries/${slug}`, 0.7)),
   ...VERTICAL_PAGES.map((slug) => entry(`/${slug}`, 0.7)),
-  entry("/examples", 0.5),
   entry("/examples/sample-local-growth-report", 0.5),
   entry("/proof", 0.7),
-  ...EXAMPLE_SLUGS.map((slug) => entry(`/examples/${slug}`, 0.5)),
 ];
 
 // Generated local pages: the single indexing rule in lib/seo/indexing.ts decides, so a page
