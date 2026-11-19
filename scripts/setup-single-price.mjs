@@ -23,6 +23,7 @@ if (!key) {
 const stripe = new Stripe(key, { apiVersion: "2026-03-25.dahlia" });
 
 const GROWTH_PRODUCT_ID = "prod_UPlZG8WLsxNBSn";
+const PRODUCT_DESCRIPTION = "Automated local SEO: finds what is hurting your local visibility and does the eligible work.";
 const ENV_PATH = resolve(process.cwd(), ".env");
 const PRICES = [
   { env: "STRIPE_PRICE_GROWTH_MONTHLY", lookup: "gravyblock_monthly_2999", cents: 2999, interval: "month", nickname: "GravyBlock monthly" },
@@ -60,6 +61,9 @@ function setEnvVar(name, value) {
 }
 
 try {
+  // The name and description Checkout and invoices show: the product, not an internal plan name.
+  const product = await stripe.products.retrieve(GROWTH_PRODUCT_ID);
+  if (product.name !== "GravyBlock" || product.description !== PRODUCT_DESCRIPTION) await stripe.products.update(GROWTH_PRODUCT_ID, { name: "GravyBlock", description: PRODUCT_DESCRIPTION });
   for (const want of PRICES) {
     const existing = await stripe.prices.list({ lookup_keys: [want.lookup], active: true, limit: 1 });
     let price = existing.data[0];
