@@ -300,8 +300,8 @@ export function gateDef(def: ExplainerDef, ctx: PlanContext, others: CreativeFin
     });
   });
   // the video has to be 20 to 35 seconds, with room either side: judged from the words spoken
-  const spokenWords = c.narration.reduce((n, l) => n + l.spoken.replace(/{[^}]*}/g, "").split(/s+/).filter(Boolean).length, 0);
-  if (c.estSeconds < 23 || c.estSeconds > 32) out.push(`the video would run about ${c.estSeconds} seconds (${spokenWords} spoken words); it must run 23 to 32 seconds: ${c.estSeconds < 23 ? "add a few words to the lines" : "shorten the lines"}`);
+  const spokenWords = c.narration.reduce((n, l) => n + l.spoken.replace(/\{[^}]*\}/g, "").split(/\s+/).filter(Boolean).length, 0);
+  if (c.estSeconds < 23 || c.estSeconds > 32) out.push(`the video would run about ${c.estSeconds} seconds (${spokenWords} spoken words); it must run 23 to 32 seconds: ${c.estSeconds < 23 ? "add a few words to the lines" : `cut about ${Math.max(4, Math.round((c.estSeconds - 30) * 2.6))} spoken words in total, from the longest lines`}`);
   out.push(...similarityProblems(fingerprintOfConcept(c), others));
   return out;
 }
