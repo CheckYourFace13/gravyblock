@@ -66,7 +66,7 @@ export default function CompareIndexPage() {
             "AI search visibility (ChatGPT, Perplexity, Gemini)",
             "Competitor comparison in your free scan",
             "Free visibility scan. Results in 60 seconds.",
-            "GravyBlock is $39.99/month. No agency needed.",
+            "GravyBlock is $29.99/month. No agency needed.",
           ].map((f) => (
             <div key={f} className="flex items-start gap-2">
               <span className="mt-0.5 shrink-0 font-bold text-red-600">✓</span>
@@ -79,10 +79,10 @@ export default function CompareIndexPage() {
             Get my free visibility score
           </Link>
           <Link href="/start" className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-500">
-            Start GravyBlock — $39.99/mo
+            Start your 14-day free trial
           </Link>
         </div>
-        <p className="mt-2 text-xs text-zinc-500">GravyBlock is $39.99/month.</p>
+        <p className="mt-2 text-xs text-zinc-500">GravyBlock is $29.99/month.</p>
       </div>
 
       {/* Featured competitor comparisons */}

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { startCheckoutFromReportAction } from "@/app/(site)/start/actions";
 
-const RISK_LINE = "$39.99/month · Cancel anytime · 30-day money-back guarantee";
+const RISK_LINE = "14-day free trial, then $29.99/month · Cancel anytime · 30-day money-back guarantee after your first payment";
 
 /** Where a report visitor lands when we cannot send them straight to checkout. */
 function startHref(publicId: string): string {
@@ -32,7 +32,7 @@ export function ScaleCta({
   publicId,
   businessId,
   placement,
-  label = "Start GravyBlock — $39.99/month",
+  label = "Start your 14-day free trialnth",
   showRisk = true,
   compact = false,
   className = "",
@@ -110,7 +110,7 @@ export function ScaleOffer({
         verifies them, measures the result and keeps going.
       </p>
       <p className="mt-4 text-sm font-semibold text-zinc-900">
-        For $39.99/month, GravyBlock keeps working on your visibility without you managing SEO.
+        For $29.99/month, GravyBlock keeps working on your visibility without you managing SEO.
       </p>
       <ul className="mt-3 grid gap-1.5 text-sm text-zinc-700 sm:grid-cols-2">
         {VALUE_STACK.map((v) => (
@@ -129,7 +129,7 @@ export function ScaleOffer({
 export function StickyScaleBar({ publicId, businessId }: { publicId: string; businessId?: string | null }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white/95 px-4 py-2 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur md:hidden">
-      <ScaleCta publicId={publicId} businessId={businessId} placement="sticky" label="Start GravyBlock — $39.99/month" showRisk={false} compact />
+      <ScaleCta publicId={publicId} businessId={businessId} placement="sticky" label="Start your 14-day free trialnth" showRisk={false} compact />
     </div>
   );
 }

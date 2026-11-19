@@ -63,10 +63,10 @@ export function VerticalLanding({
           See pricing
         </Link>
       </div>
-      <p className="mt-3 text-xs text-zinc-500">Free scan, no credit card. GravyBlock is $39.99/month.</p>
+      <p className="mt-3 text-xs text-zinc-500">Free scan, no credit card. GravyBlock is $29.99/month.</p>
 
       <div className="mt-12 rounded-2xl border border-zinc-200 bg-zinc-50 p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-800">What GravyBlock does for you ($39.99/month)</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-800">What GravyBlock does for you ($29.99/month)</p>
         <ul className="mt-4 grid gap-2 sm:grid-cols-2">
           {automationFeatures.map((f) => (
             <li key={f} className="flex items-start gap-2 text-sm text-zinc-700">

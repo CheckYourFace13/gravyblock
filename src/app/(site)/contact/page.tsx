@@ -67,7 +67,7 @@ export default function ContactPage() {
                   <Link href="/pricing" className="font-medium text-red-600 hover:underline">
                     Check pricing →
                   </Link>{" "}
-                  for the $39.99/month price and what's included
+                  for the $29.99/month price and what's included
                 </li>
                 <li>
                   <Link href="/faq" className="font-medium text-red-600 hover:underline">

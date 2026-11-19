@@ -16,7 +16,7 @@ Current behavior (`src/components/report-view.tsx`):
 Change:
 1. Render the full report unconditionally (drop the `unlocked ? ... : null` guards and the `initiallyUnlocked` / `unlockToken` plumbing; keep `verifyReportUnlockToken` accepted but ignored so old emailed links still work).
 2. Replace `ReportUnlockCard` with an optional "Send me a copy of this report" form that reuses `unlockReportAction` (same lead save, same delivery email, same `report_unlocked` event, so reporting continuity is kept). Copy: "Save this report", not "Unlock".
-3. Remove stale plan plumbing: `selectedPlan` / `?plan=starter|growth|pro|agency` in `report/[publicId]/page.tsx`, `report-view.tsx`, `report-unlock-card.tsx`, `scale-cta.tsx` ("ScaleOffer"/"StickyScaleBar" naming), and the `scaleUrl: ...&plan=growth` in the delivery email. One CTA only: `Start GravyBlock — $39.99/month` linking to the single checkout path, with a short explanation: connect once where needed, GravyBlock prioritizes the work, does the eligible work automatically, verifies it, measures it, keeps going. No plan chooser, no second lead form before Stripe.
+3. Remove stale plan plumbing: `selectedPlan` / `?plan=starter|growth|pro|agency` in `report/[publicId]/page.tsx`, `report-view.tsx`, `report-unlock-card.tsx`, `scale-cta.tsx` ("ScaleOffer"/"StickyScaleBar" naming), and the `scaleUrl: ...&plan=growth` in the delivery email. One CTA only: `Start GravyBlock — $29.99/month` linking to the single checkout path, with a short explanation: connect once where needed, GravyBlock prioritizes the work, does the eligible work automatically, verifies it, measures it, keeps going. No plan chooser, no second lead form before Stripe.
 4. Keep the report `robots: noindex`. Funnel events stay (`report_landed`, `report_unlocked`, offer click, checkout).
 
 ## 2. Maps visibility presentation (real data only)
@@ -41,4 +41,4 @@ Reports already have `publicId` (unguessable link, `noindex`). A "Copy report li
 
 ## 6. Verification checklist after implementation
 
-Scan end to end on production; full report visible without email; optional save form delivers the email and records `report_unlocked`; CTA reaches Stripe Checkout at $39.99 (test session); funnel dashboard shows the new flow cleanly; House Accounts remain website read-only.
+Scan end to end on production; full report visible without email; optional save form delivers the email and records `report_unlocked`; CTA reaches Stripe Checkout at $29.99 (test session); funnel dashboard shows the new flow cleanly; House Accounts remain website read-only.

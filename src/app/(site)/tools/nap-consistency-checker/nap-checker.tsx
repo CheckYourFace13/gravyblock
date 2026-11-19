@@ -111,10 +111,10 @@ export function NapChecker() {
                 Scan my business free
               </Link>
               <Link href={START_HREF} className="text-sm font-semibold text-zinc-700 underline">
-                Start GravyBlock — $39.99/mo
+                Start your 14-day free trial
               </Link>
             </div>
-            <p className="mt-2 text-xs text-zinc-600">$39.99/month · Cancel anytime · 30-day money-back guarantee</p>
+            <p className="mt-2 text-xs text-zinc-600">14-day free trial, then $29.99/month · Cancel anytime · 30-day money-back guarantee after your first payment</p>
           </div>
         </div>
       ) : null}

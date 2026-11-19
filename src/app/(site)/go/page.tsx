@@ -22,7 +22,7 @@ export default function GoPage() {
     <div className="min-h-screen bg-white">
       {/* Urgency bar */}
       <div className="bg-red-600 px-4 py-2.5 text-center text-xs font-bold text-white tracking-wide">
-        GravyBlock: $39.99/month. Free scan first, cancel anytime, 30-day money-back guarantee
+        GravyBlock: $29.99/month. Free scan first, cancel anytime, 30-day money-back guarantee after your first payment
       </div>
 
       <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
@@ -35,7 +35,7 @@ export default function GoPage() {
               Stop doing SEO.<br />GravyBlock does it for you.
             </h1>
             <p className="mt-5 text-lg text-zinc-600 leading-relaxed">
-              GravyBlock is $39.99/month. It decides what will help and does it automatically — publishing website content, posting to Google, replying to Google reviews, running local outreach, and tracking your Google rankings.
+              GravyBlock is $29.99/month. It decides what will help and does it automatically — publishing website content, posting to Google, replying to Google reviews, running local outreach, and tracking your Google rankings.
             </p>
 
             <ul className="mt-8 space-y-3">
@@ -50,7 +50,7 @@ export default function GoPage() {
             <div className="mt-8 rounded-2xl border border-zinc-200 bg-zinc-50 p-5 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="font-semibold text-red-700">GravyBlock</span>
-                <span className="font-bold text-emerald-700">$39.99/mo</span>
+                <span className="font-bold text-emerald-700">$29.99/mo</span>
               </div>
             </div>
           </div>
@@ -75,7 +75,7 @@ export default function GoPage() {
                   href="/start"
                   className="flex w-full items-center justify-center rounded-full border border-zinc-300 bg-white px-6 py-3.5 text-sm font-bold text-zinc-900 hover:bg-zinc-50 transition"
                 >
-                  Start GravyBlock — $39.99/mo
+                  Start your 14-day free trial
                 </Link>
               </div>
 
@@ -86,7 +86,7 @@ export default function GoPage() {
                 </p>
                 <p className="flex items-center gap-1.5">
                   <span className="text-emerald-500 font-bold">✓</span>
-                  30-day money-back guarantee
+                  30-day money-back guarantee after your first payment
                 </p>
                 <p className="flex items-center gap-1.5">
                   <span className="text-emerald-500 font-bold">✓</span>

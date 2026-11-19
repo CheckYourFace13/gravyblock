@@ -26,7 +26,7 @@ export function SiteHeader({ isAdmin = false }: { isAdmin?: boolean }) {
       <header className="border-b border-zinc-200/80 bg-white">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-2 sm:px-6">
           <BrandMark compact />
-          <span className="text-xs font-medium text-zinc-500">Cancel anytime · 30-day money-back guarantee</span>
+          <span className="text-xs font-medium text-zinc-500">Cancel anytime · 30-day money-back guarantee after your first payment</span>
         </div>
       </header>
     );
@@ -45,7 +45,7 @@ export function SiteHeader({ isAdmin = false }: { isAdmin?: boolean }) {
       ) : (
         <div className="bg-zinc-900 px-4 py-2 text-center text-xs font-semibold text-white">
           <span className="text-red-400">GravyBlock:</span>{" "}
-          <span className="font-bold text-white">$39.99/mo</span>{" "}
+          <span className="font-bold text-white">14-day free trial, then $29.99/mo</span>{" "}
           <Link href="/scan" className="underline underline-offset-2 hover:text-red-300">
             Scan free →
           </Link>

@@ -80,13 +80,18 @@ async function buildCheckout(args: CheckoutArgs): Promise<DirectSignupResult> {
   // The public offer is exactly OFFER.price. If the configured Stripe price is anything else (for example the
   // deploy-time price script has not run yet), refuse rather than charge a different amount.
   const priceId = getPriceIdForPlan(plan, interval);
-  if (plan === OFFER.tier && interval === "monthly") {
+  if (plan === OFFER.tier) {
     const live = await stripe.prices.retrieve(priceId);
-    if (live.unit_amount !== OFFER.priceCents) {
-      console.error("[checkout] configured price does not match the public offer", { priceId, unitAmount: live.unit_amount });
+    const wantCents = interval === "annual" ? OFFER.annualCents : OFFER.priceCents;
+    const wantInterval = interval === "annual" ? "year" : "month";
+    if (live.unit_amount !== wantCents || live.recurring?.interval !== wantInterval) {
+      console.error("[checkout] configured price does not match the public offer", { priceId, interval, unitAmount: live.unit_amount, billed: live.recurring?.interval });
       return { ok: false, error: "Checkout is being updated. Please try again in a few minutes." };
     }
   }
+  // The 14-day free trial is for a customer's first subscription only: a returning customer (one who has had a subscription before) is charged from the start.
+  const returning = customerId ? (await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 1 })).data.length > 0 : false;
+  const trialDays = returning ? 0 : OFFER.trialDays;
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     // Without a known email Stripe creates the customer (and collects the email) inside Checkout; the webhook then
@@ -106,6 +111,7 @@ async function buildCheckout(args: CheckoutArgs): Promise<DirectSignupResult> {
     line_items: [{ price: priceId, quantity: 1 }],
     subscription_data: {
       metadata: { businessId, billingInterval: interval },
+      ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
     },
     ...(customerId ? { customer_update: { address: "auto" as const, name: "auto" as const } } : {}),
     billing_address_collection: "auto",
@@ -146,10 +152,10 @@ export async function directSignupAction(
     if (!businessName) return { ok: false, error: "Please enter your business name." };
     if (!email || !email.includes("@")) return { ok: false, error: "Please enter a valid email address." };
 
-    // One public product: GravyBlock at the single monthly price, no plan, interval or promo choices.
-    void rawPlan; void rawInterval; void rawPromo;
+    // One public product: GravyBlock, monthly or annual (the visitor's choice), with the free trial. No plan or promo choices.
+    void rawPlan; void rawPromo;
     const plan: CheckoutPlan = OFFER.tier;
-    const interval: BillingInterval = "monthly";
+    const interval: BillingInterval = rawInterval === "annual" ? "annual" : "monthly";
     const promoIntent = normalizePromoCode(null);
     const couponId = resolveCouponId(promoIntent);
     const { url: website, normalized: websiteNormalized } = normalizeWebsite(rawWebsite);

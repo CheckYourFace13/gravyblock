@@ -53,7 +53,7 @@ Verdicts: AS-IS, WRAPPER, COPY (copy the idea or code into Studio, no runtime li
 | Facebook poster | `social/facebook-poster.ts`, `integrations/facebook.ts` | COPY the Graph call code | Proves Page and Instagram posting is feasible. Do not copy token storage (plaintext in `business_configs`) or the paid-tier gating. |
 | Reddit, Truth Social | `social/reddit-poster.ts`, `truth-social.ts` | NO | Reddit posting is disabled; neither is in scope. |
 | Unsplash | `integrations/unsplash.ts` | NO | Studio uses owned assets only. |
-| Stripe, entitlements | `stripe/*`, `entitlement.ts`, `plans.ts`, `capabilities.ts` | WRAPPER (Phase 4) | One public product at $39.99 is untouched. A future Studio entitlement is a separate flag read through `entitlement.ts`. Do not add Studio to `capabilities.ts` until it runs in production, because that file is the public-claims source of truth. |
+| Stripe, entitlements | `stripe/*`, `entitlement.ts`, `plans.ts`, `capabilities.ts` | WRAPPER (Phase 4) | One public product at $29.99 is untouched. A future Studio entitlement is a separate flag read through `entitlement.ts`. Do not add Studio to `capabilities.ts` until it runs in production, because that file is the public-claims source of truth. |
 | Feature flags | none (settings are ad hoc `jobs` rows and env vars) | NEW | `ms_settings` with an enabled flag and a kill switch (section 5). |
 | Audit log | none general (`jobs` rows, `operator_notes`) | NEW | `ms_audit_events`, append-only. |
 | Monitoring | `watchdog/*`, house watchdog, `/api/health`, nginx | WRAPPER | Studio heartbeat visible in admin; Studio failure must never turn `/api/health` red. |
@@ -379,7 +379,7 @@ Before any automatic video production, run controlled benchmarks on the VPS with
 | AI/LLM budget | $0/month. Phase 1 uses no AI calls. See section 12. |
 | Disk | About 8 GB initial ceiling; one heavy render at a time until the Phase 2 benchmark proves otherwise. |
 | Pilots | DrinkKnird (website), RentalNoodle (SaaS), ScribbleZap (game), section 15. |
-| Pricing | No Marketing Studio subscription or pricing change now. GravyBlock stays $39.99/month. |
+| Pricing | No Marketing Studio subscription or pricing change now. GravyBlock stays $29.99/month. |
 
 Remaining housekeeping (not decisions): the Marketing Studio handoff document was never attached; reconcile it before Phase 1 if it holds requirements beyond the Phase 0 brief.
 
@@ -407,4 +407,4 @@ This is NOT authorization to modify their sites, apps or games, to access their 
 6. Eventual autonomy (reached by levels, section 11 and 9): identify opportunities, choose campaigns, create graphics, videos and copy, validate output, publish to authorized external accounts where APIs allow, measure traffic, install, signup and revenue outcomes, then learn and improve future campaigns. Outcome measurement for products whose sites cannot be touched relies on platform insights, store or analytics data the owner already has and explicitly shares, and optional GravyBlock-hosted tracked links (section 11), never on editing the product.
 7. Goal: minimal recurring human work after initial setup (connect accounts once, set rules, review exceptions).
 8. Commercialization without a rebuild: ownership is already modeled (`owner_kind`, `organization_id`, optional `business_id`), every repository call requires an `OwnerScope`, credentials are per-connection and encrypted, deletion and purge are built in, `ms_usage` and `ms_settings` carry per-owner quotas, and entitlements read through the existing `entitlement.ts` seam. Turning Studio on for customers later is configuration plus a pricing decision, not a redesign.
-9. No Marketing Studio subscription or pricing change now. Existing GravyBlock remains $39.99/month, and Studio is not mentioned in public claims (`capabilities.ts`) until it runs in production.
+9. No Marketing Studio subscription or pricing change now. Existing GravyBlock remains $29.99/month, and Studio is not mentioned in public claims (`capabilities.ts`) until it runs in production.

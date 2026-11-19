@@ -7,11 +7,11 @@ import { OFFER } from "@/lib/offer";
 
 export const metadata: Metadata = {
   title: "Start GravyBlock",
-  description: "Start GravyBlock for $39.99 a month. Cancel anytime, 30-day money-back guarantee.",
+  description: "Start GravyBlock with a 14-day free trial, then $29.99 a month or $299 a year. Cancel anytime, 30-day money-back guarantee after your first payment.",
   robots: { index: false, follow: false }, // don't index the signup funnel
 };
 
-type Props = { searchParams: Promise<{ report?: string }> };
+type Props = { searchParams: Promise<{ report?: string; interval?: string }> };
 
 const INCLUDED = [
   "Finds what is hurting your visibility",
@@ -43,11 +43,13 @@ export default async function StartPage({ searchParams }: Props) {
         <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-xl shadow-zinc-100">
           <div className="bg-gradient-to-br from-red-600 to-red-700 px-8 pb-6 pt-8">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-red-200">{OFFER.name}</p>
-            <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-4xl font-black text-white">$39.99</span>
-              <span className="text-sm text-red-200">/month</span>
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-2">
+              <span className="text-4xl font-black text-white">14 days free</span>
             </div>
-            <p className="mt-0.5 text-xs font-semibold text-red-200">{OFFER.risk}</p>
+            <p className="mt-1 text-sm text-red-100">
+              Then {OFFER.priceLong}, or {OFFER.annualLabel} (save {OFFER.annualSavings} a year).
+            </p>
+            <p className="mt-0.5 text-xs font-semibold text-red-200">Cancel anytime during the trial and you are not charged.</p>
             <ul className="mt-5 space-y-1.5">
               {INCLUDED.map((b) => (
                 <li key={b} className="flex items-center gap-2 text-sm text-red-100">
@@ -63,14 +65,15 @@ export default async function StartPage({ searchParams }: Props) {
             <p className="mb-6 text-sm text-zinc-500">
               {prefill ? "That is the only thing we still need." : "Tell us about your business and go straight to secure checkout."}
             </p>
-            <SignupForm priceLabel={OFFER.priceLabel} prefill={prefill} />
+            <SignupForm defaultInterval={query.interval === "annual" ? "annual" : "monthly"} prefill={prefill} />
           </div>
         </div>
 
         <div className="mt-4 flex justify-center gap-x-6 text-xs text-zinc-500">
           <span>✓ No setup fees</span>
           <span>✓ Cancel anytime</span>
-          <span>✓ 30-day money-back guarantee</span>
+          <span>✓ 14-day free trial</span>
+          <span>✓ 30-day money-back guarantee after your first payment</span>
         </div>
       </div>
     </div>

@@ -176,7 +176,7 @@ export default function HowItWorksPage() {
           <h2 className="text-2xl font-semibold text-zinc-900">Start with a free scan</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-600">
             Find your business, see your visibility score, and see what GravyBlock would do about each finding. About a
-            minute, no credit card. GravyBlock is $39.99/month, with a 30-day money-back guarantee.
+            minute, no credit card. GravyBlock is $29.99/month, with a 30-day money-back guarantee after your first payment.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
             <Link

@@ -262,7 +262,7 @@ const GRAVYBLOCK_BULLETS = [
   "Posts Google review replies automatically once Google is connected, and once your booking or invoicing system is connected, asks real completed customers for a review.",
   "Pitches relevant local organizations for links and only counts a link once it is verified live. Links are never guaranteed.",
   "Checks that your name, phone and address agree across your website, Google, and where connected Yelp and Facebook, and alerts you when they drift. It does not build or fix listings on hundreds of directories.",
-  "GravyBlock is $39.99/month.",
+  "GravyBlock is $29.99/month.",
 ];
 
 function buildVsPages(): Record<string, ComparePage> {
@@ -332,7 +332,7 @@ function buildVsPages(): Record<string, ComparePage> {
         "Rank tracking: Localo tracks keyword positions against competitors. GravyBlock checks your map position weekly as one part of its work and is not a dedicated tracking suite.",
         "Client reports: Localo generates weekly or monthly client reports. GravyBlock does not produce client or white-label reports.",
         "Google posts and reviews: both cover them. Localo as tools you manage, GravyBlock as work it performs once Google is connected.",
-        "Price: for Localo, see its pricing page, since we have not verified its current plans. GravyBlock is $39.99/month, cancel anytime, with a 30-day money-back guarantee.",
+        "Price: for Localo, see its pricing page, since we have not verified its current plans. GravyBlock is $29.99/month, cancel anytime, with a 30-day money-back guarantee after your first payment.",
         "Trying it: Localo lists a free trial and some free tools. GravyBlock has a free scan with no credit card.",
       ],
       sources: [{ url: "https://localo.com/", checked: "2026-10-30" }],
@@ -376,7 +376,7 @@ function buildVsPages(): Record<string, ComparePage> {
         "AI visibility: Local Falcon lists several assistants and its own share metrics. GravyBlock checks whether assistants such as ChatGPT and Perplexity mention your business and reports the result, without a share-of-voice score.",
         "Taking action: Local Falcon says its agent can take some actions. GravyBlock performs its eligible work automatically once the needed accounts are connected.",
         "Multi-location and agencies: Local Falcon lists campaigns across locations and an API. GravyBlock covers one location per subscription.",
-        "Price: for Local Falcon, see its pricing page, since we have not verified current plans. Its homepage mentions a free account with 100 credits. GravyBlock is $39.99/month, cancel anytime, with a 30-day money-back guarantee.",
+        "Price: for Local Falcon, see its pricing page, since we have not verified current plans. Its homepage mentions a free account with 100 credits. GravyBlock is $29.99/month, cancel anytime, with a 30-day money-back guarantee after your first payment.",
       ],
       sources: [{ url: "https://www.localfalcon.com/", checked: "2026-10-30" }],
     },
@@ -768,7 +768,7 @@ function buildVsPages(): Record<string, ComparePage> {
           title: "Where GravyBlock may be better",
           body: "GravyBlock is built for owner-operated businesses that want steady execution without managing a vendor.",
           bullets: [
-            "Lower cost. GravyBlock is $39.99/month. Agency retainers vary widely, so compare real quotes.",
+            "Lower cost. GravyBlock is $29.99/month. Agency retainers vary widely, so compare real quotes.",
             "Continuous operation. The work does not wait for a meeting or a monthly report cycle.",
             "Little workload for you. You connect your website, Google account and Facebook Page once, and GravyBlock takes it from there.",
             "Automatic prioritization. It decides which work is worth doing for your business and skips what is not.",

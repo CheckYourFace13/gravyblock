@@ -52,7 +52,7 @@ const faqs = [
     items: [
       {
         q: "How much does GravyBlock cost?",
-        a: "GravyBlock is $39.99 a month: one plan, no setup fee, no contract. Cancel anytime, with a 30-day money-back guarantee. The scan and report are free.",
+        a: "GravyBlock starts with a 14-day free trial, then it is $29.99 a month or $299 a year: one plan, no setup fee, no contract. Nothing is charged during the trial, and you can cancel anytime. The 30-day money-back guarantee starts from your first payment, after the trial. The scan and report are free.",
       },
       {
         q: "Is there a free version?",
@@ -73,7 +73,7 @@ const faqs = [
       },
       {
         q: "What is your refund policy?",
-        a: "GravyBlock includes a 30-day money-back guarantee. If you're not happy in the first 30 days, send a billing or refund request through the contact form at gravyblock.com/contact and we'll refund you in full. No questions.",
+        a: "GravyBlock includes a 30-day money-back guarantee after your first payment. If you're not happy in the first 30 days, send a billing or refund request through the contact form at gravyblock.com/contact and we'll refund you in full. No questions.",
       },
       {
         q: "What payment methods do you accept?",
@@ -186,10 +186,10 @@ export default function FaqPage() {
               Get my free score
             </Link>
             <Link href="/start" className="rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">
-              Start GravyBlock — $39.99/mo
+              Start your 14-day free trial
             </Link>
           </div>
-          <p className="text-xs text-zinc-600">$39.99/month · Cancel anytime</p>
+          <p className="text-xs text-zinc-600">14-day free trial, then $29.99/month · Cancel anytime</p>
         </div>
       </section>
     </div>

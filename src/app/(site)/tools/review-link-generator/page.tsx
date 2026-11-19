@@ -118,7 +118,7 @@ export default function ReviewLinkGeneratorPage() {
             GravyBlock asks for you, automatically
           </h2>
           <p className="mt-2 text-sm text-zinc-600 max-w-lg mx-auto">
-            Once you connect your booking or invoicing system, GravyBlock emails every real completed customer this same request automatically — plus review monitoring and automatic Google review replies once Google is connected. GravyBlock is $39.99/mo with a 30-day money-back guarantee.
+            Once you connect your booking or invoicing system, GravyBlock emails every real completed customer this same request automatically — plus review monitoring and automatic Google review replies once Google is connected. GravyBlock is $29.99/mo with a 30-day money-back guarantee after your first payment.
           </p>
           <Link
             href="/scan"

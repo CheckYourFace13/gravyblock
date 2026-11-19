@@ -69,7 +69,7 @@ export default function LaunchPage() {
     <div className="bg-white">
       {/* PH Banner */}
       <div className="bg-gradient-to-r from-orange-500 to-red-600 px-4 py-3 text-center text-sm font-semibold text-white">
-        👋 Hey Product Hunt — GravyBlock is $39.99/month, with a free scan first and a 30-day money-back guarantee
+        👋 Hey Product Hunt — GravyBlock is $29.99/month, with a free scan first and a 30-day money-back guarantee after your first payment
       </div>
 
       {/* Hero */}
@@ -99,13 +99,13 @@ export default function LaunchPage() {
               href="/start"
               className="rounded-full bg-zinc-900 px-8 py-3.5 text-sm font-bold text-white hover:bg-zinc-800 shadow-sm"
             >
-              Start GravyBlock — $39.99/mo
+              Start your 14-day free trial
             </Link>
           </div>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 pt-1 text-xs text-zinc-500">
             <span>✓ Free scan, no credit card</span>
             <span>✓ 60-second results</span>
-            <span>✓ 30-day money-back guarantee</span>
+            <span>✓ 30-day money-back guarantee after your first payment</span>
             <span>✓ Cancel anytime</span>
           </div>
         </div>
@@ -144,8 +144,8 @@ export default function LaunchPage() {
       <section className="border-y border-zinc-100 bg-zinc-50 px-4 py-14 sm:px-6">
         <div className="mx-auto max-w-4xl">
           <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-zinc-400">Pricing</p>
-          <p className="mb-2 text-center text-2xl font-bold text-zinc-900">GravyBlock — $39.99/month</p>
-          <p className="mb-6 text-center text-sm text-zinc-600">One plan. Free scan first. Cancel anytime · 30-day money-back guarantee.</p>
+          <p className="mb-2 text-center text-2xl font-bold text-zinc-900">GravyBlock — $29.99/month</p>
+          <p className="mb-6 text-center text-sm text-zinc-600">One plan. Free scan first. Cancel anytime · 30-day money-back guarantee after your first payment.</p>
           <div className="text-center">
             <a href="/scan" className="inline-block rounded-full bg-red-600 px-8 py-3.5 text-sm font-bold text-white hover:bg-red-500">
               Scan my business free →
@@ -177,14 +177,14 @@ export default function LaunchPage() {
             Run your free scan. See where you stand.
           </h2>
           <p className="text-zinc-400 text-sm">
-            60 seconds. No credit card. If you decide to start GravyBlock, it is $39.99/month with a 30-day money-back guarantee.
+            60 seconds. No credit card. If you decide to start GravyBlock, it is $29.99/month with a 30-day money-back guarantee after your first payment.
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Link href="/scan" className="rounded-full bg-white px-8 py-3.5 text-sm font-bold text-zinc-900 hover:bg-zinc-100">
               Get my free score
             </Link>
             <Link href="/start" className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-bold text-white hover:bg-red-500">
-              Start GravyBlock — $39.99/mo
+              Start your 14-day free trial
             </Link>
           </div>
         </div>

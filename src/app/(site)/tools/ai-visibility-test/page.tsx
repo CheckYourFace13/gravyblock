@@ -139,7 +139,7 @@ export default function AiVisibilityTestPage() {
           </Link>
         </div>
         <p className="mt-4 text-sm text-zinc-400">
-          GravyBlock ($39.99/month) monitors AI visibility and builds the content signals that improve it.{" "}
+          GravyBlock ($29.99/month) monitors AI visibility and builds the content signals that improve it.{" "}
           <Link href="/pricing" className="text-zinc-300 underline">
             See pricing.
           </Link>

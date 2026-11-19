@@ -359,7 +359,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 <CheckoutButton
                   businessId={businessId}
                   plan="growth"
-                  label="Start GravyBlock — $39.99/mo"
+                  label="Start your 14-day free trial"
                   promoCode={promoCode}
                   className="rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-500"
                 />
@@ -1480,7 +1480,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                 ? ` · renews ${new Date(bundle.business.currentPeriodEnd).toLocaleDateString()}`
                 : ""}
             </p>
-            <p className="mt-1 text-xs text-zinc-500">GravyBlock is $39.99/mo. Cancel anytime, with a 30-day money-back guarantee.</p>
+            <p className="mt-1 text-xs text-zinc-500">GravyBlock is $29.99/mo. Cancel anytime, with a 30-day money-back guarantee after your first payment.</p>
           </div>
           {hasBillingCustomer ? (
             <PortalButton
@@ -1493,12 +1493,12 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
         {tier === "free" ? (
           <div className="mt-5 rounded-xl border border-red-200 bg-red-50/50 p-4">
             <p className="text-sm font-semibold text-zinc-900">GravyBlock</p>
-            <p className="text-xs text-zinc-600">$39.99/mo · Cancel anytime · 30-day money-back guarantee</p>
+            <p className="text-xs text-zinc-600">14-day free trial, then $29.99/mo · Cancel anytime · 30-day money-back guarantee after your first payment</p>
             <div className="mt-3">
               <CheckoutButton
                 businessId={businessId}
                 plan="growth"
-                label="Start GravyBlock — $39.99/mo"
+                label="Start your 14-day free trial"
                 promoCode={promoCode}
                 className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
               />

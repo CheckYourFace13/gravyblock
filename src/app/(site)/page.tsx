@@ -8,7 +8,7 @@ const baseMetadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/" },
   title: { absolute: "GravyBlock — Automated Local SEO for Small Businesses | Free Scan" },
   description:
-    "GravyBlock automates local SEO for small businesses: publishes website content, replies to Google reviews, checks citation consistency, and tracks visibility — so you get discovered on Google Maps and Google Search. Autopilot from $39.99/month. Free scan.",
+    "GravyBlock automates local SEO for small businesses: publishes website content, replies to Google reviews, checks citation consistency, and tracks visibility — so you get discovered on Google Maps and Google Search. Autopilot from $29.99/month. Free scan.",
 };
 
 // Re-render at most every 5 minutes so an approved metadata override reaches the live page.
@@ -49,7 +49,7 @@ const productSchema = {
   offers: {
     "@type": "Offer",
     priceCurrency: "USD",
-    price: "39.99",
+    price: "29.99",
     availability: "https://schema.org/InStock",
     url: "https://gravyblock.com/pricing",
   },
@@ -67,7 +67,7 @@ export default function HomePage() {
       <section className="bg-gradient-to-b from-red-50 to-white px-4 pt-14 pb-12 sm:px-6 text-center">
         <div className="mx-auto max-w-3xl space-y-5">
           <div className="inline-block rounded-full border border-red-200 bg-red-50 px-4 py-1 text-xs font-bold uppercase tracking-widest text-red-700">
-            Autopilot: $39.99/month
+            14-day free trial, then $29.99/month
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl leading-[1.08]">
             Local SEO that does<br className="hidden sm:block" />{" "}the work for you.
@@ -80,11 +80,11 @@ export default function HomePage() {
               Scan my business free →
             </Link>
             <Link href="/start" className="rounded-full border border-zinc-300 bg-white px-8 py-4 text-base font-semibold text-zinc-800 hover:border-zinc-400 shadow-sm">
-              Start GravyBlock — $39.99/mo
+              Start your 14-day free trial
             </Link>
           </div>
           <p className="pt-1 text-xs font-medium text-zinc-600">
-            Free scan, no credit card · $39.99/month · Cancel anytime · 30-day money-back guarantee
+            Free scan, no credit card · 14-day free trial, then $29.99/month · Cancel anytime · 30-day money-back guarantee after your first payment
           </p>
         </div>
       </section>
@@ -235,7 +235,7 @@ export default function HomePage() {
       <section id="plans" className="px-4 py-14 sm:px-6">
         <div className="mx-auto max-w-3xl rounded-3xl border-2 border-red-200 bg-gradient-to-br from-red-50 via-white to-white p-8 text-center shadow-sm">
           <p className="text-xs font-bold uppercase tracking-widest text-red-700">The easiest option: let GravyBlock handle it</p>
-          <h2 className="mt-2 text-3xl font-bold text-zinc-900">GravyBlock: $39.99/month</h2>
+          <h2 className="mt-2 text-3xl font-bold text-zinc-900">GravyBlock: 14 days free, then $29.99/month</h2>
           <ul className="mx-auto mt-5 grid max-w-xl gap-1.5 text-left text-sm text-zinc-700 sm:grid-cols-2">
             {[
               "Finds what is hurting your visibility",
@@ -256,10 +256,10 @@ export default function HomePage() {
               Scan my business free →
             </Link>
             <Link href="/start" className="rounded-full border border-zinc-300 bg-white px-7 py-3.5 text-base font-semibold text-zinc-800 hover:border-zinc-400">
-              Start GravyBlock — $39.99/mo
+              Start your 14-day free trial
             </Link>
           </div>
-          <p className="mt-3 text-xs font-medium text-zinc-600">$39.99/month · Cancel anytime · 30-day money-back guarantee</p>
+          <p className="mt-3 text-xs font-medium text-zinc-600">14-day free trial, then $29.99/month · Cancel anytime · 30-day money-back guarantee after your first payment</p>
           <p className="mt-2 text-xs text-zinc-500">
             Details are on the{" "}
             <Link href="/pricing" className="underline">
@@ -284,10 +284,10 @@ export default function HomePage() {
               Get my free score
             </Link>
             <Link href="/start" className="rounded-full bg-red-600 px-7 py-3 text-sm font-bold text-white hover:bg-red-500">
-              Start GravyBlock — $39.99/mo
+              Start your 14-day free trial
             </Link>
           </div>
-          <p className="text-xs text-zinc-600">No setup fee · Cancel anytime · $39.99/month</p>
+          <p className="text-xs text-zinc-600">14-day free trial, then $29.99/month · No setup fee · Cancel anytime</p>
         </div>
       </section>
 

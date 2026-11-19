@@ -40,10 +40,10 @@ function buildEmail(businessName: string, _plan: string): { subject: string; htm
       You were in the middle of setting up GravyBlock for <strong>${businessName}</strong>. Something interrupted checkout, which happens all the time.
     </p>
     <p style="color:#52525b;font-size:14px;margin:12px 0">
-      GravyBlock finds what is hurting your visibility, does the eligible work automatically and verifies it. It is $39.99 a month.
+      GravyBlock finds what is hurting your visibility, does the eligible work automatically and verifies it. It is $29.99 a month.
     </p>
-    ${btn(`${siteUrl}/start`, "Continue to secure checkout — $39.99/mo")}
-    <p style="color:#71717a;font-size:13px;margin:12px 0">$39.99/month · Cancel anytime · 30-day money-back guarantee</p>
+    ${btn(`${siteUrl}/start`, "Continue to secure checkout")}
+    <p style="color:#71717a;font-size:13px;margin:12px 0">14-day free trial, then $29.99/month · Cancel anytime · 30-day money-back guarantee after your first payment</p>
     <p style="color:#71717a;font-size:13px;margin:20px 0 0">
       Questions before you start? Reply to this email and our team will answer.
     </p>
@@ -87,9 +87,9 @@ function buildFollowUpEmail(businessName: string, _plan: string): { subject: str
       You started GravyBlock for <strong>${businessName}</strong> a few days ago but didn't finish checkout. Your setup is still there whenever you want it.
     </p>
     <p style="color:#52525b;font-size:14px;margin:0 0 16px 0">
-      It is $39.99 a month, with no contract, and a 30-day money-back guarantee if it isn't right for you. If something else stopped you, reply and our team will help.
+      It is $29.99 a month, with no contract, and a 30-day money-back guarantee after your first payment if it isn't right for you. If something else stopped you, reply and our team will help.
     </p>
-    ${btn(`${siteUrl}/start`, "Continue to secure checkout — $39.99/mo")}
+    ${btn(`${siteUrl}/start`, "Continue to secure checkout")}
     <p style="color:#71717a;font-size:13px;margin:20px 0 0">
       No pressure. If you're not interested, ignore this; we won't send another.
     </p>

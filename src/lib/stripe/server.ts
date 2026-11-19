@@ -33,7 +33,7 @@ export type BillingInterval = "monthly" | "annual";
 //   STRIPE_PRICE_PRO_ANNUAL, STRIPE_PRICE_AGENCY_ANNUAL
 export const ANNUAL_SAVINGS: Record<CheckoutPlan, { monthlyEquiv: number; fullPrice: number }> = {
   starter: { monthlyEquiv: 44.99,  fullPrice: 539.88 },
-  growth:  { monthlyEquiv: 112.49, fullPrice: 1349.88 },
+  growth:  { monthlyEquiv: 24.92, fullPrice: 299 },
   pro:     { monthlyEquiv: 187.49, fullPrice: 2249.88 },
   agency:  { monthlyEquiv: 374.99, fullPrice: 4499.88 },
 };

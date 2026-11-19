@@ -83,8 +83,8 @@ export function planFeatures(tier: PlanTier): PlanFeatures {
     case "growth":
       return {
         label: "GravyBlock",
-        monthlyPrice: 39.99,
-        introPrice: 39.99,
+        monthlyPrice: 29.99,
+        introPrice: 29.99,
         refreshCadenceLabel: "Weekly",
         refreshIntervalDays: 7,
         recurringRefresh: true,

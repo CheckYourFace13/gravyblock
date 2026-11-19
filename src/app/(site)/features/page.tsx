@@ -193,7 +193,7 @@ export default function FeaturesPage() {
           <h2 className="text-2xl font-semibold text-zinc-900">See what it would do for your business</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-600">
             Run the free scan to get your visibility score and see which of these GravyBlock would do for you. No credit
-            card. GravyBlock is $39.99/month.
+            card. GravyBlock is $29.99/month.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
             <Link

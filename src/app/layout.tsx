@@ -67,9 +67,9 @@ const schemaOrg = {
       offers: {
         "@type": "AggregateOffer",
         priceCurrency: "USD",
-        lowPrice: "39.99",
-        highPrice: "39.99",
-        offerCount: "1",
+        lowPrice: "29.99",
+        highPrice: "299",
+        offerCount: "2",
       },
       featureList: [
         "Website articles and service pages published to a connected WordPress, Webflow or Shopify site",

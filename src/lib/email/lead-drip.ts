@@ -58,8 +58,8 @@ export const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       ${topFinding ? `<p style="color:#52525b;font-size:14px;margin:12px 0">The most important thing we found for <strong>${businessName}</strong>: ${topFinding.detail}</p>` : `<p style="color:#52525b;font-size:14px;margin:12px 0">Your report for <strong>${businessName}</strong> lists what is holding back your visibility on Google.</p>`}
       <p style="color:#52525b;font-size:14px;margin:12px 0">You don't have to fix this yourself. GravyBlock already read your website and Google profile, so it knows what needs attention. It decides what is worth doing first, does the eligible work automatically, and checks that each change actually happened.</p>
-      ${btn(scaleUrl, "Start GravyBlock — $39.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">$39.99/month · Cancel anytime · 30-day money-back guarantee</p>
+      ${btn(scaleUrl, "Start your 14-day free trial →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">14-day free trial, then $29.99/month · Cancel anytime · 30-day money-back guarantee after your first payment</p>
       <p style="color:#71717a;font-size:12px;margin:12px 0"><a href="${reportUrl}" style="color:#dc2626">View my full report</a></p>
     `, email, leadId),
   },
@@ -72,8 +72,8 @@ export const DRIP_SEQUENCE: DripEmail[] = [
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">Many SEO tools give you a dashboard and leave the work to you or an agency. Some now automate parts of it, and they can suit you if you want to run things yourself.</p>
       <p style="color:#52525b;font-size:14px;margin:12px 0">GravyBlock is built for owners who don't want to operate a toolbox. It chooses the worthwhile work for ${businessName}, does what you've connected it to do, verifies the result, and reports only what it confirmed. After one-time connections (your website, your Google account) there is no task list for you to manage. It does not guarantee rankings.</p>
-      ${btn(scaleUrl, "Start GravyBlock — $39.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">$39.99/month · Cancel anytime · 30-day money-back guarantee</p>
+      ${btn(scaleUrl, "Start your 14-day free trial →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">14-day free trial, then $29.99/month · Cancel anytime · 30-day money-back guarantee after your first payment</p>
       <p style="color:#71717a;font-size:12px;margin:12px 0"><a href="${reportUrl}" style="color:#dc2626">View my full report</a></p>
     `, email, leadId),
   },
@@ -82,11 +82,11 @@ export const DRIP_SEQUENCE: DripEmail[] = [
     subject: ({ businessName }) => `Last note about ${businessName}'s scan`,
     html: ({ name, businessName, email, leadId, scaleUrl, reportUrl }) => wrap(`
       <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:#991b1b">Last note</p>
-      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">GravyBlock is $39.99 a month, and low risk to try</h1>
+      <h1 style="margin:8px 0 0;font-size:20px;font-weight:700;color:#18181b">GravyBlock is $29.99 a month, and low risk to try</h1>
       <p style="color:#52525b;font-size:15px;margin:16px 0">Hi ${name},</p>
-      <p style="color:#52525b;font-size:14px;margin:12px 0">This is the last routine email about your scan. If you'd like GravyBlock to work on ${businessName}'s visibility, it's one plan at $39.99 a month. There's no contract, you can cancel anytime, and if you're not satisfied in the first 30 days we'll refund you.</p>
-      ${btn(scaleUrl, "Start GravyBlock — $39.99/mo →")}
-      <p style="color:#71717a;font-size:13px;margin:12px 0">$39.99/month · Cancel anytime · 30-day money-back guarantee</p>
+      <p style="color:#52525b;font-size:14px;margin:12px 0">This is the last routine email about your scan. If you'd like GravyBlock to work on ${businessName}'s visibility, it's one plan at $29.99 a month. There's no contract, you can cancel anytime, and if you're not satisfied in the first 30 days we'll refund you.</p>
+      ${btn(scaleUrl, "Start your 14-day free trial →")}
+      <p style="color:#71717a;font-size:13px;margin:12px 0">14-day free trial, then $29.99/month · Cancel anytime · 30-day money-back guarantee after your first payment</p>
       <p style="color:#71717a;font-size:12px;margin:12px 0">Your report stays available: <a href="${reportUrl}" style="color:#dc2626">view my full report</a>. After today we won't send more sales emails unless you run a new scan.</p>
     `, email, leadId),
   },

@@ -64,7 +64,7 @@ export default async function LocalSeoPage({ params }: Props) {
     },
     {
       q: `How much does it cost for ${article} ${ind} in ${city.name}?`,
-      a: `GravyBlock is $39.99/month. Plans are the same in every city. You can start with a free scan, no credit card.`,
+      a: `GravyBlock is $29.99/month. Plans are the same in every city. You can start with a free scan, no credit card.`,
     },
     {
       q: `How long until my ${ind} shows up higher in ${city.name}?`,
@@ -104,7 +104,7 @@ export default async function LocalSeoPage({ params }: Props) {
               How it works
             </Link>
           </div>
-          <p className="mt-3 text-xs text-zinc-500">GravyBlock is $39.99/month. Cancel anytime.</p>
+          <p className="mt-3 text-xs text-zinc-500">GravyBlock is $29.99/month. Cancel anytime.</p>
         </div>
       </section>
 

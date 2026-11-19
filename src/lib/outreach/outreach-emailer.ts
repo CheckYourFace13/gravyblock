@@ -90,7 +90,7 @@ ${scanUrl}
 
 It scores your Google profile, reviews, and whether AI actually recommends you in ${city}.
 
-If it's useful and you'd want it handled automatically (content, reviews, citations, all of it), GravyBlock is $39.99/mo, with a 30-day money-back guarantee. But the report's free either way.
+If it's useful and you'd want it handled automatically (content, reviews, citations, all of it), GravyBlock is $29.99/mo, with a 30-day money-back guarantee after your first payment. But the report's free either way.
 
 ${SENDER_NAME}
 ${SENDER_TITLE} — https://gravyblock.com
@@ -152,7 +152,7 @@ function buildHtmlEmail(prospect: Prospect & { emailTo?: string }, industryLabel
   <p style="margin:0 0 18px;font-size:14px;color:#555">
     It scores your Google profile, reviews, and whether AI actually recommends you in ${city}.
     If you'd want it all handled automatically (content, reviews, citations), GravyBlock is
-    <strong>$39.99/mo</strong>, with a 30-day money-back guarantee. But the report's free either way.
+    <strong>$29.99/mo</strong>, with a 30-day money-back guarantee after your first payment. But the report's free either way.
   </p>
 
   <p style="margin:0 0 6px;font-size:14px">
@@ -363,7 +363,7 @@ ${reminderLine}
 Your report is here:
 ${linkUrl}
 
-If you'd rather have GravyBlock handle the ongoing work, GravyBlock is $39.99/month. There's a 30-day money-back guarantee and you can cancel anytime.
+If you'd rather have GravyBlock handle the ongoing work, GravyBlock is $29.99/month. There's a 30-day money-back guarantee after your first payment and you can cancel anytime.
 
 If you want, reply here and I'll help you get it running.
 
@@ -397,7 +397,7 @@ function buildFollowupHtml(businessName: string, linkUrl: string, findingId: str
   </p>
 
   <p style="margin:0 0 18px">
-    If you'd rather have GravyBlock handle the ongoing work, GravyBlock is <strong>$39.99/month</strong>. There's a 30-day money-back guarantee and you can cancel anytime.
+    If you'd rather have GravyBlock handle the ongoing work, GravyBlock is <strong>$29.99/month</strong>. There's a 30-day money-back guarantee after your first payment and you can cancel anytime.
   </p>
 
   <p style="margin:0 0 32px;font-size:14px;color:#555">
@@ -522,7 +522,7 @@ export async function sendBreakupEmail(params: {
 Last note from me — I wanted to make sure you had the visibility report I ran for ${params.businessName}:
 ${linkUrl}
 
-Autopilot is $39.99/month, with a 30-day guarantee.
+Autopilot is $29.99/month, with a 30-day guarantee.
 
 If you'd like help getting it running, just reply.
 
@@ -539,7 +539,7 @@ ${SENDER_NAME}`;
       See the report →
     </a>
   </p>
-  <p style="margin:0 0 18px">Autopilot is <strong>$39.99/month</strong>, with a 30-day guarantee.</p>
+  <p style="margin:0 0 18px">Autopilot is <strong>$29.99/month</strong>, with a 30-day guarantee.</p>
   <p style="margin:0 0 32px;font-size:14px;color:#555">If you'd like help getting it running, just reply.</p>
   <p style="margin:0 0 6px;font-size:14px">
     ${SENDER_NAME}

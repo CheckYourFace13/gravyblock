@@ -7,7 +7,7 @@ import { FunnelBeacon } from "@/components/funnel-beacon";
 
 const baseMetadata: Metadata = {
   title: "Local SEO Pricing",
-  description: "GravyBlock is $39.99 a month: one plan that finds what is hurting your local visibility and does the eligible work automatically. Free scan, cancel anytime, 30-day money-back guarantee.",
+  description: "GravyBlock is $29.99 a month or $299 a year, with a 14-day free trial: one plan that finds what is hurting your local visibility and does the eligible work automatically. Cancel anytime, 30-day money-back guarantee after your first payment.",
   alternates: { canonical: "/pricing" },
 };
 
@@ -22,16 +22,24 @@ const START_HREF = "/start";
 
 const faqs = [
   {
-    q: "What do I get for $39.99 a month?",
+    q: "What do I get for $29.99 a month?",
     a: "GravyBlock learns your business from your own website and Google profile, decides what is worth doing, and does the eligible work automatically: website content, Google Business Profile posts, Google review replies, outreach to relevant local organizations, citation consistency checks and AI-search visibility checks. It verifies each action and reports only what it confirmed. Some work needs a one-time connection, such as your website or Google account.",
+  },
+  {
+    q: "How does the 14-day free trial work?",
+    a: "You start with 14 days free. Checkout asks for a card so the subscription can continue, but nothing is charged during the 14 days. If you cancel before the trial ends you pay nothing. If you stay, your first payment is $29.99 for a monthly plan or $299 for an annual plan, taken when the trial ends.",
+  },
+  {
+    q: "What is the difference between the free trial and the money-back guarantee?",
+    a: "They come one after the other and do not overlap. The 14-day trial is free, so there is nothing to refund during it: cancel and you are not charged. The 30-day money-back guarantee starts from your first payment, the one taken when the trial ends. If you are not satisfied in the 30 days after that payment, send a billing or refund request through the contact form and we will refund it.",
+  },
+  {
+    q: "Should I choose monthly or annual?",
+    a: "Monthly is $29.99 and you can stop at any time. Annual is $299 for the year, which works out to $24.92 a month and saves $60.88 compared with twelve monthly payments. Both have the same 14-day free trial and the same guarantee.",
   },
   {
     q: "Is there a contract? Can I cancel?",
     a: "No contract. Cancel anytime from the billing portal in your workspace. You keep access until the end of the period you have paid for.",
-  },
-  {
-    q: "What is the money-back guarantee?",
-    a: "If you are not satisfied within 30 days of your first payment, send a billing or refund request through the contact form and we will refund that payment.",
   },
   {
     q: "Is the free scan really free?",
@@ -55,14 +63,26 @@ const schema = {
       name: "GravyBlock",
       description: "Automated local SEO for small businesses: finds what is hurting your visibility and does the eligible work automatically.",
       brand: { "@type": "Brand", name: "GravyBlock" },
-      offers: {
-        "@type": "Offer",
-        price: "39.99",
-        priceCurrency: "USD",
-        availability: "https://schema.org/InStock",
-        url: "https://gravyblock.com/pricing",
-        priceSpecification: { "@type": "UnitPriceSpecification", price: "39.99", priceCurrency: "USD", billingDuration: 1, unitCode: "MON" },
-      },
+      offers: [
+        {
+          "@type": "Offer",
+          name: "GravyBlock monthly (14-day free trial)",
+          price: "29.99",
+          priceCurrency: "USD",
+          availability: "https://schema.org/InStock",
+          url: "https://gravyblock.com/pricing",
+          priceSpecification: { "@type": "UnitPriceSpecification", price: "29.99", priceCurrency: "USD", billingDuration: 1, unitCode: "MON" },
+        },
+        {
+          "@type": "Offer",
+          name: "GravyBlock annual (14-day free trial)",
+          price: "299",
+          priceCurrency: "USD",
+          availability: "https://schema.org/InStock",
+          url: "https://gravyblock.com/pricing",
+          priceSpecification: { "@type": "UnitPriceSpecification", price: "299", priceCurrency: "USD", billingDuration: 1, unitCode: "ANN" },
+        },
+      ],
     },
     {
       "@type": "FAQPage",
@@ -81,7 +101,8 @@ export default function PricingPage() {
       <section className="bg-gradient-to-b from-red-50 to-white px-4 pb-10 pt-14 text-center sm:px-6">
         <div className="mx-auto max-w-2xl space-y-4">
           <p className="text-xs font-bold uppercase tracking-widest text-red-700">One plan. No tiers to decode.</p>
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">GravyBlock — $39.99/month</h1>
+          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">Try GravyBlock free for 14 days</h1>
+          <p className="text-xl font-semibold text-zinc-800">Then $29.99/month, or $299/year</p>
           <p className="mx-auto max-w-xl text-lg text-zinc-600">
             You should not need to buy SEO software and then learn how to use it. GravyBlock figures out what is worth doing for your business and handles the
             eligible work automatically.
@@ -96,6 +117,27 @@ export default function PricingPage() {
           </div>
           <p className="text-xs font-medium text-zinc-600">{OFFER.risk} · No setup fee</p>
         </div>
+      </section>
+
+      <section className="px-4 pb-4 sm:px-6">
+        <div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
+          <div className="rounded-3xl border-2 border-zinc-200 bg-white p-6">
+            <p className="text-sm font-semibold text-zinc-600">Monthly</p>
+            <p className="mt-1 text-3xl font-black text-zinc-900">$29.99<span className="text-base font-medium text-zinc-500">/month</span></p>
+            <p className="mt-1 text-sm text-zinc-600">Stop at any time.</p>
+            <Link href={START_HREF} className="mt-4 block rounded-full bg-red-600 px-6 py-3 text-center text-sm font-bold text-white hover:bg-red-500">{OFFER.cta}</Link>
+          </div>
+          <div className="relative rounded-3xl border-2 border-red-300 bg-red-50/40 p-6">
+            <span className="absolute -top-3 right-5 rounded-full bg-emerald-600 px-3 py-0.5 text-xs font-bold text-white">Save $60.88</span>
+            <p className="text-sm font-semibold text-zinc-600">Annual</p>
+            <p className="mt-1 text-3xl font-black text-zinc-900">$299<span className="text-base font-medium text-zinc-500">/year</span></p>
+            <p className="mt-1 text-sm text-zinc-600">About $24.92 a month, paid once a year.</p>
+            <Link href={`${START_HREF}?interval=annual`} className="mt-4 block rounded-full bg-red-600 px-6 py-3 text-center text-sm font-bold text-white hover:bg-red-500">{OFFER.cta}</Link>
+          </div>
+        </div>
+        <p className="mx-auto mt-4 max-w-3xl text-center text-xs text-zinc-600">
+          Both start with 14 days free: your card is needed at checkout but nothing is charged for 14 days, and you pay nothing if you cancel before it ends. The 30-day money-back guarantee starts from your first payment, after the trial.
+        </p>
       </section>
 
       <section className="px-4 py-10 sm:px-6">
@@ -145,7 +187,7 @@ export default function PricingPage() {
                 </tr>
                 <tr className="bg-red-50/60">
                   <td className="border-t border-red-100 px-4 py-3 font-bold text-zinc-900">GravyBlock</td>
-                  <td className="border-t border-red-100 px-4 py-3 font-bold text-emerald-700">$39.99 per month</td>
+                  <td className="border-t border-red-100 px-4 py-3 font-bold text-emerald-700">14 days free, then $29.99 per month or $299 per year</td>
                   <td className="border-t border-red-100 px-4 py-3 font-medium text-zinc-800">GravyBlock, automatically, for the work on the features page</td>
                 </tr>
               </tbody>

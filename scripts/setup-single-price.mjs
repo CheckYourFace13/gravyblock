@@ -1,11 +1,11 @@
 /**
- * Single public offer: GravyBlock at $39.99/month.
+ * Single public offer: GravyBlock at $29.99/month or $299/year, with a 14-day free trial (the trial is applied by Checkout).
  *
- * Creates (once) a $39.99/month Stripe price on the existing Growth product and points
- * STRIPE_PRICE_GROWTH_MONTHLY at it. Stripe prices are immutable, so this adds a new price
- * and leaves the old ones untouched (there are no subscribers on them). Runs on every deploy
- * and is idempotent: it finds the price by lookup key and rewrites the env var in place.
- * The app additionally refuses to open checkout unless the configured price is exactly $39.99.
+ * Creates (once each) a $29.99/month and a $299/year Stripe price on the existing Growth product and points
+ * STRIPE_PRICE_GROWTH_MONTHLY and STRIPE_PRICE_GROWTH_ANNUAL at them. Stripe prices are immutable, so this adds new prices
+ * and never touches or archives older ones: anyone already subscribed at an older price keeps it. Runs on every deploy
+ * and is idempotent: it finds each price by lookup key and rewrites the env vars in place.
+ * The app additionally refuses to open checkout unless the configured price is exactly the advertised amount and interval.
  */
 
 import { readFileSync, writeFileSync } from "fs";
@@ -23,9 +23,11 @@ if (!key) {
 const stripe = new Stripe(key, { apiVersion: "2026-03-25.dahlia" });
 
 const GROWTH_PRODUCT_ID = "prod_UPlZG8WLsxNBSn";
-const CENTS = 3999;
-const LOOKUP_KEY = "gravyblock_monthly_3999";
 const ENV_PATH = resolve(process.cwd(), ".env");
+const PRICES = [
+  { env: "STRIPE_PRICE_GROWTH_MONTHLY", lookup: "gravyblock_monthly_2999", cents: 2999, interval: "month", nickname: "GravyBlock monthly" },
+  { env: "STRIPE_PRICE_GROWTH_ANNUAL", lookup: "gravyblock_annual_29900", cents: 29900, interval: "year", nickname: "GravyBlock annual" },
+];
 
 function setEnvVar(name, value) {
   let current = "";
@@ -58,22 +60,24 @@ function setEnvVar(name, value) {
 }
 
 try {
-  const existing = await stripe.prices.list({ lookup_keys: [LOOKUP_KEY], active: true, limit: 1 });
-  let price = existing.data[0];
-  if (price && (price.unit_amount !== CENTS || price.recurring?.interval !== "month")) price = undefined;
-  if (!price) {
-    price = await stripe.prices.create({
-      product: GROWTH_PRODUCT_ID,
-      currency: "usd",
-      unit_amount: CENTS,
-      recurring: { interval: "month" },
-      lookup_key: LOOKUP_KEY,
-      transfer_lookup_key: true,
-      nickname: "GravyBlock monthly",
-    });
-    console.log(`[setup-single-price] created ${price.id}`);
+  for (const want of PRICES) {
+    const existing = await stripe.prices.list({ lookup_keys: [want.lookup], active: true, limit: 1 });
+    let price = existing.data[0];
+    if (price && (price.unit_amount !== want.cents || price.recurring?.interval !== want.interval)) price = undefined;
+    if (!price) {
+      price = await stripe.prices.create({
+        product: GROWTH_PRODUCT_ID,
+        currency: "usd",
+        unit_amount: want.cents,
+        recurring: { interval: want.interval },
+        lookup_key: want.lookup,
+        transfer_lookup_key: true,
+        nickname: want.nickname,
+      });
+      console.log(`[setup-single-price] created ${price.id} (${want.cents} cents per ${want.interval})`);
+    }
+    setEnvVar(want.env, price.id);
   }
-  setEnvVar("STRIPE_PRICE_GROWTH_MONTHLY", price.id);
 } catch (error) {
   console.error("[setup-single-price] failed (non-fatal)", error instanceof Error ? error.message : error);
 }
