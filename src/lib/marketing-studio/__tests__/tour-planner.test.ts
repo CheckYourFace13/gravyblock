@@ -315,3 +315,18 @@ describe("repairs: lines that name no action get a lead-in that points at the sc
     assert.ok(says.every((t) => t.split(/\s+/).length <= 14));
   });
 });
+
+describe("repairs: a line another video already says is swapped for one nobody says", () => {
+  test("the repeated line takes a different real block of its page, and the screen shows that block", async () => {
+    const { repairRaw } = await import("../video/concepts/tour-planner");
+    const raw = JSON.parse(planJson("Who has time for another marketing task?"));
+    raw.scenes[0].nodes[1] = { step: "READS", block: "p0.b1", say: "Reads your real website and connected profiles.", fact: 2 };
+    const earlier = { specId: "gravyblock:old", hook: "h", problem: "p", benefit: "b", lines: ["Reads your real website and connected profiles."], closing: "c", cta: "t", visual: [], format: "tour" } as unknown as PlanContext["history"][number];
+    const fixed = repairRaw(raw, ['2 lines are repeated from "Who has time", for example "Reads your real website and connected profiles"'], ctx([earlier]));
+    assert.equal(fixed.changed, true);
+    const n = fixed.raw.scenes![0].nodes![1];
+    assert.notEqual(n.block, "p0.b1");
+    assert.ok(n.block?.startsWith("p0."), "a block of the same page");
+    assert.doesNotMatch(n.say ?? "", /Reads your real website/);
+  });
+});

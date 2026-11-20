@@ -503,6 +503,8 @@ function blocksFor(ctx: PlanContext, says: string[], pages: string[]): string[] 
   return out;
 }
 
+const nrm = (t: string) => t.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim();
+
 export function repairRaw(input: Raw, problems: string[], ctx: PlanContext, brief?: Brief): { raw: Raw; changed: boolean; notes: string[] } {
   const raw: Raw = JSON.parse(JSON.stringify(input));
   const notes: string[] = [];
@@ -528,6 +530,22 @@ export function repairRaw(input: Raw, problems: string[], ctx: PlanContext, brie
         raw.scenes = raw.scenes!.slice(0, Number(m[1]));
         notes.push("extra scenes dropped");
       }
+    } else if ((m = /lines are repeated from .*for example "([^"]+)"/.exec(pr))) {
+      // a line another video already says: it is swapped for a different real block of the same page that no earlier video or other line uses, and the screen shows that block
+      const head = nrm(m[1]).slice(0, 40);
+      const taken = [...ctx.history.flatMap((h) => h.lines), ...(raw.scenes ?? []).flatMap((sc) => (sc.nodes ?? []).map((n) => n.say ?? ""))];
+      for (const sc of raw.scenes ?? [])
+        for (const nd of sc.nodes ?? []) {
+          if (!nd.say || !nrm(nd.say).startsWith(head)) continue;
+          const here = nd.block ? blockById(ctx.corpus, nd.block) : null;
+          const pool = (here ? [here.page] : ctx.corpus.pages).flatMap((pg) => pg.blocks);
+          const fresh = pool.find((b) => b.id !== nd.block && !BANNED.test(b.text) && taken.every((t) => jaccard(content(t), content(b.text)) < 0.5));
+          if (fresh) {
+            nd.block = fresh.id;
+            nd.say = swapWords(shortLine(fresh.text));
+            notes.push("a repeated line was swapped for one no other video says");
+          }
+        }
     } else if ((m = /^the story must show these pages and does not: (.+?) \(open each/.exec(pr)) && brief?.storyScenes) {
       // the scenes whose assigned pages are missing take their pages: their nodes move onto blocks of those pages and their tour is rebuilt
       const missing = m[1].split(", ");
@@ -657,7 +675,6 @@ export function repairRaw(input: Raw, problems: string[], ctx: PlanContext, brie
 
 // ---- freshness ------------------------------------------------------------------------------------------------------------------------
 
-const nrm = (t: string) => t.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim();
 
 /** Pure: every piece of real site text a plan depends on (the card text and what each step must show), with the page it comes from where that is known. */
 export function quotesOf(def: ExplainerDef): Array<{ path?: string; text: string; kind: "block" | "shows" | "click" | "field" | "scroll" }> {
