@@ -4,7 +4,7 @@
  * with the exact problems when it does not, so nothing is left blocked for a person to repair. The stored concept is then produced by the same pipeline every product uses.
  * Nothing is published; every video still goes to the owner's review, and a video the owner approved or made public is never touched.
  */
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { ms, type StudioDb } from "./db";
 import { briefVariant, GRAVYBLOCK_BRIEFS, GRAVYBLOCK_PLAN_PATHS } from "./gravyblock-briefs";
 import { readLedger, spendNow } from "./video/concepts/ai-budget";
@@ -101,6 +101,22 @@ export function withoutUnlocatable(c: Corpus, bad: string[]): Corpus {
   if (!bad.length) return c;
   const hit = (t: string) => bad.some((b) => nrm(t).includes(b) || b.includes(nrm(t)));
   return { ...c, pages: c.pages.map((p) => ({ ...p, blocks: p.blocks.filter((x) => !hit(x.text)) })) };
+}
+
+/**
+ * A new plan replaces the old video of its script: the old rendered rows that never went live (nothing published, nothing taken down) are retired, so they do not count as the script's "one live
+ * video" and block the new render. A video that was ever published is never touched.
+ */
+async function retireUnpublishedRows(db: StudioDb, productId: string, specId: string): Promise<number> {
+  const rows = await db.select({ id: ms.msVideos.id, status: ms.msVideos.status, sb: ms.msVideos.storyboard }).from(ms.msVideos).where(eq(ms.msVideos.productId, productId));
+  let n = 0;
+  for (const r of rows.filter((x) => (x.sb as { specId?: string } | null)?.specId === specId && ["ready_for_review", "approved"].includes(x.status))) {
+    const live = await db.select({ id: ms.msPublications.id }).from(ms.msPublications).where(and(eq(ms.msPublications.videoId, r.id), inArray(ms.msPublications.status, ["published", "publishing", "revoked", "deleted"]))).limit(1);
+    if (live.length) continue;
+    await db.update(ms.msVideos).set({ status: "superseded" }).where(eq(ms.msVideos.id, r.id));
+    n++;
+  }
+  return n;
 }
 
 /** The verified facts, the prohibited claims and the history a plan is made and checked against. */
@@ -234,6 +250,8 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
     accepted.push(fp);
     await setSetting(planKey(b.key), { v: PLANNER_VERSION, at: new Date().toISOString(), ok: true, attempts: planned.attempts, fp, def: planned.def, yt: planned.yt, failedRuns: 0, variant, repairs: planned.repairs } satisfies PlanRecord, ACTOR, db, { audited: false });
     await updateAngle(db, ACTOR, "gravyblock", (a) => a.id === b.angleId, { specId, hook: c.hook, yt: planned.yt, scenes: c.capturePlan.map((p) => p.heading), status: "planned" });
+    const retired = await retireUnpublishedRows(db, product.id, specId);
+    if (retired) log(`gravyblock: retired ${retired} earlier unpublished render(s) of ${specId}; the new plan replaces them`);
     const was = angleNow.find((a) => a.id === b.angleId)?.status;
     (was === "unlisted_review" || was === "blocked" ? report.reopened : report.stored).push(specId);
     log(`gravyblock: planned ${specId} in ${planned.attempts} attempt(s)${planned.repairs ? ` with ${planned.repairs} free repair(s)` : ""}: "${c.hook}"`);
