@@ -371,3 +371,21 @@ describe("pre-render alignment matches the finished-video check", () => {
     assert.ok(!gateDef(again.def!, ctx(), []).some((x: string) => /which its screen does not show/.test(x)), "after the repair each node shows its own block");
   });
 });
+
+describe("a tour must use a control, checked before render", () => {
+  test("a scroll-only tour is refused, and the free repair adds a real click on a link of the page it shows", async () => {
+    const { gateDef, buildDef, repairRaw } = await import("../video/concepts/tour-planner");
+    const raw = JSON.parse(planJson("Who has time for another marketing task?"));
+    // scene 2 has no click or typed entry; scene 1 neither
+    raw.scenes[1].tour = [{ node: 1, do: "open", target: "/", shows: "p0.b0" }, { node: 1, do: "scroll", target: "p0.b1", shows: "p0.b1" }, { node: 2, do: "scroll", target: "p0.b2", shows: "p0.b2" }, { node: 3, do: "scroll", target: "p0.b2", shows: "p0.b2" }];
+    raw.scenes[1].nodes = raw.scenes[1].nodes.map((n: { say: string }, i: number) => ({ ...n, block: ["p0.b1", "p0.b2", "p0.b2"][i] }));
+    const built = buildDef(raw, brief, ctx());
+    assert.ok(built.def, JSON.stringify(built.problems));
+    const problems = gateDef(built.def!, ctx(), []);
+    assert.ok(problems.some((x: string) => /never clicks or types into a control/.test(x)), JSON.stringify(problems));
+    const fixed = repairRaw(raw, problems.filter((x: string) => /never clicks or types/.test(x)), ctx());
+    assert.equal(fixed.changed, true);
+    const clicks = fixed.raw.scenes!.flatMap((s) => s.tour ?? []).filter((t) => t.do === "click");
+    assert.ok(clicks.length >= 1 && clicks[clicks.length - 1].target === "p0.c0", JSON.stringify(clicks));
+  });
+});

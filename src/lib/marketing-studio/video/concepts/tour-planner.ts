@@ -336,6 +336,10 @@ export function gateDef(def: ExplainerDef, ctx: PlanContext, others: CreativeFin
   });
   // the video has to be 20 to 35 seconds, with room either side: judged from the words spoken
   const spokenWords = c.narration.reduce((n, l) => n + l.spoken.replace(/\{[^}]*\}/g, "").split(/\s+/).filter(Boolean).length, 0);
+  // the finished video is refused when no control is ever clicked or typed into (scrolling alone is not using a product): the same test, before the render
+  const uses = def.scenes.flatMap((sc) => sc.tour ?? []).filter((t) => t.do === "click" || t.do === "type" || t.do === "submit").length;
+  const needUses = def.flagship ? 2 : 1;
+  if (uses < needUses) out.push(`the tour never clicks or types into a control (${uses} of the ${needUses} needed): add real click or type steps on links, buttons or fields that exist on the pages it shows`);
   const win = lengthWindow(def.flagship);
   if (c.estSeconds < win.lo || c.estSeconds > win.hi) out.push(`the video would run about ${c.estSeconds} seconds (${spokenWords} spoken words); it must run ${win.lo} to ${win.hi} seconds: ${c.estSeconds < win.lo ? "add a few words to the lines" : `cut about ${Math.max(4, Math.round((c.estSeconds - (win.hi - 2)) * 2.6))} spoken words in total, from the longest lines`}`);
   // a flagship story must show every part of the product it promises to explain
@@ -557,6 +561,27 @@ export function repairRaw(input: Raw, problems: string[], ctx: PlanContext, brie
             notes.push("a repeated line was swapped for one no other video says");
           }
         }
+    } else if (/^the tour never clicks or types into a control/.test(pr)) {
+      const need = Number(/\((\d+) of the (\d+) needed/.exec(pr)?.[2] ?? 1) - Number(/\((\d+) of the/.exec(pr)?.[1] ?? 0);
+      let added = 0;
+      const usedTargets = new Set<string>();
+      for (let si = (raw.scenes?.length ?? 0) - 1; si >= 0 && added < need; si--) {
+        const sc = raw.scenes![si];
+        // a scene with no tour of its own first gets the one its nodes imply (open each block's page, scroll to it), so the click has a page to start from
+        if (!(sc.tour?.length)) rebuildTour(sc, ctx);
+        const pages = sceneStepPages(sc);
+        const here = pages[pages.length - 1];
+        const pg = ctx.corpus.pages.find((x) => x.path === here);
+        if (!pg) continue;
+        const link = pg.controls.find((c) => c.kind === "link" && c.to && c.to !== here && !usedTargets.has(c.id) && ctx.corpus.pages.some((x) => x.path === c.to && x.blocks.length));
+        if (!link) continue;
+        const dest = ctx.corpus.pages.find((x) => x.path === link.to)!;
+        const lastNode = Math.max(1, ...(sc.tour ?? []).map((t) => t.node ?? 1));
+        sc.tour = [...(sc.tour ?? []), { node: lastNode, do: "click", target: link.id, shows: dest.blocks[0].id }];
+        usedTargets.add(link.id);
+        added++;
+        notes.push(`scene ${si + 1}: a real click on "${link.text}" added`);
+      }
     } else if ((m = /^the story must show these pages and does not: (.+?) \(open each/.exec(pr)) && brief?.storyScenes) {
       // the scenes whose assigned pages are missing take their pages: their nodes move onto blocks of those pages and their tour is rebuilt
       const missing = m[1].split(", ");
