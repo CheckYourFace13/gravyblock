@@ -263,3 +263,39 @@ describe("flagship explainer format", () => {
     assert.equal(pacing({ durationMs: 25_000 }), true);
   });
 });
+
+describe("flagship repairs: the story map is followed for free", () => {
+  test("a scene whose assigned page is missing takes it: its nodes move onto that page and its tour is rebuilt to open it", async () => {
+    const { repairRaw } = await import("../video/concepts/tour-planner");
+    const b: Brief = { ...brief, flagship: true, storyScenes: [["/scan"], ["/"]], mustCover: ["/scan", "/"] };
+    const raw = JSON.parse(planJson("Who has time for another marketing task?"));
+    const fixed = repairRaw(raw, ["the story must show these pages and does not: /scan (open each in a scene and base a spoken line on one of its blocks)"], ctx(), b);
+    assert.equal(fixed.changed, true);
+    const sc = fixed.raw.scenes![0];
+    assert.ok(sc.nodes!.every((n) => /^p1\./.test(n.block ?? "")), JSON.stringify(sc.nodes));
+    assert.equal(sc.tour![0].do, "open");
+    assert.equal(sc.tour![0].target, "/scan");
+    assert.ok(sc.tour!.filter((t) => t.do !== "open").length >= 3, "the scene uses the page");
+  });
+  test("a scene with too little interaction gets a tour made from its own nodes, keeping its typed entry", async () => {
+    const { repairRaw } = await import("../video/concepts/tour-planner");
+    const raw = JSON.parse(planJson("Who has time for another marketing task?"));
+    raw.scenes[1].nodes = raw.scenes[1].nodes.map((n: { block?: string }) => ({ ...n, block: "p1.b1" }));
+    const fixed = repairRaw(raw, ["scene 2 does not use the product enough (at least 3 scrolls, clicks or typed entries a scene): add real interactions"], ctx(), { ...brief, flagship: true });
+    const tour = fixed.raw.scenes![1].tour!;
+    assert.equal(tour[0].do, "open");
+    assert.ok(tour.filter((t) => t.do === "scroll").length >= 3);
+    assert.ok(tour.some((t) => t.do === "type"), "the typed scan entry is kept");
+  });
+  test("the flagship brief carries a scene plan that covers every page it must show", async () => {
+    const { GRAVYBLOCK_BRIEFS, BRIEF_VARIANTS, briefVariant } = await import("../gravyblock-briefs");
+    const f = GRAVYBLOCK_BRIEFS.find((b) => b.key === "flagship-explainer");
+    assert.ok(f && f.flagship && f.storyScenes && f.storyScenes.length === 6);
+    for (const v of [f, briefVariant(f, 1), briefVariant(f, 2)]) {
+      const planned = new Set((v.storyScenes ?? []).flat());
+      assert.ok((v.mustCover ?? []).every((p) => planned.has(p)), `${v.title}: every required page has a scene`);
+      assert.equal(v.storyScenes!.length, 6);
+    }
+    assert.equal(BRIEF_VARIANTS["flagship-explainer"].length, 2);
+  });
+});

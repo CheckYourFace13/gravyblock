@@ -17,7 +17,7 @@ import { conceptFromExplainer } from "./explainer";
 import type { TourStep } from "./tour";
 
 /** A flagship brief asks for the long format: six scenes that between them cover the pages in `mustCover`. */
-export type Brief = { flagship?: boolean; mustCover?: string[]; angleId: string; key: string; role: "A" | "B" | "C"; title: string; goal: string; audience: string; coreBenefit: string; features: string[]; ctaText: string; ctaUrl: string; funnel: string };
+export type Brief = { flagship?: boolean; mustCover?: string[]; /** a flagship's story, scene by scene: the pages each scene is about */ storyScenes?: string[][]; angleId: string; key: string; role: "A" | "B" | "C"; title: string; goal: string; audience: string; coreBenefit: string; features: string[]; ctaText: string; ctaUrl: string; funnel: string };
 export type PlanContext = { corpus: Corpus; facts: string[]; prohibited: string[]; history: CreativeFingerprint[]; brand: ExplainerDef["brand"]; slug: string; productName: string; origin: string; ctaHost: string };
 export type Planned = { ok: true; def: ExplainerDef; yt: { title: string; description: string }; attempts: number; repairs?: number } | { ok: false; problems: string[]; attempts: number };
 
@@ -108,7 +108,7 @@ FLAGSHIP EXPLAINER (this overrides the 2-scene and 25-second wording above). Thi
 4. What it does automatically (execution), with real examples of the work, and that it does the eligible work instead of handing over a list of tasks.
 5. How completed work is checked and recorded (proof), and how little the owner has to do and what the owner controls.
 6. Marketing Studio (ongoing marketing videos made from the real website, reviewed before publication), the offer, and what to do next.
-Every scene must show the real site being used (scroll, click, type), not a still page. The scenes together must visit every page in the brief's MUST COVER list. Do not describe anything the site and the verified facts do not show. Spoken lines are short, energetic, warm and specific: not corporate and not hyped.`
+${b.storyScenes?.length ? `\nSCENE PLAN (follow it exactly: the blocks of each scene's three nodes must be blocks of the page or pages named for that scene, and the scene's tour must open them):\n${b.storyScenes.map((p, i) => `Scene ${i + 1}: ${p.join(" then ")}`).join("\n")}\n` : ""}Every scene must show the real site being used (scroll, click, type), not a still page. The scenes together must visit every page in the brief's MUST COVER list. Do not describe anything the site and the verified facts do not show. Spoken lines are short, energetic, warm and specific: not corporate and not hyped.`
   );
 }
 
@@ -387,7 +387,7 @@ export async function planTour(b: Brief, ctx: PlanContext, others: CreativeFinge
       built = buildDef(raw, b, ctx);
       problems = built.def ? gateDef(built.def, ctx, others) : built.problems;
       if (!problems.length) break;
-      const fixed = repairRaw(raw, problems, ctx);
+      const fixed = repairRaw(raw, problems, ctx, b);
       if (!fixed.changed) break;
       raw = fixed.raw;
       repairs++;
@@ -464,7 +464,46 @@ function bestBlock(ctx: PlanContext, say: string, pages?: string[]): string | nu
  * an interaction that does not exist on the page (it is dropped), a word the wording gate refuses, and a script that runs long (the longest lines lose their trailing clause).
  * What cannot be repaired this way (a repeated hook, a script that is too short) is left for the model.
  */
-export function repairRaw(input: Raw, problems: string[], ctx: PlanContext): { raw: Raw; changed: boolean; notes: string[] } {
+/** Pure: a scene's tour rebuilt from its own nodes: each node's block is opened (when the page changes) and scrolled to, and a typed entry the scene had is kept where its page is showing. */
+function rebuildTour(sc: RawScene, ctx: PlanContext): void {
+  const old = sc.tour ?? [];
+  const tour: RawStep[] = [];
+  let page: string | null = null;
+  (sc.nodes ?? []).forEach((nd, i) => {
+    const hit = nd.block ? blockById(ctx.corpus, nd.block) : null;
+    if (!hit) return;
+    if (hit.page.path !== page) {
+      tour.push({ node: i + 1, do: "open", target: hit.page.path, shows: nd.block });
+      page = hit.page.path;
+    }
+    tour.push({ node: i + 1, do: "scroll", target: nd.block, shows: nd.block });
+    for (const st of old) {
+      if (st.do !== "type" || !st.target) continue;
+      const ctl = controlById(ctx.corpus, st.target);
+      if (ctl && ctl.page.path === page && !tour.includes(st)) tour.push({ ...st, node: i + 1, shows: nd.block });
+    }
+  });
+  sc.tour = tour;
+}
+
+/** Pure: the distinct blocks of some pages that best match the lines a scene's nodes say, one per node. */
+function blocksFor(ctx: PlanContext, says: string[], pages: string[]): string[] {
+  const used = new Set<string>();
+  const out: string[] = [];
+  says.forEach((say, i) => {
+    const page = pages[Math.min(pages.length - 1, Math.floor((i * pages.length) / Math.max(1, says.length)))];
+    const pool = ctx.corpus.pages.find((p) => p.path === page)?.blocks ?? [];
+    const ranked = [...pool].filter((b) => !used.has(b.id)).sort((x, y) => jaccard(content(say), content(y.text)) - jaccard(content(say), content(x.text)));
+    const pick = ranked[0] ?? pool[0];
+    if (pick) {
+      used.add(pick.id);
+      out.push(pick.id);
+    }
+  });
+  return out;
+}
+
+export function repairRaw(input: Raw, problems: string[], ctx: PlanContext, brief?: Brief): { raw: Raw; changed: boolean; notes: string[] } {
   const raw: Raw = JSON.parse(JSON.stringify(input));
   const notes: string[] = [];
   const scene = (n: string | number) => raw.scenes?.[Number(n) - 1];
@@ -488,6 +527,25 @@ export function repairRaw(input: Raw, problems: string[], ctx: PlanContext): { r
       if ((raw.scenes?.length ?? 0) > Number(m[1])) {
         raw.scenes = raw.scenes!.slice(0, Number(m[1]));
         notes.push("extra scenes dropped");
+      }
+    } else if ((m = /^the story must show these pages and does not: (.+?) \(open each/.exec(pr)) && brief?.storyScenes) {
+      // the scenes whose assigned pages are missing take their pages: their nodes move onto blocks of those pages and their tour is rebuilt
+      const missing = m[1].split(", ");
+      brief.storyScenes.forEach((pages, i) => {
+        const sc = raw.scenes?.[i];
+        if (!sc || !pages.some((p) => missing.includes(p))) return;
+        const ids = blocksFor(ctx, (sc.nodes ?? []).map((n) => n.say ?? ""), pages);
+        (sc.nodes ?? []).forEach((n, k) => (ids[k] ? (n.block = ids[k]) : undefined));
+        rebuildTour(sc, ctx);
+        notes.push(`scene ${i + 1}: moved onto ${pages.join(", ")}`);
+      });
+    } else if ((m = /^scene ([\d, ]+) does not use the product enough/.exec(pr))) {
+      for (const n of m[1].split(",").map((x) => Number(x.trim()))) {
+        const sc = raw.scenes?.[n - 1];
+        if (sc) {
+          rebuildTour(sc, ctx);
+          notes.push(`scene ${n}: tour rebuilt from its nodes`);
+        }
       }
     } else if ((m = /^the hook is \d+ words/.exec(pr)) && raw.hook) {
       const fit = fitHook(raw.hook);

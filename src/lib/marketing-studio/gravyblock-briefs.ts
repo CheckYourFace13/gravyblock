@@ -32,6 +32,7 @@ export const GRAVYBLOCK_BRIEFS: RolloutBrief[] = [
   {
     flagship: true,
     mustCover: ["/", "/scan", "/how-it-works", "/features", "/proof", "/marketing-studio", "/pricing"],
+    storyScenes: [["/"], ["/scan"], ["/how-it-works"], ["/features"], ["/proof"], ["/marketing-studio", "/pricing"]],
     angleId: "gravyblock-flagship-explainer",
     key: "flagship-explainer",
     role: "A",
@@ -97,8 +98,8 @@ export const BRIEF_VARIANTS: Record<string, Array<Partial<Brief>>> = {
 };
 
 BRIEF_VARIANTS["flagship-explainer"] = [
-  { title: "From a free scan to proven work: GravyBlock in about a minute", goal: "walk a first-time visitor from the free scan, through how GravyBlock learns the business and does the eligible work, to the proof, Marketing Studio and what to do next", mustCover: ["/", "/scan", "/how-it-works", "/features", "/proof", "/marketing-studio"] },
-  { title: "Not another report: what GravyBlock actually does for you", goal: "show that GravyBlock does eligible marketing work and proves it, instead of handing over a to-do list, and how much of the work stays with the owner", mustCover: ["/", "/scan", "/features", "/proof", "/marketing-studio"] },
+  { title: "From a free scan to proven work: GravyBlock in about a minute", goal: "walk a first-time visitor from the free scan, through how GravyBlock learns the business and does the eligible work, to the proof, Marketing Studio and what to do next", mustCover: ["/", "/scan", "/how-it-works", "/features", "/proof", "/marketing-studio"], storyScenes: [["/"], ["/scan"], ["/how-it-works"], ["/features"], ["/proof"], ["/marketing-studio"]] },
+  { title: "Not another report: what GravyBlock actually does for you", goal: "show that GravyBlock does eligible marketing work and proves it, instead of handing over a to-do list, and how much of the work stays with the owner", mustCover: ["/", "/scan", "/features", "/proof", "/marketing-studio"], storyScenes: [["/"], ["/scan"], ["/features"], ["/features"], ["/proof"], ["/marketing-studio"]] },
 ];
 
 /** The brief for the n-th framing (0 is the brief itself); the framings repeat in turn. */
