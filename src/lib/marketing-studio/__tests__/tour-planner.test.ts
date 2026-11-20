@@ -56,7 +56,7 @@ describe("tour planner", () => {
     assert.equal(r.ok, true);
     assert.equal(r.attempts, 2, "the failure was replanned internally, not left blocked");
     assert.match(calls[1], /PREVIOUS PLAN WAS REFUSED/);
-    assert.match(calls[1], /is not on the real site|needs 3 nodes/);
+    assert.match(calls[1], /THE PREVIOUS PLAN/);
   });
   test("a copy of an earlier video's hook is refused and the replan must differ", async () => {
     const earlier = { specId: "gravyblock:old", hook: "Who has time for another marketing task?", problem: "p", benefit: "b", lines: ["Who has time for another marketing task?", "It reads your real website and profiles.", "Then it performs a legitimate action available."], closing: "Check your own score at Gravy Block dot com.", cta: "Try it", visual: [], format: "live product tour" };
@@ -93,5 +93,86 @@ describe("planner repairs: a long hook and business hours", () => {
   test("business hours is said as opening times, so a site sentence stays usable", async () => {
     const { swapWords } = await import("../video/concepts/tour-planner");
     assert.equal(swapWords("Keep your business hours right everywhere"), "Keep your opening times right everywhere");
+  });
+});
+
+describe("engine reliability: free repairs before a paid retry", () => {
+  const hook = "Who has time for another marketing task?";
+  test("a block id that is not on the site, and a hook that is too long, are repaired with no second model call", async () => {
+    let calls = 0;
+    const r = await planTour(brief, ctx(), [], async () => {
+      calls++;
+      const j = JSON.parse(planJson("Who has time for another marketing task every single week while you are also running a whole business?"));
+      j.scenes[0].nodes[1].block = "p9.b9";
+      return JSON.stringify(j);
+    });
+    assert.equal(r.ok, true, JSON.stringify(r));
+    assert.equal(calls, 1, "one paid call");
+    if (r.ok) {
+      assert.ok((r.repairs ?? 0) >= 1, "the block was repaired for free");
+      assert.ok(r.def.hook.split(/\s+/).length <= 12);
+    }
+  });
+  test("a line about something its screen does not show is replaced by the screen's own words, for free", async () => {
+    let calls = 0;
+    const r = await planTour(brief, ctx(), [], async () => {
+      calls++;
+      const j = JSON.parse(planJson(hook));
+      j.scenes[0].nodes[2].say = "Quantum dolphins orchestrate galactic paperwork effortlessly";
+      return JSON.stringify(j);
+    });
+    assert.equal(r.ok, true, JSON.stringify(r));
+    assert.equal(calls, 1);
+  });
+  test("a retry sends the previous plan back so only the failing parts change", async () => {
+    const earlier = { specId: "gravyblock:old", hook, problem: "p", benefit: "b", lines: [hook], closing: "c", cta: "t", visual: [], format: "tour" } as unknown as PlanContext["history"][number];
+    const prompts: string[] = [];
+    let n = 0;
+    await planTour(brief, ctx([earlier]), [earlier], async (_s, user) => {
+      prompts.push(user);
+      return ++n === 1 ? planJson(hook) : planJson("What would you do with the hours your marketing eats?", { endLine: "Look at your own number at Gravy Block dot com." });
+    });
+    assert.ok(prompts.length >= 2);
+    assert.match(prompts[1], /THE PREVIOUS PLAN \(change ONLY what the problems name/);
+  });
+  test("a reply cut off mid-way is closed and used instead of being paid for again", async () => {
+    const { parseLoose } = await import("../video/concepts/tour-planner");
+    const full = planJson(hook);
+    const cut = full.slice(0, full.indexOf('"endLine"') - 1);
+    const got = parseLoose(cut);
+    assert.ok(got && Array.isArray(got.scenes) && got.scenes.length === 2, "recovered the scenes");
+    assert.equal(parseLoose("no json here at all"), null);
+  });
+  test("the plan's own quotes are checked against the live site: changed text makes it stale, unchanged text does not", async () => {
+    const { staleQuotes } = await import("../video/concepts/tour-planner");
+    const r = await planTour(brief, ctx(), [], async () => planJson(hook));
+    assert.ok(r.ok);
+    if (!r.ok) return;
+    assert.deepEqual(staleQuotes(r.def, corpus), []);
+    const changed: Corpus = { ...corpus, pages: corpus.pages.map((p) => ({ ...p, blocks: p.blocks.map((b) => (b.id === "p0.b1" ? { ...b, text: "Now says something completely different about pricing." } : b)) })) };
+    const stale = staleQuotes(r.def, changed);
+    assert.ok(stale.length > 0 && stale.some((s) => /Reads your real website/i.test(s)), JSON.stringify(stale));
+  });
+});
+
+describe("engine reliability: a stuck concept is asked another way", () => {
+  test("every brief has two other framings of the same subject, for the same slot and page", async () => {
+    const { BRIEF_VARIANTS, briefVariant, GRAVYBLOCK_BRIEFS } = await import("../gravyblock-briefs");
+    for (const b of GRAVYBLOCK_BRIEFS) {
+      assert.equal((BRIEF_VARIANTS[b.key] ?? []).length, 2, b.key);
+      const v1 = briefVariant(b, 1);
+      const v2 = briefVariant(b, 2);
+      assert.notEqual(v1.goal, b.goal);
+      assert.notEqual(v1.goal, v2.goal);
+      assert.equal(v1.slot, b.slot);
+      assert.equal(v1.page, b.page);
+      assert.equal(v1.key, b.key);
+      assert.equal(briefVariant(b, 3).goal, v1.goal, "the framings repeat in turn");
+      assert.equal(briefVariant(b, 0), b);
+    }
+  });
+  test("the budget limits keep the whole set inside the month", async () => {
+    const { PER_CONCEPT_CAP_USD, PER_PASS_CAP_USD } = await import("../gravyblock-register");
+    assert.ok(PER_CONCEPT_CAP_USD * 10 <= 5 && PER_PASS_CAP_USD <= PER_CONCEPT_CAP_USD * 2);
   });
 });

@@ -9,7 +9,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { ms, type StudioDb } from "./db";
 import { hasApprovedLogo } from "./brand/brand-kit";
 import { allowanceFor, spendCredit } from "./entitlements";
-import { registerGravyblockExplainers } from "./gravyblock-register";
+import { registerGravyblockExplainers, validateBeforeRender } from "./gravyblock-register";
 import { ensureOwnedSlots, TARGET_EXEMPT } from "./portfolio-target";
 import { autoApprovePending } from "./publishing/auto-approve";
 import { getMaxPending, getTarget, isGame, pendingCount, targetStats } from "./video-target";
@@ -214,6 +214,8 @@ export async function portfolioTick(db: StudioDb, log: (m: string) => void = () 
       if (c && c.status !== "ready") continue;
       // paid add-on capacity runs in the lowest class; the plan's own allowance runs as normal work
       const burst = allow.base !== null && allow.generated >= allow.base + allow.carried;
+      // a GravyBlock plan is checked against the live site and the gates before any render work; one that fails is replanned and the rollout moves on to the next concept
+      if (a.specId.startsWith("gravyblock:") && !(await validateBeforeRender(db, a.specId, log).catch(() => ({ ok: true }))).ok) continue;
       const r = await queueSpec(db, p.id, a.specId, burst ? JOB_PRIORITY.burst : JOB_PRIORITY.normal);
       if (r === "queued") {
         if (allow.base !== null && allow.generated >= allow.base + allow.carried + allow.addOnPerPeriod) await spendCredit(db, p.id);

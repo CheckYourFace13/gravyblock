@@ -16,7 +16,7 @@ import type { TourStep } from "./tour";
 
 export type Brief = { angleId: string; key: string; role: "A" | "B" | "C"; title: string; goal: string; audience: string; coreBenefit: string; features: string[]; ctaText: string; ctaUrl: string; funnel: string };
 export type PlanContext = { corpus: Corpus; facts: string[]; prohibited: string[]; history: CreativeFingerprint[]; brand: ExplainerDef["brand"]; slug: string; productName: string; origin: string; ctaHost: string };
-export type Planned = { ok: true; def: ExplainerDef; yt: { title: string; description: string }; attempts: number } | { ok: false; problems: string[]; attempts: number };
+export type Planned = { ok: true; def: ExplainerDef; yt: { title: string; description: string }; attempts: number; repairs?: number } | { ok: false; problems: string[]; attempts: number };
 
 type RawNode = { step?: string; block?: string; say?: string; fact?: number };
 type RawStep = { node?: number; do?: string; target?: string; value?: string; shows?: string };
@@ -85,7 +85,7 @@ export function swapWords(text: string): string {
   return out;
 }
 
-export function renderPrompt(b: Brief, ctx: PlanContext, feedback: string[]): string {
+export function renderPrompt(b: Brief, ctx: PlanContext, feedback: string[], prev?: unknown): string {
   const pages = ctx.corpus.pages
     .map((p) => `PAGE ${p.path} (${p.title})\n${p.blocks.map((x) => `[${x.id}] ${x.text}`).join("\n")}\nCONTROLS:\n${p.controls.map((c) => `[${c.id}] ${c.kind} "${c.text}"${c.to ? ` opens ${c.to}` : ""}`).join("\n")}`)
     .join("\n\n");
@@ -109,7 +109,7 @@ ${hist}
 
 THE REAL SITE
 ${pages}
-${feedback.length ? `\nYOUR PREVIOUS PLAN WAS REFUSED. Fix exactly these problems and plan again, differently where it says repeated:\n${feedback.map((f) => `- ${f}`).join("\n")}\n` : ""}`;
+${feedback.length ? `\nYOUR PREVIOUS PLAN WAS REFUSED. Fix exactly these problems, differently where it says repeated:\n${feedback.map((f) => `- ${f}`).join("\n")}\n${prev ? `\nTHE PREVIOUS PLAN (change ONLY what the problems name and return the whole JSON again with everything else exactly as it was):\n${JSON.stringify(prev)}\n` : ""}` : ""}`;
 }
 
 /** Pure: turns a raw plan into a definition using only things that exist on the real site; reports every problem it finds. */
@@ -308,39 +308,249 @@ export function gateDef(def: ExplainerDef, ctx: PlanContext, others: CreativeFin
 
 export type Ask = (system: string, user: string, attempt: number) => Promise<string>;
 
-export const MAX_PLAN_ATTEMPTS = 6;
+export const MAX_PLAN_ATTEMPTS = 3;
 
-/** Plans, gates, and on any failure replans with the exact problems as feedback. Pure of side effects except the (injectable) model call. */
+/**
+ * Plans, gates, and on any failure FIRST repairs what failed without paying (deterministic repairs, up to four passes), and only then asks the model again, with the previous plan and the exact
+ * problems so only those parts change. A plan that cannot be repaired is refused with its problems. Pure of side effects except the (injectable) model call.
+ */
 export async function planTour(b: Brief, ctx: PlanContext, others: CreativeFingerprint[], ask: Ask, maxAttempts = MAX_PLAN_ATTEMPTS, seedFeedback: string[] = []): Promise<Planned> {
   let feedback: string[] = [...seedFeedback];
+  let prev: Raw | null = null;
+  let repairs = 0;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     let raw: Raw | null = null;
     let reply = "";
     try {
-      reply = await ask(SYSTEM, renderPrompt(b, ctx, feedback), attempt);
-      raw = parseJson<Raw>(reply);
+      reply = await ask(SYSTEM, renderPrompt(b, ctx, feedback, prev), attempt);
+      raw = parseLoose(reply);
     } catch (e) {
-      return { ok: false, problems: [`the model step failed: ${e instanceof Error ? e.message : e}`], attempts: attempt };
+      return { ok: false, problems: [`the model step failed: ${e instanceof Error ? e.message : e}`], attempts: attempt, repairs } as Planned;
     }
     if (!raw) {
       feedback = [`the reply was not valid JSON in the requested shape (${reply.length} characters, ends with: ${JSON.stringify(reply.slice(-60))})`];
+      prev = null;
       continue;
     }
-    const built = buildDef(raw, b, ctx);
-    if (!built.def) {
-      feedback = built.problems.slice(0, 8);
-      continue;
+    let problems: string[] = [];
+    let built: { def: ExplainerDef | null; problems: string[] } = { def: null, problems: [] };
+    for (let pass = 0; pass < 5; pass++) {
+      built = buildDef(raw, b, ctx);
+      problems = built.def ? gateDef(built.def, ctx, others) : built.problems;
+      if (!problems.length) break;
+      const fixed = repairRaw(raw, problems, ctx);
+      if (!fixed.changed) break;
+      raw = fixed.raw;
+      repairs++;
     }
-    const gate = gateDef(built.def, ctx, others);
-    if (gate.length) {
-      feedback = gate.slice(0, 8);
-      continue;
+    if (!problems.length && built.def) {
+      return { ok: true, def: built.def, yt: { title: (raw.yt?.title ?? b.title).trim(), description: `${raw.hook!.trim()} ${(raw.yt?.description ?? b.goal).trim()}\n\n${b.ctaText}: ${b.ctaUrl}` }, attempts: attempt, repairs };
     }
-    return { ok: true, def: built.def, yt: { title: raw.yt!.title!.trim(), description: `${raw.hook!.trim()} ${raw.yt!.description!.trim()}\n\n${b.ctaText}: ${b.ctaUrl}` }, attempts: attempt };
+    feedback = problems.slice(0, 8);
+    prev = raw;
   }
-  return { ok: false, problems: feedback, attempts: maxAttempts };
+  return { ok: false, problems: feedback, attempts: maxAttempts, repairs } as Planned;
 }
 
 /** The production model call: cached and counted against the monthly cap by askJson. A higher temperature on a replan, so the second plan really is different. */
 export const aiAsk = (db: StudioDb, specId: string): Ask => async (system, user, attempt) =>
   (await askJson(db, { specId, purpose: attempt === 1 ? "tour_plan" : `tour_replan_${attempt}`, system, user, maxTokens: 14000, temperature: Math.min(1, 0.7 + attempt * 0.08) })).text;
+
+// ---- free repairs ---------------------------------------------------------------------------------------------------------------------
+
+/** Pure: a reply cut off mid-way (the model ran out of room) is closed with the missing quote and brackets, so a nearly complete plan is not paid for twice. */
+export function parseLoose(text: string): Raw | null {
+  const direct = parseJson<Raw>(text);
+  if (direct) return direct;
+  const start = text.indexOf("{");
+  if (start < 0) return null;
+  let body = text.slice(start);
+  const end = body.lastIndexOf("}");
+  if (end > 0) {
+    const whole = parseJson<Raw>(body.slice(0, end + 1));
+    if (whole) return whole;
+  }
+  // close an unterminated string, drop a dangling key or comma, then close the open brackets in order
+  const stack: string[] = [];
+  let inStr = false;
+  let esc = false;
+  for (const ch of body) {
+    if (esc) esc = false;
+    else if (ch === "\\") esc = inStr;
+    else if (ch === '"') inStr = !inStr;
+    else if (!inStr && (ch === "{" || ch === "[")) stack.push(ch === "{" ? "}" : "]");
+    else if (!inStr && (ch === "}" || ch === "]")) stack.pop();
+  }
+  if (inStr) body += '"';
+  body = body.replace(/,\s*$/, "").replace(/,?\s*"[^"]*"\s*:\s*$/, "");
+  return parseJson<Raw>(body + stack.reverse().join(""));
+}
+
+const shortLine = (text: string) => {
+  const words = text.replace(/\s+/g, " ").trim().split(" ");
+  if (words.length <= 14) return text.trim();
+  const cut = words.slice(0, 14).join(" ");
+  const at = Math.max(cut.lastIndexOf(","), cut.lastIndexOf(";"), cut.lastIndexOf(" and "));
+  return (at > 20 ? cut.slice(0, at) : cut).replace(/[,;:\s]+$/, "") + ".";
+};
+const WORD_FIX: Record<string, string> = { hours: "a short time", minutes: "a short time", seconds: "a short time" };
+const count = (t: string) => t.split(/\s+/).filter(Boolean).length;
+
+/** The block of the corpus whose words best match a spoken line (what the line is about), optionally limited to some pages. Only blocks a verified fact backs are in a grounded corpus. */
+function bestBlock(ctx: PlanContext, say: string, pages?: string[]): string | null {
+  let best: { id: string; s: number } | null = null;
+  for (const pg of ctx.corpus.pages) {
+    if (pages && !pages.includes(pg.path)) continue;
+    for (const bl of pg.blocks) {
+      const sc = jaccard(content(say), content(bl.text));
+      if (!best || sc > best.s) best = { id: bl.id, s: sc };
+    }
+  }
+  return best?.id ?? null;
+}
+
+/**
+ * Pure: repairs a refused plan from the problems themselves, with no model call. It fixes the parts that failed and leaves the rest alone: a hook that is too long, a block that is not on the real
+ * site or has no verified fact, a line about something its screen does not show (it says the screen's own words instead), a node with no interaction or whose page the scene never shows,
+ * an interaction that does not exist on the page (it is dropped), a word the wording gate refuses, and a script that runs long (the longest lines lose their trailing clause).
+ * What cannot be repaired this way (a repeated hook, a script that is too short) is left for the model.
+ */
+export function repairRaw(input: Raw, problems: string[], ctx: PlanContext): { raw: Raw; changed: boolean; notes: string[] } {
+  const raw: Raw = JSON.parse(JSON.stringify(input));
+  const notes: string[] = [];
+  const scene = (n: string | number) => raw.scenes?.[Number(n) - 1];
+  const nodeOf = (sn: string, nn: string) => scene(sn)?.nodes?.[Number(nn) - 1];
+  const sceneStepPages = (sc: RawScene | undefined) => {
+    const pages: string[] = [];
+    for (const st of sc?.tour ?? []) {
+      if (st.do === "open" && st.target) pages.push(st.target);
+      else if (st.target) {
+        const ctl = controlById(ctx.corpus, st.target);
+        const blk = blockById(ctx.corpus, st.target);
+        const pg = ctl?.control.kind === "link" && ctl.control.to ? ctl.control.to : (ctl?.page.path ?? blk?.page.path);
+        if (pg) pages.push(pg);
+      }
+    }
+    return pages;
+  };
+  for (const pr of problems) {
+    let m: RegExpExecArray | null;
+    if ((m = /^the hook is \d+ words/.exec(pr)) && raw.hook) {
+      const fit = fitHook(raw.hook);
+      if (fit !== raw.hook) {
+        raw.hook = fit;
+        notes.push("hook shortened");
+      }
+    } else if ((m = /^scene (\d) node (\d): (?:block "[^"]*" is not on the real site|no verified fact backs the block)/.exec(pr))) {
+      const nd = nodeOf(m[1], m[2]);
+      if (nd) {
+        const id = bestBlock(ctx, nd.say ?? "");
+        if (id && id !== nd.block) {
+          nd.block = id;
+          notes.push(`scene ${m[1]} node ${m[2]}: block replaced`);
+        }
+      }
+    } else if ((m = /^scene (\d) node (\d): the line ".*" talks about/.exec(pr))) {
+      const nd = nodeOf(m[1], m[2]);
+      const hit = nd?.block ? blockById(ctx.corpus, nd.block) : null;
+      if (nd && hit) {
+        nd.say = swapWords(shortLine(hit.block.text));
+        notes.push(`scene ${m[1]} node ${m[2]}: line says what the screen shows`);
+      }
+    } else if ((m = /^scene (\d): node (\d) has no interaction on screen/.exec(pr)) || (m = /^scene (\d) node (\d): its block is on (\S+), a page this scene never shows/.exec(pr))) {
+      const sc = scene(m[1]);
+      const nd = nodeOf(m[1], m[2]);
+      const hit = nd?.block ? blockById(ctx.corpus, nd.block) : null;
+      if (sc && nd && hit) {
+        const visited = sceneStepPages(sc);
+        if (!visited.includes(hit.page.path) && Number(m[2]) === 3) {
+          // the last node's block is on another page: the tour goes there for real
+          sc.tour = [...(sc.tour ?? []), { node: 3, do: "open", target: hit.page.path, shows: nd.block }];
+          notes.push(`scene ${m[1]}: tour opens ${hit.page.path} for node 3`);
+        } else if (!visited.includes(hit.page.path)) {
+          const id = bestBlock(ctx, nd.say ?? "", visited.length ? visited : undefined);
+          if (id) {
+            nd.block = id;
+            notes.push(`scene ${m[1]} node ${m[2]}: block moved to a page the scene shows`);
+          }
+        } else if (!(sc.tour ?? []).some((st) => (st.node ?? 1) === Number(m![2]) && st.do !== "open")) {
+          sc.tour = [...(sc.tour ?? []), { node: Number(m[2]), do: "scroll", target: nd.block, shows: nd.block }];
+          notes.push(`scene ${m[1]} node ${m[2]}: scroll step added`);
+        }
+      }
+    } else if ((m = /^scene (\d) step (\d+): /.exec(pr)) && /(target must be|what it shows must be|is not on the real site|must be a block of the current page)/.test(pr)) {
+      const sc = scene(m[1]);
+      const idx = Number(m[2]) - 1;
+      if (sc?.tour && idx > 0 && idx < sc.tour.length) {
+        sc.tour.splice(idx, 1);
+        notes.push(`scene ${m[1]}: step ${m[2]} dropped`);
+      }
+    } else if ((m = /unsupported wording: "([^"]+)"/.exec(pr))) {
+      const word = m[1].toLowerCase();
+      const to = WORD_FIX[word] ?? "";
+      const re = new RegExp("\\b" + word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi");
+      const fix = (t?: string) => (t ? t.replace(re, to).replace(/\s{2,}/g, " ").replace(/\s+([,.?!])/g, "$1").trim() : t);
+      raw.hook = fix(raw.hook);
+      raw.endLine = fix(raw.endLine);
+      for (const sc of raw.scenes ?? []) for (const nd of sc.nodes ?? []) nd.say = fix(nd.say);
+      notes.push(`wording: "${word}" replaced`);
+    } else if ((m = /cut about (\d+) spoken words/.exec(pr))) {
+      let need = Number(m[1]);
+      const lines: Array<{ get: () => string; set: (v: string) => void }> = [];
+      for (const sc of raw.scenes ?? []) for (const nd of sc.nodes ?? []) lines.push({ get: () => nd.say ?? "", set: (v) => (nd.say = v) });
+      lines.sort((x, y) => count(y.get()) - count(x.get()));
+      for (const ln of lines) {
+        if (need <= 0) break;
+        const t = ln.get();
+        const next = t.replace(/[,;] [^,;]+$/, "").replace(/ (and|so|then|while|because) [^,;]+$/, "").trim();
+        if (next !== t && count(next) >= 4) {
+          need -= count(t) - count(next);
+          ln.set(/[.?!]$/.test(next) ? next : next + ".");
+          notes.push("a long line lost its trailing clause");
+        }
+      }
+    }
+  }
+  return { raw, changed: JSON.stringify(raw) !== JSON.stringify(input), notes };
+}
+
+// ---- freshness ------------------------------------------------------------------------------------------------------------------------
+
+const nrm = (t: string) => t.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim();
+
+/** Pure: every piece of real site text a plan depends on (the card text and what each step must show), with the page it comes from where that is known. */
+export function quotesOf(def: ExplainerDef): Array<{ path?: string; text: string; kind: "block" | "shows" | "click" | "field" | "scroll" }> {
+  const out: Array<{ path?: string; text: string; kind: "block" | "shows" | "click" | "field" | "scroll" }> = [];
+  for (const sc of def.scenes) {
+    for (const n of sc.nodes) out.push({ path: n.path, text: n.line, kind: "block" });
+    for (const st of sc.tour ?? []) {
+      if (st.shows) out.push({ text: st.shows, kind: "shows" });
+      if (st.do === "click" && st.text) out.push({ text: st.text, kind: "click" });
+      if (st.do === "scroll" && st.text) out.push({ text: st.text, kind: "scroll" });
+      if (st.do === "type" && st.field) out.push({ text: st.field, kind: "field" });
+    }
+  }
+  return out;
+}
+
+/**
+ * Pure: the quotes of a plan that the live site no longer says (a price, a heading, a button that changed). A plan with any of these is stale and is never rendered: the render would only
+ * fail on it, after the expensive part. Block text may have been shortened to 90 characters, so a quote matches when it is the start of a block or contains one.
+ */
+export function staleQuotes(def: ExplainerDef, corpus: Corpus): string[] {
+  const out: string[] = [];
+  const allBlocks = corpus.pages.flatMap((p) => p.blocks.map((b) => nrm(b.text)));
+  const allControls = corpus.pages.flatMap((p) => p.controls.map((c) => ({ t: nrm(c.text), kind: c.kind })));
+  for (const q of quotesOf(def)) {
+    const t = nrm(q.text);
+    if (!t) continue;
+    const inBlocks = (list: string[]) => list.some((b) => b === t || b.startsWith(t) || t.startsWith(b) || b.includes(t));
+    let ok = false;
+    if (q.kind === "block") ok = q.path ? inBlocks(corpus.pages.find((p) => p.path === q.path)?.blocks.map((b) => nrm(b.text)) ?? []) : inBlocks(allBlocks);
+    else if (q.kind === "shows" || q.kind === "scroll") ok = inBlocks(allBlocks) || allControls.some((c) => c.t.includes(t) || t.includes(c.t));
+    else if (q.kind === "click") ok = allControls.some((c) => c.t === t || c.t.includes(t) || t.includes(c.t));
+    else ok = allControls.some((c) => c.kind === "field" && (c.t === t || c.t.includes(t) || t.includes(c.t)));
+    if (!ok) out.push(`${q.kind}: "${q.text.slice(0, 70)}"`);
+  }
+  return [...new Set(out)];
+}

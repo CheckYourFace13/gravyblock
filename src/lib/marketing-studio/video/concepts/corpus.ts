@@ -79,9 +79,9 @@ export async function readCorpus(origin: string, paths: string[]): Promise<Corpu
 }
 
 /** The corpus, read live at most every six hours. */
-export async function siteCorpus(db: StudioDb, origin: string, paths: string[], force = false): Promise<Corpus> {
+export async function siteCorpus(db: StudioDb, origin: string, paths: string[], force = false, maxAgeMs = MAX_AGE_MS): Promise<Corpus> {
   const have = await getSetting<Corpus | null>(KEY(origin), null, db);
-  if (!force && have && Date.now() - Date.parse(have.at) < MAX_AGE_MS && paths.every((p) => have.pages.some((x) => x.path === p) || true)) return have;
+  if (!force && have && Date.now() - Date.parse(have.at) < maxAgeMs && paths.every((p) => have.pages.some((x) => x.path === p) || true)) return have;
   const fresh = await readCorpus(origin, paths);
   await setSetting(KEY(origin), fresh, "tour-planner", db, { audited: false });
   return fresh;
