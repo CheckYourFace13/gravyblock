@@ -128,7 +128,7 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
   facts = await listFacts(INTERNAL_SCOPE, product.id, db);
   // a brief with no library angle yet (the flagship) gets one, planned, exactly as the others were seeded
   const existing = await getAngles(db, "gravyblock");
-  const missing = GRAVYBLOCK_BRIEFS.filter((b) => !existing.some((a) => a.id === b.angleId));
+  const missing = GRAVYBLOCK_BRIEFS.filter((b) => b.flagship && !existing.some((a) => a.id === b.angleId));
   if (missing.length) {
     const add: AngleEntry[] = missing.map((b, i) => ({
       id: b.angleId, slug: "gravyblock", position: Math.max(0, ...existing.map((e) => e.position)) + i + 1, role: b.role, title: b.title, hook: b.title, goal: b.goal, audience: b.audience, coreBenefit: b.coreBenefit, features: b.features, scenes: [],

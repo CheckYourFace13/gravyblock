@@ -91,7 +91,7 @@ export function compareAngles(a: AngleEntry, b: AngleEntry): Similarity {
   if (scores.features >= 0.5) reasons.push("shows the same features");
   if (scores.scenes >= 0.7 && a.scenes.length > 2 && b.scenes.length > 2) reasons.push("recycles the scene order");
   // the one-per-role rule is the INITIAL library's; later positions are told apart by their topic, hook, purpose, benefit and scenes
-  if (a.role === b.role && a.slug === b.slug && a.position <= 3 && b.position <= 3) reasons.push("fills a role that is already taken");
+  if (a.role === b.role && a.slug === b.slug && a.position >= 1 && a.position <= 3 && b.position >= 1 && b.position <= 3) reasons.push("fills a role that is already taken");
   return { reasons, scores };
 }
 

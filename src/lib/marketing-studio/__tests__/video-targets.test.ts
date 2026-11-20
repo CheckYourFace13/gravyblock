@@ -306,6 +306,8 @@ describe("game production and targets (database)", { skip: !HAVE_DB }, () => {
     const [b1, b2, b3] = GRAVYBLOCK_BRIEFS;
     const status = (id: string) => (id === b1.angleId ? "unlisted_review" : id === b2.angleId ? "planned" : "approved");
     const topics = [b1, b2, b3].map((e, i) => ({ ...slotEntry({ slug: "gravyblock", name: "GravyBlock", home: "https://gravyblock.com/" }, 6), id: e.angleId, position: i + 1, status: status(e.angleId), slot: false }));
+    const flag = GRAVYBLOCK_BRIEFS.find((b) => b.flagship);
+    if (flag) topics.push({ ...slotEntry({ slug: "gravyblock", name: "GravyBlock", home: "https://gravyblock.com/" }, 6), id: flag.angleId, position: 20, status: "approved", slot: false } as never);
     await setSetting(angleKey("gravyblock"), topics, "t", db());
     const [F0, F1, F2] = MARKETING_STUDIO_FACTS;
     const corpus = { origin: "https://gravyblock.com", at: new Date().toISOString(), pages: [{ path: "/", title: "GravyBlock", blocks: [{ id: "p0.b0", text: F0 }, { id: "p0.b1", text: F1 }, { id: "p0.b2", text: F2 }], controls: [] }] };

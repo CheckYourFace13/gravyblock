@@ -28,3 +28,13 @@ describe("similarity gate", () => {
     for (const r of report) assert.deepEqual(r.problems, [], `${r.id}: ${r.problems.join(" | ")}`);
   });
 });
+
+describe("the one-per-role rule belongs to the three initial library slots only", () => {
+  test("an angle outside the initial library (position 0 or past 3) never conflicts on role alone", async () => {
+    const { compareAngles } = await import("../library");
+    const mk = (id: string, position: number, role: "A" | "B" | "C") => ({ id, slug: "gravyblock", position, role, title: `Subject ${id}`, hook: `Hook ${id} words unique`, goal: `goal ${id}`, audience: "owners", coreBenefit: `benefit ${id}`, features: [id], scenes: [], cta: { text: "t", url: "https://gravyblock.com" }, status: "planned", approval: "none", existing: false, funnel: "cold", purpose: `purpose ${id}` }) as never;
+    assert.ok(!compareAngles(mk("a", 1, "A"), mk("b", 0, "A")).reasons.includes("fills a role that is already taken"));
+    assert.ok(!compareAngles(mk("a", 1, "A"), mk("b", 9, "A")).reasons.includes("fills a role that is already taken"));
+    assert.ok(compareAngles(mk("a", 1, "A"), mk("b", 3, "A")).reasons.includes("fills a role that is already taken"), "two initial slots still may not share a role");
+  });
+});
