@@ -301,6 +301,16 @@ export async function dryRunTour(origin: string, scenes: Array<{ tour?: TourStep
             if (!norm(body).includes(norm(s.shows))) {
               problems.push(`${tag}: the live page does not show "${s.shows.slice(0, 60)}"`);
               bad.push(s.shows);
+            } else {
+              // the same window the capture takes: the text must be inside THIS picture, not just somewhere on the page
+              const shown = await rectOfText(page, s.shows);
+              const pageH = await page.evaluate(() => document.documentElement.scrollHeight);
+              const y0 = shown ? Math.max(0, Math.min(Math.round(shown[1] - 230), Math.max(0, pageH - PLATE_H))) : 0;
+              const visible = await visibleText(page, y0, PLATE_H).catch(() => "");
+              if (!norm(visible).includes(norm(s.shows))) {
+                problems.push(`${tag}: "${s.shows.slice(0, 60)}" is on the page but not inside the picture`);
+                bad.push(s.shows);
+              }
             }
           }
         } catch (e) {
