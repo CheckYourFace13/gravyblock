@@ -299,3 +299,19 @@ describe("flagship repairs: the story map is followed for free", () => {
     assert.equal(BRIEF_VARIANTS["flagship-explainer"].length, 2);
   });
 });
+
+describe("repairs: lines that name no action get a lead-in that points at the screen", () => {
+  test("the shortest lines without an action word are lengthened just enough to pass", async () => {
+    const { repairRaw } = await import("../video/concepts/tour-planner");
+    const raw = JSON.parse(planJson("Who has time for another marketing task?"));
+    for (const sc of raw.scenes) for (const nd of sc.nodes) { nd.say = "A broad and general statement about the business matters"; nd.block = "p0.b0"; }
+    const problem = "only 1 of 7 spoken lines name an action or a result: rewrite at least 3 of these so they say what happens on screen: \"x\"";
+    const fixed = repairRaw(raw, [problem], ctx());
+    assert.equal(fixed.changed, true);
+    const says = fixed.raw.scenes!.flatMap((s) => s.nodes!.map((n) => n.say!));
+    const { OUTCOME_WORD } = await import("../video/concepts/standard");
+    assert.ok(says.filter((t) => OUTCOME_WORD.test(t)).length >= 3, JSON.stringify(says));
+    assert.ok(says.some((t) => /^(Now|Look|See|Here|Watch), /.test(t)), "at least one lead-in was needed");
+    assert.ok(says.every((t) => t.split(/\s+/).length <= 14));
+  });
+});

@@ -604,6 +604,21 @@ export function repairRaw(input: Raw, problems: string[], ctx: PlanContext, brie
           }
         }
       if (done) notes.push(`${done} line(s) now say what the screen shows`);
+      // still short: the shortest lines without an action word get a short spoken lead-in that points at the screen ("Now, ...", "Look, ..."), a different one each time
+      if (done < need) {
+        const LEADS = ["Now, ", "Look, ", "See, ", "Here, ", "Watch, "];
+        const cands: RawNode[] = [];
+        for (const sc of raw.scenes ?? []) for (const nd of sc.nodes ?? []) if (nd.say && !OUTCOME_WORD.test(nd.say) && count(nd.say) <= 11) cands.push(nd);
+        cands.sort((x, y) => count(x.say ?? "") - count(y.say ?? ""));
+        let k = 0;
+        for (const nd of cands) {
+          if (done >= need) break;
+          const t = (nd.say ?? "").trim();
+          nd.say = LEADS[k++ % LEADS.length] + t.charAt(0).toLowerCase() + t.slice(1);
+          done++;
+        }
+        notes.push("short lead-ins added so the lines point at the screen");
+      }
     } else if ((m = /^scene (\d) step (\d+): /.exec(pr)) && /(target must be|what it shows must be|is not on the real site|must be a block of the current page)/.test(pr)) {
       const sc = scene(m[1]);
       const idx = Number(m[2]) - 1;
