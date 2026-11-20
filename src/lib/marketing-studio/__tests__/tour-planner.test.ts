@@ -176,3 +176,25 @@ describe("engine reliability: a stuck concept is asked another way", () => {
     assert.ok(PER_CONCEPT_CAP_USD * 10 <= 5 && PER_PASS_CAP_USD <= PER_CONCEPT_CAP_USD * 2);
   });
 });
+
+describe("engine reliability: what is never offered, and what is steered away from", () => {
+  test("site text the wording gate refuses is never offered to the planner (it is shown verbatim and cannot be reworded)", async () => {
+    const { groundedCorpus } = await import("../video/concepts/tour-planner");
+    const facts = ["Only the finished work is counted.", "Reads your real website and connected profiles."];
+    const c: Corpus = { origin: "https://gravyblock.com", at: "", pages: [{ path: "/", title: "x", blocks: [{ id: "a", text: "Only the finished work is counted." }, { id: "b", text: "Reads your real website and connected profiles." }], controls: [] }] };
+    assert.deepEqual(groundedCorpus(c, facts).pages[0].blocks.map((b) => b.id), ["b"]);
+  });
+  test("more than two scenes are cut back to the first two for free", async () => {
+    const { repairRaw } = await import("../video/concepts/tour-planner");
+    const raw = JSON.parse(planJson("Who has time for another marketing task?"));
+    raw.scenes.push(JSON.parse(JSON.stringify(raw.scenes[0])));
+    const fixed = repairRaw(raw, ["the plan must have exactly 2 scenes"], ctx());
+    assert.equal(fixed.raw.scenes!.length, 2);
+    assert.equal(fixed.changed, true);
+  });
+  test("the openings earlier videos used are named in the prompt", async () => {
+    const { renderPrompt } = await import("../video/concepts/tour-planner");
+    const earlier = { specId: "gravyblock:old", hook: "Who is actually doing your Google work?", problem: "p", benefit: "b", lines: ["x"], closing: "c", cta: "t", visual: [], format: "tour" } as unknown as PlanContext["history"][number];
+    assert.match(renderPrompt(brief, ctx([earlier]), []), /Hook openings already used.*who is actually/);
+  });
+});

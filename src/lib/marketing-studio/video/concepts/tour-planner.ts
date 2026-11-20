@@ -11,6 +11,7 @@ import { blockById, controlById, type Corpus } from "./corpus";
 import type { ExplainerDef, ExplainerNode, ExplainerScene } from "./explainer";
 import { fingerprintOfConcept, similarityProblems, content, jaccard, type CreativeFingerprint } from "./similarity";
 import { hookProblems, scriptProblems } from "./validate";
+import { BANNED } from "../demo/qa";
 import { conceptFromExplainer } from "./explainer";
 import type { TourStep } from "./tour";
 
@@ -53,7 +54,7 @@ export function factFor(text: string, facts: string[]): string | null {
 
 /** Only text that a verified fact backs is offered to the planner, so a plan cannot rest on a claim Product Truth does not support. */
 export function groundedCorpus(c: Corpus, facts: string[]): Corpus {
-  return { ...c, pages: c.pages.map((p) => ({ ...p, blocks: p.blocks.filter((b) => factFor(b.text, facts)) })) };
+  return { ...c, pages: c.pages.map((p) => ({ ...p, blocks: p.blocks.filter((b) => factFor(b.text, facts) && !BANNED.test(b.text)) })) };
 }
 
 const SWAPS: Array<[string, string]> = [["best", "right"], ["only", "just"], ["instantly", "quickly"], ["this page", "here"], ["this screen", "here"], ["business hours", "opening times"], ["opening hours", "opening times"]];
@@ -89,6 +90,8 @@ export function renderPrompt(b: Brief, ctx: PlanContext, feedback: string[], pre
   const pages = ctx.corpus.pages
     .map((p) => `PAGE ${p.path} (${p.title})\n${p.blocks.map((x) => `[${x.id}] ${x.text}`).join("\n")}\nCONTROLS:\n${p.controls.map((c) => `[${c.id}] ${c.kind} "${c.text}"${c.to ? ` opens ${c.to}` : ""}`).join("\n")}`)
     .join("\n\n");
+  const used = [...new Set(ctx.history.map((h) => h.hook.trim().split(/\s+/).slice(0, 3).join(" ").toLowerCase()).filter(Boolean))];
+  const openings = used.length ? `Hook openings already used (start your hook with different words): ${used.map((u) => `"${u}..."`).join(", ")}` : "";
   const hist = ctx.history.length ? ctx.history.map((h) => `- hook: "${h.hook}" | closing: "${h.closing}" | screens: ${h.visual.slice(0, 8).join(", ") || "n/a"}`).join("\n") : "(none yet)";
   return `BRIEF
 Subject: ${b.title}
@@ -106,6 +109,7 @@ ${ctx.prohibited.length ? ctx.prohibited.map((p) => `- ${p}`).join("\n") : "(non
 
 HISTORY (do not repeat)
 ${hist}
+${openings}
 
 THE REAL SITE
 ${pages}
@@ -435,7 +439,12 @@ export function repairRaw(input: Raw, problems: string[], ctx: PlanContext): { r
   };
   for (const pr of problems) {
     let m: RegExpExecArray | null;
-    if ((m = /^the hook is \d+ words/.exec(pr)) && raw.hook) {
+    if (/^the plan must have exactly 2 scenes/.test(pr)) {
+      if ((raw.scenes?.length ?? 0) > 2) {
+        raw.scenes = raw.scenes!.slice(0, 2);
+        notes.push("extra scenes dropped");
+      }
+    } else if ((m = /^the hook is \d+ words/.exec(pr)) && raw.hook) {
       const fit = fitHook(raw.hook);
       if (fit !== raw.hook) {
         raw.hook = fit;
