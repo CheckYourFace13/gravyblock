@@ -198,3 +198,20 @@ describe("engine reliability: what is never offered, and what is steered away fr
     assert.match(renderPrompt(brief, ctx([earlier]), []), /Hook openings already used.*who is actually/);
   });
 });
+
+describe("engine reliability: the check that refused every render now runs before it", () => {
+  test("a plan whose lines name no action or result is refused before any render, with the lines named", async () => {
+    const { gateDef, planTour: plan } = await import("../video/concepts/tour-planner");
+    const r = await plan(brief, ctx(), [], async () => planJson("Who has time for another marketing task?"));
+    assert.ok(r.ok);
+    if (!r.ok) return;
+    const dull = JSON.parse(JSON.stringify(r.def));
+    for (const sc of dull.scenes) for (const nd of sc.nodes) nd.say = "A broad and general statement about the business matters";
+    const problems = gateDef(dull, ctx(), []);
+    assert.ok(problems.some((p: string) => /spoken lines name an action or a result/.test(p)), JSON.stringify(problems));
+  });
+  test("the same plan passes once its lines say what happens", async () => {
+    const r = await planTour(brief, ctx(), [], async () => planJson("Who has time for another marketing task?"));
+    assert.ok(r.ok, JSON.stringify(r));
+  });
+});

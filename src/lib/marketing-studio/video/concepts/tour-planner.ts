@@ -12,6 +12,7 @@ import type { ExplainerDef, ExplainerNode, ExplainerScene } from "./explainer";
 import { fingerprintOfConcept, similarityProblems, content, jaccard, type CreativeFingerprint } from "./similarity";
 import { hookProblems, scriptProblems } from "./validate";
 import { BANNED } from "../demo/qa";
+import { OUTCOME_WORD } from "./standard";
 import { conceptFromExplainer } from "./explainer";
 import type { TourStep } from "./tour";
 
@@ -306,6 +307,11 @@ export function gateDef(def: ExplainerDef, ctx: PlanContext, others: CreativeFin
   // the video has to be 20 to 35 seconds, with room either side: judged from the words spoken
   const spokenWords = c.narration.reduce((n, l) => n + l.spoken.replace(/\{[^}]*\}/g, "").split(/\s+/).filter(Boolean).length, 0);
   if (c.estSeconds < 23 || c.estSeconds > 32) out.push(`the video would run about ${c.estSeconds} seconds (${spokenWords} spoken words); it must run 23 to 32 seconds: ${c.estSeconds < 23 ? "add a few words to the lines" : `cut about ${Math.max(4, Math.round((c.estSeconds - 30) * 2.6))} spoken words in total, from the longest lines`}`);
+  // the finished video is refused when fewer than half of its spoken lines name an action or a result: the same test, run on the plan, so a plan that would fail it is never rendered
+  const spoken = c.narration.map((l) => l.spoken.replace(/\{[^}]*\}/g, "").trim()).filter(Boolean);
+  const lacking = spoken.filter((t) => !OUTCOME_WORD.test(t));
+  const needMore = Math.ceil(spoken.length * 0.5) - (spoken.length - lacking.length);
+  if (needMore > 0) out.push(`only ${spoken.length - lacking.length} of ${spoken.length} spoken lines name an action or a result: rewrite at least ${needMore} of these so they say what happens on screen, with verbs such as tap, open, find, see, watch, pick, shows, reads, lists, types: ${lacking.slice(0, 4).map((t) => JSON.stringify(t)).join(", ")}`);
   out.push(...similarityProblems(fingerprintOfConcept(c), others));
   return out;
 }
@@ -487,6 +493,20 @@ export function repairRaw(input: Raw, problems: string[], ctx: PlanContext): { r
           notes.push(`scene ${m[1]} node ${m[2]}: scroll step added`);
         }
       }
+    } else if (/^only \d+ of \d+ spoken lines name an action or a result/.test(pr)) {
+      const need = Number(/rewrite at least (\d+)/.exec(pr)?.[1] ?? 1);
+      let done = 0;
+      for (const sc of raw.scenes ?? [])
+        for (const nd of sc.nodes ?? []) {
+          if (done >= need) break;
+          const hit = nd.block ? blockById(ctx.corpus, nd.block) : null;
+          const own = hit ? swapWords(shortLine(hit.block.text)) : "";
+          if (hit && !OUTCOME_WORD.test(nd.say ?? "") && OUTCOME_WORD.test(own) && !BANNED.test(own)) {
+            nd.say = own;
+            done++;
+          }
+        }
+      if (done) notes.push(`${done} line(s) now say what the screen shows`);
     } else if ((m = /^scene (\d) step (\d+): /.exec(pr)) && /(target must be|what it shows must be|is not on the real site|must be a block of the current page)/.test(pr)) {
       const sc = scene(m[1]);
       const idx = Number(m[2]) - 1;
