@@ -107,10 +107,10 @@ export function withoutUnlocatable(c: Corpus, bad: string[]): Corpus {
  * A new plan replaces the old video of its script: the old rendered rows that never went live (nothing published, nothing taken down) are retired, so they do not count as the script's "one live
  * video" and block the new render. A video that was ever published is never touched.
  */
-async function retireUnpublishedRows(db: StudioDb, productId: string, specId: string): Promise<number> {
-  const rows = await db.select({ id: ms.msVideos.id, status: ms.msVideos.status, sb: ms.msVideos.storyboard }).from(ms.msVideos).where(eq(ms.msVideos.productId, productId));
+async function retireUnpublishedRows(db: StudioDb, productId: string, specId: string, o: { keepPassing?: boolean } = {}): Promise<number> {
+  const rows = await db.select({ id: ms.msVideos.id, status: ms.msVideos.status, sb: ms.msVideos.storyboard, qa: ms.msVideos.qa }).from(ms.msVideos).where(eq(ms.msVideos.productId, productId));
   let n = 0;
-  for (const r of rows.filter((x) => (x.sb as { specId?: string } | null)?.specId === specId && ["ready_for_review", "approved"].includes(x.status))) {
+  for (const r of rows.filter((x) => (x.sb as { specId?: string } | null)?.specId === specId && ["ready_for_review", "approved"].includes(x.status) && !(o.keepPassing && x.status === "ready_for_review" && (x.qa as { passed?: boolean } | null)?.passed))) {
     const live = await db.select({ id: ms.msPublications.id }).from(ms.msPublications).where(and(eq(ms.msPublications.videoId, r.id), inArray(ms.msPublications.status, ["published", "publishing", "revoked", "deleted"]))).limit(1);
     if (live.length) continue;
     await db.update(ms.msVideos).set({ status: "superseded" }).where(eq(ms.msVideos.id, r.id));
@@ -295,5 +295,7 @@ export async function validateBeforeRender(db: StudioDb, specId: string, log: (m
     await invalidatePlan(db, brief.key, rec, problems, log);
     return { ok: false, problems };
   }
+  // the plan is good: earlier unpublished renders that failed (or are stale approvals) must not count as the script's one live video; a passing render waiting to be sent is kept and reused
+  await retireUnpublishedRows(db, product.id, specId, { keepPassing: true });
   return { ok: true, problems: [] };
 }
