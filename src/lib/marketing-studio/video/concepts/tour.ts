@@ -248,3 +248,68 @@ export function captureTour(c: Concept) {
     return manifest;
   };
 }
+
+/**
+ * A dry run of a tour on the LIVE site, before any render: the same pages are opened and the same scrolls, field entries and clicks are made (GET only, nothing is submitted, no picture is taken), and every
+ * step is checked the way the capture checks it: the text to scroll to is found, the control exists and works, the text the step must show is on the page afterwards. It costs seconds and no money, and it
+ * catches the one thing a snapshot of the site cannot: text the capture cannot locate on the page as it really loads. `bad` lists the texts that failed, so they are not offered to a planner again.
+ */
+export async function dryRunTour(origin: string, scenes: Array<{ tour?: TourStep[] }>): Promise<{ problems: string[]; bad: string[] }> {
+  const problems: string[] = [];
+  const bad: string[] = [];
+  const b = await openTourBrowser(origin);
+  try {
+    for (let i = 0; i < scenes.length; i++) {
+      const steps = scenes[i].tour ?? [];
+      const page = b.page;
+      for (let k = 0; k < steps.length; k++) {
+        const s = steps[k];
+        const tag = `scene ${i + 1} step ${k + 1}`;
+        try {
+          if (s.do === "open") {
+            await page.goto(new URL(s.path ?? "/", origin).toString(), { waitUntil: "networkidle", timeout: 60_000 });
+            await settleTour(page);
+          } else if (s.do === "scroll") {
+            if (!s.text || !(await rectOfText(page, s.text))) {
+              problems.push(`${tag}: "${(s.text ?? "").slice(0, 60)}" cannot be found on ${page.url()}`);
+              if (s.text) bad.push(s.text);
+              continue;
+            }
+          } else if (s.do === "type") {
+            const loc = page.getByLabel(s.field ?? "", { exact: false }).first();
+            await loc.click({ timeout: 5000 });
+            await loc.fill(s.value ?? "", { timeout: 5000 });
+          } else {
+            const name = s.text ?? "";
+            const el = page.getByRole("link", { name, exact: false }).or(page.getByRole("button", { name, exact: false })).or(page.getByRole("tab", { name, exact: false })).first();
+            const box = await el.boundingBox({ timeout: 5000 }).catch(() => null);
+            if (!box) {
+              problems.push(`${tag}: "${name.slice(0, 60)}" is not a control on ${page.url()}`);
+              bad.push(name);
+              continue;
+            }
+            const before = page.url();
+            await el.click({ timeout: 6000 });
+            await page.waitForTimeout(500);
+            if (page.url() !== before) {
+              await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
+              await settleTour(page);
+            }
+          }
+          if (s.shows) {
+            const body = await page.evaluate(() => document.body.innerText);
+            if (!norm(body).includes(norm(s.shows))) {
+              problems.push(`${tag}: the live page does not show "${s.shows.slice(0, 60)}"`);
+              bad.push(s.shows);
+            }
+          }
+        } catch (e) {
+          problems.push(`${tag}: ${String(e instanceof Error ? e.message : e).slice(0, 100)}`);
+        }
+      }
+    }
+  } finally {
+    await b.close();
+  }
+  return { problems, bad };
+}

@@ -215,3 +215,13 @@ describe("engine reliability: the check that refused every render now runs befor
     assert.ok(r.ok, JSON.stringify(r));
   });
 });
+
+describe("engine reliability: text the capture cannot locate is not offered again", () => {
+  test("blocks whose text was found unlocatable on the live page are removed from the corpus", async () => {
+    const { withoutUnlocatable } = await import("../gravyblock-register");
+    const out = withoutUnlocatable(corpus, ["reads your real website and connected profiles."]);
+    assert.ok(!out.pages.flatMap((p) => p.blocks).some((b) => /reads your real website/i.test(b.text)));
+    assert.ok(out.pages.flatMap((p) => p.blocks).length < corpus.pages.flatMap((p) => p.blocks).length);
+    assert.equal(withoutUnlocatable(corpus, []), corpus);
+  });
+});

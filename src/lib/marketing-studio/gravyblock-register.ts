@@ -19,6 +19,7 @@ import { conceptKey, type StoredConcept } from "./video/concepts/registry";
 import { creativeHistory, fingerprintOfConcept, type CreativeFingerprint } from "./video/concepts/similarity";
 import { aiAsk, gateDef, groundedCorpus, planTour, staleQuotes, type Ask } from "./video/concepts/tour-planner";
 import type { ExplainerDef } from "./video/concepts/explainer";
+import { dryRunTour } from "./video/concepts/tour";
 
 const ACTOR = "gravyblock-concept-planner";
 /** Bump when the planner or its gates change in a way that should replace plans made before. */
@@ -84,8 +85,24 @@ async function invalidatePlan(db: StudioDb, key: string, rec: PlanRecord, why: s
   log(`gravyblock: the plan for ${specOf(key)} is out of date (${why[0] ?? "?"}); it will be planned again from the current site`);
 }
 
+const unlocatableKey = "video_unlocatable_gravyblock";
+const nrm = (s: string) => s.toLowerCase().replace(/[‘’]/g, "'").replace(/\s+/g, " ").trim();
+/** Texts the capture could not locate on the live page as it really loads: they are never offered to a planner again (until the site changes enough for the list to be cleared). */
+async function rememberUnlocatable(db: StudioDb, texts: string[]): Promise<void> {
+  if (!texts.length) return;
+  const have = await getSetting<string[]>(unlocatableKey, [], db);
+  await setSetting(unlocatableKey, [...new Set([...have, ...texts.map(nrm)])].slice(-200), ACTOR, db, { audited: false });
+}
+/** Pure: the corpus without the blocks and controls whose text is known to be unlocatable. */
+export function withoutUnlocatable(c: Corpus, bad: string[]): Corpus {
+  if (!bad.length) return c;
+  const hit = (t: string) => bad.some((b) => nrm(t).includes(b) || b.includes(nrm(t)));
+  return { ...c, pages: c.pages.map((p) => ({ ...p, blocks: p.blocks.filter((x) => !hit(x.text)) })) };
+}
+
 /** The verified facts, the prohibited claims and the history a plan is made and checked against. */
-async function planningContext(db: StudioDb, corpus: Corpus, productId: string) {
+async function planningContext(db: StudioDb, corpus0: Corpus, productId: string) {
+  const corpus = withoutUnlocatable(corpus0, await getSetting<string[]>(unlocatableKey, [], db));
   const facts = await listFacts(INTERNAL_SCOPE, productId, db);
   const verified = facts.filter((f) => f.status === "current" && f.verifiedAt).map((f) => f.factValue);
   const prohibited = (await listClaims(INTERNAL_SCOPE, productId, db)).filter((c) => c.kind === "prohibited").map((c) => c.text);
@@ -153,6 +170,7 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
       }
     }
     if (rec?.ok && rec.v === PLANNER_VERSION) continue;
+    if (rec && !rec.ok && rec.stale?.length) seeds.set(b.key, rec.stale.map((x) => `the previous plan failed a live check: ${x}`));
     // a plan thrown away as out of date is made again at once; a failed plan waits its turn, so one stubborn concept never holds up the others
     if (rec && !rec.ok && rec.v === PLANNER_VERSION && !rec.stale && !deps.retryNow && Date.now() - Date.parse(rec.at) < RETRY_AFTER_MS) continue;
     todo.push(b);
@@ -211,7 +229,7 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
  * Checked before any render is queued for a GravyBlock concept: the plan's quotes must still be on the live site and its structural, similarity, duration and first-action gates must still pass. A plan
  * that fails is thrown away (it will be planned again from the current site) and the rollout carries on with the next concept. Costs nothing: no model call, no render.
  */
-export async function validateBeforeRender(db: StudioDb, specId: string, log: (m: string) => void = () => {}, deps: { corpus?: Corpus } = {}): Promise<{ ok: boolean; problems: string[] }> {
+export async function validateBeforeRender(db: StudioDb, specId: string, log: (m: string) => void = () => {}, deps: { corpus?: Corpus; skipDryRun?: boolean } = {}): Promise<{ ok: boolean; problems: string[] }> {
   const brief = GRAVYBLOCK_BRIEFS.find((b) => specOf(b.key) === specId);
   if (!brief) return { ok: true, problems: [] };
   const rec = await getSetting<PlanRecord | null>(planKey(brief.key), null, db);
@@ -230,6 +248,14 @@ export async function validateBeforeRender(db: StudioDb, specId: string, log: (m
       if (r?.ok && r.fp) others.push(r.fp);
     }
     problems.push(...gateDef(rec.def, { ...ctxBase, history: others }, others));
+  }
+  // the last free check: the tour is run on the live site (no pictures, nothing submitted), the way the capture will run it
+  if (!problems.length && !deps.skipDryRun) {
+    const dry = await dryRunTour("https://gravyblock.com", rec.def.scenes).catch((e) => ({ problems: [`the dry run could not start: ${e instanceof Error ? e.message : e}`], bad: [] as string[] }));
+    if (dry.problems.length) {
+      await rememberUnlocatable(db, dry.bad);
+      problems.push(...dry.problems.slice(0, 4));
+    }
   }
   if (problems.length) {
     await invalidatePlan(db, brief.key, rec, problems, log);
