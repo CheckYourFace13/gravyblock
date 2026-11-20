@@ -353,3 +353,21 @@ describe("repairs: corporate wording and a repeated closing line", () => {
     assert.ok((fixed.raw.endHeadline ?? "").split(/\s+/).length <= 7);
   });
 });
+
+describe("pre-render alignment matches the finished-video check", () => {
+  test("a line about one block, while its steps show another, is refused before render and repaired by rebuilding the tour", async () => {
+    const { gateDef, buildDef, repairRaw } = await import("../video/concepts/tour-planner");
+    const raw = JSON.parse(planJson("Who has time for another marketing task?"));
+    // node 3 of scene 1 talks about block p0.b2 but its step shows the opening block
+    raw.scenes[0].nodes[2] = { step: "ACTS", block: "p0.b2", say: "Then it performs a legitimate action available.", fact: 3 };
+    raw.scenes[0].tour = [{ node: 1, do: "open", target: "/", shows: "p0.b0" }, { node: 1, do: "scroll", target: "p0.b1", shows: "p0.b1" }, { node: 2, do: "scroll", target: "p0.b1", shows: "p0.b1" }, { node: 3, do: "scroll", target: "p0.b0", shows: "p0.b0" }];
+    const built = buildDef(raw, brief, ctx());
+    assert.ok(built.def, JSON.stringify(built.problems));
+    const problems = gateDef(built.def!, ctx(), []);
+    assert.ok(problems.some((x: string) => /scene 1 node 3: the line .* which its screen does not show/.test(x)), JSON.stringify(problems));
+    const fixed = repairRaw(raw, problems.filter((x: string) => /which its screen does not show/.test(x)), ctx());
+    const again = buildDef(fixed.raw, brief, ctx());
+    assert.ok(again.def);
+    assert.ok(!gateDef(again.def!, ctx(), []).some((x: string) => /which its screen does not show/.test(x)), "after the repair each node shows its own block");
+  });
+});

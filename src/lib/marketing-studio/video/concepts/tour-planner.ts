@@ -324,8 +324,11 @@ export function gateDef(def: ExplainerDef, ctx: PlanContext, others: CreativeFin
   def.scenes.forEach((sc, si) => {
     sc.nodes.forEach((n, ni) => {
       if (si === 0 && ni === 0) return;
-      const seen = new Set<string>([...content(n.line), ...content(sc.heading)]);
-      for (const st of sc.tour ?? []) if (st.node === ni) for (const w of content(st.shows)) seen.add(w);
+      const seen = new Set<string>(content(sc.heading));
+      const own = (sc.tour ?? []).filter((st) => st.node === ni && st.do !== "open");
+      // a node with no step of its own is shown by the picture before it; one with steps is shown by what those steps show
+      for (const st of own.length ? own : (sc.tour ?? []).filter((st) => st.node === ni)) for (const w of content(st.shows)) seen.add(w);
+      if (!own.length) for (const w of content(n.line)) seen.add(w);
       const words = [...content(n.say)];
       const missing = words.filter((w) => !seen.has(w));
       if (words.length >= 3 && missing.length / words.length > 0.5) out.push(`scene ${si + 1} node ${ni + 1}: the line "${n.say}" talks about ${missing.slice(0, 4).join(", ")}, which its screen does not show; say what the screen shows`);
@@ -594,6 +597,12 @@ export function repairRaw(input: Raw, problems: string[], ctx: PlanContext, brie
       if (nd && hit) {
         nd.say = swapWords(shortLine(hit.block.text));
         notes.push(`scene ${m[1]} node ${m[2]}: line says what the screen shows`);
+      }
+      // and each node of the scene shows its own block while it is spoken
+      const sc2 = scene(m[1]);
+      if (sc2) {
+        rebuildTour(sc2, ctx);
+        notes.push(`scene ${m[1]}: tour rebuilt so each node shows its own block`);
       }
     } else if ((m = /^scene (\d): node (\d) has no interaction on screen/.exec(pr)) || (m = /^scene (\d) node (\d): its block is on (\S+), a page this scene never shows/.exec(pr))) {
       const sc = scene(m[1]);
