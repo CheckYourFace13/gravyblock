@@ -49,3 +49,10 @@ next-env.d.ts
 *.zip
 GRAVYBLOCK_FULL_HANDOFF_FOR_CLAUDE.md
 .pglite-test/
+
+# website video working files (the finished videos live in public/videos)
+/scripts/website-video/out/
+/scripts/website-video/audio/
+/scripts/website-video/assets/
+/scripts/website-video/req.json
+/.videos/

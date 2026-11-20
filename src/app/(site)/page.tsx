@@ -1,5 +1,6 @@
 import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
 import { PlacedVideo } from "@/components/placed-video";
+import { WebsiteVideo } from "@/components/website-video";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TestimonialsSection } from "./testimonials-section";
@@ -89,7 +90,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <PlacedVideo slot="home-hero-flagship" heading="GravyBlock in about a minute" />
+      <WebsiteVideo src="/videos/gravyblock-flagship.mp4" poster="/videos/gravyblock-flagship.jpg" captions="/videos/gravyblock-flagship.vtt" title="GravyBlock in under 90 seconds" heading="See it work" blurb="A real scan, the real site, and what GravyBlock does after it." seconds={89} />
 
       {/* ── THE LOOP ───────────────────────────────────────── */}
       <PlacedVideo slot="home-what-it-does" heading="What GravyBlock does" />
