@@ -330,3 +330,26 @@ describe("repairs: a line another video already says is swapped for one nobody s
     assert.doesNotMatch(n.say ?? "", /Reads your real website/);
   });
 });
+
+describe("repairs: corporate wording and a repeated closing line", () => {
+  test("a corporate word is swapped for a plain one in every spoken line", async () => {
+    const { repairRaw } = await import("../video/concepts/tour-planner");
+    const raw = JSON.parse(planJson("Who has time for another marketing task?"));
+    raw.scenes[0].nodes[1].say = "Open the homepage and see the loop.";
+    const fixed = repairRaw(raw, ['documentation or corporate language: "homepage"'], ctx());
+    assert.equal(fixed.changed, true);
+    assert.match(fixed.raw.scenes![0].nodes![1].say ?? "", /front page/);
+    assert.doesNotMatch(JSON.stringify(fixed.raw), /homepage/i);
+  });
+  test("a closing line another video already uses is replaced by one none uses, with its caption and headline", async () => {
+    const { repairRaw } = await import("../video/concepts/tour-planner");
+    const raw = JSON.parse(planJson("Who has time for another marketing task?"));
+    const earlier = { specId: "gravyblock:old", hook: "h", problem: "p", benefit: "b", lines: ["x"], closing: "Scan your business free at Gravy Block dot com.", cta: "t", visual: [], format: "tour" } as unknown as PlanContext["history"][number];
+    const fixed = repairRaw(raw, ['the closing line repeats the one of "Think software can read your business?"'], ctx([earlier]));
+    assert.equal(fixed.changed, true);
+    assert.notEqual(fixed.raw.endLine, "Scan your business free at Gravy Block dot com.");
+    assert.match(fixed.raw.endLine ?? "", /Gravy Block dot com\.$/);
+    assert.match(fixed.raw.endCaption ?? "", /gravyblock\.com$/);
+    assert.ok((fixed.raw.endHeadline ?? "").split(/\s+/).length <= 7);
+  });
+});

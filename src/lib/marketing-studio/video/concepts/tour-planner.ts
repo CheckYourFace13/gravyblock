@@ -442,7 +442,15 @@ const shortLine = (text: string) => {
   const at = Math.max(cut.lastIndexOf(","), cut.lastIndexOf(";"), cut.lastIndexOf(" and "));
   return (at > 20 ? cut.slice(0, at) : cut).replace(/[,;:\s]+$/, "") + ".";
 };
-const WORD_FIX: Record<string, string> = { hours: "a short time", minutes: "a short time", seconds: "a short time" };
+const WORD_FIX: Record<string, string> = { hours: "a short time", minutes: "a short time", seconds: "a short time", homepage: "front page", dashboard: "screen", platform: "tool", solution: "fix", solutions: "fixes", seamless: "smooth", seamlessly: "smoothly", leverage: "use", workflow: "routine", workflows: "routines", features: "things it does", feature: "thing it does", functionality: "tools", comprehensive: "complete", robust: "solid" };
+/** Closing lines that end the way the voice says the site; one is chosen that no earlier video closes with. */
+const CLOSINGS: Array<[string, string, string]> = [
+  ["Scan your business free at Gravy Block dot com.", "Scan your business free at gravyblock.com", "Scan it free."],
+  ["See what it finds first, at Gravy Block dot com.", "See what it finds first at gravyblock.com", "See what it finds."],
+  ["Start with the free scan at Gravy Block dot com.", "Start with the free scan at gravyblock.com", "Start with the scan."],
+  ["Your free scan is waiting at Gravy Block dot com.", "Your free scan is waiting at gravyblock.com", "Your scan is waiting."],
+  ["Try the free scan today at Gravy Block dot com.", "Try the free scan today at gravyblock.com", "Try the free scan."],
+];
 const count = (t: string) => t.split(/\s+/).filter(Boolean).length;
 
 /** The block of the corpus whose words best match a spoken line (what the line is about), optionally limited to some pages. Only blocks a verified fact backs are in a grounded corpus. */
@@ -643,6 +651,23 @@ export function repairRaw(input: Raw, problems: string[], ctx: PlanContext, brie
       if (sc?.tour && idx > 0 && idx < sc.tour.length) {
         sc.tour.splice(idx, 1);
         notes.push(`scene ${m[1]}: step ${m[2]} dropped`);
+      }
+    } else if ((m = /^documentation or corporate language: "([^"]+)"/.exec(pr)) && WORD_FIX[m[1].toLowerCase()]) {
+      const word = m[1].toLowerCase();
+      const re = new RegExp("\\b" + word + "\\b", "gi");
+      const fix = (t?: string) => (t ? t.replace(re, WORD_FIX[word]) : t);
+      raw.hook = fix(raw.hook);
+      raw.endLine = fix(raw.endLine);
+      for (const sc of raw.scenes ?? []) for (const nd of sc.nodes ?? []) nd.say = fix(nd.say);
+      notes.push(`wording: "${word}" replaced`);
+    } else if (/^the closing line repeats the one of/.test(pr)) {
+      const used = ctx.history.map((h) => h.closing);
+      const pick = CLOSINGS.find(([line]) => used.every((u) => jaccard(content(u), content(line)) < 0.5)) ?? CLOSINGS[CLOSINGS.length - 1];
+      if (pick[0] !== raw.endLine) {
+        raw.endLine = pick[0];
+        raw.endCaption = pick[1];
+        raw.endHeadline = pick[2];
+        notes.push("closing line replaced by one no other video uses");
       }
     } else if ((m = /unsupported wording: "([^"]+)"/.exec(pr))) {
       const word = m[1].toLowerCase();
