@@ -29,6 +29,23 @@ export const GRAVYBLOCK_BRIEFS: RolloutBrief[] = [
   fromTopic("business-truth", { title: "Business Truth: it learns your company before it writes a word", slot: "how-it-works-business-truth", page: "/how-it-works" } as Partial<Brief>) as RolloutBrief,
   fromTopic("backlinks-outreach", { title: "Authority, links and citations: off-site growth that gets worked on", goal: "show that GravyBlock works on off-site growth (outreach for links, citations kept consistent) instead of only recommending it", slot: "features-authority", page: "/features" } as Partial<Brief>) as RolloutBrief,
   fromTopic("vs-checklist", { title: "Reports and checklists tell you what to do. GravyBlock does the eligible work.", slot: "compare-why-gravyblock", page: "/compare" } as Partial<Brief>) as RolloutBrief,
+  {
+    flagship: true,
+    mustCover: ["/", "/scan", "/how-it-works", "/features", "/proof", "/marketing-studio", "/pricing"],
+    angleId: "gravyblock-flagship-explainer",
+    key: "flagship-explainer",
+    role: "A",
+    title: "GravyBlock explained: what it does, how it proves it, and what you do next",
+    goal: "explain GravyBlock from start to finish to a first-time visitor: what it is and who it is for, how the free scan and Business Truth find and ground the work, how it does the eligible work automatically and proves it, how Marketing Studio fits in, how little the owner has to do and what the owner controls, why it is different from a report or checklist, and what to do next",
+    audience: "a small business owner seeing GravyBlock for the first time on the homepage",
+    coreBenefit: "the whole product understood in about a minute: it does the eligible marketing work and proves it, instead of handing over a list",
+    features: ["free scan", "Business Truth", "does eligible work automatically", "verified proof", "Marketing Studio", "owner control"],
+    ctaText: "Scan my business free",
+    ctaUrl: SCAN,
+    funnel: "cold",
+    slot: "home-hero-flagship",
+    page: "/",
+  } as RolloutBrief,
   fromTopic("faq-control", { title: "Control without workload: you stay in charge, you do not do the work", goal: "show what you control (connections you grant, what it will and will not do) without being handed work", slot: "faq-control", page: "/faq" } as Partial<Brief>) as RolloutBrief,
 ];
 
@@ -78,6 +95,11 @@ export const BRIEF_VARIANTS: Record<string, Array<Partial<Brief>>> = {
     { title: "What you decide, and what you never have to", goal: "show the connections the owner grants and the work that then runs without them", coreBenefit: "decisions stay yours, effort does not" },
   ],
 };
+
+BRIEF_VARIANTS["flagship-explainer"] = [
+  { title: "From a free scan to proven work: GravyBlock in about a minute", goal: "walk a first-time visitor from the free scan, through how GravyBlock learns the business and does the eligible work, to the proof, Marketing Studio and what to do next", mustCover: ["/", "/scan", "/how-it-works", "/features", "/proof", "/marketing-studio"] },
+  { title: "Not another report: what GravyBlock actually does for you", goal: "show that GravyBlock does eligible marketing work and proves it, instead of handing over a to-do list, and how much of the work stays with the owner", mustCover: ["/", "/scan", "/features", "/proof", "/marketing-studio"] },
+];
 
 /** The brief for the n-th framing (0 is the brief itself); the framings repeat in turn. */
 export function briefVariant(b: RolloutBrief, n: number): RolloutBrief {

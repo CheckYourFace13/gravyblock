@@ -216,6 +216,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
     mixFile: path.join(workDir, "mix.wav"),
     site: spec.site,
     ...(spec.kind === "game" ? { gameCreative: { storeLive: ctaPhase === "store_live" } } : {}),
+    ...(spec.concept?.flagship ? { flagship: true } : {}),
     ...(spec.qaExtra?.(manifest) ?? {}),
   });
   // the permanent creative standard: the ten desirability checks, measured on the finished video
@@ -225,7 +226,7 @@ export async function produceDemo(opts: { slug?: string; db: StudioDb; scope?: O
   const myId = record.specId ?? spec.slug;
   const takenOpenings = [...new Set(others.filter((o) => o.status !== "superseded" && o.status !== "failed" && o.status !== "qa_failed" && (o.sb as DemoRecord | null)?.kind === "demo" && ((o.sb as DemoRecord).specId ?? "") !== myId && (o.sb as DemoRecord).transcript?.[0]).map((o) => openingKey((o.sb as DemoRecord).transcript[0].text)))];
   const prohibitedClaims = (await listClaims(scope, product.id, db)).filter((c) => c.kind === "prohibited").map((c) => c.text);
-  const gate = evaluateRecord({ specId: myId, slug: spec.slug, productName: spec.productName, transcript: record.transcript.map((t) => ({ text: t.text, caption: t.caption })), durationMs: timeline.durationMs, firstActionMs: stateTimes.length ? Math.min(...stateTimes) : null, stateChanges: stateTimes.length, interactivePlates, verifiedClaims: record.claims.filter((c) => c.factsVerified).length, ctaText: spec.cta.text, onScreen: ON_SCREEN.map((o) => o.text), takenOpenings, concept: spec.concept ?? null, prohibited: prohibitedClaims });
+  const gate = evaluateRecord({ flagship: Boolean(spec.concept?.flagship), specId: myId, slug: spec.slug, productName: spec.productName, transcript: record.transcript.map((t) => ({ text: t.text, caption: t.caption })), durationMs: timeline.durationMs, firstActionMs: stateTimes.length ? Math.min(...stateTimes) : null, stateChanges: stateTimes.length, interactivePlates, verifiedClaims: record.claims.filter((c) => c.factsVerified).length, ctaText: spec.cta.text, onScreen: ON_SCREEN.map((o) => o.text), takenOpenings, concept: spec.concept ?? null, prohibited: prohibitedClaims });
   record.desirability = { ok: gate.ok, generated: Boolean(spec.concept), personality: spec.concept?.personality, firstActionMs: stateTimes.length ? Math.min(...stateTimes) : null, stateChanges: stateTimes.length, interactivePlates, checks: gate.checks.map((c) => ({ id: c.id, label: c.label, ok: c.ok, detail: c.detail })) };
   // the product's creative history: this video must be materially distinct from its published, approved, pending and recently replaced videos (a hard failure, so nothing repetitive reaches the owner)
   if (spec.concept) {

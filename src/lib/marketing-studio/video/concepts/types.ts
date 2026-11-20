@@ -105,6 +105,8 @@ export type Concept = {
   ctaHost: string;
   /** estimated length, seconds */
   estSeconds: number;
+  /** a FLAGSHIP explainer: the long format (about 60 to 90 seconds, six scenes) that explains a whole product, judged by its own length window */
+  flagship?: boolean;
   /** estimated time of the first tap, ms */
   estFirstTapMs: number;
   gate?: { ok: boolean; checks: DesirabilityCheck[] };

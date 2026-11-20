@@ -89,6 +89,8 @@ export default function HomePage() {
         </div>
       </section>
 
+      <PlacedVideo slot="home-hero-flagship" heading="GravyBlock in about a minute" />
+
       {/* ── THE LOOP ───────────────────────────────────────── */}
       <PlacedVideo slot="home-what-it-does" heading="What GravyBlock does" />
       <section className="px-4 py-12 sm:px-6">

@@ -225,3 +225,41 @@ describe("engine reliability: text the capture cannot locate is not offered agai
     assert.equal(withoutUnlocatable(corpus, []), corpus);
   });
 });
+
+describe("flagship explainer format", () => {
+  const flagBrief: Brief = { ...brief, key: "flag", flagship: true, mustCover: ["/", "/scan", "/pricing"] };
+  test("the flagship asks for six scenes and a 60 to 90 second story, and the short format is unchanged", async () => {
+    const { systemFor, lengthWindow, FLAGSHIP_SCENES } = await import("../video/concepts/tour-planner");
+    assert.equal(FLAGSHIP_SCENES, 6);
+    assert.match(systemFor(flagBrief), /exactly 6 scenes/);
+    assert.match(systemFor(flagBrief), /60 to 90 seconds/);
+    assert.match(systemFor(flagBrief), /x6\],"endLine"/);
+    assert.match(systemFor(brief), /exactly 2 scenes/);
+    assert.deepEqual(lengthWindow(true), { lo: 60, hi: 90 });
+    assert.deepEqual(lengthWindow(false), { lo: 23, hi: 32 });
+  });
+  test("a two-scene plan is refused for a flagship, with the exact reason", async () => {
+    const r = await planTour(flagBrief, ctx(), [], async () => planJson("Who has time for another marketing task?"), 1);
+    assert.equal(r.ok, false);
+    if (!r.ok) assert.match(r.problems.join(" "), /exactly 6 scenes/);
+  });
+  test("a flagship story that does not show a page it promised, or is too short, is refused before any render", async () => {
+    const { gateDef } = await import("../video/concepts/tour-planner");
+    const r = await planTour(brief, ctx(), [], async () => planJson("Who has time for another marketing task?"));
+    assert.ok(r.ok);
+    if (!r.ok) return;
+    const asFlagship = { ...r.def, flagship: true, mustCover: ["/", "/scan", "/pricing"] };
+    const problems = gateDef(asFlagship, ctx(), []);
+    assert.ok(problems.some((p: string) => /must show these pages and does not: \/pricing/.test(p)), JSON.stringify(problems));
+    assert.ok(problems.some((p: string) => /must run 60 to 90 seconds/.test(p)), JSON.stringify(problems));
+  });
+  test("the finished flagship is judged by its own length window, and a short video still is not", async () => {
+    const { evaluateRecord } = await import("../video/concepts/validate");
+    const base = { specId: "gravyblock:flag", slug: "gravyblock", productName: "GravyBlock", transcript: Array.from({ length: 12 }, (_, i) => ({ text: i === 0 ? "Who has time for more marketing tasks?" : "Watch it open the page and find the score." })), firstActionMs: 1500, stateChanges: 30, interactivePlates: 6, verifiedClaims: 12, ctaText: "Scan my business free", onScreen: [], takenOpenings: [], prohibited: [] };
+    const pacing = (o: { durationMs: number; flagship?: boolean }) => evaluateRecord({ ...base, ...o }).checks.find((c) => c.id === "engaging_pacing")?.ok;
+    assert.equal(pacing({ durationMs: 75_000, flagship: true }), true);
+    assert.equal(pacing({ durationMs: 75_000 }), false, "75 seconds is too long for a short video");
+    assert.equal(pacing({ durationMs: 25_000, flagship: true }), false, "25 seconds is too short for a flagship");
+    assert.equal(pacing({ durationMs: 25_000 }), true);
+  });
+});

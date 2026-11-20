@@ -75,6 +75,8 @@ export type DemoQaInput = {
   voicedMs: number;
   onScreenTexts: string[];
   endStartMs: number;
+  /** the long Flagship Explainer format: its length window is 55 to 95 seconds */
+  flagship?: boolean;
   /** The final mixed audio (wav), used to prove the music is audible and sits under the voice. */
   mixFile: string;
   /** The product's own site, used to prove every source page and the call to action belong to it. Defaults to RentalNoodle. */
@@ -98,7 +100,9 @@ export async function runDemoQa(i: DemoQaInput): Promise<DemoQaResult> {
   const probe = await ffprobe(i.file);
   const dur = probe.durationSec ?? 0;
   metrics.durationSec = +dur.toFixed(2);
-  add("duration", dur >= 20 && dur <= 35 && Math.abs(dur * 1000 - i.expectedMs) < 600, `${dur.toFixed(1)}s (target 20 to 35s, planned ${(i.expectedMs / 1000).toFixed(1)}s)`);
+  const lo = i.flagship ? 55 : 20;
+  const hi = i.flagship ? 95 : 35;
+  add("duration", dur >= lo && dur <= hi && Math.abs(dur * 1000 - i.expectedMs) < 600, `${dur.toFixed(1)}s (target ${lo} to ${hi}s, planned ${(i.expectedMs / 1000).toFixed(1)}s)`);
   add("format", probe.video?.codec === "h264" && probe.video.width === CANVAS.w && probe.video.height === CANVAS.h && probe.video.pixFmt === "yuv420p" && Math.abs((probe.video.fps ?? 0) - CANVAS.fps) < 0.5, probe.video ? `${probe.video.codec} ${probe.video.width}x${probe.video.height} ${probe.video.pixFmt} ${probe.video.fps}fps` : "no video stream");
   add("has_audio", probe.audio?.codec === "aac", probe.audio ? `audio ${probe.audio.codec}` : "no audio stream");
 

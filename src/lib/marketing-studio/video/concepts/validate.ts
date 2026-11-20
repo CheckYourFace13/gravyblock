@@ -259,6 +259,8 @@ export type RecordFacts = {
   takenOpenings: string[];
   /** present only for a generated concept; a script written by hand before the standard has none */
   concept?: Pick<Concept, "personality" | "structure" | "pacing" | "problem" | "whyItMatters"> | null;
+  /** the long Flagship Explainer format: judged by a 55 to 95 second window */
+  flagship?: boolean;
   prohibited: string[];
 };
 
@@ -281,7 +283,7 @@ export function evaluateRecord(r: RecordFacts): GateResult {
   checks.push(mk("desire_to_try", INVITE_VERB.test(last) || /\bpricing\b|\btry\b|\bsee\b/i.test(r.ctaText), `closing: "${last}"; button: ${r.ctaText}`));
   const wl = spoken.map(wordCount);
   const avg = wl.reduce((a, b) => a + b, 0) / Math.max(1, wl.length);
-  checks.push(mk("engaging_pacing", r.durationMs >= 20_000 && r.durationMs <= 35_000 && avg <= 16 && r.stateChanges >= 4, `${(r.durationMs / 1000).toFixed(1)}s, ${avg.toFixed(1)} words a line, ${r.stateChanges} state changes`));
+  checks.push(mk("engaging_pacing", r.durationMs >= (r.flagship ? 55_000 : 20_000) && r.durationMs <= (r.flagship ? 95_000 : 35_000) && avg <= 16 && r.stateChanges >= 4, `${(r.durationMs / 1000).toFixed(1)}s, ${avg.toFixed(1)} words a line, ${r.stateChanges} state changes`));
   const doc = DOC_REGISTER.exec(spoken.join(" "));
   const outcome = spoken.filter((s) => OUTCOME_WORD.test(s)).length;
   checks.push(mk("not_documentation", !doc && outcome / Math.max(1, spoken.length) >= 0.5, doc ? `documentation language: "${doc[0]}"` : `${outcome} of ${spoken.length} lines are an action or a result`));

@@ -9,6 +9,7 @@ import { ms, type StudioDb } from "./db";
 import { briefVariant, GRAVYBLOCK_BRIEFS, GRAVYBLOCK_PLAN_PATHS } from "./gravyblock-briefs";
 import { readLedger, spendNow } from "./video/concepts/ai-budget";
 import { GRAVYBLOCK_BRAND, MARKETING_STUDIO_FACTS } from "./gravyblock-explainers";
+import { angleKey, type AngleEntry } from "./library";
 import { getAngles, updateAngle } from "./library-store";
 import { addFact, listClaims, listFacts, listProducts, verifyFact } from "./repository";
 import { getSetting, setSetting } from "./runtime";
@@ -30,6 +31,8 @@ const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 export type RegisterReport = { stored: string[]; reopened: string[]; problems: string[] };
 /** The most one concept may spend on the model in a month (micro-dollars as dollars): a concept that cannot be planned in this much is set aside, not fed more of the monthly cap. */
 export const PER_CONCEPT_CAP_USD = 0.4;
+/** A flagship explainer is a much longer plan: it gets a larger (but still bounded) share. */
+export const FLAGSHIP_CAP_USD = 0.7;
 /** The most one registrar pass may spend, so a pass over ten concepts cannot take the month's budget in one go. */
 export const PER_PASS_CAP_USD = 0.6;
 /** How fresh the snapshot of the live site must be when plans are checked or made. */
@@ -123,6 +126,18 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
     await verifyFact(INTERNAL_SCOPE, ACTOR, product.id, row.id, db);
   }
   facts = await listFacts(INTERNAL_SCOPE, product.id, db);
+  // a brief with no library angle yet (the flagship) gets one, planned, exactly as the others were seeded
+  const existing = await getAngles(db, "gravyblock");
+  const missing = GRAVYBLOCK_BRIEFS.filter((b) => !existing.some((a) => a.id === b.angleId));
+  if (missing.length) {
+    const add: AngleEntry[] = missing.map((b, i) => ({
+      id: b.angleId, slug: "gravyblock", position: Math.max(0, ...existing.map((e) => e.position)) + i + 1, role: b.role, title: b.title, hook: b.title, goal: b.goal, audience: b.audience, coreBenefit: b.coreBenefit, features: b.features, scenes: [],
+      cta: { text: b.ctaText, url: b.ctaUrl }, status: "planned", approval: "none", existing: false, funnel: b.funnel as AngleEntry["funnel"], specId: specOf(b.key), purpose: b.title,
+      yt: { title: b.title.slice(0, 100), description: `${b.goal}\n\n${b.ctaUrl}` },
+    } as AngleEntry));
+    await setSetting(angleKey("gravyblock"), [...existing, ...add], ACTOR, db, { audited: false });
+    log(`gravyblock: added ${add.length} angle(s): ${add.map((a) => a.id).join(", ")}`);
+  }
   const angles = await getAngles(db, "gravyblock");
 
   // every pass works from a current snapshot of the live site (read again once it is over an hour old), so a plan is never made from, or kept on, text the site no longer says
@@ -150,8 +165,9 @@ export async function registerGravyblockExplainers(db: StudioDb, log: (m: string
     const rec = await getSetting<PlanRecord | null>(planKey(b.key), null, db);
     // one concept may not spend the month's budget: past its share it is set aside, and the rest of the set carries on
     const spent = await conceptSpendUsd(db, specId);
-    if (spent >= PER_CONCEPT_CAP_USD) {
-      report.problems.push(`${specId}: set aside this month, it has used its $${PER_CONCEPT_CAP_USD} share of the AI budget (${spent.toFixed(2)})`);
+    const cap = b.flagship ? FLAGSHIP_CAP_USD : PER_CONCEPT_CAP_USD;
+    if (spent >= cap) {
+      report.problems.push(`${specId}: set aside this month, it has used its $${cap} share of the AI budget (${spent.toFixed(2)})`);
       continue;
     }
     // a concept the render marked blocked is stuck the same way whatever its angle says (it is never made again until replanned)

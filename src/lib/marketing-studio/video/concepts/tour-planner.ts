@@ -16,7 +16,8 @@ import { OUTCOME_WORD } from "./standard";
 import { conceptFromExplainer } from "./explainer";
 import type { TourStep } from "./tour";
 
-export type Brief = { angleId: string; key: string; role: "A" | "B" | "C"; title: string; goal: string; audience: string; coreBenefit: string; features: string[]; ctaText: string; ctaUrl: string; funnel: string };
+/** A flagship brief asks for the long format: six scenes that between them cover the pages in `mustCover`. */
+export type Brief = { flagship?: boolean; mustCover?: string[]; angleId: string; key: string; role: "A" | "B" | "C"; title: string; goal: string; audience: string; coreBenefit: string; features: string[]; ctaText: string; ctaUrl: string; funnel: string };
 export type PlanContext = { corpus: Corpus; facts: string[]; prohibited: string[]; history: CreativeFingerprint[]; brand: ExplainerDef["brand"]; slug: string; productName: string; origin: string; ctaHost: string };
 export type Planned = { ok: true; def: ExplainerDef; yt: { title: string; description: string }; attempts: number; repairs?: number } | { ok: false; problems: string[]; attempts: number };
 
@@ -87,6 +88,30 @@ export function swapWords(text: string): string {
   return out;
 }
 
+/** Scenes in a flagship explainer, and the length window (in seconds) each format must land in. */
+export const FLAGSHIP_SCENES = 6;
+export const lengthWindow = (flagship?: boolean) => (flagship ? { lo: 60, hi: 90 } : { lo: 23, hi: 32 });
+
+/** The system prompt for a brief: the short format as written, or the flagship format (a long story over six scenes that explains the whole product). */
+export function systemFor(b: Brief): string {
+  if (!b.flagship) return SYSTEM;
+  return (
+    SYSTEM.replace("one 25 second vertical marketing video", "one 75 second vertical flagship explainer video")
+      .replace("The video has exactly 2 scenes. Each scene has exactly 3 nodes.", `The video has exactly ${FLAGSHIP_SCENES} scenes. Each scene has exactly 3 nodes.`)
+      .replace("}x2],\"endLine\"", `}x${FLAGSHIP_SCENES}],"endLine"`) +
+    `
+
+FLAGSHIP EXPLAINER (this overrides the 2-scene and 25-second wording above). This is the main video on the homepage: a visitor who has never heard of the product must be able to explain what it does after watching. It runs 60 to 90 seconds (about 18 spoken lines of 6 to 14 words, plus the hook and the closing line), over exactly ${FLAGSHIP_SCENES} scenes, one for each part of the story, in this order:
+1. The hook and what the product is and who it is for.
+2. How it finds the opportunities: the real free scan (type a business website into the real scan field) and what a real scan report shows.
+3. How it learns the business and only uses current, verified company information.
+4. What it does automatically (execution), with real examples of the work, and that it does the eligible work instead of handing over a list of tasks.
+5. How completed work is checked and recorded (proof), and how little the owner has to do and what the owner controls.
+6. Marketing Studio (ongoing marketing videos made from the real website, reviewed before publication), the offer, and what to do next.
+Every scene must show the real site being used (scroll, click, type), not a still page. The scenes together must visit every page in the brief's MUST COVER list. Do not describe anything the site and the verified facts do not show. Spoken lines are short, energetic, warm and specific: not corporate and not hyped.`
+  );
+}
+
 export function renderPrompt(b: Brief, ctx: PlanContext, feedback: string[], prev?: unknown): string {
   const pages = ctx.corpus.pages
     .map((p) => `PAGE ${p.path} (${p.title})\n${p.blocks.map((x) => `[${x.id}] ${x.text}`).join("\n")}\nCONTROLS:\n${p.controls.map((c) => `[${c.id}] ${c.kind} "${c.text}"${c.to ? ` opens ${c.to}` : ""}`).join("\n")}`)
@@ -124,7 +149,8 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
     if (!ok) problems.push(m);
     return Boolean(ok);
   };
-  if (!need(raw && Array.isArray(raw.scenes) && raw.scenes.length === 2, "the plan must have exactly 2 scenes")) return { def: null, problems };
+  const wantScenes = b.flagship ? FLAGSHIP_SCENES : 2;
+  if (!need(raw && Array.isArray(raw.scenes) && raw.scenes.length === wantScenes, `the plan must have exactly ${wantScenes} scenes`)) return { def: null, problems };
   const scenes: ExplainerScene[] = [];
   raw.scenes!.forEach((rs, si) => {
     const tag = `scene ${si + 1}`;
@@ -266,8 +292,9 @@ export function buildDef(raw: Raw, b: Brief, ctx: PlanContext): { def: Explainer
   need(!!raw.endCaption && /gravyblock\.com/i.test(raw.endCaption), 'the closing caption must contain "gravyblock.com"');
   need(!!raw.endHeadline && raw.endHeadline.trim().split(/\s+/).length <= 7, "the closing headline is missing or too long");
   need(!!raw.yt?.title && !!raw.yt?.description, "a YouTube title and description are missing");
-  if (problems.length || scenes.length !== 2) return { def: null, problems };
+  if (problems.length || scenes.length !== wantScenes) return { def: null, problems };
   const def: ExplainerDef = {
+    ...(b.flagship ? { flagship: true, mustCover: b.mustCover ?? [] } : {}),
     slug: ctx.slug,
     productName: ctx.productName,
     origin: ctx.origin,
@@ -306,7 +333,19 @@ export function gateDef(def: ExplainerDef, ctx: PlanContext, others: CreativeFin
   });
   // the video has to be 20 to 35 seconds, with room either side: judged from the words spoken
   const spokenWords = c.narration.reduce((n, l) => n + l.spoken.replace(/\{[^}]*\}/g, "").split(/\s+/).filter(Boolean).length, 0);
-  if (c.estSeconds < 23 || c.estSeconds > 32) out.push(`the video would run about ${c.estSeconds} seconds (${spokenWords} spoken words); it must run 23 to 32 seconds: ${c.estSeconds < 23 ? "add a few words to the lines" : `cut about ${Math.max(4, Math.round((c.estSeconds - 30) * 2.6))} spoken words in total, from the longest lines`}`);
+  const win = lengthWindow(def.flagship);
+  if (c.estSeconds < win.lo || c.estSeconds > win.hi) out.push(`the video would run about ${c.estSeconds} seconds (${spokenWords} spoken words); it must run ${win.lo} to ${win.hi} seconds: ${c.estSeconds < win.lo ? "add a few words to the lines" : `cut about ${Math.max(4, Math.round((c.estSeconds - (win.hi - 2)) * 2.6))} spoken words in total, from the longest lines`}`);
+  // a flagship story must show every part of the product it promises to explain
+  if (def.flagship && def.mustCover?.length) {
+    const covered = new Set(def.scenes.flatMap((sc) => [...sc.nodes.map((n) => n.path), ...(sc.tour ?? []).filter((t) => t.do === "open").map((t) => t.path)]));
+    const missing = def.mustCover.filter((p) => !covered.has(p));
+    if (missing.length) out.push(`the story must show these pages and does not: ${missing.join(", ")} (open each in a scene and base a spoken line on one of its blocks)`);
+  }
+  // a flagship shows the product being used in every scene
+  if (def.flagship) {
+    const still = def.scenes.map((sc, i) => ({ i, n: (sc.tour ?? []).filter((t) => t.do !== "open").length })).filter((x) => x.n < 3);
+    if (still.length) out.push(`scene ${still.map((x) => x.i + 1).join(", ")} does not use the product enough (at least 3 scrolls, clicks or typed entries a scene): add real interactions`);
+  }
   // the finished video is refused when fewer than half of its spoken lines name an action or a result: the same test, run on the plan, so a plan that would fail it is never rendered
   const spoken = c.narration.map((l) => l.spoken.replace(/\{[^}]*\}/g, "").trim()).filter(Boolean);
   const lacking = spoken.filter((t) => !OUTCOME_WORD.test(t));
@@ -332,7 +371,7 @@ export async function planTour(b: Brief, ctx: PlanContext, others: CreativeFinge
     let raw: Raw | null = null;
     let reply = "";
     try {
-      reply = await ask(SYSTEM, renderPrompt(b, ctx, feedback, prev), attempt);
+      reply = await ask(systemFor(b), renderPrompt(b, ctx, feedback, prev), attempt);
       raw = parseLoose(reply);
     } catch (e) {
       return { ok: false, problems: [`the model step failed: ${e instanceof Error ? e.message : e}`], attempts: attempt, repairs } as Planned;
@@ -445,9 +484,9 @@ export function repairRaw(input: Raw, problems: string[], ctx: PlanContext): { r
   };
   for (const pr of problems) {
     let m: RegExpExecArray | null;
-    if (/^the plan must have exactly 2 scenes/.test(pr)) {
-      if ((raw.scenes?.length ?? 0) > 2) {
-        raw.scenes = raw.scenes!.slice(0, 2);
+    if ((m = /^the plan must have exactly (\d+) scenes/.exec(pr))) {
+      if ((raw.scenes?.length ?? 0) > Number(m[1])) {
+        raw.scenes = raw.scenes!.slice(0, Number(m[1]));
         notes.push("extra scenes dropped");
       }
     } else if ((m = /^the hook is \d+ words/.exec(pr)) && raw.hook) {
