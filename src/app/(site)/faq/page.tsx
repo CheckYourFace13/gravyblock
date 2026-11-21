@@ -1,5 +1,4 @@
 import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
-import { PlacedVideo } from "@/components/placed-video";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -160,7 +159,6 @@ export default function FaqPage() {
         </div>
       </section>
 
-      <PlacedVideo slot="faq-control" heading="Staying in control" />
       <section className="mx-auto max-w-3xl px-4 py-14 sm:px-6 space-y-12">
         {faqs.map((section) => (
           <div key={section.section}>

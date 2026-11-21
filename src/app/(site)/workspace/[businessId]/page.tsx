@@ -11,6 +11,7 @@ import { getBusinessActivity, type ActivityItem } from "@/lib/workspace/activity
 import { getCustomerOnboardingSummary } from "@/lib/setup/onboarding-components";
 import { CheckoutButton, PortalButton } from "./billing-buttons";
 import { HomeSummary } from "./home-summary";
+import { OFFER } from "@/lib/offer";
 import { LocationsSection } from "./locations-section";
 import { getLocationsForBusiness } from "./location-actions";
 import { ContentApprovalSection } from "./content-approval-section";
@@ -340,10 +341,7 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
               </a>
             ) : null}
             <span className="rounded-full bg-red-100 px-3 py-1 text-red-950">
-              Plan: {features.label}{" "}
-              {features.monthlyPrice > 0
-                ? `(${features.monthlyPrice}/mo)`
-                : ""}
+              {tier === "free" ? "Free scan" : `Plan: ${OFFER.name} (${OFFER.priceLong})`}
             </span>
             <span className="rounded-full bg-zinc-100 border border-zinc-300 px-3 py-1">Refresh: {features.refreshCadenceLabel}</span>
             {selectedPlan ? (
@@ -373,15 +371,6 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
                     businessId={businessId}
                     label="Manage billing"
                     className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                  />
-                ) : null}
-                {(tier === "starter" || tier === "growth") ? (
-                  <CheckoutButton
-                    businessId={businessId}
-                    plan="pro"
-                    label="Upgrade to Pro"
-                    promoCode={promoCode}
-                    className="rounded-full bg-transparent px-3 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-800 underline underline-offset-2"
                   />
                 ) : null}
               </>
@@ -419,10 +408,10 @@ export default async function WorkspacePage({ params, searchParams }: Props) {
       {!features.recurringRefresh ? (
         <div className="rounded-2xl border border-red-200 bg-red-50/60 px-5 py-5 text-sm text-zinc-900">
           <p>
-            <span className="font-semibold">Starter unlocks recurring automation.</span> Free includes your scan history and core report.
-            Starter adds monthly refreshes and content ideas. Scale adds full publishing, content drafts, and weekly sequences. See{" "}
-            <Link href="/#plans" className="font-semibold underline">
-              all plans
+            <span className="font-semibold">GravyBlock does the ongoing work.</span> Your free scan includes your scan history and core report.
+            {OFFER.name} adds automatic publishing, Google posts, review replies and outreach after a {OFFER.trialDays}-day free trial, then {OFFER.priceLong}. {OFFER.guarantee}. See{" "}
+            <Link href="/pricing" className="font-semibold underline">
+              pricing
             </Link>
             .
           </p>

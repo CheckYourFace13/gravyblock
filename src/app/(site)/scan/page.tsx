@@ -1,5 +1,5 @@
 import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
-import { PlacedVideo } from "@/components/placed-video";
+import { WebsiteVideo } from "@/components/website-video";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ScanForm } from "@/components/scan-form";
@@ -94,7 +94,7 @@ export default async function ScanPage({ searchParams }: Props) {
       <div className="mt-8 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-10">
         <ScanForm selectedPlan={selectedPlan} promoCode={promoCode} initialQuery={initialQuery} initialCity={initialCity} leadEmail={leadEmail} />
       </div>
-      <PlacedVideo slot="scan-free-scan-to-action" heading="From scan to action" />
+      <WebsiteVideo slot="free-scan" heading="From scan to action" />
     </div>
     </>
   );

@@ -4,6 +4,7 @@ import { ProofTeaser } from "./proof-teaser";
 import { FunnelBeacon } from "@/components/funnel-beacon";
 import { getReportWithContext } from "@/lib/report/repository";
 import { OFFER } from "@/lib/offer";
+import { WebsiteVideo } from "@/components/website-video";
 
 export const metadata: Metadata = {
   title: "Start GravyBlock",
@@ -75,6 +76,7 @@ export default async function StartPage({ searchParams }: Props) {
           <span>✓ 14-day free trial</span>
           <span>✓ 30-day money-back guarantee after your first payment</span>
         </div>
+        <WebsiteVideo slot="getting-started" heading="Getting started" />
       </div>
     </div>
   );

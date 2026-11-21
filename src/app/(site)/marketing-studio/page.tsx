@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PlacedVideo } from "@/components/placed-video";
+import { WebsiteVideo } from "@/components/website-video";
 
 export const revalidate = 300;
 
@@ -30,7 +30,7 @@ export default function MarketingStudioPage() {
           </div>
         </div>
       </section>
-      <PlacedVideo slot="marketing-studio-page" heading="Marketing Studio" />
+      <WebsiteVideo slot="marketing-studio" heading="Marketing Studio" />
       <section className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
         <ol className="grid gap-6 sm:grid-cols-3">
           {STEPS.map((s, i) => (

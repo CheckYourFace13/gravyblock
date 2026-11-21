@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createBillingPortalAction, createCheckoutSessionAction } from "@/app/(site)/workspace/[businessId]/billing-actions";
+import {
+  createBillingPortalAction,
+  createCheckoutSessionAction,
+} from "@/app/(site)/workspace/[businessId]/billing-actions";
 import type { CheckoutPlan } from "@/lib/stripe/server";
 import type { PromoCode } from "@/lib/stripe/promo-codes";
 
@@ -10,7 +13,11 @@ function InlineError({ message }: { message: string | null }) {
   return <p className="mt-2 text-xs font-medium text-red-700">{message}</p>;
 }
 
-async function runCheckout(businessId: string, plan: CheckoutPlan, promoCode?: PromoCode | null) {
+async function runCheckout(
+  businessId: string,
+  plan: CheckoutPlan,
+  promoCode?: PromoCode | null,
+) {
   const formData = new FormData();
   formData.set("businessId", businessId);
   formData.set("plan", plan);
@@ -18,63 +25,21 @@ async function runCheckout(businessId: string, plan: CheckoutPlan, promoCode?: P
   return createCheckoutSessionAction(formData);
 }
 
-const growthExtras = [
-  "Articles and service pages written from your website's facts and published to your connected site",
-  "Weekly Google Business Profile posts and your own images",
-  "Automatic Google review replies",
-  "Personalized local outreach with one follow-up (links are never guaranteed)",
-  "Facebook and Instagram posting with no per-post approval",
-];
-
 export function CheckoutButton({
   businessId,
   plan,
   label,
   className,
-  requireGrowthUpsell,
   promoCode,
 }: {
   businessId: string;
   plan: CheckoutPlan;
   label: string;
   className: string;
-  requireGrowthUpsell?: boolean;
   promoCode?: PromoCode | null;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [showUpsell, setShowUpsell] = useState(false);
-
-  if (plan !== "starter" || !requireGrowthUpsell) {
-    return (
-      <div>
-        <button
-          type="button"
-          disabled={pending}
-          className={`${className} ${pending ? "cursor-not-allowed opacity-70" : ""}`}
-          onClick={() => {
-            startTransition(async () => {
-              setError(null);
-              try {
-                const result = await runCheckout(businessId, plan, promoCode);
-                if (!result.ok) {
-                  setError(result.error);
-                  return;
-                }
-                window.location.href = result.checkoutUrl;
-              } catch (err) {
-                setError(err instanceof Error ? err.message : "Could not start checkout");
-              }
-            });
-          }}
-        >
-          {pending ? "Opening checkout..." : label}
-        </button>
-        {promoCode ? <p className="mt-2 text-xs font-medium text-zinc-600">Promo code ready: {promoCode}</p> : null}
-        <InlineError message={error} />
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -83,83 +48,31 @@ export function CheckoutButton({
         disabled={pending}
         className={`${className} ${pending ? "cursor-not-allowed opacity-70" : ""}`}
         onClick={() => {
-          setError(null);
-          setShowUpsell(true);
+          startTransition(async () => {
+            setError(null);
+            try {
+              const result = await runCheckout(businessId, plan, promoCode);
+              if (!result.ok) {
+                setError(result.error);
+                return;
+              }
+              window.location.href = result.checkoutUrl;
+            } catch (err) {
+              setError(
+                err instanceof Error ? err.message : "Could not start checkout",
+              );
+            }
+          });
         }}
       >
-        {label}
+        {pending ? "Opening checkout..." : label}
       </button>
-      <InlineError message={error} />
-
-      {showUpsell ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="growth-upsell-title"
-        >
-          <div className="max-w-lg rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl">
-            <h2 id="growth-upsell-title" className="text-lg font-semibold text-zinc-900">
-              Before you choose Starter, Scale adds full execution
-            </h2>
-            <p className="mt-2 text-sm text-zinc-600">
-              Starter covers monthly monitoring and content ideas. Scale adds automated publishing, Google Business
-              Profile posts, and outreach sequences.
-            </p>
-            <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-zinc-700">
-              {growthExtras.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={pending}
-                className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-60"
-                onClick={() => {
-                  startTransition(async () => {
-                    setError(null);
-                    const result = await runCheckout(businessId, "growth", promoCode);
-                    if (!result.ok) {
-                      setError(result.error);
-                      return;
-                    }
-                    window.location.href = result.checkoutUrl;
-                  });
-                }}
-              >
-                {pending ? "Opening checkout..." : "Upgrade to Scale"}
-              </button>
-              <button
-                type="button"
-                disabled={pending}
-                className="rounded-full bg-zinc-100 border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200 disabled:opacity-60"
-                onClick={() => {
-                  startTransition(async () => {
-                    setError(null);
-                    const result = await runCheckout(businessId, "starter", promoCode);
-                    if (!result.ok) {
-                      setError(result.error);
-                      return;
-                    }
-                    setShowUpsell(false);
-                    window.location.href = result.checkoutUrl;
-                  });
-                }}
-              >
-                {pending ? "Opening checkout..." : "Continue with Starter"}
-              </button>
-              <button
-                type="button"
-                className="rounded-full px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900"
-                onClick={() => setShowUpsell(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+      {promoCode ? (
+        <p className="mt-2 text-xs font-medium text-zinc-600">
+          Promo code ready: {promoCode}
+        </p>
       ) : null}
+      <InlineError message={error} />
     </div>
   );
 }
@@ -195,7 +108,11 @@ export function PortalButton({
               }
               window.location.href = result.portalUrl;
             } catch (err) {
-              setError(err instanceof Error ? err.message : "Could not open billing portal");
+              setError(
+                err instanceof Error
+                  ? err.message
+                  : "Could not open billing portal",
+              );
             }
           });
         }}

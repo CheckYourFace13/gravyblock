@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PlacedVideo } from "@/components/placed-video";
+import { WebsiteVideo } from "@/components/website-video";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getPublicProof } from "@/lib/proof/ledger";
@@ -187,7 +187,7 @@ export default async function ProofPage() {
         </div>
       )}
 
-      <PlacedVideo slot="proof-page" heading="Proof" />
+      <WebsiteVideo slot="proof" heading="Proof" />
 
       {caseStudies.length > 0 ? (
         <section className="mt-12">

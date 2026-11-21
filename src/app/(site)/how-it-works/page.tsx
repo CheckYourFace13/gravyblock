@@ -1,5 +1,5 @@
 import { applySelfManagedMetadata } from "@/lib/site-publish/self-managed";
-import { PlacedVideo } from "@/components/placed-video";
+import { WebsiteVideo } from "@/components/website-video";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -85,7 +85,8 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <PlacedVideo slot="how-it-works-business-truth" heading="Business Truth" />
+      <WebsiteVideo slot="how-it-works" heading="How it works" />
+      <WebsiteVideo slot="business-truth" heading="Business Truth" />
       <section className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
         <h2 className="text-2xl font-semibold text-zinc-900">The loop, in seven steps</h2>
         <ol className="mt-8 space-y-4">

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PlacedVideo } from "@/components/placed-video";
+import { WebsiteVideo } from "@/components/website-video";
 import Link from "next/link";
 import { CITIES } from "@/lib/local-seo/markets";
 import { isLocalDirectoryIndexable, robotsFor } from "@/lib/seo/indexing";
@@ -39,7 +39,7 @@ export default function LocalSeoIndexPage() {
         </div>
       </div>
 
-      <PlacedVideo slot="local-seo-page" heading="Local visibility" />
+      <WebsiteVideo slot="local-seo" heading="Local visibility" />
       <section>
         <h2 className="text-2xl font-semibold text-zinc-900">Cities</h2>
         <ul className="mt-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
