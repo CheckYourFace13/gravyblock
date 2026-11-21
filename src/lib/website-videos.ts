@@ -45,15 +45,8 @@ export const SLOT_PLACEMENT: Record<WebsiteVideoSlot, string> = {
 };
 
 export const WEBSITE_VIDEOS: Record<WebsiteVideoSlot, WebsiteVideoAsset | null> = {
-  // The current flagship cut. Replace these four values with the final asset and nothing else changes.
-  "home-flagship": {
-    src: "/videos/gravyblock-flagship.mp4",
-    poster: "/videos/gravyblock-flagship.jpg",
-    captions: "/videos/gravyblock-flagship.vtt",
-    title: "How GravyBlock actually works",
-    blurb: "A real scan, the real site, and the work GravyBlock does after it.",
-    seconds: 89,
-  },
+  // Waiting for the final approved flagship. Fill in { src, poster, captions, title, blurb, seconds } and the homepage section appears; nothing else changes.
+  "home-flagship": null,
   "free-scan": null,
   "how-it-works": null,
   "business-truth": null,
