@@ -8,8 +8,8 @@ export type WebsiteVideoAsset = {
   src: string;
   /** poster image, 16:9 (1280x720 is plenty) */
   poster: string;
-  /** WebVTT captions file */
-  captions: string;
+  /** WebVTT captions file, when accurate captions exist (the track is omitted otherwise) */
+  captions?: string;
   title: string;
   /** one sentence under the title: what the viewer will learn */
   blurb: string;
@@ -45,8 +45,14 @@ export const SLOT_PLACEMENT: Record<WebsiteVideoSlot, string> = {
 };
 
 export const WEBSITE_VIDEOS: Record<WebsiteVideoSlot, WebsiteVideoAsset | null> = {
-  // Waiting for the final approved flagship. Fill in { src, poster, captions, title, blurb, seconds } and the homepage section appears; nothing else changes.
-  "home-flagship": null,
+  // The final approved flagship (gravyblock-explainer-v4.mp4, published exactly as supplied). It carries its own on-screen text; there is no separate captions file.
+  "home-flagship": {
+    src: "/videos/gravyblock-explainer-v4.mp4",
+    poster: "/videos/gravyblock-explainer-v4.jpg",
+    title: "Local SEO that actually does the work for you",
+    blurb: "A real scan, the real product, and the work GravyBlock does after it.",
+    seconds: 85,
+  },
   "free-scan": null,
   "how-it-works": null,
   "business-truth": null,

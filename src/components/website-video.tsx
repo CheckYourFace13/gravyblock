@@ -23,7 +23,7 @@ export function WebsiteVideo({ slot, heading, flagship = false }: { slot: Websit
         <div className={`mt-7 overflow-hidden rounded-2xl border shadow-xl ${flagship ? "border-zinc-800 bg-black" : "border-zinc-200 bg-zinc-900"}`}>
           <video className="aspect-video w-full bg-black" controls preload="none" playsInline poster={v.poster} width={1920} height={1080} aria-label={v.title}>
             <source src={v.src} type="video/mp4" />
-            <track kind="captions" src={v.captions} srcLang="en" label="English" default={false} />
+            {v.captions ? <track kind="captions" src={v.captions} srcLang="en" label="English" /> : null}
             Your browser cannot play this video. <a href={v.src}>Download it</a>.
           </video>
         </div>
