@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { trackFunnelEvent, type FunnelEventType } from "@/lib/events/track";
 import { getAttributionToken, setAttributionToken } from "@/lib/events/attribution";
+import { trafficExclusion } from "@/lib/events/internal-traffic";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const jar = await cookies();
+  const excluded = trafficExclusion(jar, req.headers.get("user-agent"));
   let sessionId = jar.get(SESSION_COOKIE)?.value;
   if (!sessionId) {
     sessionId = randomUUID();
@@ -78,6 +80,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     path: typeof p.path === "string" ? p.path.slice(0, 300) : null,
     metadata: {
       ...(attributionToken ? { attributionToken } : {}),
+      ...(excluded ? { excluded } : {}),
       ...(typeof p.proofType === "string" ? { proofType: p.proofType.slice(0, 40) } : {}),
       // short category only (a mode or a generic error text), never anything the visitor typed
       ...(typeof p.detail === "string" ? { detail: p.detail.slice(0, 80) } : {}),

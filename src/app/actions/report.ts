@@ -100,6 +100,8 @@ export async function generateReportAction(
   // an admin session or an internal/test email is internal, anything else is automated.
   const scanOrigin = await (async () => {
     if (await isAdminSession()) return SCAN_ORIGINS.internal;
+    // internal tests and video captures carry the gb_internal cookie; automated clients are never counted as public visitors
+    if ((await cookies()).get("gb_internal")?.value === "1") return SCAN_ORIGINS.internal;
     const domain = (leadEmail ?? "").toLowerCase().split("@")[1] ?? "";
     if (INTERNAL_EMAIL_DOMAINS.includes(domain) || TEST_EMAIL_DOMAINS.includes(domain)) return SCAN_ORIGINS.internal;
     return (await cookies()).get("gb_visitor")?.value ? SCAN_ORIGINS.public : SCAN_ORIGINS.system;
@@ -155,7 +157,8 @@ export async function generateReportAction(
   }
 
   const visitorSessionId = (await cookies()).get("gb_visitor")?.value ?? null;
-  await trackFunnelEvent({ eventType: "scan_completed", reportPublicId: publicId, sessionId: visitorSessionId });
+  const excluded = scanOrigin === SCAN_ORIGINS.internal ? "internal" : null;
+  await trackFunnelEvent({ eventType: "scan_completed", reportPublicId: publicId, sessionId: visitorSessionId, ...(excluded ? { metadata: { excluded } } : {}) });
 
   const next = new URL(`/report/${publicId}`, "http://localhost");
   if (selectedPlan) next.searchParams.set("plan", selectedPlan);

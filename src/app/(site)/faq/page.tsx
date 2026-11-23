@@ -26,7 +26,7 @@ const faqs = [
       },
       {
         q: "How does the free scan work?",
-        a: "Enter your business name and location and we'll generate a visibility score in about 60 seconds. You'll see how your Google Business Profile, reviews, citations, and AI search presence stack up against competitors. No credit card required.",
+        a: "Enter your business name and location and we'll generate a visibility score in about 60 seconds. You'll see how your Google listing, reviews, website and estimated map visibility compare with nearby competitors, and what GravyBlock would do about it. The free scan does not run the AI search check; that starts after you sign up. No credit card required.",
       },
       {
         q: "Do I need to install anything?",

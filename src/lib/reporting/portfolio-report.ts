@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { getInternalBusinesses } from "./classification";
 import { getRealCustomers, measure, type Metric } from "./acquisition";
+import { buildHouseSiteBriefs } from "@/lib/house/site-briefs";
 
 /**
  * One combined, read-only portfolio report for the 12 House Accounts (the Friday report, also available on demand).
@@ -30,6 +31,7 @@ export type PortfolioReport = {
   backlinks: Metric<{ acquired: number; inOutreach: number; acquiredThisWeek: number }>;
   search: Metric<{ connected: number; clicks28d: number | null; impressions28d: number | null }>;
   scanFunnel: Metric<{ views: number; interacted: number; submitted: number; failed: number; completed: number; failures: Array<{ detail: string; n: number }> }>;
+  siteDrafts: Metric<Array<{ name: string; total: number }>>;
   actions: Metric<Array<{ type: string; discovered: number; acted: number; verified: number; noGain: number }>>;
   engines: Metric<HouseEngine[]>;
   health: Metric<{ failedJobsByType: Record<string, number>; sendFailures7d: number; lastWatchdog: Record<string, unknown> | null; cold7d: number; followup7d: number; breakup7d: number }>;
@@ -69,10 +71,12 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
 
   const internal = await measure("portfolio.internal", async () => [...(await getInternalBusinesses()).keys()]);
   const internalIds = internal.ok ? internal.value : [];
+  // sessions marked internal or automated at the time of the visit (metadata.excluded) are left out of every genuine-visitor number
+  const markedY = sql`and not exists (select 1 from funnel_events x where x.session_id = y.session_id and x.metadata->>'excluded' is not null)`;
   const attributionBetween = async (from: string, to: string) => {
-    const internalSessions = internalIds.length
+    const internalSessions = sql`${markedY} ${internalIds.length
       ? sql`and not exists (select 1 from funnel_events i where i.session_id = y.session_id and i.business_id in (${sql.join(internalIds.map((id) => sql`${id}::uuid`), sql`, `)}))`
-      : sql``;
+      : sql``}`;
     return rowsOf<{ campaign: string | null; sessions: number; ss: number; sc: number; co: number; le: number }>(await db.execute(sql`
       with y as (select session_id, min(coalesce(utm_campaign, '(no campaign)')) campaign from funnel_events
                  where utm_source = 'youtube' and session_id is not null and created_at >= ${from}::timestamptz and created_at < ${to}::timestamptz group by 1)
@@ -142,7 +146,7 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
   });
 
   const scanFunnel = await measure("portfolio.scanFunnel", async () => {
-    const excl = internalIds.length ? sql`and not exists (select 1 from funnel_events i where i.session_id = e.session_id and i.business_id in (${sql.join(internalIds.map((id) => sql`${id}::uuid`), sql`, `)}))` : sql``;
+    const excl = sql`and not exists (select 1 from funnel_events x where x.session_id = e.session_id and x.metadata->>'excluded' is not null) ${internalIds.length ? sql`and not exists (select 1 from funnel_events i where i.session_id = e.session_id and i.business_id in (${sql.join(internalIds.map((id) => sql`${id}::uuid`), sql`, `)}))` : sql``}`;
     const r = rowsOf<{ views: number; inter: number; subm: number; fail: number; done: number }>(await db.execute(sql`
       select count(distinct e.session_id) filter (where e.event_type = 'scan_started')::int views,
              count(distinct e.session_id) filter (where e.event_type = 'scan_form_interacted')::int inter,
@@ -154,6 +158,8 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
       select coalesce(metadata->>'detail', '(none)') detail, count(*)::int n from funnel_events where event_type = 'scan_submit_failed' and created_at >= ${since}::timestamptz group by 1 order by 2 desc limit 5`));
     return { views: Number(r[0]?.views ?? 0), interacted: Number(r[0]?.inter ?? 0), submitted: Number(r[0]?.subm ?? 0), failed: Number(r[0]?.fail ?? 0), completed: Number(r[0]?.done ?? 0), failures: f.map((x) => ({ detail: x.detail ?? "(none)", n: Number(x.n) })) };
   });
+
+  const siteDrafts = await measure("portfolio.siteDrafts", async () => (await buildHouseSiteBriefs(1)).map((b) => ({ name: b.name, total: b.total })));
 
   const actions = await measure("portfolio.actions", async () => {
     const r = rowsOf<{ t: string; disc: number; acted: number; ver: number; ng: number }>(await db.execute(sql`
@@ -208,7 +214,7 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
     return { houseCount: Number(h[0]?.houses ?? 0), searchConsoleConnected: s, publishingLiveEnabled: live[0] ? live[0].value === true || live[0].value === "true" : null, citationsNeedingOwner: Number(h[0]?.citations ?? 0), proofLedgerEntries: Number(proof[0]?.n ?? 0) };
   });
 
-  return { generatedAt: nowIso, windowDays, offsite, attribution, weekly, revenue, backlinks, search, scanFunnel, actions, engines, health, setup };
+  return { generatedAt: nowIso, windowDays, offsite, attribution, weekly, revenue, backlinks, search, scanFunnel, siteDrafts, actions, engines, health, setup };
 }
 
 const na = "not measured";
@@ -263,6 +269,9 @@ export function renderPortfolioReport(r: PortfolioReport): string {
   if (!r.actions.ok) out.push(`  unavailable: ${r.actions.error}`);
   else if (!r.actions.value.length) out.push("  none recorded");
   else for (const a of r.actions.value) out.push(`  ${a.type.padEnd(18)} discovered ${a.discovered}, acted ${a.acted}, verified ${a.verified}, no gain ${a.noGain}`);
+  out.push("");
+  if (!r.siteDrafts.ok) out.push(`SITE CHANGES FOR EACH SITE'S OWN AGENT: unavailable: ${r.siteDrafts.error}`);
+  else out.push(`SITE CHANGES WAITING FOR EACH SITE'S OWN AGENT (GravyBlock never edits house sites; briefs: scripts/ops/house-site-briefs.ts): ${r.siteDrafts.value.length ? r.siteDrafts.value.map((d) => `${d.name} ${d.total}`).join(", ") : "none"}`);
   out.push("");
   out.push("HOUSE ENGINES (opportunity queue per site)");
   if (!r.engines.ok) out.push(`  unavailable: ${r.engines.error}`);

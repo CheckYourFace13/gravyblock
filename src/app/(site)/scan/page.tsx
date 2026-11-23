@@ -59,7 +59,7 @@ export default async function ScanPage({ searchParams }: Props) {
     name: "GravyBlock Free Local SEO Scan",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    description: "Free Google visibility scan for local businesses. See your score across 6 ranking factors — profile quality, reviews, citations, trust signals, conversion readiness, and AI search presence — in under 60 seconds.",
+    description: "Free Google visibility scan. See your score, how your Google listing, reviews and website compare with nearby competitors, and what GravyBlock would do about it, in about a minute.",
     offers: {
       "@type": "Offer",
       price: "0",

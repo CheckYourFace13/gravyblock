@@ -108,7 +108,7 @@ export default async function GlossaryTermPage({ params }: Props) {
       <div className="mt-10 rounded-2xl border border-zinc-200 bg-white p-6">
         <p className="text-sm font-semibold text-zinc-900">See how your business scores</p>
         <p className="mt-1 text-sm text-zinc-600">
-          Run a free local SEO scan to see your visibility score across profile quality, citations, reviews, trust signals, and AI search presence — in under 60 seconds.
+          Run a free local SEO scan to see your visibility score for your Google listing, reviews, website and estimated map visibility, in about a minute.
         </p>
         <Link
           href="/scan"

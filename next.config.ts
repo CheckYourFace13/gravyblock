@@ -18,6 +18,9 @@ function resolveGitSha(): string {
 }
 
 const nextConfig: NextConfig = {
+  // Version skew protection (Next docs: deploymentId): a tab opened before a deploy detects the new build and reloads instead of failing with
+  // "Failed to find Server Action". The commit SHA is unique per deploy.
+  deploymentId: resolveGitSha(),
   async redirects() {
     return [
       { source: "/privacy-policy", destination: "/privacy", permanent: true },

@@ -46,8 +46,25 @@ export function firstPartyDrift(truth: BusinessTruth): string[] {
       issues.push(`${label} differs between sources: ${facts.map((f) => `"${f.value}" (${f.sourceSystem})`).join(" vs ")}`);
     }
   };
-  check("phone", "Phone", digits);
-  check("address", "Address", addrKey);
+  // A multi-location business lists several real addresses and phones on its own website. That is not a mismatch: it only counts as drift when a value from a
+  // DIFFERENT source (the Google profile, the owner) is not one of the addresses or phones the website itself lists.
+  const checkMulti = (key: string, label: string, norm: (s: string) => string) => {
+    const facts = by(key);
+    const bySource = new Map<string, Set<string>>();
+    for (const f of facts) {
+      const set = bySource.get(f.sourceSystem) ?? new Set<string>();
+      const v = norm(f.value);
+      if (v) set.add(v);
+      bySource.set(f.sourceSystem, set);
+    }
+    const multi = [...bySource.entries()].find(([, vals]) => vals.size > 1);
+    if (!multi) return check(key, label, norm);
+    const known = multi[1];
+    const stray = facts.filter((f) => f.sourceSystem !== multi[0] && norm(f.value) && !known.has(norm(f.value)));
+    if (stray.length) issues.push(`${label} differs between sources: ${stray.map((f) => `"${f.value}" (${f.sourceSystem})`).join(" vs ")} is not among the ${known.size} the website lists`);
+  };
+  checkMulti("phone", "Phone", digits);
+  checkMulti("address", "Address", addrKey);
   check("name", "Business name", nameKey);
   return issues;
 }

@@ -177,6 +177,8 @@ export async function capture({ name, beats, lines, outDir, audioDir, routes = {
   const browser = await chromium.launch({ executablePath: CHROME, args: ["--force-device-scale-factor=1", "--hide-scrollbars", "--disable-lcd-text"] });
   const context = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 1, reducedMotion: "no-preference" });
   await context.addInitScript(OVERLAY);
+  // every capture session is marked internal so it never counts as a real visitor, scan or conversion
+  await context.addCookies([{ name: "gb_internal", value: "1", url: SITE }]);
   const page = await context.newPage();
   for (const [p, html] of Object.entries(routes)) await page.route(SITE + p, (r) => r.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: html }));
   for (const [p, f] of Object.entries(files)) await page.route(SITE + p, (r) => r.fulfill({ status: 200, contentType: f.type, body: fs.readFileSync(f.path) }));

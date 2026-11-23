@@ -32,7 +32,7 @@ export function ScaleCta({
   publicId,
   businessId,
   placement,
-  label = "Start your 14-day free trialnth",
+  label = "Start your 14-day free trial",
   showRisk = true,
   compact = false,
   className = "",
@@ -65,14 +65,19 @@ export function ScaleCta({
 
   return (
     <div className={className}>
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={pending}
-        className={`w-full rounded-full bg-red-600 px-6 ${compact ? "py-3 text-sm" : "py-4 text-base"} font-bold text-white shadow-md transition hover:bg-red-500 disabled:cursor-wait disabled:opacity-70 sm:w-auto sm:px-9`}
+      {/* A real link first: with JavaScript off, or before the page has loaded, it opens the start page with this business already filled in.
+          With JavaScript on, the click goes straight to secure checkout. */}
+      <a
+        href={startHref(publicId)}
+        onClick={(e) => {
+          e.preventDefault();
+          if (!pending) onClick();
+        }}
+        aria-disabled={pending}
+        className={`inline-block w-full rounded-full bg-red-600 px-6 text-center ${compact ? "py-3 text-sm" : "py-4 text-base"} font-bold text-white shadow-md transition hover:bg-red-500 aria-disabled:cursor-wait aria-disabled:opacity-70 sm:w-auto sm:px-9`}
       >
         {pending ? "Taking you to secure checkout…" : label}
-      </button>
+      </a>
       {showRisk ? <p className="mt-2 text-xs font-medium text-zinc-600">{RISK_LINE}</p> : null}
       {error ? <p className="mt-2 text-xs font-medium text-red-700">{error}</p> : null}
     </div>
@@ -129,7 +134,7 @@ export function ScaleOffer({
 export function StickyScaleBar({ publicId, businessId }: { publicId: string; businessId?: string | null }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white/95 px-4 py-2 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur md:hidden">
-      <ScaleCta publicId={publicId} businessId={businessId} placement="sticky" label="Start your 14-day free trialnth" showRisk={false} compact />
+      <ScaleCta publicId={publicId} businessId={businessId} placement="sticky" label="Start your 14-day free trial" showRisk={false} compact />
     </div>
   );
 }

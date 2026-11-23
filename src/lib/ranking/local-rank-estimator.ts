@@ -1,6 +1,7 @@
 import type { LocalRankingCheck } from "@/lib/report/types";
 import type { Vertical } from "@/lib/report/types";
 import { searchGooglePlaceCandidates } from "@/lib/integrations/google-places";
+import { isRealCompetitor } from "@/lib/report/vertical";
 
 function queryTemplates(vertical: Vertical) {
   switch (vertical) {
@@ -54,7 +55,7 @@ export async function estimateLocalRankings(input: {
         confidence: rank === null ? 55 : 75,
         source: "estimated_local_rank",
         competitors: candidates
-          .filter((c) => c.placeId !== input.placeId)
+          .filter((c) => c.placeId !== input.placeId && isRealCompetitor(c, input.cityHint))
           .slice(0, 3)
           .map((c, index) => ({
             placeId: c.placeId,

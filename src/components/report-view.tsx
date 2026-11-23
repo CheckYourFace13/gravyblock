@@ -95,7 +95,7 @@ export function ReportView({
           <span className={`text-5xl font-semibold ${scoreTone(payload.summary.score)}`}>{payload.summary.score}</span>
           <p className="text-sm font-medium text-zinc-700">Overall readiness score</p>
           <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badge.className}`}>{badge.label}</span>
-          <p className="text-xs text-zinc-500">Generated {new Date(payload.generatedAt).toLocaleString()}</p>
+          <p className="text-xs text-zinc-500">Generated {new Date(payload.generatedAt).toLocaleString("en-US", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" })} UTC</p>
         </div>
       </div>
 

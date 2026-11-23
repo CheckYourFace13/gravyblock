@@ -3,6 +3,7 @@ import { runSiteCrawlAudit } from "@/lib/audit/site-crawl";
 import { getGooglePlaceDetails } from "@/lib/integrations/google-places";
 import { pullSearchConsoleMetrics } from "@/lib/integrations/google-search-console";
 import { estimateLocalRankings } from "@/lib/ranking/local-rank-estimator";
+import { inferVertical } from "./vertical";
 import { buildSocialPresence } from "@/lib/social/discover";
 import type { BusinessProfile, ReportFix, ReportIssue, ReportPayload, ReportSection, Vertical } from "@/lib/report/types";
 
@@ -114,7 +115,7 @@ function buildSections(input: {
       id: "canonical-estimated-local-visibility",
       title: "Estimated map & local-query visibility is soft",
       detail:
-        "Across sampled local-intent queries your listing is not consistently near the top of map-style results. This is modeled directional data — improve relevance, reviews, website/NAP clarity, and categories rather than chasing a single vanity number.",
+        "When we searched the way a customer would, your business did not show up near the top of the map results. This is an estimate from a handful of searches, not an exact ranking. The usual fixes are a fuller Google profile, more recent reviews, a clear website, and the right business categories.",
       severity: "high",
     };
   }
@@ -122,16 +123,8 @@ function buildSections(input: {
   const searchVisibilityIssues: ReportIssue[] = [...gscOnlyIssues];
   if (canonicalEstimatedVisibilityIssue) searchVisibilityIssues.push(canonicalEstimatedVisibilityIssue);
 
+  // The per-query rows are the same finding as the estimated-visibility issue above, so they are not listed as a second issue.
   const localRankingIssues: ReportIssue[] = [];
-  if (canonicalEstimatedVisibilityIssue) {
-    localRankingIssues.push({
-      id: "lr-cross-ref-estimated-visibility",
-      title: "Per-query checks (same estimation model)",
-      detail:
-        "These rows expand the same estimated visibility story as Search Visibility — one issue, multiple queries. Use them for prioritization, not as duplicate problems.",
-      severity: "low",
-    });
-  }
 
   const crawlIssues: ReportIssue[] = input.crawl.findings.map((f) => ({
     id: `crawl-${f.key}`,
@@ -229,6 +222,8 @@ export async function generateReportFromPlace(input: {
   candidateConfidence?: number;
 }) {
   const place = await getGooglePlaceDetails(input.placeId);
+  // Search with the business's real category (from its Google listing), not a generic "local business" template.
+  const vertical: Vertical = input.vertical === "other" ? inferVertical(place.types, place.displayName) : input.vertical;
 
   const [crawlBundle, searchVisibility, rankings] = await Promise.all([
     runSiteCrawlAudit(place.website),
@@ -236,7 +231,7 @@ export async function generateReportFromPlace(input: {
     estimateLocalRankings({
       placeId: place.placeId,
       businessName: place.displayName,
-      vertical: input.vertical,
+      vertical,
       cityHint: input.locationHint,
     }),
   ]);
@@ -261,7 +256,7 @@ export async function generateReportFromPlace(input: {
 
   const profile: BusinessProfile = {
     name: place.displayName,
-    vertical: input.vertical,
+    vertical,
     placeId: place.placeId,
     address: place.formattedAddress,
     website: resolvedWebsite,

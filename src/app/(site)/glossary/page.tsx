@@ -66,7 +66,7 @@ export default function GlossaryPage() {
       <div className="mt-12 rounded-2xl border border-red-100 bg-red-50/60 p-6">
         <p className="text-sm font-semibold text-zinc-900">See where your business stands</p>
         <p className="mt-1 text-sm text-zinc-600">
-          Run a free local SEO scan to see your score across profile quality, citations, reviews, trust signals, and AI search presence.
+          Run a free local SEO scan to see your score for your Google listing, reviews, website and estimated map visibility.
         </p>
         <Link
           href="/scan"

@@ -117,10 +117,11 @@ async function distinctSessions(eventTypes: string[], since: Date, outreach: boo
   const db = getDb();
   if (!db) throw new Error("database unavailable");
   const types = sql.join(eventTypes.map((t) => sql`${t}`), sql`, `);
+  const markedFilter = sql`and (e.session_id is null or e.session_id not in (select session_id from funnel_events where metadata->>'excluded' is not null and session_id is not null))`;
   const internalFilter = internalIds.length
-    ? sql`and (e.business_id is null or e.business_id not in (${uuidList(internalIds)}))
+    ? sql`${markedFilter} and (e.business_id is null or e.business_id not in (${uuidList(internalIds)}))
           and (e.session_id not in (select session_id from funnel_events where business_id in (${uuidList(internalIds)}) and session_id is not null))`
-    : sql``;
+    : markedFilter;
   const outreachSessions = sql`(select distinct session_id from funnel_events where session_id is not null and (utm_source = 'cold_outreach' or metadata->>'attributionToken' is not null))`;
   const rows = (await db.execute(sql`
     select count(distinct e.session_id)::int as n

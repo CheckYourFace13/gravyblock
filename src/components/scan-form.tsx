@@ -434,12 +434,12 @@ export function ScanForm({
             <li>Reading your website</li>
             <li>Looking at reviews and social profiles</li>
             <li>Comparing nearby competitors</li>
-            <li>Checking AI search visibility</li>
+            <li>Estimating where you show up in map results</li>
           </ul>
         </div>
       ) : null}
       <p className="text-xs text-zinc-500">
-        You see score, verdict, and top findings first. Unlock sends the full report to your inbox.
+        Your report opens on the next screen. No email is needed to see it; you can save a copy by email afterward if you want one.
       </p>
       <p className="text-xs text-zinc-500">
         Local mode: Google Places, homepage crawl, public social links, and sampled local rank estimates.
