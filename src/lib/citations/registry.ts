@@ -76,5 +76,15 @@ export function automationClassFor(t: CitationTarget): AutomationClass {
   return "E";
 }
 
+/**
+ * Directories that only list a business customers physically visit or phone locally. A national or online business (a software product, a game, an online
+ * publication) has nothing to claim there, so for those operating modes they are "not applicable", not an owner chore. Facebook Page and the first-party NAP check
+ * apply to every business and are never in this set.
+ */
+export const LOCAL_ONLY_DIRECTORIES: ReadonlySet<string> = new Set(["google_business_profile", "yelp", "bing_places", "apple_business_connect", "foursquare", "bbb", "nextdoor", "yellow_pages", "manta", "data_aggregators"]);
+export function directoryNotApplicable(directoryId: string, mode: string): boolean {
+  return (mode === "national" || mode === "online") && LOCAL_ONLY_DIRECTORIES.has(directoryId);
+}
+
 /** Free public submission handlers (class C). Intentionally empty until a directory with an open, captcha-free, terms-compliant path is verified. */
 export const SUBMITTERS: Record<string, (input: { name: string; phone?: string; address?: string; website?: string }) => Promise<{ ok: boolean; listingUrl?: string }>> = {};

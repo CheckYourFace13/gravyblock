@@ -47,3 +47,25 @@ export function FunnelBeacon({ eventType, businessId, reportPublicId, proofType 
 
   return null;
 }
+
+/** One-off first-party beacon for a behavior step (form interaction, submit, failure). `detail` is a short category, never text the visitor typed. */
+export function sendFunnelBeacon(eventType: "scan_form_interacted" | "scan_submitted" | "scan_submit_failed", detail?: string) {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    void fetch("/api/events/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventType,
+        detail: detail ?? null,
+        utmSource: params.get("utm_source"),
+        utmMedium: params.get("utm_medium"),
+        utmCampaign: params.get("utm_campaign"),
+        path: window.location.pathname,
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    /* tracking never breaks the form */
+  }
+}

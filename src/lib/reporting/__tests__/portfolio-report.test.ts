@@ -11,6 +11,8 @@ const base: PortfolioReport = {
   revenue: { ok: true, value: { customers: 0, mrr: 0 } },
   backlinks: { ok: true, value: { acquired: 0, acquiredThisWeek: 0, inOutreach: 5 } },
   search: { ok: true, value: { connected: 0, clicks28d: null, impressions28d: null } },
+  scanFunnel: { ok: true, value: { views: 10, interacted: 4, submitted: 3, failed: 1, completed: 2, failures: [{ detail: "Could not save report", n: 1 }] } },
+  actions: { ok: true, value: [{ type: "backlink", discovered: 5, acted: 1, verified: 0, noGain: 0 }] },
   engines: { ok: true, value: [{ name: "GravyBlock", open: 3, acted: 1, verified: 0, noGain: 0 }] },
   health: { ok: true, value: { failedJobsByType: {}, sendFailures7d: 0, lastWatchdog: { green: 10, yellow: 2, red: 0, checked: 12 }, cold7d: 1, followup7d: 2, breakup7d: 3 } },
   setup: { ok: true, value: { houseCount: 12, searchConsoleConnected: 0, publishingLiveEnabled: false, citationsNeedingOwner: 8, proofLedgerEntries: 8 } },
@@ -26,6 +28,12 @@ test("report totals the measured numbers and never invents traffic", () => {
   assert.match(t, /videos published: 1 \(-2 vs previous period\)/);
   assert.match(t, /visits to gravyblock.com from video links: 4 \(\+3 vs previous period\)/);
   assert.match(t, /0 live and verified in total/);
+});
+
+test("scan behavior and growth actions are shown with their real counts", () => {
+  const t = renderPortfolioReport(base);
+  assert.match(t, /viewed the scan page 10, touched the form 4, submitted 3, hit an error 1, completed a scan 2/);
+  assert.match(t, /backlink\s+discovered 5, acted 1, verified 0/);
 });
 
 test("a failed metric shows as unavailable, never as zero", () => {

@@ -45,7 +45,7 @@ async function querySearchConsole(input: {
   return json.rows ?? [];
 }
 
-async function listVerifiedProperties(accessToken: string): Promise<string[]> {
+export async function listVerifiedProperties(accessToken: string): Promise<string[]> {
   const res = await fetch("https://www.googleapis.com/webmasters/v3/sites", {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",

@@ -219,14 +219,15 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
 }
 
 /** Reads a real published contact address for prospecting rows; nothing is ever guessed. */
-const STOP = new Set("game games gaming night nights league leagues play played bar bars software platform online competition competitions venue venues management signup signups payment payments tool tools event events player players team teams the and for you your our with that this from are was have has will can not but all any get find best top guide local business businesses services service company website site page pages online more about into over than help helps helping provide provides across around near nearby made makes make one new use used using their they them who what when where which while also just like only some such other each every many most much very".split(" "));
+const STOP = new Set("free small code time work works worked real first last long short high good great better full part parts next need needs want wants home people person customers customer owner owners daily weekly month year years today things thing give gives take takes keep keeps same game games gaming night nights league leagues play played bar bars software platform online competition competitions venue venues management signup signups payment payments tool tools event events player players team teams the and for you your our with that this from are was have has will can not but all any get find best top guide local business businesses services service company website site page pages online more about into over than help helps helping provide provides across around near nearby made makes make one new use used using their they them who what when where which while also just like only some such other each every many most much very".split(" "));
 
 /** The business's own topical vocabulary, taken from its verified description/services (never invented). */
 function topicVocabulary(truth: BusinessTruth, category: string | null): string[] {
   const text = [truth.description ?? "", ...truth.services, category ?? "", truth.facts.filter((f) => f.key === "page_topic").map((f) => f.value).join(" ")].join(" ").toLowerCase();
   const counts = new Map<string, number>();
-  for (const w of text.match(/[a-z]{4,}/g) ?? []) {
-    if (STOP.has(w)) continue;
+  // 3-letter topic acronyms count (SEO, AEO, GBP); every other word needs 4+ letters.
+  for (const w of text.match(/[a-z]{3,}/g) ?? []) {
+    if (STOP.has(w) || (w.length === 3 && !["seo", "aeo", "gbp", "crm", "api"].includes(w))) continue;
     const stem = w.replace(/(ing|es|s)$/, "");
     counts.set(stem, (counts.get(stem) ?? 0) + 1);
   }

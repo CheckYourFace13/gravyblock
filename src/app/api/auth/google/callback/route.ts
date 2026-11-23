@@ -5,6 +5,7 @@ import {
   upsertGoogleConnection,
   getGoogleEmail,
 } from "@/lib/integrations/google-oauth";
+import { fanOutHouseGoogleConnection } from "@/lib/integrations/house-google";
 
 function siteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") || "http://localhost:3000";
@@ -43,6 +44,13 @@ export async function GET(req: NextRequest) {
       scopes: tokens.scope,
       googleEmail,
     });
+
+    // House accounts only: reuse this one authorization for the other house accounts and match their Search Console properties. A customer is never fanned out.
+    const fan = await fanOutHouseGoogleConnection(businessId).catch((e) => {
+      console.error("[google-callback] house fan-out failed", e);
+      return null;
+    });
+    if (fan) console.info("[google-callback] house Google fan-out", { copiedTo: fan.copiedTo, matched: fan.matched.length, missing: fan.notInGoogleAccount });
 
     return NextResponse.redirect(
       `${siteUrl()}/workspace/${businessId}?google_connected=1`,

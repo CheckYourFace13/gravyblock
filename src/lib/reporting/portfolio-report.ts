@@ -29,6 +29,8 @@ export type PortfolioReport = {
   revenue: Metric<{ customers: number; mrr: number }>;
   backlinks: Metric<{ acquired: number; inOutreach: number; acquiredThisWeek: number }>;
   search: Metric<{ connected: number; clicks28d: number | null; impressions28d: number | null }>;
+  scanFunnel: Metric<{ views: number; interacted: number; submitted: number; failed: number; completed: number; failures: Array<{ detail: string; n: number }> }>;
+  actions: Metric<Array<{ type: string; discovered: number; acted: number; verified: number; noGain: number }>>;
   engines: Metric<HouseEngine[]>;
   health: Metric<{ failedJobsByType: Record<string, number>; sendFailures7d: number; lastWatchdog: Record<string, unknown> | null; cold7d: number; followup7d: number; breakup7d: number }>;
   setup: Metric<{ houseCount: number; searchConsoleConnected: number; publishingLiveEnabled: boolean | null; citationsNeedingOwner: number; proofLedgerEntries: number }>;
@@ -139,6 +141,33 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
     return { connected, clicks28d: t[0]?.clicks ?? null, impressions28d: t[0]?.imps ?? null };
   });
 
+  const scanFunnel = await measure("portfolio.scanFunnel", async () => {
+    const excl = internalIds.length ? sql`and not exists (select 1 from funnel_events i where i.session_id = e.session_id and i.business_id in (${sql.join(internalIds.map((id) => sql`${id}::uuid`), sql`, `)}))` : sql``;
+    const r = rowsOf<{ views: number; inter: number; subm: number; fail: number; done: number }>(await db.execute(sql`
+      select count(distinct e.session_id) filter (where e.event_type = 'scan_started')::int views,
+             count(distinct e.session_id) filter (where e.event_type = 'scan_form_interacted')::int inter,
+             count(distinct e.session_id) filter (where e.event_type = 'scan_submitted')::int subm,
+             count(distinct e.session_id) filter (where e.event_type = 'scan_submit_failed')::int fail,
+             count(distinct e.session_id) filter (where e.event_type = 'scan_completed')::int done
+      from funnel_events e where e.created_at >= ${since}::timestamptz and e.session_id is not null ${excl}`));
+    const f = rowsOf<{ detail: string | null; n: number }>(await db.execute(sql`
+      select coalesce(metadata->>'detail', '(none)') detail, count(*)::int n from funnel_events where event_type = 'scan_submit_failed' and created_at >= ${since}::timestamptz group by 1 order by 2 desc limit 5`));
+    return { views: Number(r[0]?.views ?? 0), interacted: Number(r[0]?.inter ?? 0), submitted: Number(r[0]?.subm ?? 0), failed: Number(r[0]?.fail ?? 0), completed: Number(r[0]?.done ?? 0), failures: f.map((x) => ({ detail: x.detail ?? "(none)", n: Number(x.n) })) };
+  });
+
+  const actions = await measure("portfolio.actions", async () => {
+    const r = rowsOf<{ t: string; disc: number; acted: number; ver: number; ng: number }>(await db.execute(sql`
+      select o.opportunity_type t,
+             count(*) filter (where o.created_at >= ${since}::timestamptz)::int disc,
+             count(*) filter (where o.acted_at >= ${since}::timestamptz)::int acted,
+             count(*) filter (where o.status = 'verified' and o.resolved_at >= ${since}::timestamptz)::int ver,
+             count(*) filter (where o.status = 'no_gain' and o.resolved_at >= ${since}::timestamptz)::int ng
+      from growth_opportunities o join businesses b on b.id = o.business_id where b.account_type = 'house' group by 1 having
+        count(*) filter (where o.created_at >= ${since}::timestamptz) + count(*) filter (where o.acted_at >= ${since}::timestamptz) + count(*) filter (where o.resolved_at >= ${since}::timestamptz) > 0
+      order by 1`));
+    return r.map((x) => ({ type: x.t, discovered: Number(x.disc), acted: Number(x.acted), verified: Number(x.ver), noGain: Number(x.ng) }));
+  });
+
   const engines = await measure("portfolio.engines", async () => {
     const r = rowsOf<{ name: string; status: string; n: number }>(await db.execute(sql`
       select b.name, o.status, count(*)::int n from growth_opportunities o join businesses b on b.id = o.business_id
@@ -179,7 +208,7 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
     return { houseCount: Number(h[0]?.houses ?? 0), searchConsoleConnected: s, publishingLiveEnabled: live[0] ? live[0].value === true || live[0].value === "true" : null, citationsNeedingOwner: Number(h[0]?.citations ?? 0), proofLedgerEntries: Number(proof[0]?.n ?? 0) };
   });
 
-  return { generatedAt: nowIso, windowDays, offsite, attribution, weekly, revenue, backlinks, search, engines, health, setup };
+  return { generatedAt: nowIso, windowDays, offsite, attribution, weekly, revenue, backlinks, search, scanFunnel, actions, engines, health, setup };
 }
 
 const na = "not measured";
@@ -221,6 +250,19 @@ export function renderPortfolioReport(r: PortfolioReport): string {
   else if (!r.attribution.value.length) out.push("  no visits tagged utm_source=youtube in the period");
   else for (const a of r.attribution.value) out.push(`  ${a.campaign.padEnd(18)} visits ${a.sessions}, scan page views ${a.scansStarted}, scans completed ${a.scansCompleted}, checkouts ${a.checkouts}, leads ${a.leads}`);
   out.push("  Visits, scans and signups for the other 11 sites: " + na + " here (those sites report their own traffic).");
+  out.push("");
+  out.push("FREE SCAN BEHAVIOR (distinct visitors this period, internal sessions excluded; interaction events started 2026-11-23, so earlier periods show 0 by construction)");
+  if (!r.scanFunnel.ok) out.push(`  unavailable: ${r.scanFunnel.error}`);
+  else {
+    const f = r.scanFunnel.value;
+    out.push(`  viewed the scan page ${f.views}, touched the form ${f.interacted}, submitted ${f.submitted}, hit an error ${f.failed}, completed a scan ${f.completed}`);
+    if (f.failures.length) out.push(`  errors shown to visitors: ${f.failures.map((x) => `"${x.detail}" x${x.n}`).join("; ")}`);
+  }
+  out.push("");
+  out.push("GROWTH ACTIONS ON THE HOUSE ACCOUNTS (this period; verified means confirmed on the live surface)");
+  if (!r.actions.ok) out.push(`  unavailable: ${r.actions.error}`);
+  else if (!r.actions.value.length) out.push("  none recorded");
+  else for (const a of r.actions.value) out.push(`  ${a.type.padEnd(18)} discovered ${a.discovered}, acted ${a.acted}, verified ${a.verified}, no gain ${a.noGain}`);
   out.push("");
   out.push("HOUSE ENGINES (opportunity queue per site)");
   if (!r.engines.ok) out.push(`  unavailable: ${r.engines.error}`);

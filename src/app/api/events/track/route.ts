@@ -18,6 +18,9 @@ const VALID_TYPES = new Set<FunnelEventType>([
   "lead_form_submitted",
   "scale_cta_clicked",
   "start_page_viewed",
+  "scan_form_interacted",
+  "scan_submitted",
+  "scan_submit_failed",
 ]);
 
 /**
@@ -76,6 +79,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     metadata: {
       ...(attributionToken ? { attributionToken } : {}),
       ...(typeof p.proofType === "string" ? { proofType: p.proofType.slice(0, 40) } : {}),
+      // short category only (a mode or a generic error text), never anything the visitor typed
+      ...(typeof p.detail === "string" ? { detail: p.detail.slice(0, 80) } : {}),
     },
   });
 

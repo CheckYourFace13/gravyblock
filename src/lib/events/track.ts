@@ -10,7 +10,10 @@ export type FunnelEventType =
   | "checkout_completed"
   | "lead_form_submitted"
   | "scale_cta_clicked"
-  | "start_page_viewed";
+  | "start_page_viewed"
+  | "scan_form_interacted"
+  | "scan_submitted"
+  | "scan_submit_failed";
 
 export type FunnelEventInput = {
   eventType: FunnelEventType;

@@ -2,6 +2,7 @@
 import type { PromoCode } from "@/lib/stripe/promo-codes";
 
 import Link from "next/link";
+import { sendFunnelBeacon } from "@/components/funnel-beacon";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { generateReportAction, type ReportActionState } from "@/app/actions/report";
 import type { FocusArea } from "@/lib/validation/scan";
@@ -109,6 +110,21 @@ export function ScanForm({
 }) {
   const [state, formAction, pending] = useActionState(generateReportAction, initialState);
 
+  // Behavior evidence for the free-scan funnel (first-party, no typed text): first touch of the form, each submit, and each failure.
+  const touched = useRef(false);
+  const submittedOnce = useRef(false);
+  useEffect(() => {
+    if (pending && !submittedOnce.current) {
+      submittedOnce.current = true;
+      sendFunnelBeacon("scan_submitted", scanMode);
+    }
+    if (!pending) submittedOnce.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending]);
+  useEffect(() => {
+    if (state.status === "error" && state.formError) sendFunnelBeacon("scan_submit_failed", state.formError);
+  }, [state]);
+
   // Mode toggle
   const [scanMode, setScanMode] = useState<ScanMode>("places");
 
@@ -195,7 +211,15 @@ export function ScanForm({
   const canSubmit = scanMode === "places" ? canSubmitPlaces : canSubmitWebsite;
 
   return (
-    <form action={formAction} className="mx-auto max-w-2xl space-y-6">
+    <form
+      action={formAction}
+      className="mx-auto max-w-2xl space-y-6"
+      onFocusCapture={() => {
+        if (touched.current) return;
+        touched.current = true;
+        sendFunnelBeacon("scan_form_interacted", scanMode);
+      }}
+    >
       {/* Mode toggle */}
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">Step 1 · How do you want to identify your business?</p>

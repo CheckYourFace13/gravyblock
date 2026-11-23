@@ -20,7 +20,9 @@ import { hasFullAccess } from "@/lib/entitlement";
 import { and, eq, inArray } from "drizzle-orm";
 import { businessConfigs, businesses, citationMonitors, getDb, jobs, operatorTasks } from "@/lib/db";
 import { ensureFreshTruth, type BusinessTruth } from "@/lib/truth";
-import { targetsFor, automationClassFor, SUBMITTERS, type CitationTarget } from "./registry";
+import { targetsFor, automationClassFor, directoryNotApplicable, SUBMITTERS, type CitationTarget } from "./registry";
+import { getOperatingMode } from "@/lib/business-mode";
+import { growthOpportunities } from "@/lib/db";
 import { citationListings } from "@/lib/db";
 import { recordOpportunity } from "@/lib/opportunities/queue";
 
@@ -174,7 +176,7 @@ export async function runCitationEngineForBusiness(businessId: string): Promise<
   if (!db) return { targets: 0, drift: 0, consistent: 0, unsupported: 0 };
 
   const [biz] = await db
-    .select({ vertical: businesses.vertical, primaryCategory: businesses.primaryCategory, googleMapsUri: businesses.googleMapsUri, placeId: businesses.placeId })
+    .select({ vertical: businesses.vertical, primaryCategory: businesses.primaryCategory, googleMapsUri: businesses.googleMapsUri, placeId: businesses.placeId, accountType: businesses.accountType })
     .from(businesses)
     .where(eq(businesses.id, businessId))
     .limit(1);
@@ -184,7 +186,20 @@ export async function runCitationEngineForBusiness(businessId: string): Promise<
   let consistent = 0;
   let unsupported = 0;
 
+  // House accounts only (customers keep the existing behavior): a national or online house site has no local listing to claim.
+  const mode = biz?.accountType === "house" ? (await getOperatingMode(businessId)).mode : "local";
+  let notApplicable = 0;
+
   for (const t of targets) {
+    if (directoryNotApplicable(t.id, mode)) {
+      const values = { businessId, directoryId: t.id, directoryName: t.name, automationClass: automationClassFor(t), listingUrl: null, canonicalValue: null, status: "not_applicable", verificationRequirement: `Not applicable: this directory lists businesses with a location customers visit, and this is a ${mode} business.`, lastCheckedAt: new Date() };
+      const [row] = await db.select({ id: citationListings.id }).from(citationListings).where(and(eq(citationListings.businessId, businessId), eq(citationListings.directoryId, t.id))).limit(1);
+      if (row) await db.update(citationListings).set(values).where(eq(citationListings.id, row.id));
+      else await db.insert(citationListings).values(values);
+      await db.update(growthOpportunities).set({ status: "expired", resolvedAt: new Date() }).where(and(eq(growthOpportunities.dedupeKey, `citation_gap:${businessId}:${t.id}`), eq(growthOpportunities.status, "open")));
+      notApplicable++;
+      continue;
+    }
     let result: { status: string; url: string | null; note: string };
     if (t.id === "own_site_vs_gbp") {
       const issues = firstPartyDrift(truth);
@@ -214,7 +229,7 @@ export async function runCitationEngineForBusiness(businessId: string): Promise<
     .set({ status: "superseded" })
     .where(and(eq(operatorTasks.businessId, businessId), eq(operatorTasks.queue, "citation_ops"), inArray(operatorTasks.status, ["queued", "pending"])));
 
-  await db.insert(jobs).values({ businessId, type: "citation_engine_run", status: "completed", payload: { targets: targets.length, drift, consistent, unsupported } });
+  await db.insert(jobs).values({ businessId, type: "citation_engine_run", status: "completed", payload: { targets: targets.length, drift, consistent, unsupported, notApplicable, mode } });
   return { targets: targets.length, drift, consistent, unsupported };
 }
 

@@ -24,7 +24,8 @@ export type BusinessMode = {
   placeLabel: string | null;
 };
 
-const BAD = /^(other|unknown|)$/i;
+// "online_brand" and "single_location" are internal classification labels, not topics: used as a search topic they produced queries such as "online_brand association".
+const BAD = /^(other|unknown|online_brand|single_location|multi_location|general|)$/i;
 
 export async function getOperatingMode(businessId: string): Promise<BusinessMode> {
   const db = getDb();
