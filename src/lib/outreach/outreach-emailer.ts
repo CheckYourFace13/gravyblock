@@ -23,6 +23,25 @@ function resendConfig() {
   };
 }
 
+
+// Resend allows 10 requests/second per account. A batch that fires faster gets HTTP 429, which
+// recorded 44 failed sends in a week (the email was not accepted, so nothing was sent twice).
+// Space our own sends and retry a 429 a few times (it means "not accepted", so a retry cannot duplicate).
+let lastResendAt = 0;
+const RESEND_MIN_GAP_MS = 250;
+async function resendEmailsFetch(init: RequestInit): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    const wait = lastResendAt + RESEND_MIN_GAP_MS - Date.now();
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    lastResendAt = Date.now();
+    const res = await fetch("https://api.resend.com/emails", init);
+    if (res.status !== 429 || attempt >= 3) return res;
+    const retryAfter = Number(res.headers.get("retry-after"));
+    const backoff = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, 10) * 1000 : 1000 * 2 ** attempt;
+    await new Promise((r) => setTimeout(r, backoff));
+  }
+}
+
 function buildScanUrl(prospect: Prospect & { emailTo?: string }, attributionToken?: string | null): string {
   // Pre-fill the scan page with their business name + city so they land on results fast.
   // Include their email (base64url) so the scan auto-captures them as a lead — we
@@ -456,7 +475,7 @@ export async function sendFollowupEmail(params: {
   const text = buildFollowupText(params.businessName, linkUrl, findingId);
   const html = buildFollowupHtml(params.businessName, linkUrl, findingId, params.email);
 
-  const res = await fetch("https://api.resend.com/emails", {
+  const res = await resendEmailsFetch({
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -549,7 +568,7 @@ ${SENDER_NAME}`;
 </body>
 </html>`;
 
-  const res = await fetch("https://api.resend.com/emails", {
+  const res = await resendEmailsFetch({
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -613,7 +632,7 @@ export async function sendProspectEmail(
   const text = preScan ? buildReportText(prospect, preScan, variant) : buildTextEmail(prospect, industryLabel);
   const html = preScan ? buildReportHtml(prospect, preScan, variant) : buildHtmlEmail(prospect, industryLabel);
 
-  const res = await fetch("https://api.resend.com/emails", {
+  const res = await resendEmailsFetch({
     method: "POST",
     headers: {
       "content-type": "application/json",

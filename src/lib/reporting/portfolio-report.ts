@@ -1,0 +1,162 @@
+import { sql } from "drizzle-orm";
+import { getDb } from "@/lib/db";
+import { getInternalBusinesses } from "./classification";
+import { measure, type Metric } from "./acquisition";
+
+/**
+ * One combined, read-only portfolio report for the 12 House Accounts (the weekly "Friday" report, generated on demand).
+ * It reports only what is measured. A number that cannot be measured is "not measured" and never 0, and nothing here
+ * is estimated: off-site views come from the platform's own counters (ms_publication_metrics), site visits and scans
+ * come from first-party funnel events tagged by the video links (utm_source=youtube, utm_campaign=<product slug>).
+ * Only gravyblock.com has first-party funnel events in this database; every other house site must report its own
+ * traffic, so their visits and signups are listed as "not measured here" instead of guessed.
+ *
+ * It writes nothing and sends nothing. Delivering it to the owner on a schedule is a separate, explicit decision.
+ */
+
+export type ProductOffsite = { slug: string; liveVideos: number; views: number; likes: number; comments: number; failed: number; waiting: number; lastPublished: string | null; metricsAsOf: string | null };
+export type VideoAttribution = { campaign: string; sessions: number; scansStarted: number; scansCompleted: number; checkouts: number; leads: number };
+export type HouseEngine = { name: string; open: number; acted: number; verified: number; noGain: number };
+export type PortfolioReport = {
+  generatedAt: string;
+  windowDays: number;
+  offsite: Metric<ProductOffsite[]>;
+  attribution: Metric<VideoAttribution[]>;
+  engines: Metric<HouseEngine[]>;
+  health: Metric<{ failedJobsByType: Record<string, number>; sendFailures7d: number; lastWatchdog: Record<string, unknown> | null; cold7d: number; followup7d: number; breakup7d: number }>;
+  setup: Metric<{ houseCount: number; searchConsoleConnected: number; publishingLiveEnabled: boolean | null; citationsNeedingOwner: number; proofLedgerEntries: number }>;
+};
+
+type Rows<T> = T[];
+const rowsOf = <T>(r: unknown) => r as unknown as Rows<T>;
+
+export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioReport> {
+  const db = getDb();
+  if (!db) throw new Error("database unavailable");
+  const since = new Date(Date.now() - windowDays * 86_400_000).toISOString();
+  const since7 = new Date(Date.now() - 7 * 86_400_000).toISOString();
+
+  const offsite = await measure("portfolio.offsite", async () => {
+    const r = rowsOf<{ slug: string; live: number; failed: number; waiting: number; last: string | null }>(await db.execute(sql`
+      select pr.slug, count(*) filter (where p.status='published' and p.remote_deleted_at is null)::int live,
+             count(*) filter (where p.status='failed')::int failed, count(*) filter (where p.status='approval_required')::int waiting,
+             max(p.published_at)::text last
+      from ms_publications p join ms_products pr on pr.id = p.product_id where p.platform='youtube' group by pr.slug order by pr.slug`));
+    const m = rowsOf<{ slug: string; views: number | null; likes: number | null; comments: number | null; asof: string | null }>(await db.execute(sql`
+      with l as (select distinct on (publication_id) publication_id, product_id, metrics, collected_at from ms_publication_metrics order by publication_id, collected_at desc)
+      select pr.slug, sum((metrics->'views'->>'value')::int)::int views, sum((metrics->'reactions'->>'value')::int)::int likes,
+             sum((metrics->'comments'->>'value')::int)::int comments, max(collected_at)::text asof
+      from l join ms_products pr on pr.id = l.product_id join ms_publications p on p.id = l.publication_id
+      where p.status='published' and p.remote_deleted_at is null group by pr.slug`));
+    const bySlug = new Map(m.map((x) => [x.slug, x]));
+    return r.map((x): ProductOffsite => {
+      const k = bySlug.get(x.slug);
+      return { slug: x.slug, liveVideos: Number(x.live), views: Number(k?.views ?? 0), likes: Number(k?.likes ?? 0), comments: Number(k?.comments ?? 0), failed: Number(x.failed), waiting: Number(x.waiting), lastPublished: x.last, metricsAsOf: k?.asof ?? null };
+    });
+  });
+
+  const attribution = await measure("portfolio.attribution", async () => {
+    const internal = [...(await getInternalBusinesses()).keys()];
+    const internalSessions = internal.length
+      ? sql`and (e.session_id is null or e.session_id not in (select session_id from funnel_events where session_id is not null and business_id in (${sql.join(internal.map((id) => sql`${id}::uuid`), sql`, `)})))`
+      : sql``;
+    const r = rowsOf<{ campaign: string | null; sessions: number; ss: number; sc: number; co: number; le: number }>(await db.execute(sql`
+      select coalesce(e.utm_campaign,'(no campaign)') campaign, count(distinct e.session_id)::int sessions,
+             count(*) filter (where e.event_type='scan_started')::int ss, count(*) filter (where e.event_type='scan_completed')::int sc,
+             count(*) filter (where e.event_type='checkout_started')::int co, count(*) filter (where e.event_type='lead_form_submitted')::int le
+      from funnel_events e where e.utm_source='youtube' and e.created_at >= ${since}::timestamptz ${internalSessions}
+      group by 1 order by 2 desc`));
+    return r.map((x): VideoAttribution => ({ campaign: x.campaign ?? "(no campaign)", sessions: Number(x.sessions), scansStarted: Number(x.ss), scansCompleted: Number(x.sc), checkouts: Number(x.co), leads: Number(x.le) }));
+  });
+
+  const engines = await measure("portfolio.engines", async () => {
+    const r = rowsOf<{ name: string; status: string; n: number }>(await db.execute(sql`
+      select b.name, o.status, count(*)::int n from growth_opportunities o join businesses b on b.id = o.business_id
+      where b.account_type='house' group by 1,2`));
+    const map = new Map<string, HouseEngine>();
+    for (const x of r) {
+      const e = map.get(x.name) ?? { name: x.name, open: 0, acted: 0, verified: 0, noGain: 0 };
+      if (x.status === "open") e.open += Number(x.n);
+      else if (x.status === "acted") e.acted += Number(x.n);
+      else if (x.status === "verified") e.verified += Number(x.n);
+      else if (x.status === "no_gain") e.noGain += Number(x.n);
+      map.set(x.name, e);
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  const health = await measure("portfolio.health", async () => {
+    const failed = rowsOf<{ type: string; n: number }>(await db.execute(sql`select type, count(*)::int n from jobs where status='failed' and created_at >= ${since}::timestamptz group by 1 order by 2 desc`));
+    const sends = rowsOf<{ failed: number; cold: number; fu: number; br: number }>(await db.execute(sql`
+      select count(*) filter (where type='outreach_send_failed')::int failed, count(*) filter (where type='cold_outreach_sent')::int cold,
+             count(*) filter (where type='cold_outreach_followup_sent')::int fu, count(*) filter (where type='cold_outreach_breakup_sent')::int br
+      from jobs where created_at >= ${since7}::timestamptz`));
+    const wd = rowsOf<{ payload: Record<string, unknown> }>(await db.execute(sql`select payload from jobs where type='house_watchdog' order by created_at desc limit 1`));
+    return {
+      failedJobsByType: Object.fromEntries(failed.map((f) => [f.type, Number(f.n)])),
+      sendFailures7d: Number(sends[0]?.failed ?? 0), cold7d: Number(sends[0]?.cold ?? 0), followup7d: Number(sends[0]?.fu ?? 0), breakup7d: Number(sends[0]?.br ?? 0),
+      lastWatchdog: wd[0]?.payload ?? null,
+    };
+  });
+
+  const setup = await measure("portfolio.setup", async () => {
+    const h = rowsOf<{ houses: number; gsc: number; citations: number }>(await db.execute(sql`
+      select (select count(*) from businesses where account_type='house')::int houses,
+             (select count(distinct s.business_id) from search_console_property_connections s join businesses b on b.id=s.business_id where b.account_type='house' and s.status='connected')::int
+               + (select count(*) from google_oauth_connections g join businesses b on b.id=g.business_id where b.account_type='house' and g.search_console_property is not null)::int gsc,
+             (select count(*) from citation_listings l join businesses b on b.id=l.business_id where b.account_type='house' and l.status like 'needs_one_time%')::int citations`));
+    const live = rowsOf<{ value: unknown }>(await db.execute(sql`select value from ms_settings where key='publishing_live_enabled'`));
+    const proof = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from proof_ledger`));
+    return { houseCount: Number(h[0]?.houses ?? 0), searchConsoleConnected: Number(h[0]?.gsc ?? 0), publishingLiveEnabled: live[0] ? live[0].value === true || live[0].value === "true" : null, citationsNeedingOwner: Number(h[0]?.citations ?? 0), proofLedgerEntries: Number(proof[0]?.n ?? 0) };
+  });
+
+  return { generatedAt: new Date().toISOString(), windowDays, offsite, attribution, engines, health, setup };
+}
+
+const na = "not measured";
+
+/** Plain text, no styling, so it reads the same in a terminal, an email or a file. */
+export function renderPortfolioReport(r: PortfolioReport): string {
+  const out: string[] = [];
+  out.push(`GRAVYBLOCK HOUSE PORTFOLIO REPORT, generated ${r.generatedAt.slice(0, 16).replace("T", " ")} UTC (attribution window ${r.windowDays} days)`);
+  out.push("");
+  out.push("OFF-SITE (YouTube, platform counters, lifetime)");
+  if (!r.offsite.ok) out.push(`  unavailable: ${r.offsite.error}`);
+  else {
+    out.push("  product          live  views  likes  comments  failed  waiting  last published");
+    for (const p of r.offsite.value) out.push(`  ${p.slug.padEnd(15)} ${String(p.liveVideos).padStart(5)} ${String(p.views).padStart(6)} ${String(p.likes).padStart(6)} ${String(p.comments).padStart(9)} ${String(p.failed).padStart(7)} ${String(p.waiting).padStart(8)}  ${p.lastPublished?.slice(0, 10) ?? "never"}`);
+    const t = r.offsite.value.reduce((a, p) => ({ v: a.v + p.liveVideos, w: a.w + p.views, l: a.l + p.likes }), { v: 0, w: 0, l: 0 });
+    out.push(`  total: ${t.v} live videos, ${t.w} views, ${t.l} likes`);
+  }
+  out.push("");
+  out.push("TRAFFIC TO gravyblock.com FROM VIDEO LINKS (first-party funnel events, internal sessions excluded)");
+  if (!r.attribution.ok) out.push(`  unavailable: ${r.attribution.error}`);
+  else if (!r.attribution.value.length) out.push("  no visits tagged utm_source=youtube in the window");
+  else for (const a of r.attribution.value) out.push(`  ${a.campaign.padEnd(18)} visits ${a.sessions}, scans started ${a.scansStarted}, scans completed ${a.scansCompleted}, checkouts started ${a.checkouts}, leads ${a.leads}`);
+  out.push("  Visits, scans and signups for the other 11 sites: " + na + " here (those sites report their own traffic).");
+  out.push("");
+  out.push("HOUSE ENGINES (opportunity queue per site)");
+  if (!r.engines.ok) out.push(`  unavailable: ${r.engines.error}`);
+  else for (const e of r.engines.value) out.push(`  ${e.name.padEnd(16)} open ${e.open}, acted ${e.acted}, verified ${e.verified}, no gain ${e.noGain}`);
+  out.push("");
+  out.push("HEALTH");
+  if (!r.health.ok) out.push(`  unavailable: ${r.health.error}`);
+  else {
+    const h = r.health.value;
+    const failed = Object.entries(h.failedJobsByType);
+    out.push(`  failed jobs in window: ${failed.length ? failed.map(([k, v]) => `${k} ${v}`).join(", ") : "none"}`);
+    out.push(`  cold outreach last 7 days: ${h.cold7d} first emails, ${h.followup7d} follow-ups, ${h.breakup7d} final emails, ${h.sendFailures7d} send failures`);
+    out.push(`  house watchdog: ${h.lastWatchdog ? `green ${h.lastWatchdog.green}, yellow ${h.lastWatchdog.yellow}, red ${h.lastWatchdog.red} of ${h.lastWatchdog.checked}` : "no run recorded"}`);
+  }
+  out.push("");
+  out.push("SETUP GAPS");
+  if (!r.setup.ok) out.push(`  unavailable: ${r.setup.error}`);
+  else {
+    const s = r.setup.value;
+    out.push(`  Search Console connected for ${s.searchConsoleConnected} of ${s.houseCount} house sites (organic impressions and clicks are ${s.searchConsoleConnected ? "measured only for those" : na})`);
+    out.push(`  publishing_live_enabled (Meta/Facebook posting): ${s.publishingLiveEnabled === null ? "unknown" : s.publishingLiveEnabled ? "on" : "off"}`);
+    out.push(`  directory/citation listings waiting on a one-time owner step: ${s.citationsNeedingOwner}`);
+    out.push(`  proof ledger entries (verified outcomes): ${s.proofLedgerEntries}`);
+  }
+  return out.join("\n");
+}
