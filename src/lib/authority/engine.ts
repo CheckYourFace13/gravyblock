@@ -851,6 +851,9 @@ export async function verifyAcquisitions(businessId: string, limit = 6): Promise
     .select()
     .from(backlinkOpportunities)
     .where(and(eq(backlinkOpportunities.businessId, businessId), inArray(backlinkOpportunities.status, ["contacted", "followed_up", "expired", "replied"])))
+    // Without an order the same first few rows were re-checked forever and the rest of a business's pitched pages (dozens) were never looked at.
+    // A random order covers every pitched page over successive runs; each check is one polite page fetch.
+    .orderBy(sql`random()`)
     .limit(limit);
   let acquired = 0;
   for (const r of rows) {

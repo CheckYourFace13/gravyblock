@@ -21,6 +21,7 @@ import { runPendingRecurringSnapshotJobs, executeContentPublishPath, backfillMis
 import { getDb, businesses, contentQueue, jobs } from "@/lib/db";
 import { queueContentForBusiness } from "@/lib/content-gen/queue-content";
 import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
+import { sendWeeklyHouseReport } from "@/lib/email/weekly-house-report";
 import { backfillScanClassification, markInternalBusinesses } from "@/lib/reporting/classification";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
 import { runLeadDripBatch } from "@/lib/email/lead-drip";
@@ -225,6 +226,21 @@ async function maybeSendDailyReport() {
     }
   } catch (error) {
     console.error("[worker] daily report failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+/** Friday, 14:00 to 15:59 UTC (9 to 11 am Central): the one consolidated House Accounts growth report, once per week, to the owner only. */
+async function maybeSendWeeklyHouseReport() {
+  const now = new Date();
+  if (now.getUTCDay() !== 5 || now.getUTCHours() < 14 || now.getUTCHours() > 15) return;
+  if (await hasJobRunThisWeek("house_weekly_report")) return;
+  try {
+    if (await sendWeeklyHouseReport()) {
+      await recordWorkerJob("house_weekly_report");
+      console.info("[worker] weekly house accounts report sent");
+    }
+  } catch (error) {
+    console.error("[worker] weekly house report failed", { error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -566,6 +582,7 @@ async function tick() {
 
   await maybeClassifyReporting();
   await maybeSendDailyReport();
+  await maybeSendWeeklyHouseReport();
   await maybeSendMonthlyDigest();
   await maybeSendQuarterlyUpsell();
   // maybeSendReviewRequests() retired: it emailed paying customers weekly

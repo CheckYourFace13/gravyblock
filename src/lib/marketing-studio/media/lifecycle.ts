@@ -29,12 +29,14 @@ export type PurgeAction = { assetId: string; bytes: number; reason: "failed" | "
 
 const NEEDS_FILE = new Set(["queued", "rendering", "ready_for_review"]);
 /** Pure: which asset files may be purged now. An asset is purged only when every record that points at it is purgeable. */
-export function planPurge(videos: LifecycleVideo[], now: number): { actions: PurgeAction[]; keep: Array<{ assetId: string; nextPurgeAt: number }> } {
+export function planPurge(videos: LifecycleVideo[], now: number, hold: ReadonlySet<string> = new Set()): { actions: PurgeAction[]; keep: Array<{ assetId: string; nextPurgeAt: number }> } {
   const byAsset = new Map<string, LifecycleVideo[]>();
   for (const v of videos) if (v.assetId) byAsset.set(v.assetId, [...(byAsset.get(v.assetId) ?? []), v]);
   const actions: PurgeAction[] = [];
   const keep: Array<{ assetId: string; nextPurgeAt: number }> = [];
   for (const [assetId, vs] of byAsset) {
+    // a publication still waiting to be sent needs this file: never purge it from under the queue
+    if (hold.has(assetId)) continue;
     const due = (v: LifecycleVideo): { at: number; reason: PurgeAction["reason"] } | null => {
       if (NEEDS_FILE.has(v.status) && !v.onObjectStore) return null; // still to be uploaded
       if (v.onObjectStore) return { at: v.createdAt + RETENTION_DAYS.hostedAfterUpload * DAY, reason: "hosted" };
@@ -99,7 +101,8 @@ export async function runLifecycle(db: StudioDb, now = Date.now(), opts: { dryRu
   const assets = await db.select().from(ms.msAssets).where(eq(ms.msAssets.kind, "render_video"));
   const assetById = new Map(assets.map((a) => [a.id, a]));
   const lv: LifecycleVideo[] = videos.filter((v) => v.assetId && assetById.has(v.assetId) && !assetById.get(v.assetId)!.storagePath.startsWith("purged/")).map((v) => ({ id: v.id, assetId: v.assetId, status: v.status, createdAt: v.createdAt.getTime(), bytes: assetById.get(v.assetId as string)!.bytes, onPlatform: onPlatform.has(v.id), onObjectStore: hosted.has(v.id) }));
-  const plan = planPurge(lv, now);
+  const waiting = await db.select({ assetId: ms.msPublications.assetId }).from(ms.msPublications).where(inArray(ms.msPublications.status, ["approval_required", "approved", "scheduled", "publishing"]));
+  const plan = planPurge(lv, now, new Set(waiting.map((w) => w.assetId)));
   let purgedBytes = 0;
   const done: PurgeAction[] = [];
   for (const a of plan.actions) {

@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { describe, test } from "node:test";
 import { choosePlayback, embedSnippet, signMediaAccess, verifyMediaAccess, type CanonicalVideo } from "../media/canonical";
+import { normalizeTitle } from "../publishing/queue";
 import { planPurge, RETENTION_DAYS, type LifecycleVideo } from "../media/lifecycle";
 import { assertTenantKey, S3CompatibleStore, storeFromEnv } from "../media/object-store";
 
@@ -125,6 +126,15 @@ describe("storage lifecycle plan", () => {
   test("a render still waiting to be uploaded, or approved with no platform copy, is the only copy and is never purged", () => {
     assert.equal(planPurge([v({ status: "ready_for_review", createdAt: now - 30 * DAY })], now).actions.length, 0);
     assert.equal(planPurge([v({ status: "approved", createdAt: now - 30 * DAY })], now).actions.length, 0);
+  });
+  test("a file that a publication is still waiting to send is never purged, whatever the video status", () => {
+    const old = v({ status: "superseded", createdAt: now - 30 * DAY });
+    assert.equal(planPurge([old], now).actions.length, 1);
+    assert.equal(planPurge([old], now, new Set(["a"])).actions.length, 0);
+  });
+  test("titles compare ignoring case, punctuation and spacing", () => {
+    assert.equal(normalizeTitle("ScribbleZap: Progression"), normalizeTitle("scribblezap  progression!"));
+    assert.notEqual(normalizeTitle("ScribbleZap: Progression"), normalizeTitle("ScribbleZap: Gameplay hook"));
   });
   test("a copy on YouTube leaves the VPS after a week; a verified hosted copy after a day", () => {
     assert.equal(planPurge([v({ status: "approved", onPlatform: true, createdAt: now - 8 * DAY })], now).actions[0]?.reason, "published");

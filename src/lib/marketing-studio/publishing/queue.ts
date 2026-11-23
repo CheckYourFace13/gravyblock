@@ -7,7 +7,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
-import { and, eq, gt, inArray, lte, ne, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lte, ne, sql } from "drizzle-orm";
 import { audit } from "../audit";
 import { STUDIO_DIRS } from "../config";
 import { ms, requireStudioDb, type StudioDb } from "../db";
@@ -113,6 +113,11 @@ export async function videoCopyContext(db: StudioDb, productId: string, videoId:
   return { caption: [card.headline, card.subhead].filter(Boolean).join("\n"), headline: card.headline ?? null, ctaText: link?.ctaText ?? null, ctaUrl: link?.ctaUrl ?? null, campaignId: link?.campaignId ?? null, family: "video" };
 }
 
+/** Titles compare ignoring case, punctuation and spacing. */
+export function normalizeTitle(t: string): string {
+  return t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
 export async function createPublication(
   scope: OwnerScope,
   actor: string,
@@ -165,6 +170,22 @@ export async function createPublication(
     connectionId = conn.id;
   } else mode = "export";
 
+  // A file the retention policy already retired cannot be sent, and a superseded video is never queued again. (A loop re-queued one purged, superseded video 13 times.)
+  if (asset.storagePath.startsWith("purged/")) throw new Error("This video's file was retired by the storage retention policy, so it cannot be queued. Render the video again instead.");
+  if (input.videoId) {
+    const [vid] = await db.select({ status: ms.msVideos.status }).from(ms.msVideos).where(eq(ms.msVideos.id, input.videoId)).limit(1);
+    if (vid?.status === "superseded") throw new Error("This video was superseded by a newer version, so it is not queued.");
+  }
+  // One title, one video per product on YouTube: a title that is already live or waiting (for a video that is not a superseded version) is refused.
+  if (input.platform === "youtube" && mode === "direct" && title) {
+    const norm = normalizeTitle(title);
+    const same = await db
+      .select({ id: ms.msPublications.id, title: ms.msPublications.title })
+      .from(ms.msPublications)
+      .leftJoin(ms.msVideos, eq(ms.msVideos.id, ms.msPublications.videoId))
+      .where(and(eq(ms.msPublications.productId, productId), eq(ms.msPublications.platform, "youtube"), eq(ms.msPublications.mode, "direct"), ne(ms.msPublications.assetId, asset.id), inArray(ms.msPublications.status, ["published", "approval_required", "approved", "scheduled", "publishing"]), isNull(ms.msPublications.remoteDeletedAt), sql`coalesce(${ms.msVideos.status}, '') <> 'superseded'`));
+    if (same.some((r) => normalizeTitle(r.title ?? "") === norm)) throw new Error(`A video titled "${title}" is already live or waiting for this product. Give this one its own title or skip it.`);
+  }
   const dedupeKey = `${productId}|${input.platform}|${asset.id}|${connectionId ?? "export"}`;
   // A cancelled or revoked item, or one that failed before anything reached the platform (a gate, a daily cap, a missing file: no external post id), may be queued again; the old row keeps its history under an archived key. Anything else is a duplicate.
   await db.execute(sql`update ms_publications set dedupe_key = dedupe_key || '|archived|' || id::text where dedupe_key = ${dedupeKey} and (status in ('cancelled', 'revoked') or (status = 'failed' and (failure_reason like 'Blocked before sending:%' or external_post_id is null)))`);
@@ -375,6 +396,11 @@ export async function runDuePublications(scope: OwnerScope, deps: Deps = { fetch
       // YouTube access tokens last an hour: renew from the refresh token first (stored encrypted); other platforms use the stored token as is.
       const tokens = p.platform === "youtube" ? await youtubeTokensForCall(scope, "studio-worker", conn!.productId, conn!.id, deps, db) : await tokensForPublish(scope, "studio-worker", p.productId, conn!.id, db);
       const [asset] = await db.select().from(ms.msAssets).where(eq(ms.msAssets.id, p.assetId)).limit(1);
+      if (asset.storagePath.startsWith("purged/")) {
+        // retired by retention: nothing to send, and it is not a failure of the platform or the account
+        await finish({ status: "cancelled", failureReason: "Cancelled: the video file was retired by the storage retention policy before it could be sent." }, "publication.cancelled", { reason: "asset purged" });
+        continue;
+      }
       const bytes = await fs.readFile(safeJoin(STUDIO_DIRS.media, ...asset.storagePath.split("/")));
       const out = await ADAPTERS[p.platform as keyof typeof ADAPTERS].publish(
         { platform: p.platform as never, externalAccountId: conn!.externalAccountId ?? "", media: { kind: asset.mimeType === "video/mp4" ? "video" : "image", bytes, mime: asset.mimeType, fileName: `${p.id}.${asset.mimeType === "video/mp4" ? "mp4" : "png"}` }, caption: p.caption, title: p.title, accessToken: tokens.accessToken, youtube },

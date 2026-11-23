@@ -1,27 +1,34 @@
 import { sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { getInternalBusinesses } from "./classification";
-import { measure, type Metric } from "./acquisition";
+import { getRealCustomers, measure, type Metric } from "./acquisition";
 
 /**
- * One combined, read-only portfolio report for the 12 House Accounts (the weekly "Friday" report, generated on demand).
+ * One combined, read-only portfolio report for the 12 House Accounts (the Friday report, also available on demand).
  * It reports only what is measured. A number that cannot be measured is "not measured" and never 0, and nothing here
  * is estimated: off-site views come from the platform's own counters (ms_publication_metrics), site visits and scans
- * come from first-party funnel events tagged by the video links (utm_source=youtube, utm_campaign=<product slug>).
+ * come from first-party funnel events. A visit belongs to a video when its session arrived tagged utm_source=youtube;
+ * the later steps of that session (scan completed, checkout) do not repeat the tags, so they are counted through the session.
  * Only gravyblock.com has first-party funnel events in this database; every other house site must report its own
  * traffic, so their visits and signups are listed as "not measured here" instead of guessed.
  *
- * It writes nothing and sends nothing. Delivering it to the owner on a schedule is a separate, explicit decision.
+ * It writes nothing. Sending it to the owner is src/lib/email/weekly-house-report.ts.
  */
 
 export type ProductOffsite = { slug: string; liveVideos: number; views: number; likes: number; comments: number; failed: number; waiting: number; lastPublished: string | null; metricsAsOf: string | null };
 export type VideoAttribution = { campaign: string; sessions: number; scansStarted: number; scansCompleted: number; checkouts: number; leads: number };
 export type HouseEngine = { name: string; open: number; acted: number; verified: number; noGain: number };
+export type Pair = { now: number; before: number };
+export type WeekOverWeek = { viewsLifetime: Pair; videosPublished: Pair; publicationsFailed: Pair; videoVisits: Pair; videoScansCompleted: Pair; videoCheckouts: Pair };
 export type PortfolioReport = {
   generatedAt: string;
   windowDays: number;
   offsite: Metric<ProductOffsite[]>;
   attribution: Metric<VideoAttribution[]>;
+  weekly: Metric<WeekOverWeek>;
+  revenue: Metric<{ customers: number; mrr: number }>;
+  backlinks: Metric<{ acquired: number; inOutreach: number; acquiredThisWeek: number }>;
+  search: Metric<{ connected: number; clicks28d: number | null; impressions28d: number | null }>;
   engines: Metric<HouseEngine[]>;
   health: Metric<{ failedJobsByType: Record<string, number>; sendFailures7d: number; lastWatchdog: Record<string, unknown> | null; cold7d: number; followup7d: number; breakup7d: number }>;
   setup: Metric<{ houseCount: number; searchConsoleConnected: number; publishingLiveEnabled: boolean | null; citationsNeedingOwner: number; proofLedgerEntries: number }>;
@@ -33,8 +40,11 @@ const rowsOf = <T>(r: unknown) => r as unknown as Rows<T>;
 export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioReport> {
   const db = getDb();
   if (!db) throw new Error("database unavailable");
-  const since = new Date(Date.now() - windowDays * 86_400_000).toISOString();
-  const since7 = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const dayMs = 86_400_000;
+  const nowIso = new Date().toISOString();
+  const since = new Date(Date.now() - windowDays * dayMs).toISOString();
+  const prevSince = new Date(Date.now() - 2 * windowDays * dayMs).toISOString();
+  const since7 = new Date(Date.now() - 7 * dayMs).toISOString();
 
   const offsite = await measure("portfolio.offsite", async () => {
     const r = rowsOf<{ slug: string; live: number; failed: number; waiting: number; last: string | null }>(await db.execute(sql`
@@ -55,24 +65,84 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
     });
   });
 
-  const attribution = await measure("portfolio.attribution", async () => {
-    const internal = [...(await getInternalBusinesses()).keys()];
-    const internalSessions = internal.length
-      ? sql`and (e.session_id is null or e.session_id not in (select session_id from funnel_events where session_id is not null and business_id in (${sql.join(internal.map((id) => sql`${id}::uuid`), sql`, `)})))`
+  const internal = await measure("portfolio.internal", async () => [...(await getInternalBusinesses()).keys()]);
+  const internalIds = internal.ok ? internal.value : [];
+  const attributionBetween = async (from: string, to: string) => {
+    const internalSessions = internalIds.length
+      ? sql`and not exists (select 1 from funnel_events i where i.session_id = y.session_id and i.business_id in (${sql.join(internalIds.map((id) => sql`${id}::uuid`), sql`, `)}))`
       : sql``;
-    const r = rowsOf<{ campaign: string | null; sessions: number; ss: number; sc: number; co: number; le: number }>(await db.execute(sql`
-      select coalesce(e.utm_campaign,'(no campaign)') campaign, count(distinct e.session_id)::int sessions,
-             count(*) filter (where e.event_type='scan_started')::int ss, count(*) filter (where e.event_type='scan_completed')::int sc,
-             count(*) filter (where e.event_type='checkout_started')::int co, count(*) filter (where e.event_type='lead_form_submitted')::int le
-      from funnel_events e where e.utm_source='youtube' and e.created_at >= ${since}::timestamptz ${internalSessions}
+    return rowsOf<{ campaign: string | null; sessions: number; ss: number; sc: number; co: number; le: number }>(await db.execute(sql`
+      with y as (select session_id, min(coalesce(utm_campaign, '(no campaign)')) campaign from funnel_events
+                 where utm_source = 'youtube' and session_id is not null and created_at >= ${from}::timestamptz and created_at < ${to}::timestamptz group by 1)
+      select y.campaign, count(distinct y.session_id)::int sessions,
+             count(*) filter (where e.event_type = 'scan_started')::int ss, count(*) filter (where e.event_type = 'scan_completed')::int sc,
+             count(*) filter (where e.event_type in ('checkout_started', 'checkout_completed'))::int co, count(*) filter (where e.event_type = 'lead_form_submitted')::int le
+      from y join funnel_events e on e.session_id = y.session_id where true ${internalSessions}
       group by 1 order by 2 desc`));
+  };
+
+  const attribution = await measure("portfolio.attribution", async () => {
+    const r = await attributionBetween(since, nowIso);
     return r.map((x): VideoAttribution => ({ campaign: x.campaign ?? "(no campaign)", sessions: Number(x.sessions), scansStarted: Number(x.ss), scansCompleted: Number(x.sc), checkouts: Number(x.co), leads: Number(x.le) }));
+  });
+
+  const weekly = await measure("portfolio.weekly", async () => {
+    const sum = (r: Array<{ sessions: number; sc: number; co: number }>) => r.reduce((a, x) => ({ v: a.v + Number(x.sessions), s: a.s + Number(x.sc), c: a.c + Number(x.co) }), { v: 0, s: 0, c: 0 });
+    const cur = sum(await attributionBetween(since, nowIso));
+    const prev = sum(await attributionBetween(prevSince, since));
+    const viewsAt = async (cutoff: string) =>
+      Number(rowsOf<{ n: number }>(await db.execute(sql`
+        select coalesce(sum((m.metrics->'views'->>'value')::int), 0)::int n from (
+          select distinct on (publication_id) metrics from ms_publication_metrics where collected_at <= ${cutoff}::timestamptz order by publication_id, collected_at desc) m`))[0]?.n ?? 0);
+    const pubs = rowsOf<{ pub_now: number; pub_prev: number; fail_now: number; fail_prev: number }>(await db.execute(sql`
+      select count(*) filter (where status = 'published' and published_at >= ${since}::timestamptz)::int pub_now,
+             count(*) filter (where status = 'published' and published_at >= ${prevSince}::timestamptz and published_at < ${since}::timestamptz)::int pub_prev,
+             count(*) filter (where status = 'failed' and updated_at >= ${since}::timestamptz)::int fail_now,
+             count(*) filter (where status = 'failed' and updated_at >= ${prevSince}::timestamptz and updated_at < ${since}::timestamptz)::int fail_prev
+      from ms_publications`))[0];
+    return {
+      viewsLifetime: { now: await viewsAt(nowIso), before: await viewsAt(since) },
+      videosPublished: { now: Number(pubs?.pub_now ?? 0), before: Number(pubs?.pub_prev ?? 0) },
+      publicationsFailed: { now: Number(pubs?.fail_now ?? 0), before: Number(pubs?.fail_prev ?? 0) },
+      videoVisits: { now: cur.v, before: prev.v },
+      videoScansCompleted: { now: cur.s, before: prev.s },
+      videoCheckouts: { now: cur.c, before: prev.c },
+    } satisfies WeekOverWeek;
+  });
+
+  const revenue = await measure("portfolio.revenue", async () => {
+    const c = await getRealCustomers();
+    return { customers: c.customers.length, mrr: c.mrr };
+  });
+
+  const backlinks = await measure("portfolio.backlinks", async () => {
+    const r = rowsOf<{ acquired: number; inout: number }>(await db.execute(sql`
+      select count(*) filter (where o.status = 'acquired')::int acquired,
+             count(*) filter (where o.status in ('contacted', 'followed_up', 'qualified', 'outreach_queued'))::int inout
+      from backlink_opportunities o join businesses b on b.id = o.business_id where b.account_type = 'house'`));
+    const w = rowsOf<{ n: number }>(await db.execute(sql`
+      select count(*)::int n from proof_ledger p join businesses b on b.id = p.business_id
+      where b.account_type = 'house' and p.action_type = 'link_acquired' and p.created_at >= ${since}::timestamptz`));
+    return { acquired: Number(r[0]?.acquired ?? 0), inOutreach: Number(r[0]?.inout ?? 0), acquiredThisWeek: Number(w[0]?.n ?? 0) };
+  });
+
+  const search = await measure("portfolio.search", async () => {
+    const c = rowsOf<{ n: number }>(await db.execute(sql`
+      select count(*)::int n from businesses b where b.account_type = 'house' and (
+        exists (select 1 from search_console_property_connections s where s.business_id = b.id and s.status = 'connected')
+        or exists (select 1 from google_oauth_connections g where g.business_id = b.id and g.search_console_property is not null))`));
+    const connected = Number(c[0]?.n ?? 0);
+    if (!connected) return { connected, clicks28d: null, impressions28d: null };
+    const t = rowsOf<{ clicks: number | null; imps: number | null }>(await db.execute(sql`
+      select sum(p.clicks)::int clicks, sum(p.impressions)::int imps from page_performance p join businesses b on b.id = p.business_id
+      where b.account_type = 'house' and p.fetched_at >= now() - interval '35 days'`));
+    return { connected, clicks28d: t[0]?.clicks ?? null, impressions28d: t[0]?.imps ?? null };
   });
 
   const engines = await measure("portfolio.engines", async () => {
     const r = rowsOf<{ name: string; status: string; n: number }>(await db.execute(sql`
       select b.name, o.status, count(*)::int n from growth_opportunities o join businesses b on b.id = o.business_id
-      where b.account_type='house' group by 1,2`));
+      where b.account_type = 'house' group by 1, 2`));
     const map = new Map<string, HouseEngine>();
     for (const x of r) {
       const e = map.get(x.name) ?? { name: x.name, open: 0, acted: 0, verified: 0, noGain: 0 };
@@ -86,12 +156,12 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
   });
 
   const health = await measure("portfolio.health", async () => {
-    const failed = rowsOf<{ type: string; n: number }>(await db.execute(sql`select type, count(*)::int n from jobs where status='failed' and created_at >= ${since}::timestamptz group by 1 order by 2 desc`));
+    const failed = rowsOf<{ type: string; n: number }>(await db.execute(sql`select type, count(*)::int n from jobs where status = 'failed' and created_at >= ${since}::timestamptz group by 1 order by 2 desc`));
     const sends = rowsOf<{ failed: number; cold: number; fu: number; br: number }>(await db.execute(sql`
-      select count(*) filter (where type='outreach_send_failed')::int failed, count(*) filter (where type='cold_outreach_sent')::int cold,
-             count(*) filter (where type='cold_outreach_followup_sent')::int fu, count(*) filter (where type='cold_outreach_breakup_sent')::int br
+      select count(*) filter (where type = 'outreach_send_failed')::int failed, count(*) filter (where type = 'cold_outreach_sent')::int cold,
+             count(*) filter (where type = 'cold_outreach_followup_sent')::int fu, count(*) filter (where type = 'cold_outreach_breakup_sent')::int br
       from jobs where created_at >= ${since7}::timestamptz`));
-    const wd = rowsOf<{ payload: Record<string, unknown> }>(await db.execute(sql`select payload from jobs where type='house_watchdog' order by created_at desc limit 1`));
+    const wd = rowsOf<{ payload: Record<string, unknown> }>(await db.execute(sql`select payload from jobs where type = 'house_watchdog' order by created_at desc limit 1`));
     return {
       failedJobsByType: Object.fromEntries(failed.map((f) => [f.type, Number(f.n)])),
       sendFailures7d: Number(sends[0]?.failed ?? 0), cold7d: Number(sends[0]?.cold ?? 0), followup7d: Number(sends[0]?.fu ?? 0), breakup7d: Number(sends[0]?.br ?? 0),
@@ -100,25 +170,42 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
   });
 
   const setup = await measure("portfolio.setup", async () => {
-    const h = rowsOf<{ houses: number; gsc: number; citations: number }>(await db.execute(sql`
-      select (select count(*) from businesses where account_type='house')::int houses,
-             (select count(distinct s.business_id) from search_console_property_connections s join businesses b on b.id=s.business_id where b.account_type='house' and s.status='connected')::int
-               + (select count(*) from google_oauth_connections g join businesses b on b.id=g.business_id where b.account_type='house' and g.search_console_property is not null)::int gsc,
-             (select count(*) from citation_listings l join businesses b on b.id=l.business_id where b.account_type='house' and l.status like 'needs_one_time%')::int citations`));
-    const live = rowsOf<{ value: unknown }>(await db.execute(sql`select value from ms_settings where key='publishing_live_enabled'`));
+    const h = rowsOf<{ houses: number; citations: number }>(await db.execute(sql`
+      select (select count(*) from businesses where account_type = 'house')::int houses,
+             (select count(*) from citation_listings l join businesses b on b.id = l.business_id where b.account_type = 'house' and l.status like 'needs_one_time%')::int citations`));
+    const live = rowsOf<{ value: unknown }>(await db.execute(sql`select value from ms_settings where key = 'publishing_live_enabled'`));
     const proof = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from proof_ledger`));
-    return { houseCount: Number(h[0]?.houses ?? 0), searchConsoleConnected: Number(h[0]?.gsc ?? 0), publishingLiveEnabled: live[0] ? live[0].value === true || live[0].value === "true" : null, citationsNeedingOwner: Number(h[0]?.citations ?? 0), proofLedgerEntries: Number(proof[0]?.n ?? 0) };
+    const s = search.ok ? search.value.connected : 0;
+    return { houseCount: Number(h[0]?.houses ?? 0), searchConsoleConnected: s, publishingLiveEnabled: live[0] ? live[0].value === true || live[0].value === "true" : null, citationsNeedingOwner: Number(h[0]?.citations ?? 0), proofLedgerEntries: Number(proof[0]?.n ?? 0) };
   });
 
-  return { generatedAt: new Date().toISOString(), windowDays, offsite, attribution, engines, health, setup };
+  return { generatedAt: nowIso, windowDays, offsite, attribution, weekly, revenue, backlinks, search, engines, health, setup };
 }
 
 const na = "not measured";
+const delta = (p: Pair) => `${p.now} (${p.now - p.before >= 0 ? "+" : ""}${p.now - p.before} vs previous period)`;
 
 /** Plain text, no styling, so it reads the same in a terminal, an email or a file. */
 export function renderPortfolioReport(r: PortfolioReport): string {
   const out: string[] = [];
-  out.push(`GRAVYBLOCK HOUSE PORTFOLIO REPORT, generated ${r.generatedAt.slice(0, 16).replace("T", " ")} UTC (attribution window ${r.windowDays} days)`);
+  out.push(`GRAVYBLOCK HOUSE ACCOUNTS GROWTH REPORT, generated ${r.generatedAt.slice(0, 16).replace("T", " ")} UTC (last ${r.windowDays} days, compared with the ${r.windowDays} days before)`);
+  out.push("");
+  out.push("THIS WEEK AT A GLANCE");
+  if (!r.weekly.ok) out.push(`  unavailable: ${r.weekly.error}`);
+  else {
+    const w = r.weekly.value;
+    out.push(`  videos published: ${delta(w.videosPublished)}`);
+    out.push(`  YouTube views, all videos, lifetime: ${w.viewsLifetime.now} (${w.viewsLifetime.now - w.viewsLifetime.before >= 0 ? "+" : ""}${w.viewsLifetime.now - w.viewsLifetime.before} since the start of the period)`);
+    out.push(`  visits to gravyblock.com from video links: ${delta(w.videoVisits)}`);
+    out.push(`  scans completed by those visitors: ${delta(w.videoScansCompleted)}`);
+    out.push(`  checkouts started by those visitors: ${delta(w.videoCheckouts)}`);
+    out.push(`  publications that failed: ${delta(w.publicationsFailed)}`);
+  }
+  out.push(`  paying customers and revenue: ${r.revenue.ok ? `${r.revenue.value.customers} paying customers, $${r.revenue.value.mrr.toFixed(2)} monthly recurring revenue (house accounts are never counted)` : `unavailable: ${r.revenue.error}`}`);
+  out.push(`  verified backlinks: ${r.backlinks.ok ? `${r.backlinks.value.acquired} live and verified in total, ${r.backlinks.value.acquiredThisWeek} new this period, ${r.backlinks.value.inOutreach} pitches still in progress` : `unavailable: ${r.backlinks.error}`}`);
+  if (!r.search.ok) out.push(`  search performance: unavailable: ${r.search.error}`);
+  else if (!r.search.value.connected) out.push("  search performance (Search Console): not measured, no house site is connected");
+  else out.push(`  search performance (Search Console, ${r.search.value.connected} sites connected, last 28 days): ${r.search.value.clicks28d ?? na} clicks, ${r.search.value.impressions28d ?? na} impressions`);
   out.push("");
   out.push("OFF-SITE (YouTube, platform counters, lifetime)");
   if (!r.offsite.ok) out.push(`  unavailable: ${r.offsite.error}`);
@@ -131,20 +218,20 @@ export function renderPortfolioReport(r: PortfolioReport): string {
   out.push("");
   out.push("TRAFFIC TO gravyblock.com FROM VIDEO LINKS (first-party funnel events, internal sessions excluded)");
   if (!r.attribution.ok) out.push(`  unavailable: ${r.attribution.error}`);
-  else if (!r.attribution.value.length) out.push("  no visits tagged utm_source=youtube in the window");
-  else for (const a of r.attribution.value) out.push(`  ${a.campaign.padEnd(18)} visits ${a.sessions}, scans started ${a.scansStarted}, scans completed ${a.scansCompleted}, checkouts started ${a.checkouts}, leads ${a.leads}`);
+  else if (!r.attribution.value.length) out.push("  no visits tagged utm_source=youtube in the period");
+  else for (const a of r.attribution.value) out.push(`  ${a.campaign.padEnd(18)} visits ${a.sessions}, scan page views ${a.scansStarted}, scans completed ${a.scansCompleted}, checkouts ${a.checkouts}, leads ${a.leads}`);
   out.push("  Visits, scans and signups for the other 11 sites: " + na + " here (those sites report their own traffic).");
   out.push("");
   out.push("HOUSE ENGINES (opportunity queue per site)");
   if (!r.engines.ok) out.push(`  unavailable: ${r.engines.error}`);
   else for (const e of r.engines.value) out.push(`  ${e.name.padEnd(16)} open ${e.open}, acted ${e.acted}, verified ${e.verified}, no gain ${e.noGain}`);
   out.push("");
-  out.push("HEALTH");
+  out.push("HEALTH AND FAILURES");
   if (!r.health.ok) out.push(`  unavailable: ${r.health.error}`);
   else {
     const h = r.health.value;
     const failed = Object.entries(h.failedJobsByType);
-    out.push(`  failed jobs in window: ${failed.length ? failed.map(([k, v]) => `${k} ${v}`).join(", ") : "none"}`);
+    out.push(`  failed jobs in period: ${failed.length ? failed.map(([k, v]) => `${k} ${v}`).join(", ") : "none"}`);
     out.push(`  cold outreach last 7 days: ${h.cold7d} first emails, ${h.followup7d} follow-ups, ${h.breakup7d} final emails, ${h.sendFailures7d} send failures`);
     out.push(`  house watchdog: ${h.lastWatchdog ? `green ${h.lastWatchdog.green}, yellow ${h.lastWatchdog.yellow}, red ${h.lastWatchdog.red} of ${h.lastWatchdog.checked}` : "no run recorded"}`);
   }
@@ -153,7 +240,7 @@ export function renderPortfolioReport(r: PortfolioReport): string {
   if (!r.setup.ok) out.push(`  unavailable: ${r.setup.error}`);
   else {
     const s = r.setup.value;
-    out.push(`  Search Console connected for ${s.searchConsoleConnected} of ${s.houseCount} house sites (organic impressions and clicks are ${s.searchConsoleConnected ? "measured only for those" : na})`);
+    out.push(`  Search Console connected for ${s.searchConsoleConnected} of ${s.houseCount} house sites`);
     out.push(`  publishing_live_enabled (Meta/Facebook posting): ${s.publishingLiveEnabled === null ? "unknown" : s.publishingLiveEnabled ? "on" : "off"}`);
     out.push(`  directory/citation listings waiting on a one-time owner step: ${s.citationsNeedingOwner}`);
     out.push(`  proof ledger entries (verified outcomes): ${s.proofLedgerEntries}`);
