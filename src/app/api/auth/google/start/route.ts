@@ -15,7 +15,9 @@ export async function GET(req: NextRequest) {
   if (!allowed) {
     // An operator who is simply not signed in gets sent to the admin sign-in instead of a bare JSON error.
     if ((await isHouseAccount(businessId)) && !(await isAdminSession())) {
-      const login = new URL("/admin/login", req.nextUrl.origin);
+      // Behind the reverse proxy the request origin is the internal address, so use the public site URL.
+      const base = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(//$/, "") || "https://gravyblock.com";
+      const login = new URL("/admin/login", base);
       login.searchParams.set("next", `/admin/house`);
       return NextResponse.redirect(login);
     }
