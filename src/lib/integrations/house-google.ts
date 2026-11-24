@@ -26,6 +26,18 @@ export function matchSearchConsoleProperty(domain: string, properties: string[])
   return wanted.find((w) => have.has(w)) ?? null;
 }
 
+/** True only for a House Account (the owner's own portfolio). Used so the admin session can start Google authorization for house accounts and for nothing else. */
+export async function isHouseAccount(businessId: string): Promise<boolean> {
+  const db = getDb();
+  if (!db) return false;
+  try {
+    const [row] = await db.select({ accountType: businesses.accountType }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
+    return row?.accountType === "house";
+  } catch {
+    return false; // not a valid id or no database: never grants access
+  }
+}
+
 export type HouseGoogleFanOut = { copiedTo: number; matched: Array<{ name: string; property: string }>; notInGoogleAccount: string[] };
 
 export async function fanOutHouseGoogleConnection(sourceBusinessId: string): Promise<HouseGoogleFanOut | null> {

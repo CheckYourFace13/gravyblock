@@ -50,7 +50,9 @@ export async function adminLoginAction(
 
   clearAttempts(ip);
   await setAdminSessionCookie();
-  redirect("/admin");
+  // Return to the admin page the operator was sent from, but only to a path inside /admin (never an external address).
+  const next = String(formData.get("next") ?? "");
+  redirect(/^\/admin(\/[A-Za-z0-9_\-\/]*)?$/.test(next) ? next : "/admin");
 }
 
 export async function adminLogoutAction() {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { adminLoginAction, type AdminLoginState } from "@/app/actions/admin-login";
 import { BrandMark } from "@/components/brand-mark";
 
@@ -9,6 +9,10 @@ const initial: AdminLoginState = { status: "idle" };
 
 export default function AdminLoginPage() {
   const [state, formAction, pending] = useActionState(adminLoginAction, initial);
+  const nextRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (nextRef.current) nextRef.current.value = new URLSearchParams(window.location.search).get("next") ?? "";
+  }, []);
 
   return (
     <div className="flex min-h-dvh flex-col bg-gradient-to-b from-zinc-100 to-white px-4 py-10">
@@ -25,6 +29,7 @@ export default function AdminLoginPage() {
             Password-only — no email or username. After sign-in you land on the dashboard with full navigation.
           </p>
           <form action={formAction} className="mt-8 space-y-4">
+            <input type="hidden" name="next" defaultValue="" ref={nextRef} />
             <label className="block space-y-2 text-sm">
               <span className="font-medium text-zinc-800">Password</span>
               <input

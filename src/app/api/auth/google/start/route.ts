@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildGoogleAuthUrl, isGoogleConfigured } from "@/lib/integrations/google-oauth";
 import { canAccessBusiness } from "@/lib/auth/customer-auth";
+import { isAdminSession } from "@/lib/auth/admin-session";
+import { isHouseAccount } from "@/lib/integrations/house-google";
 
 export async function GET(req: NextRequest) {
   const businessId = req.nextUrl.searchParams.get("businessId");
@@ -8,8 +10,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "businessId required" }, { status: 400 });
   }
 
-  const allowed = await canAccessBusiness(businessId);
+  // A signed-in customer may connect their own business. The signed-in operator (admin session) may connect House Accounts only, never a customer's business.
+  const allowed = (await canAccessBusiness(businessId)) || ((await isAdminSession()) && (await isHouseAccount(businessId)));
   if (!allowed) {
+    // An operator who is simply not signed in gets sent to the admin sign-in instead of a bare JSON error.
+    if ((await isHouseAccount(businessId)) && !(await isAdminSession())) {
+      const login = new URL("/admin/login", req.nextUrl.origin);
+      login.searchParams.set("next", `/admin/house`);
+      return NextResponse.redirect(login);
+    }
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
