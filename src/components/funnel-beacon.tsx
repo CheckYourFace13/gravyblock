@@ -41,12 +41,32 @@ export function FunnelBeacon({ eventType, businessId, reportPublicId, proofType 
       body: JSON.stringify(payload),
       keepalive: true,
     }).catch(() => {});
+    // Human proof: a real person scrolls, taps, types or moves a pointer; crawlers and headless captures that merely load the page do not.
+    // One "page_engaged" per mount, only from a trusted (browser-generated) input event, so "views" can be split into people and page loads.
+    let engaged = false;
+    const onHuman = (ev: Event) => {
+      if (engaged || !ev.isTrusted) return;
+      engaged = true;
+      for (const name of HUMAN_EVENTS) window.removeEventListener(name, onHuman);
+      fetch("/api/events/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventType: "page_engaged", businessId: businessId ?? null, reportPublicId: reportPublicId ?? null, utmSource: payload.utmSource, utmMedium: payload.utmMedium, utmCampaign: payload.utmCampaign, path: window.location.pathname, detail: eventType }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+    if (eventType === "scan_started") for (const name of HUMAN_EVENTS) window.addEventListener(name, onHuman, { passive: true });
     // Fire once per mount only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      for (const name of HUMAN_EVENTS) window.removeEventListener(name, onHuman);
+    };
   }, []);
 
   return null;
 }
+
+const HUMAN_EVENTS = ["pointerdown", "touchstart", "keydown", "scroll", "wheel"] as const;
 
 /** One-off first-party beacon for a behavior step (form interaction, submit, failure). `detail` is a short category, never text the visitor typed. */
 export function sendFunnelBeacon(eventType: "scan_form_interacted" | "scan_submitted" | "scan_submit_failed", detail?: string) {

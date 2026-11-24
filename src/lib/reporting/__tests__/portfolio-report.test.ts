@@ -11,7 +11,8 @@ const base: PortfolioReport = {
   revenue: { ok: true, value: { customers: 0, mrr: 0 } },
   backlinks: { ok: true, value: { acquired: 0, acquiredThisWeek: 0, inOutreach: 5 } },
   search: { ok: true, value: { connected: 0, clicks28d: null, impressions28d: null } },
-  scanFunnel: { ok: true, value: { views: 10, interacted: 4, submitted: 3, failed: 1, completed: 2, failures: [{ detail: "Could not save report", n: 1 }] } },
+  scanFunnel: { ok: true, value: { views: 10, engaged: 3, interacted: 4, submitted: 3, failed: 1, completed: 2, failures: [{ detail: "Could not save report", n: 1 }] } },
+  learning: { ok: true, value: [{ type: "association", contacted: 21, acquired: 0, retired: true }] },
   siteDrafts: { ok: true, value: [{ name: "Mic Stage", total: 7 }] },
   actions: { ok: true, value: [{ type: "backlink", discovered: 5, acted: 1, verified: 0, noGain: 0 }] },
   engines: { ok: true, value: [{ name: "GravyBlock", open: 3, acted: 1, verified: 0, noGain: 0 }] },
@@ -33,7 +34,7 @@ test("report totals the measured numbers and never invents traffic", () => {
 
 test("scan behavior and growth actions are shown with their real counts", () => {
   const t = renderPortfolioReport(base);
-  assert.match(t, /viewed the scan page 10, touched the form 4, submitted 3, hit an error 1, completed a scan 2/);
+  assert.match(t, /viewed the scan page 10 \(3 showed human input[^)]*\), touched the form 4, submitted 3, hit an error 1, completed a scan 2/);
   assert.match(t, /backlink\s+discovered 5, acted 1, verified 0/);
 });
 

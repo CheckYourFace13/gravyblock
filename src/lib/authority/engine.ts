@@ -545,7 +545,10 @@ export async function runAuthorityDiscoveryLoopsBatch(limit = 8): Promise<{ busi
 
 /* ─────────────── 2. learning: which opportunity types actually produce links ─────────────── */
 
-export type SourceTypeStats = Record<string, { contacted: number; acquired: number; rate: number }>;
+export type SourceTypeStats = Record<string, { contacted: number; acquired: number; rate: number; retired?: boolean }>;
+
+/** A source type that has been tried enough and has never produced a verified link is retired from new sends (it is still followed up and verified). */
+export const RETIRE_AFTER_CONTACTED = 12;
 
 export async function getSourceTypeStats(db: Db = getDb()!): Promise<SourceTypeStats> {
   const rows = await db
@@ -558,7 +561,10 @@ export async function getSourceTypeStats(db: Db = getDb()!): Promise<SourceTypeS
     if (["contacted", "followed_up", "expired", "acquired", "unsubscribed"].includes(r.status)) s.contacted += r.n;
     if (r.status === "acquired") s.acquired += r.n;
   }
-  for (const s of Object.values(out)) s.rate = (s.acquired + 1) / (s.contacted + 10); // smoothed so tiny samples don't dominate
+  for (const s of Object.values(out)) {
+    s.rate = (s.acquired + 1) / (s.contacted + 10); // smoothed so tiny samples don't dominate
+    s.retired = s.contacted >= RETIRE_AFTER_CONTACTED && s.acquired === 0;
+  }
   return out;
 }
 
@@ -725,6 +731,11 @@ async function sendInitialOutreach(db: Db, businessId: string, truth: BusinessTr
     (a, b) =>
       (b.qualityScore ?? 0) + 100 * (stats[b.sourceType]?.rate ?? 0) - ((a.qualityScore ?? 0) + 100 * (stats[a.sourceType]?.rate ?? 0)),
   );
+  // Learning from results: source types that were tried enough with no verified link are not pitched again while other types are available.
+  // If every remaining candidate is retired, send at most one as a probe so the evidence can still change.
+  const live = candidates.filter((c) => !stats[c.sourceType]?.retired);
+  if (live.length) candidates.splice(0, candidates.length, ...live);
+  else if (candidates.length) candidates.splice(1);
 
   let sent = 0;
   for (const c of candidates) {

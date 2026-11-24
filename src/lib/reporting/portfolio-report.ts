@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { getInternalBusinesses } from "./classification";
 import { getRealCustomers, measure, type Metric } from "./acquisition";
 import { buildHouseSiteBriefs } from "@/lib/house/site-briefs";
+import { getSourceTypeStats } from "@/lib/authority/engine";
 
 /**
  * One combined, read-only portfolio report for the 12 House Accounts (the Friday report, also available on demand).
@@ -30,8 +31,9 @@ export type PortfolioReport = {
   revenue: Metric<{ customers: number; mrr: number }>;
   backlinks: Metric<{ acquired: number; inOutreach: number; acquiredThisWeek: number }>;
   search: Metric<{ connected: number; clicks28d: number | null; impressions28d: number | null }>;
-  scanFunnel: Metric<{ views: number; interacted: number; submitted: number; failed: number; completed: number; failures: Array<{ detail: string; n: number }> }>;
+  scanFunnel: Metric<{ views: number; engaged: number; interacted: number; submitted: number; failed: number; completed: number; failures: Array<{ detail: string; n: number }> }>;
   siteDrafts: Metric<Array<{ name: string; total: number }>>;
+  learning: Metric<Array<{ type: string; contacted: number; acquired: number; retired: boolean }>>;
   actions: Metric<Array<{ type: string; discovered: number; acted: number; verified: number; noGain: number }>>;
   engines: Metric<HouseEngine[]>;
   health: Metric<{ failedJobsByType: Record<string, number>; sendFailures7d: number; lastWatchdog: Record<string, unknown> | null; cold7d: number; followup7d: number; breakup7d: number }>;
@@ -147,8 +149,9 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
 
   const scanFunnel = await measure("portfolio.scanFunnel", async () => {
     const excl = sql`and not exists (select 1 from funnel_events x where x.session_id = e.session_id and x.metadata->>'excluded' is not null) ${internalIds.length ? sql`and not exists (select 1 from funnel_events i where i.session_id = e.session_id and i.business_id in (${sql.join(internalIds.map((id) => sql`${id}::uuid`), sql`, `)}))` : sql``}`;
-    const r = rowsOf<{ views: number; inter: number; subm: number; fail: number; done: number }>(await db.execute(sql`
+    const r = rowsOf<{ views: number; eng: number; inter: number; subm: number; fail: number; done: number }>(await db.execute(sql`
       select count(distinct e.session_id) filter (where e.event_type = 'scan_started')::int views,
+             count(distinct e.session_id) filter (where e.event_type = 'page_engaged')::int eng,
              count(distinct e.session_id) filter (where e.event_type = 'scan_form_interacted')::int inter,
              count(distinct e.session_id) filter (where e.event_type = 'scan_submitted')::int subm,
              count(distinct e.session_id) filter (where e.event_type = 'scan_submit_failed')::int fail,
@@ -156,8 +159,14 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
       from funnel_events e where e.created_at >= ${since}::timestamptz and e.session_id is not null ${excl}`));
     const f = rowsOf<{ detail: string | null; n: number }>(await db.execute(sql`
       select coalesce(metadata->>'detail', '(none)') detail, count(*)::int n from funnel_events where event_type = 'scan_submit_failed' and created_at >= ${since}::timestamptz group by 1 order by 2 desc limit 5`));
-    return { views: Number(r[0]?.views ?? 0), interacted: Number(r[0]?.inter ?? 0), submitted: Number(r[0]?.subm ?? 0), failed: Number(r[0]?.fail ?? 0), completed: Number(r[0]?.done ?? 0), failures: f.map((x) => ({ detail: x.detail ?? "(none)", n: Number(x.n) })) };
+    return { views: Number(r[0]?.views ?? 0), engaged: Number(r[0]?.eng ?? 0), interacted: Number(r[0]?.inter ?? 0), submitted: Number(r[0]?.subm ?? 0), failed: Number(r[0]?.fail ?? 0), completed: Number(r[0]?.done ?? 0), failures: f.map((x) => ({ detail: x.detail ?? "(none)", n: Number(x.n) })) };
   });
+
+  const learning = await measure("portfolio.learning", async () =>
+    Object.entries(await getSourceTypeStats(db))
+      .filter(([, s]) => s.contacted > 0)
+      .map(([type, s]) => ({ type, contacted: s.contacted, acquired: s.acquired, retired: Boolean(s.retired) }))
+      .sort((a, b) => b.contacted - a.contacted));
 
   const siteDrafts = await measure("portfolio.siteDrafts", async () => (await buildHouseSiteBriefs(1)).map((b) => ({ name: b.name, total: b.total })));
 
@@ -214,7 +223,7 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
     return { houseCount: Number(h[0]?.houses ?? 0), searchConsoleConnected: s, publishingLiveEnabled: live[0] ? live[0].value === true || live[0].value === "true" : null, citationsNeedingOwner: Number(h[0]?.citations ?? 0), proofLedgerEntries: Number(proof[0]?.n ?? 0) };
   });
 
-  return { generatedAt: nowIso, windowDays, offsite, attribution, weekly, revenue, backlinks, search, scanFunnel, siteDrafts, actions, engines, health, setup };
+  return { generatedAt: nowIso, windowDays, offsite, attribution, weekly, revenue, backlinks, search, scanFunnel, siteDrafts, learning, actions, engines, health, setup };
 }
 
 const na = "not measured";
@@ -261,9 +270,14 @@ export function renderPortfolioReport(r: PortfolioReport): string {
   if (!r.scanFunnel.ok) out.push(`  unavailable: ${r.scanFunnel.error}`);
   else {
     const f = r.scanFunnel.value;
-    out.push(`  viewed the scan page ${f.views}, touched the form ${f.interacted}, submitted ${f.submitted}, hit an error ${f.failed}, completed a scan ${f.completed}`);
+    out.push(`  viewed the scan page ${f.views} (${f.engaged} showed human input such as a scroll, tap or key press), touched the form ${f.interacted}, submitted ${f.submitted}, hit an error ${f.failed}, completed a scan ${f.completed}`);
     if (f.failures.length) out.push(`  errors shown to visitors: ${f.failures.map((x) => `"${x.detail}" x${x.n}`).join("; ")}`);
   }
+  out.push("");
+  out.push("WHAT THE ENGINE LEARNED (backlink outreach by prospect type; a type with 12 or more contacts and no verified link is retired from new pitches)");
+  if (!r.learning.ok) out.push(`  unavailable: ${r.learning.error}`);
+  else if (!r.learning.value.length) out.push("  no outreach yet");
+  else for (const l of r.learning.value) out.push(`  ${l.type.padEnd(18)} contacted ${l.contacted}, verified links ${l.acquired}${l.retired ? "  RETIRED (no result after enough tries)" : ""}`);
   out.push("");
   out.push("GROWTH ACTIONS ON THE HOUSE ACCOUNTS (this period; verified means confirmed on the live surface)");
   if (!r.actions.ok) out.push(`  unavailable: ${r.actions.error}`);

@@ -22,6 +22,7 @@ const VALID_TYPES = new Set<FunnelEventType>([
   "scan_form_interacted",
   "scan_submitted",
   "scan_submit_failed",
+  "page_engaged",
 ]);
 
 /**

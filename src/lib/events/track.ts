@@ -13,7 +13,8 @@ export type FunnelEventType =
   | "start_page_viewed"
   | "scan_form_interacted"
   | "scan_submitted"
-  | "scan_submit_failed";
+  | "scan_submit_failed"
+  | "page_engaged";
 
 export type FunnelEventInput = {
   eventType: FunnelEventType;
