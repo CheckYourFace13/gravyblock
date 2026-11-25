@@ -44,3 +44,8 @@ test("sitemap candidates are the few pages that mention the pitched site, best f
   assert.deepEqual(got, ["https://x.org/resources/drink-knird-tools", "https://x.org/blog/brining-guide"]);
   assert.equal(pickSitemapCandidates(xml, [], 10).includes("https://x.org/about"), false);
 });
+
+test("member-services desks are not a place to ask for a link", () => {
+  assert.equal(suitableContact("memberservices@rivernorthboatclub.com"), false);
+  assert.equal(suitableContact("membership@x.org"), false);
+});
