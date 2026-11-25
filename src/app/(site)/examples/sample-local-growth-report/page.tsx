@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://gravyblock.com/examples/sample-local-growth-report" },
 };
 
-// The sample is the most recent stored free report for GravyBlock's own business, a business we operate. It is the same
+// The sample is the most recent stored free report for GravyBlock's own business, GravyBlock's own test site, not a customer. It is the same
 // report format a visitor gets, shown unmodified. Nothing here is invented: where the scan collected no data for a section
 // (for example AI probes, which run once GravyBlock is working on a business) the section says so.
 const FALLBACK_REPORT_PUBLIC_ID = "XhVx4rrzXq8h";

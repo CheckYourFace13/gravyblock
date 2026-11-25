@@ -175,7 +175,7 @@ export default function FeaturesPage() {
             <li>
               It reports work only after checking that it happened. See{" "}
               <Link href="/proof" className="underline">
-                verified work on businesses we operate ourselves
+                verified work on GravyBlock&apos;s own test sites
               </Link>
               .
             </li>

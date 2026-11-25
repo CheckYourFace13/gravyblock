@@ -5,13 +5,14 @@ import type { ReactNode } from "react";
 import { getPublicProof } from "@/lib/proof/ledger";
 import { getPublishedCaseStudies } from "@/lib/proof/sales";
 import { getShowcaseBusinesses, type ProofActivity } from "@/lib/proof/get-showcase-businesses";
+import { neutralize, testSiteLabels } from "@/lib/proof/neutral";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Proof: what GravyBlock has verified and measured",
   description:
-    "Verified activity and measured outcomes from businesses we operate ourselves, kept in three separate levels: verified actions, measured search results, and business results. Only confirmed work is shown, and zeros are shown as zeros.",
+    "Verified activity and measured outcomes from GravyBlock's own internal test sites (not paying customers), kept in three separate levels: verified actions, measured search results, and business results. Only confirmed work is shown, and zeros are shown as zeros.",
   alternates: { canonical: "/proof" },
 };
 
@@ -33,9 +34,7 @@ function ProofActivityList({ activity }: { activity: ProofActivity }) {
         <ul className="mt-1 space-y-1">
           {activity.pagesLive.map((p) => (
             <li key={p.publicUrl} className="truncate">
-              <a href={p.publicUrl} className="text-red-800 underline underline-offset-2" target="_blank" rel="noopener">
-                {p.title}
-              </a>
+              <span>A published page</span>
             </li>
           ))}
         </ul>
@@ -85,6 +84,10 @@ function ProofActivityList({ activity }: { activity: ProofActivity }) {
 
 export default async function ProofPage() {
   const [showcased, ledger, caseStudies] = await Promise.all([getShowcaseBusinesses(), getPublicProof({ limit: 12 }), getPublishedCaseStudies(6)]);
+  // Test sites are never named or linked here: each is an "Internal test site N", and stored text is scrubbed of names, domains and urls.
+  const siteNames = [...new Set([...showcased.map((b) => b.name), ...ledger.map((p) => p.businessName)])];
+  const labels = testSiteLabels(siteNames);
+  const labelOf = (n: string) => labels.get(n) ?? "Internal test site";
 
   // Three distinct levels, never blended. Level 1 counts externally verified actions that exist today; levels 2 and 3 count
   // only ledger rows that carry a measured before and after. Website edits to house sites were withdrawn and are not counted.
@@ -104,7 +107,7 @@ export default async function ProofPage() {
         What GravyBlock has verified, and what it has measured.
       </h1>
       <p className="mt-4 max-w-2xl text-lg text-zinc-600">
-        These are businesses operated by GravyBlock&apos;s owner, running the same automation customers get. The numbers are
+        These are GravyBlock&apos;s own internal test sites, not paying customers. They run the same automation customers get. The numbers are
         pulled live from the database that powers customer workspaces. They are kept in three separate levels, and an empty
         level is shown as zero.
       </p>
@@ -160,9 +163,9 @@ export default async function ProofPage() {
             <article key={b.id} className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-zinc-900">{b.name}</h2>
+                  <h2 className="text-lg font-semibold text-zinc-900">{labelOf(b.name)}</h2>
                   <p className="mt-0.5 text-xs text-zinc-500">
-                    {[b.vertical ? readable(b.vertical) : null, b.city].filter(Boolean).join(" · ") || "Local business"}
+                    {[b.vertical ? readable(b.vertical) : null].filter(Boolean).join(" · ") || "Test site"}
                   </p>
                 </div>
                 {b.score !== null ? (
@@ -195,9 +198,9 @@ export default async function ProofPage() {
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {caseStudies.map((c) => (
               <article key={c.title} className="rounded-xl border border-zinc-200 bg-white p-5 text-sm text-zinc-700">
-                <h3 className="font-semibold text-zinc-900">{c.title}</h3>
+                <h3 className="font-semibold text-zinc-900">{neutralize(c.title, siteNames, "Internal test site")}</h3>
                 <p className="mt-2"><span className="font-medium">Before:</span> {c.before.metric} {c.before.value}</p>
-                <p><span className="font-medium">Action:</span> {c.action}</p>
+                <p><span className="font-medium">Action:</span> {neutralize(c.action, siteNames, "Internal test site")}</p>
                 <p><span className="font-medium">After:</span> {c.after.metric} {c.after.value}</p>
                 <p className="mt-2 text-xs text-zinc-500">Verified {c.verifiedAt.slice(0, 10)}</p>
               </article>
@@ -214,12 +217,12 @@ export default async function ProofPage() {
             {ledger.map((p) => (
               <li key={p.id} className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
                 <div className="flex items-center gap-2">
-                  <p className="font-medium text-zinc-900">{p.businessName}</p>
+                  <p className="font-medium text-zinc-900">{labelOf(p.businessName)}</p>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${p.proofLevel >= 3 ? "bg-emerald-100 text-emerald-800" : p.proofLevel === 2 ? "bg-sky-100 text-sky-800" : "bg-zinc-100 text-zinc-600"}`}>
                     {p.proofLevel >= 3 ? "Business result" : p.proofLevel === 2 ? "Search/visibility result" : "Verified work (not an outcome)"}
                   </span>
                 </div>
-                <p className="mt-1">{p.summary}</p>
+                <p className="mt-1">{neutralize(p.summary, siteNames, labelOf(p.businessName))}</p>
                 <p className="mt-1 text-xs text-zinc-500">
                   Verified {p.verifiedAt.toISOString().slice(0, 10)}
                   {p.metricName && p.metricBefore != null && p.metricAfter != null ? ` · ${p.metricName}: ${p.metricBefore} to ${p.metricAfter}` : ""}

@@ -165,7 +165,7 @@ export default function HowItWorksPage() {
             </Link>
             , or see{" "}
             <Link href="/proof" className="underline">
-              verified work on businesses we operate ourselves
+              verified work on GravyBlock&apos;s own test sites
             </Link>
             .
           </p>

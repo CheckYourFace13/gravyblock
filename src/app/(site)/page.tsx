@@ -176,7 +176,7 @@ export default function HomePage() {
             {[
               { href: "/examples/sample-local-growth-report", icon: "📄", title: "A real sample report", desc: "The exact visibility score, prioritized fix list, and competitor breakdown you get — no email required." },
               { href: "/scan", icon: "🔍", title: "Your own free scan", desc: "Score your business across 6 ranking factors in 60 seconds. No account, no credit card." },
-              { href: "/proof", icon: "✅", title: "Verified work", desc: "Work GravyBlock has completed and confirmed live on businesses we operate ourselves. Only verified work is shown." },
+              { href: "/proof", icon: "✅", title: "Verified work", desc: "Work GravyBlock has completed and confirmed live on GravyBlock's own internal test sites (not paying customers). Only verified work is shown." },
             ].map((c) => (
               <Link
                 key={c.href}
@@ -193,7 +193,7 @@ export default function HomePage() {
           <p className="mx-auto mt-6 max-w-2xl text-center text-xs text-zinc-400 leading-relaxed">
             We also run GravyBlock on{" "}
             <Link href="/proof" className="font-semibold text-zinc-600 underline underline-offset-2 hover:text-zinc-900">
-              our own businesses — live numbers here
+              GravyBlock's own test sites, not customers: live numbers here
             </Link>
             . Real customer results get published the moment we have them. We&apos;d rather show you nothing than make it up.
           </p>
