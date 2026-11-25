@@ -10,7 +10,7 @@ export type CompetitorQuery = {
   gaps: FeatureGap[];
 };
 
-export type SiteBrief = { type: string; subtype: string | null; impact: number; text: string };
+export type SiteBrief = { type: string; subtype: string | null; impact: number; text: string; urls?: string[] };
 
 export type SiteIntel = {
   version: 1;
@@ -52,6 +52,11 @@ export type SiteIntel = {
 };
 
 export type Improvement = {
+  /** persistent identity inputs: the issue type and the stable subset of affected URLs (see recommendation-model.fingerprintOf) */
+  issue: string;
+  identityUrls: string[];
+  /** short reference such as SR-1A2B3C, filled in from the stored recommendation so a developer can report back against it */
+  ref?: string;
   kind: "indexing" | "low_ctr" | "near_page_one" | "page_two" | "declining" | "competitor_gap" | "confirmed_problem";
   title: string;
   urls: string[];

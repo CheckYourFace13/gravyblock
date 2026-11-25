@@ -981,8 +981,62 @@ export const searchIntelReports = pgTable("search_intel_reports", {
   weekEnding: text("week_ending").notNull(),
   data: jsonb("data").notNull(),
   prompt: text("prompt").notNull(),
+  /** First time the owner opened this report in authenticated admin (a view only; never treated as work started). */
+  openedAt: timestamp("opened_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [uniqueIndex("search_intel_reports_business_week_idx").on(t.businessId, t.weekEnding)]);
+
+/**
+ * One persistent record per recommendation. Its identity (fingerprint) is built from the business, the issue type and the affected URLs, never from the
+ * week, so regenerating a weekly report updates this row instead of creating a new task. Workflow status and history survive every regeneration.
+ * status: new | opened | in_progress | completed | verified | dismissed. "Copied/handed off" is a separate flag and never changes the status.
+ */
+export const searchRecommendations = pgTable("search_recommendations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  fingerprint: text("fingerprint").notNull(),
+  kind: text("kind").notNull(),
+  issue: text("issue").notNull(),
+  title: text("title").notNull(),
+  /** the latest full improvement (evidence, actions, acceptance, competitor references); refreshed every regeneration */
+  improvement: jsonb("improvement").notNull(),
+  priority: doublePrecision("priority").notNull().default(0),
+  status: text("status").notNull().default("new"),
+  occurrence: integer("occurrence").notNull().default(1),
+  /** read-only page snapshots taken when the recommendation was first seen, compared with later checks */
+  baseline: jsonb("baseline"),
+  verification: jsonb("verification"),
+  outcome: jsonb("outcome"),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).defaultNow().notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+  lastReportWeek: text("last_report_week"),
+  openedAt: timestamp("opened_at", { withTimezone: true }),
+  inProgressAt: timestamp("in_progress_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+  reopenedAt: timestamp("reopened_at", { withTimezone: true }),
+  copiedAt: timestamp("copied_at", { withTimezone: true }),
+  copyCount: integer("copy_count").notNull().default(0),
+  /** Friday-email bookkeeping: a recommendation is promoted as NEW only until the first email that lists it was sent */
+  firstEmailedAt: timestamp("first_emailed_at", { withTimezone: true }),
+  verifiedNotifiedAt: timestamp("verified_notified_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [uniqueIndex("search_recommendations_identity_idx").on(t.businessId, t.fingerprint), index("search_recommendations_status_idx").on(t.businessId, t.status)]);
+
+/** Append-only history of everything that happened to a recommendation. */
+export const searchRecommendationEvents = pgTable("search_recommendation_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  recommendationId: uuid("recommendation_id").references(() => searchRecommendations.id, { onDelete: "cascade" }).notNull(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  at: timestamp("at", { withTimezone: true }).defaultNow().notNull(),
+  /** seen | opened | copied | status | verified | verification_failed | outcome | reopened | emailed */
+  type: text("type").notNull(),
+  fromStatus: text("from_status"),
+  toStatus: text("to_status"),
+  note: text("note"),
+  meta: jsonb("meta"),
+}, (t) => [index("search_rec_events_rec_idx").on(t.recommendationId, t.at)]);
 
 /**
  * Public pages seen on a competitor's own sitemap, with the first and last date GravyBlock observed each. "Newly published" is only ever claimed for a URL

@@ -2,9 +2,44 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadLatestReport } from "@/lib/search-intel";
-import { deriveImprovements } from "@/lib/search-intel/prompt";
+import { buildPrompt } from "@/lib/search-intel/prompt";
+import { loadEvents, loadQueue, unresolvedImprovements, type RecRecord } from "@/lib/search-intel/recommendations";
+import { STATUS_LABEL } from "@/lib/search-intel/recommendation-model";
 import type { Move } from "@/lib/search-intel/analysis";
-import { CopyPrompt } from "../copy-prompt";
+import { CopyPrompt, OpenedBeacon, StatusButtons, VerifyNowButton } from "../copy-prompt";
+
+const BADGE: Record<string, string> = { new: "bg-sky-100 text-sky-800", opened: "bg-indigo-100 text-indigo-800", in_progress: "bg-amber-100 text-amber-800", completed: "bg-violet-100 text-violet-800", verified: "bg-emerald-100 text-emerald-800", dismissed: "bg-zinc-200 text-zinc-600" };
+const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
+
+function RecCard({ rec, events, businessId }: { rec: RecRecord; events: Array<{ at: string; type: string; from: string | null; to: string | null; note: string | null }>; businessId: string }) {
+  const imp = rec.improvement;
+  return (
+    <div className="space-y-1.5 rounded-lg border border-zinc-200 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${BADGE[rec.status]}`}>{STATUS_LABEL[rec.status]}</span>
+        {rec.copiedAt ? <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-700">Handed off {day(rec.copiedAt)}{rec.copyCount > 1 ? ` (x${rec.copyCount})` : ""}</span> : null}
+        {rec.occurrence > 1 ? <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-800">Reopened, occurrence {rec.occurrence}</span> : null}
+        <span className="font-mono text-xs text-zinc-500">{rec.ref}</span>
+        <span className="text-xs text-zinc-500">first reported {day(rec.firstSeenAt)}{rec.openedAt ? `, opened ${day(rec.openedAt)}` : ""}{rec.inProgressAt && rec.status === "in_progress" ? `, started ${day(rec.inProgressAt)}` : ""}{rec.completedAt ? `, completed ${day(rec.completedAt)}` : ""}{rec.verifiedAt ? `, verified ${day(rec.verifiedAt)}` : ""}</span>
+      </div>
+      <p className="font-medium text-zinc-900">{rec.title}</p>
+      {imp.urls.length ? <p className="break-all text-xs text-zinc-600">{imp.urls.slice(0, 3).join(" · ")}</p> : null}
+      <p className="text-xs text-zinc-700">{imp.evidence[0]}</p>
+      {rec.verification ? (
+        <p className={`text-xs ${rec.verification.deployed ? "text-emerald-700" : "text-amber-700"}`}>
+          Live check {rec.verification.at.slice(0, 10)}: {rec.verification.note}
+          {rec.verification.checks.slice(0, 3).map((c, i) => <span key={i} className="block break-all">{c.pass ? "pass" : "not yet"}: {c.check} ({c.url}: {c.after})</span>)}
+        </p>
+      ) : null}
+      {rec.outcome ? <p className="text-xs text-zinc-700">Search outcome ({rec.outcome.measuredAt.slice(0, 10)}): <b>{rec.outcome.verdict.replace(/_/g, " ")}</b>{rec.outcome.before && rec.outcome.after ? `, ${rec.outcome.before.clicks} to ${rec.outcome.after.clicks} clicks over equal 28-day windows` : ""}. {rec.outcome.note}</p> : null}
+      <StatusButtons businessId={businessId} recommendationId={rec.id} status={rec.status} />
+      <details className="text-xs text-zinc-600">
+        <summary className="cursor-pointer">History ({events.length})</summary>
+        <ul className="mt-1 space-y-0.5">{events.map((e, i) => <li key={i}>{e.at.slice(0, 16).replace("T", " ")} · {e.type}{e.from || e.to ? ` (${e.from ?? "-"} to ${e.to ?? "-"})` : ""}{e.note ? ` · ${e.note}` : ""}</li>)}</ul>
+      </details>
+    </div>
+  );
+}
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Site search and competitor report" };
@@ -33,7 +68,14 @@ export default async function SiteSearchReport({ params }: { params: Promise<{ i
   const r = await loadLatestReport(id); // house accounts only: loadLatestReport refuses any other account type
   if (!r) notFound();
   const d = r.data;
-  const improvements = deriveImprovements(d);
+  const now = new Date();
+  const queue = await loadQueue(id);
+  const events = await loadEvents(queue.map((q) => q.id));
+  // The prompt covers UNRESOLVED work only (new, opened, in progress), so completed, verified and dismissed items never come back in it.
+  const unresolved = unresolvedImprovements(queue, now);
+  const prompt = buildPrompt(d, unresolved);
+  const promptIds = unresolved.map((u) => queue.find((q) => q.ref === u.ref)?.id).filter((x): x is string => !!x);
+  const group = (...s: string[]) => queue.filter((q) => s.includes(q.status));
   const cmp = (c: typeof d.w7, label: string) =>
     c ? (
       <p>
@@ -47,9 +89,25 @@ export default async function SiteSearchReport({ params }: { params: Promise<{ i
       <h1 className="text-xl font-semibold text-zinc-900">{r.name}: search and competitor report, week ending {r.weekEnding}</h1>
       <p className="text-zinc-600">{d.site.website} · generated {r.createdAt.slice(0, 16).replace("T", " ")} UTC · Google clicks and impressions only, never total visitors · read only, GravyBlock does not edit this site.</p>
 
+      <OpenedBeacon businessId={id} weekEnding={r.weekEnding} />
       <section className="rounded-xl border border-red-200 bg-red-50 p-4">
-        <h2 className="mb-2 text-base font-semibold text-zinc-900">Development instruction (one prompt)</h2>
-        <CopyPrompt prompt={r.prompt} />
+        <h2 className="mb-2 text-base font-semibold text-zinc-900">Development instruction (one prompt, unresolved work only)</h2>
+        <CopyPrompt prompt={prompt} businessId={id} recommendationIds={promptIds} />
+      </section>
+
+      <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-semibold text-zinc-900">Recommendations and their status</h2>
+          <VerifyNowButton businessId={id} />
+        </div>
+        <p className="text-xs text-zinc-600">Statuses persist across weekly reports. Opening this page marks new items Opened (a view, not work started). Copying the prompt marks items Handed off without changing their status. Verified means a read-only check of the live page confirmed the fix is deployed; any search result is measured separately and never assumed.</p>
+        <h3 className="text-xs font-semibold uppercase text-zinc-500">To do ({group("new", "opened", "in_progress").length})</h3>
+        {group("new", "opened", "in_progress").length ? group("new", "opened", "in_progress").map((q) => <RecCard key={q.id} rec={q} events={events.get(q.id) ?? []} businessId={id} />) : <p className="text-zinc-500">Nothing unresolved.</p>}
+        <h3 className="text-xs font-semibold uppercase text-zinc-500">Completed, awaiting verification ({group("completed").length})</h3>
+        {group("completed").map((q) => <RecCard key={q.id} rec={q} events={events.get(q.id) ?? []} businessId={id} />)}
+        <h3 className="text-xs font-semibold uppercase text-zinc-500">Verified ({group("verified").length})</h3>
+        {group("verified").map((q) => <RecCard key={q.id} rec={q} events={events.get(q.id) ?? []} businessId={id} />)}
+        <details><summary className="cursor-pointer text-xs font-semibold uppercase text-zinc-500">Dismissed ({group("dismissed").length})</summary><div className="mt-2 space-y-2">{group("dismissed").map((q) => <RecCard key={q.id} rec={q} events={events.get(q.id) ?? []} businessId={id} />)}</div></details>
       </section>
 
       <section className="space-y-1 rounded-xl border border-zinc-200 bg-white p-4">
@@ -105,10 +163,6 @@ export default async function SiteSearchReport({ params }: { params: Promise<{ i
         <p className="text-zinc-600">{d.authority.note} Outreach: {d.authority.qualified} prospects qualified, {d.authority.contacted} contacted, {d.authority.verifiedLinks} verified links.</p>
       </section>
 
-      <section className="space-y-2 rounded-xl border border-zinc-200 bg-white p-4">
-        <h2 className="text-base font-semibold text-zinc-900">The improvements in the prompt</h2>
-        {improvements.length ? improvements.map((i, n) => <p key={n}>{n + 1}. <b>{i.title}</b> ({i.kind.replace(/_/g, " ")}{i.potentialClicks28 > 0 ? `, up to ~${i.potentialClicks28} clicks per 28 days` : ""})</p>) : <p className="text-zinc-500">Not enough evidence for a specific change; the prompt asks for validation work instead.</p>}
-      </section>
     </div>
   );
 }

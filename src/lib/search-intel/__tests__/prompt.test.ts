@@ -78,7 +78,22 @@ test("portfolio roll-up never counts a low-sample site as a gain or loss and lis
   const s = summarizePortfolio(reports, ["A", "B", "C"], "2026-11-27");
   assert.deepEqual(s.missing, ["C"]);
   assert.ok(!s.gains.some((g) => g.site === "B") && !s.losses.some((g) => g.site === "B"));
-  const out = renderSearchSection(s);
-  assert.match(out.text, /Top five priorities/);
+  const out = renderSearchSection(s, []);
+  assert.match(out.text, /Top five opportunities/);
   assert.match(out.html, /admin\/house\/search-reports\/b1/);
+});
+
+test("the Friday section labels each item by where it stands and does not repeat unopened ones", () => {
+  const mk = (id: string, bucket: import("../recommendation-model").EmailBucket, title: string) => ({ id, businessId: "b1", site: "A", ref: `SR-${id}`, title, bucket, occurrence: 1, potentialClicks28: 10, priority: 50, outcome: null, verification: null, completedAt: null, verifiedAt: null });
+  const s = summarizePortfolio([{ businessId: "b1", name: "A", weekEnding: "2026-11-27", createdAt: "x", data: base(), prompt: "p" }], ["A"], "2026-11-27");
+  const out = renderSearchSection(s, [mk("1", "NEW", "Brand new problem"), mk("2", "STILL_UNOPENED", "Old unopened problem"), mk("3", "IN_PROGRESS", "Being built"), mk("4", "COMPLETED_AWAITING", "Done, awaiting check"), mk("5", "VERIFIED", "Fix confirmed")]);
+  assert.match(out.text, /\[NEW\] A: Brand new problem/);
+  assert.match(out.text, /NEW this week \(1\)/);
+  assert.match(out.text, /IN PROGRESS \(1\)/);
+  assert.match(out.text, /COMPLETED, awaiting verification \(1\)/);
+  assert.match(out.text, /VERIFIED fixes \(1\)/);
+  assert.match(out.text, /STILL OPEN, not yet opened \(already reported earlier\): 1 \(not repeated here/);
+  assert.ok(out.text.includes("[STILL OPEN] A: Old unopened problem")); // still actionable, but labelled as already reported, never as new
+  assert.doesNotMatch(out.text.split("NEW this week")[1] ?? "", /Old unopened problem/);
+  assert.equal(out.included.length, 5);
 });

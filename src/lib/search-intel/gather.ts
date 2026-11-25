@@ -130,7 +130,7 @@ async function competitorSection(businessId: string, website: string | null, row
   return result;
 }
 
-export async function gatherSearchIntel(businessId: string, now = new Date()): Promise<SiteIntel | null> {
+export async function gatherSearchIntel(businessId: string, now = new Date(), opts: { competitors?: boolean } = {}): Promise<SiteIntel | null> {
   const db = getDb();
   if (!db || !(await searchIntelEligible(businessId))) return null;
   const [biz] = rowsOf<{ name: string; website: string | null }>(await db.execute(sql`select name, website from businesses where id = ${businessId} limit 1`));
@@ -216,12 +216,15 @@ export async function gatherSearchIntel(businessId: string, now = new Date()): P
     if (ev.url && !g.urls.includes(ev.url)) g.urls.push(ev.url);
     grouped.set(key, g);
   }
-  const openBriefs: SiteIntel["openBriefs"] = [...grouped.values()].sort((a, b) => b.impact - a.impact).slice(0, 6).map((g) => ({ type: g.type, subtype: g.subtype, impact: g.impact, text: g.urls.length ? `${g.detail} Affected (${g.urls.length}): ${g.urls.slice(0, 5).join(", ")}${g.urls.length > 5 ? ", ..." : ""}` : g.detail }));
+  const openBriefs: SiteIntel["openBriefs"] = [...grouped.values()].sort((a, b) => b.impact - a.impact).slice(0, 6).map((g) => ({ type: g.type, subtype: g.subtype, impact: g.impact, urls: g.urls.slice(0, 8), text: g.urls.length ? `${g.detail} Affected (${g.urls.length}): ${g.urls.slice(0, 5).join(", ")}${g.urls.length > 5 ? ", ..." : ""}` : g.detail }));
 
   const [au] = rowsOf<{ qualified: number; contacted: number; acquired: number }>(await db.execute(sql`
     select count(*) filter (where status = 'qualified')::int qualified, count(*) filter (where status in ('contacted', 'followed_up'))::int contacted, count(*) filter (where status = 'acquired')::int acquired from backlink_opportunities where business_id = ${businessId}`));
 
-  const competitors = await competitorSection(businessId, biz.website, rows, now.toISOString());
+  // The daily change check skips the (slower, polite) competitor observation; competitors are observed once a week in the full report.
+  const competitors = opts.competitors === false
+    ? { observedAt: now.toISOString(), known: [], sitemapsRead: 0, pagesObserved: 0, baselineEstablishedToday: [], newPages: [], queries: [], notes: ["Competitors are observed in the weekly report, not in the daily change check."] }
+    : await competitorSection(businessId, biz.website, rows, now.toISOString());
   const intel: SiteIntel = {
     version: 1,
     site: { businessId, name: biz.name, website: biz.website },

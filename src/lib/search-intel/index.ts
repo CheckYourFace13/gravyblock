@@ -6,7 +6,9 @@ import { sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { listHouseAccounts } from "@/lib/house";
 import { gatherSearchIntel, weekEndingFor } from "./gather";
-import { buildPrompt, deriveImprovements } from "./prompt";
+import { buildPrompt, candidateImprovements, deriveImprovements } from "./prompt";
+import { collectEmailItems, loadQueue, markEmailed, measureOutcomes, syncRecommendations, unresolvedImprovements, verifyCompleted, type EmailItem } from "./recommendations";
+import { BUCKET_LABEL, type EmailBucket } from "./recommendation-model";
 import type { Improvement, SiteIntel } from "./types";
 
 type Rows<T> = T[];
@@ -15,16 +17,31 @@ const rowsOf = <T>(r: unknown) => r as unknown as Rows<T>;
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
 export const reportLink = (businessId: string) => `${SITE_URL}/admin/house/search-reports/${businessId}`;
 
-export async function generateSearchIntelForSite(businessId: string, now = new Date()): Promise<{ ok: boolean; reason?: string; weekEnding?: string; improvements?: number }> {
+export async function generateSearchIntelForSite(businessId: string, now = new Date()): Promise<{ ok: boolean; reason?: string; weekEnding?: string; improvements?: number; sync?: Awaited<ReturnType<typeof syncRecommendations>> }> {
   const db = getDb();
   if (!db) return { ok: false, reason: "no_db" };
   const intel = await gatherSearchIntel(businessId, now);
   if (!intel) return { ok: false, reason: "not_eligible_or_missing" };
-  const improvements = deriveImprovements(intel);
+  // Recommendations are persistent: this updates existing ones, creates only genuinely new ones, and the prompt is built from UNRESOLVED stored work.
+  const sync = await syncRecommendations(businessId, candidateImprovements(intel), intel.weekEnding, now);
+  const improvements = unresolvedImprovements(await loadQueue(businessId), now);
   const prompt = buildPrompt(intel, improvements);
   await db.execute(sql`insert into search_intel_reports (business_id, week_ending, data, prompt) values (${businessId}, ${intel.weekEnding}, ${JSON.stringify(intel)}::jsonb, ${prompt})
     on conflict (business_id, week_ending) do update set data = excluded.data, prompt = excluded.prompt, created_at = now()`);
-  return { ok: true, weekEnding: intel.weekEnding, improvements: improvements.length };
+  return { ok: true, weekEnding: intel.weekEnding, improvements: improvements.length, sync };
+}
+
+/**
+ * The daily change check (no email): refresh Search Console history, re-derive findings from the latest data, update persistent recommendations (new ones are recorded
+ * silently), re-check completed work on the live pages, and measure outcomes that have matured. Reports are still generated and emailed once a week.
+ */
+export async function runDailySearchIntel(businessId: string, now = new Date()): Promise<{ ok: boolean; sync?: Awaited<ReturnType<typeof syncRecommendations>>; verified?: number; measured?: number; reason?: string }> {
+  const intel = await gatherSearchIntel(businessId, now, { competitors: false });
+  if (!intel) return { ok: false, reason: "not_eligible_or_missing" };
+  const sync = await syncRecommendations(businessId, candidateImprovements(intel), intel.weekEnding, now);
+  const v = await verifyCompleted(businessId, now);
+  const m = await measureOutcomes(businessId, now);
+  return { ok: true, sync, verified: v.verified, measured: m.measured };
 }
 
 /** Generates reports for house sites that do not yet have one for this week, a few at a time so a worker pass stays short. */
@@ -113,36 +130,73 @@ export function summarizePortfolio(reports: StoredReport[], allSites: string[], 
 const sign = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-/** The search section of the one Friday email: plain text plus an HTML block with a link to each site's detailed report. */
-export function renderSearchSection(s: PortfolioSummary): { text: string; html: string } {
+const SHORT: Record<EmailBucket, string> = { NEW: "NEW", REOPENED: "REOPENED", STILL_UNOPENED: "STILL OPEN", OPENED: "OPENED", IN_PROGRESS: "IN PROGRESS", COMPLETED_AWAITING: "COMPLETED", VERIFIED: "VERIFIED" };
+const ACTIONABLE: EmailBucket[] = ["NEW", "REOPENED", "STILL_UNOPENED", "OPENED", "IN_PROGRESS"];
+const ORDER: EmailBucket[] = ["NEW", "REOPENED", "OPENED", "IN_PROGRESS", "COMPLETED_AWAITING", "VERIFIED", "STILL_UNOPENED"];
+
+const outcomeLine = (o: EmailItem["outcome"]) => (o && o.verdict !== "too_early" ? ` Measured: ${o.verdict.replace(/_/g, " ")} (${o.before?.clicks ?? "n/a"} to ${o.after?.clicks ?? "n/a"} clicks over equal 28-day windows; a measured change, not proof of cause).` : "");
+
+/**
+ * The search section of the one Friday email. Items are grouped by where they stand, so an unfinished recommendation is promoted as NEW exactly once and every later
+ * week it appears as still open, opened or in progress. Daily Search Console checks send nothing; only this weekly email does.
+ */
+export function renderSearchSection(s: PortfolioSummary, items: EmailItem[]): { text: string; html: string; included: EmailItem[] } {
+  const by = (b: EmailBucket) => items.filter((i) => i.bucket === b);
+  const top = items.filter((i) => ACTIONABLE.includes(i.bucket)).slice(0, 5);
+  const included: EmailItem[] = [];
   const t: string[] = [];
   t.push("WEEKLY SEARCH AND COMPETITOR INTELLIGENCE (Google search clicks and impressions only, not total website visitors)");
   t.push("  Every window ends three days before the report date (the latest complete Google data); each is compared with the equal-length window just before it, so no period is counted twice.");
   t.push(`  Portfolio 7 days: ${s.totals.clicks7} clicks (${sign(s.totals.clicks7 - s.totals.clicks7Prev)} vs the 7 days before). 28 days: ${s.totals.clicks28} clicks (${sign(s.totals.clicks28 - s.totals.clicks28Prev)}), ${s.totals.impressions28} impressions (${sign(s.totals.impressions28 - s.totals.impressions28Prev)}).`);
   t.push(`  Gains: ${s.gains.length ? s.gains.map((g) => `${g.site} ${sign(g.change)} clicks`).join(", ") : "none large enough to read"}. Losses: ${s.losses.length ? s.losses.map((g) => `${g.site} ${sign(g.change)} clicks`).join(", ") : "none large enough to read"}. Sites with too little data are not counted as gains or losses.`);
   if (s.missing.length) t.push(`  Report not generated yet for: ${s.missing.join(", ")}.`);
-  t.push("  Top five priorities across the portfolio:");
-  if (!s.priorities.length) t.push("    none had enough evidence this week");
-  s.priorities.forEach((p, i) => t.push(`    ${i + 1}. ${p.site}: ${p.title}${p.potentialClicks28 > 0 ? ` (up to about ${p.potentialClicks28} clicks per 28 days)` : ""}`));
+  t.push("  Top five opportunities still to act on (each keeps its status week to week; nothing here is re-listed as new once it has been reported):");
+  if (!top.length) t.push("    none open: nothing new had enough evidence this week");
+  top.forEach((p, i) => { t.push(`    ${i + 1}. [${SHORT[p.bucket]}] ${p.site}: ${p.title} (${p.ref}${p.potentialClicks28 > 0 ? `, up to about ${p.potentialClicks28} clicks per 28 days` : ""})`); included.push(p); });
+  for (const b of ORDER) {
+    const list = by(b);
+    if (!list.length) continue;
+    if (b === "STILL_UNOPENED") {
+      t.push(`  ${BUCKET_LABEL[b]}: ${list.length} (not repeated here; they are in each site's report).`);
+      included.push(...list);
+      continue;
+    }
+    t.push(`  ${BUCKET_LABEL[b]} (${list.length}):`);
+    for (const i of list.slice(0, 6)) {
+      t.push(`    - ${i.site}: ${i.title} (${i.ref}${i.occurrence > 1 ? `, occurrence ${i.occurrence}` : ""})${b === "VERIFIED" ? ` ${i.verification?.note ?? ""}${outcomeLine(i.outcome)}` : b === "COMPLETED_AWAITING" ? ` ${i.verification && i.verification.deployed !== true ? i.verification.note : "Awaiting the next live check."}` : ""}`);
+      included.push(i);
+    }
+    // items past the sixth are NOT marked as reported: they were not named, so they are still listed as new next week
+    if (list.length > 6) t.push(`    ... and ${list.length - 6} more in the site reports`);
+  }
   t.push("  Detailed site reports (sign in to GravyBlock admin; each has a COPY FOR CLAUDE/CURSOR button):");
   for (const r of s.rows) t.push(`    ${r.name}: ${reportLink(r.businessId)}`);
+  const section = (b: EmailBucket) => {
+    const list = by(b);
+    if (!list.length || b === "STILL_UNOPENED") return "";
+    return `<p style="margin:8px 0 2px;font-weight:600">${esc(BUCKET_LABEL[b])} (${list.length})</p><ul style="margin:0;padding-left:20px">${list.slice(0, 6).map((i) => `<li>${esc(i.site)}: ${esc(i.title)} <span style="color:#71717a">(${i.ref})</span>${b === "VERIFIED" ? esc(outcomeLine(i.outcome)) : ""}</li>`).join("")}</ul>`;
+  };
   const h = [
     `<div style="font-family:system-ui,sans-serif;max-width:760px;margin:0 auto 18px;padding:14px 16px;border:1px solid #e4e4e7;border-radius:12px;color:#18181b;font-size:14px;line-height:1.5">`,
     `<p style="margin:0 0 6px;font-weight:700">Weekly search and competitor intelligence</p>`,
     `<p style="margin:0 0 8px;color:#52525b;font-size:12px">Google search clicks and impressions only, not total website visitors. Sites with too little data are not counted as gains or losses.</p>`,
     `<p style="margin:0 0 8px">28 days: <b>${s.totals.clicks28}</b> clicks (${sign(s.totals.clicks28 - s.totals.clicks28Prev)}), ${s.totals.impressions28} impressions (${sign(s.totals.impressions28 - s.totals.impressions28Prev)}). 7 days: <b>${s.totals.clicks7}</b> clicks (${sign(s.totals.clicks7 - s.totals.clicks7Prev)}).</p>`,
     `<p style="margin:0 0 8px">Gains: ${esc(s.gains.length ? s.gains.map((g) => `${g.site} ${sign(g.change)}`).join(", ") : "none large enough to read")}. Losses: ${esc(s.losses.length ? s.losses.map((g) => `${g.site} ${sign(g.change)}`).join(", ") : "none large enough to read")}.</p>`,
-    `<p style="margin:0 0 4px;font-weight:600">Top five priorities</p><ol style="margin:0 0 10px;padding-left:20px">${s.priorities.map((p) => `<li>${esc(p.site)}: ${esc(p.title)}</li>`).join("") || "<li>None had enough evidence this week</li>"}</ol>`,
-    `<p style="margin:0 0 4px;font-weight:600">Detailed reports (admin sign-in required)</p><ul style="margin:0;padding-left:20px">${s.rows.map((r) => `<li><a href="${reportLink(r.businessId)}">${esc(r.name)}</a></li>`).join("")}</ul>`,
+    `<p style="margin:0 0 4px;font-weight:600">Top five opportunities still to act on</p><ol style="margin:0 0 6px;padding-left:20px">${top.map((p) => `<li><b>${SHORT[p.bucket]}</b> ${esc(p.site)}: ${esc(p.title)}</li>`).join("") || "<li>None open</li>"}</ol>`,
+    ORDER.map(section).join(""),
+    by("STILL_UNOPENED").length ? `<p style="margin:8px 0 0;color:#52525b;font-size:12px">${by("STILL_UNOPENED").length} earlier recommendations are still unopened (listed in the site reports, not repeated here).</p>` : "",
+    `<p style="margin:10px 0 4px;font-weight:600">Detailed reports (admin sign-in required)</p><ul style="margin:0;padding-left:20px">${s.rows.map((r) => `<li><a href="${reportLink(r.businessId)}">${esc(r.name)}</a></li>`).join("")}</ul>`,
     s.missing.length ? `<p style="margin:8px 0 0;color:#b91c1c">Not generated yet: ${esc(s.missing.join(", "))}</p>` : "",
     `</div>`,
   ].join("");
-  return { text: t.join("\n"), html: h };
+  return { text: t.join("\n"), html: h, included: [...new Map(included.map((i) => [i.id, i])).values()] };
 }
 
-export async function buildSearchSection(now = new Date()): Promise<{ text: string; html: string }> {
+export async function buildSearchSection(now = new Date()): Promise<{ text: string; html: string; included: EmailItem[] }> {
   const week = weekEndingFor(now);
   const houses = (await listHouseAccounts()).map((h) => h.name);
   const reports = await loadReports(week);
-  return renderSearchSection(summarizePortfolio(reports, houses, week));
+  return renderSearchSection(summarizePortfolio(reports, houses, week), await collectEmailItems(now));
 }
+
+export { markEmailed };

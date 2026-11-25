@@ -21,7 +21,7 @@ function competitorRefs(intel: SiteIntel, query: string): string[] {
   return (q?.competitorPages ?? []).map((p) => `${p.url} (title: "${p.title}", observed ${p.observedAt.slice(0, 10)})`);
 }
 
-export function deriveImprovements(intel: SiteIntel): Improvement[] {
+export function candidateImprovements(intel: SiteIntel): Improvement[] {
   const out: Improvement[] = [];
   const window = intel.w28 ? `${intel.w28.cur.start} to ${intel.w28.cur.end}` : "the latest 28 days";
 
@@ -32,6 +32,8 @@ export function deriveImprovements(intel: SiteIntel): Improvement[] {
     const v = recheck?.verdicts ?? {};
     out.push({
       kind: "indexing",
+      issue: "indexing",
+      identityUrls: [],
       title: "Find out why previously ranking pages no longer appear in Google, and fix the cause",
       urls: d.sample.slice(0, 6),
       evidence: [
@@ -69,6 +71,8 @@ export function deriveImprovements(intel: SiteIntel): Improvement[] {
     const top = e.rows[0]!;
     out.push({
       kind: "low_ctr",
+      issue: "low_ctr",
+      identityUrls: [page],
       title: `Rewrite the title and meta description of ${pathOf(page)} so more searchers click`,
       urls: [page],
       evidence: e.rows.slice(0, 3).map((r) => `"${r.query}": position ${r.position}, ${r.impressions} impressions, CTR ${pct(r.ctr)} where about ${pct(r.expected)} is normal at that position (${window}, Google Search Console).`),
@@ -99,6 +103,8 @@ export function deriveImprovements(intel: SiteIntel): Improvement[] {
     const gaps = intel.competitors.queries.filter((c) => rows.some((r) => r.query === c.query)).flatMap((c) => c.gaps).slice(0, 3);
     out.push({
       kind: "near_page_one",
+      issue: "near_page_one",
+      identityUrls: [page],
       title: `Strengthen ${pathOf(page)} for the queries where it already ranks 4 to 10`,
       urls: [page],
       evidence: rows.slice(0, 4).map((r) => `"${r.query}": position ${r.position}, ${r.impressions} impressions, ${r.clicks} clicks (${window}).`),
@@ -118,6 +124,8 @@ export function deriveImprovements(intel: SiteIntel): Improvement[] {
   for (const b of (intel.bands?.b11_20 ?? []).filter((x) => x.impressions >= 50).slice(0, 1)) {
     out.push({
       kind: "page_two",
+      issue: `page_two:${b.query}`,
+      identityUrls: [b.page],
       title: `Validate whether ${pathOf(b.page)} is the right page for "${b.query}"`,
       urls: [b.page],
       evidence: [`"${b.query}": position ${b.position}, ${b.impressions} impressions, ${b.clicks} clicks (${window}).`],
@@ -136,6 +144,8 @@ export function deriveImprovements(intel: SiteIntel): Improvement[] {
   for (const m of (intel.pages28?.declining ?? []).filter((x) => x.clicksPrev - x.clicksCur >= 3 || x.imprPrev - x.imprCur >= 150).slice(0, 2)) {
     out.push({
       kind: "declining",
+      issue: "declining",
+      identityUrls: [m.key],
       title: `Investigate the drop on ${pathOf(m.key)}`,
       urls: [m.key],
       evidence: [`Clicks ${m.clicksPrev} to ${m.clicksCur} and impressions ${m.imprPrev} to ${m.imprCur} comparing the latest 28 days with the 28 before (Google Search Console).`],
@@ -157,6 +167,8 @@ export function deriveImprovements(intel: SiteIntel): Improvement[] {
     const first = gapRows[0]!;
     out.push({
       kind: "competitor_gap",
+      issue: "competitor_gap",
+      identityUrls: [first.g.ourUrl ?? ""].filter(Boolean),
       title: `Consider an original improvement to ${pathOf(first.g.ourUrl ?? intel.site.website ?? "")} based on what competing pages offer`,
       urls: [...new Set(gapRows.map((x) => x.g.ourUrl).filter((u): u is string => !!u))].slice(0, 3),
       evidence: gapRows.map((x) => `For "${x.q.query}": ${x.g.evidence} Observed ${x.g.observedAt.slice(0, 10)}.`),
@@ -172,30 +184,41 @@ export function deriveImprovements(intel: SiteIntel): Improvement[] {
   }
 
   // 7. Problems GravyBlock's own checks already confirmed (on-site briefs).
-  if (intel.openBriefs.length) {
+  // One recommendation per kind of confirmed problem, so each can be tracked, completed and verified on its own.
+  for (const b of intel.openBriefs.slice(0, 4)) {
     out.push({
       kind: "confirmed_problem",
-      title: "Fix problems GravyBlock's own checks confirmed on the live site",
-      urls: [],
-      evidence: intel.openBriefs.slice(0, 6).map((b) => `${b.type}${b.subtype ? ` / ${b.subtype}` : ""}: ${b.text}`),
+      issue: `${b.type}:${b.subtype ?? "general"}`,
+      identityUrls: [],
+      title: `Fix a problem GravyBlock's checks confirmed on the live site: ${(b.subtype ?? b.type).replace(/_/g, " ")}`,
+      urls: b.urls ?? [],
+      evidence: [`${b.type}${b.subtype ? ` / ${b.subtype}` : ""}: ${b.text}`],
       competitorUrls: [],
-      actions: ["Work through the listed findings from highest impact down. Verify each in the live HTML first; skip any that is already fixed.", "Make the smallest change that resolves each finding."],
-      acceptance: ["Each fixed finding is re-checked in the live HTML and listed with its URL.", "No unrelated change."],
+      actions: ["Verify the finding in the live HTML first; skip any page that is already fine.", "Make the smallest change that resolves it on every affected page."],
+      acceptance: ["Each affected page is re-checked in the live HTML and listed with its URL.", "No unrelated change."],
       potentialClicks28: 0,
-      priority: 15 + Math.min(30, intel.openBriefs.length * 2),
+      priority: 12 + Math.min(20, b.impact / 4),
     });
   }
+  return out;
+}
 
-  // Highest priority first, at most five, at most two of any one kind so a single theme cannot fill the list.
-  const picked: Improvement[] = [];
+/** Highest priority first, at most `max`, at most two of any one kind so a single theme cannot fill the list. */
+export function pickTop<T extends { kind: string; priority: number }>(list: T[], max = 5): T[] {
+  const picked: T[] = [];
   const perKind = new Map<string, number>();
-  for (const i of out.sort((a, b) => b.priority - a.priority)) {
+  for (const i of [...list].sort((a, b) => b.priority - a.priority)) {
     if ((perKind.get(i.kind) ?? 0) >= 2) continue;
     perKind.set(i.kind, (perKind.get(i.kind) ?? 0) + 1);
     picked.push(i);
-    if (picked.length === 5) break;
+    if (picked.length === max) break;
   }
   return picked;
+}
+
+/** The three to five highest-impact improvements found this week (the persistent record keeps their status; see recommendations.ts). */
+export function deriveImprovements(intel: SiteIntel): Improvement[] {
+  return pickTop(candidateImprovements(intel));
 }
 
 const list = (items: string[], indent = "   ") => items.map((i) => `${indent}- ${i}`).join("\n");
@@ -228,7 +251,7 @@ export function buildPrompt(intel: SiteIntel, improvements: Improvement[]): stri
     lines.push(`IMPROVEMENTS (${improvements.length}, highest impact first)`);
     improvements.forEach((imp, n) => {
       lines.push("");
-      lines.push(`${n + 1}. ${imp.title}`);
+      lines.push(`${n + 1}. ${imp.ref ? `[${imp.ref}] ` : ""}${imp.title}`);
       if (imp.urls.length) lines.push(`   Affected URLs:\n${list(imp.urls, "     ")}`);
       lines.push(`   Evidence:\n${list(imp.evidence, "     ")}`);
       if (imp.potentialClicks28 > 0) lines.push(`   Upper-bound opportunity: roughly ${imp.potentialClicks28} more Google clicks per 28 days if fully fixed (an estimate from impressions and typical click rates, not a forecast).`);

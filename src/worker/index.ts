@@ -22,7 +22,8 @@ import { getDb, businesses, contentQueue, jobs } from "@/lib/db";
 import { queueContentForBusiness } from "@/lib/content-gen/queue-content";
 import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
 import { sendWeeklyHouseReport } from "@/lib/email/weekly-house-report";
-import { generateMissingSearchIntel } from "@/lib/search-intel";
+import { generateMissingSearchIntel, runDailySearchIntel } from "@/lib/search-intel";
+import { listHouseAccounts } from "@/lib/house";
 import { backfillScanClassification, markInternalBusinesses } from "@/lib/reporting/classification";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
 import { runLeadDripBatch } from "@/lib/email/lead-drip";
@@ -227,6 +228,29 @@ async function maybeSendDailyReport() {
     }
   } catch (error) {
     console.error("[worker] daily report failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+/**
+ * Daily change detection for the house sites (no email, no notification): from 08:00 UTC, three sites per pass, once per site per UTC day. It refreshes the persistent
+ * recommendations from the latest Search Console data, re-checks completed work on the live pages (read only) and measures matured outcomes. The weekly report and the
+ * one Friday email are separate and unchanged.
+ */
+async function maybeRunDailySearchIntel() {
+  const now = new Date();
+  if (now.getUTCHours() < 8) return;
+  const db = getDb();
+  if (!db) return;
+  try {
+    const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const done = new Set((await db.select({ b: jobs.businessId }).from(jobs).where(and(eq(jobs.type, "search_intel_daily"), gte(jobs.createdAt, dayStart)))).map((r) => r.b));
+    const todo = (await listHouseAccounts()).filter((h) => !done.has(h.id)).slice(0, 3);
+    for (const h of todo) {
+      const r = await runDailySearchIntel(h.id, now).catch((e) => ({ ok: false, reason: e instanceof Error ? e.message : String(e) }));
+      await db.insert(jobs).values({ businessId: h.id, type: "search_intel_daily", status: r.ok ? "completed" : "failed", payload: r as Record<string, unknown> });
+    }
+  } catch (error) {
+    console.error("[worker] daily search intelligence failed", { error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -600,6 +624,7 @@ async function tick() {
 
   await maybeClassifyReporting();
   await maybeSendDailyReport();
+  await maybeRunDailySearchIntel();
   await maybeGenerateSearchIntel();
   await maybeSendWeeklyHouseReport();
   await maybeSendMonthlyDigest();
