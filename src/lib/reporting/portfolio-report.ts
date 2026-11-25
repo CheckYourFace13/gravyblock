@@ -23,6 +23,22 @@ export type HouseEngine = { name: string; open: number; acted: number; verified:
 export type Pair = { now: number; before: number };
 export type WeekOverWeek = { viewsLifetime: Pair; videosPublished: Pair; publicationsFailed: Pair; videoVisits: Pair; videoScansCompleted: Pair; videoCheckouts: Pair };
 export type SearchDriven = { discovered: number; open: number; acted: number; evaluated: number; positive: number; items: Array<{ site: string; page: string; band: string; status: string; baselineClicks: number | null; afterClicks: number | null; measured: string | null }> };
+export type BacklinkFunnel = {
+  prospectsFound: number;
+  passedRelevance: number;
+  hadSuitableContact: number;
+  pitched: number;
+  recipients: number;
+  delivered: number;
+  bounced: number;
+  replies: number;
+  linksVerified: number;
+  oldestSendDays: number | null;
+  newestSendDays: number | null;
+  pitchesLast7d: number;
+  followUpsLast7d: number;
+  placements: Array<{ site: string; from: string; note: string }>;
+};
 export type ChannelRow = { channel: string; actions: string; visits: number | null; scans: number | null; checkouts: number | null; note: string };
 /** Small samples are never called a win or a loss. */
 export function judgeChannel(visits: number | null, conversions: number | null): string {
@@ -43,6 +59,7 @@ export type PortfolioReport = {
   scanFunnel: Metric<{ views: number; engaged: number; interacted: number; submitted: number; failed: number; completed: number; failures: Array<{ detail: string; n: number }> }>;
   siteDrafts: Metric<Array<{ name: string; total: number }>>;
   searchDriven: Metric<SearchDriven>;
+  backlinkFunnel: Metric<BacklinkFunnel>;
   channels: Metric<ChannelRow[]>;
   learning: Metric<Array<{ type: string; contacted: number; acquired: number; retired: boolean }>>;
   actions: Metric<Array<{ type: string; discovered: number; acted: number; verified: number; noGain: number }>>;
@@ -199,6 +216,36 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
     return { discovered: Number(x?.disc ?? 0), open: Number(x?.open ?? 0), acted: Number(x?.acted ?? 0), evaluated: Number(x?.ev ?? 0), positive: Number(x?.pos ?? 0), items: it.map((r) => ({ site: r.site, page: r.page ?? "", band: r.band ?? "", status: r.status, baselineClicks: r.base === null ? null : Number(r.base), afterClicks: r.after === null ? null : Number(r.after), measured: r.ms })) };
   });
 
+  const backlinkFunnel = await measure("portfolio.backlinkFunnel", async () => {
+    const f = rowsOf<{ found: number; rel: number; contact: number; pitched: number; acq: number }>(await db.execute(sql`
+      select count(*)::int found,
+             count(*) filter (where o.status not in ('not_relevant', 'prospecting'))::int rel,
+             count(*) filter (where o.status not in ('not_relevant', 'prospecting', 'no_contact'))::int contact,
+             count(*) filter (where o.status in ('contacted', 'followed_up', 'expired', 'replied', 'acquired'))::int pitched,
+             count(*) filter (where o.status = 'acquired')::int acq
+      from backlink_opportunities o join businesses b on b.id = o.business_id where b.account_type = 'house'`));
+    const s = rowsOf<{ recipients: number; oldest: number | null; newest: number | null; p7: number; f7: number }>(await db.execute(sql`
+      select count(distinct j.payload->>'to') filter (where j.type = 'authority_outreach_sent')::int recipients,
+             floor(extract(epoch from now() - min(j.created_at)) / 86400)::int oldest,
+             floor(extract(epoch from now() - max(j.created_at)) / 86400)::int newest,
+             count(*) filter (where j.type = 'authority_outreach_sent' and j.created_at >= now() - interval '7 days')::int p7,
+             count(*) filter (where j.type = 'authority_followup_sent' and j.created_at >= now() - interval '7 days')::int f7
+      from jobs j join businesses b on b.id = j.business_id where b.account_type = 'house' and j.type in ('authority_outreach_sent', 'authority_followup_sent')`));
+    const d = rowsOf<{ delivered: number; bounced: number }>(await db.execute(sql`
+      select count(*) filter (where e.event_type = 'delivered')::int delivered, count(*) filter (where e.event_type = 'bounced')::int bounced
+      from email_events e where e.email_id in (select j.payload->>'resendEmailId' from jobs j join businesses b on b.id = j.business_id where b.account_type = 'house' and j.type in ('authority_outreach_sent', 'authority_followup_sent'))`));
+    const rp = rowsOf<{ n: number }>(await db.execute(sql`
+      select count(*)::int n from jobs j join businesses b on b.id = j.business_id where b.account_type = 'house' and j.type = 'authority_event' and j.payload->>'event' in ('reply_received', 'replied', 'reply_positive', 'reply_declined', 'reply_needs_information')`));
+    const pl = rowsOf<{ site: string; name: string; note: string | null }>(await db.execute(sql`
+      select b.name site, o.source_name name, o.relevance_note note from backlink_opportunities o join businesses b on b.id = o.business_id where b.account_type = 'house' and o.status = 'acquired' order by o.created_at desc limit 10`));
+    return {
+      prospectsFound: Number(f[0]?.found ?? 0), passedRelevance: Number(f[0]?.rel ?? 0), hadSuitableContact: Number(f[0]?.contact ?? 0), pitched: Number(f[0]?.pitched ?? 0),
+      recipients: Number(s[0]?.recipients ?? 0), delivered: Number(d[0]?.delivered ?? 0), bounced: Number(d[0]?.bounced ?? 0), replies: Number(rp[0]?.n ?? 0), linksVerified: Number(f[0]?.acq ?? 0),
+      oldestSendDays: s[0]?.oldest ?? null, newestSendDays: s[0]?.newest ?? null, pitchesLast7d: Number(s[0]?.p7 ?? 0), followUpsLast7d: Number(s[0]?.f7 ?? 0),
+      placements: pl.map((p) => ({ site: p.site, from: p.name, note: p.note ?? "" })),
+    };
+  });
+
   const channels = await measure("portfolio.channels", async () => {
     const youtube = attribution.ok ? attribution.value.reduce((a, v) => ({ s: a.s + v.sessions, c: a.c + v.scansCompleted, k: a.k + v.checkouts }), { s: 0, c: 0, k: 0 }) : null;
     const o = rowsOf<{ sent: number }>(await db.execute(sql`select count(*)::int sent from jobs where type = 'authority_outreach_sent' and created_at >= ${since}::timestamptz`));
@@ -273,7 +320,7 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
     return { houseCount: Number(h[0]?.houses ?? 0), searchConsoleConnected: s, publishingLiveEnabled: live[0] ? live[0].value === true || live[0].value === "true" : null, citationsNeedingOwner: Number(h[0]?.citations ?? 0), proofLedgerEntries: Number(proof[0]?.n ?? 0) };
   });
 
-  return { generatedAt: nowIso, windowDays, offsite, attribution, weekly, revenue, backlinks, search, scanFunnel, siteDrafts, searchDriven, channels, learning, actions, engines, health, setup };
+  return { generatedAt: nowIso, windowDays, offsite, attribution, weekly, revenue, backlinks, search, scanFunnel, siteDrafts, searchDriven, backlinkFunnel, channels, learning, actions, engines, health, setup };
 }
 
 const na = "not measured";
@@ -328,6 +375,18 @@ export function renderPortfolioReport(r: PortfolioReport): string {
     const f = r.scanFunnel.value;
     out.push(`  viewed the scan page ${f.views} (${f.engaged} showed human input such as a scroll, tap or key press), touched the form ${f.interacted}, submitted ${f.submitted}, hit an error ${f.failed}, completed a scan ${f.completed}`);
     if (f.failures.length) out.push(`  errors shown to visitors: ${f.failures.map((x) => `"${x.detail}" x${x.n}`).join("; ")}`);
+  }
+  out.push("");
+  out.push("OFF-SITE ACTIONS COMPLETED AND PLACEMENTS (a pitch sent is an action, not a result; only a live link found on the other site's page counts as earned)");
+  if (!r.backlinkFunnel.ok) out.push(`  unavailable: ${r.backlinkFunnel.error}`);
+  else {
+    const b = r.backlinkFunnel.value;
+    out.push(`  this period: ${b.pitchesLast7d} first pitches and ${b.followUpsLast7d} follow-ups sent`);
+    out.push(`  all time: ${b.prospectsFound} prospects found, ${b.passedRelevance} passed the relevance check, ${b.hadSuitableContact} had a usable contact, ${b.pitched} pitched (${b.recipients} recipients)`);
+    out.push(`  delivery: ${b.delivered} delivered, ${b.bounced} bounced; replies received ${b.replies}; live links verified ${b.linksVerified}`);
+    out.push(`  timing: first pitch ${b.oldestSendDays ?? na} days ago, latest ${b.newestSendDays ?? na} days ago${b.linksVerified === 0 && b.pitched > 0 ? "; no link has been verified yet" : ""}`);
+    if (b.placements.length) for (const p of b.placements) out.push(`  PLACEMENT ${p.site}: ${p.from} (${p.note.slice(0, 110)})`);
+    else out.push("  accepted placements: none");
   }
   out.push("");
   out.push("SEARCH-DRIVEN WORK (Search Console findings that became actions; a page is judged on its own clicks after 28 days, never on the action itself)");

@@ -245,9 +245,10 @@ const ENGINE_DISCOVERY: Array<{ name: string; everyDays: number; afterChangeDays
   { name: "authority_mentions", everyDays: 7, afterChangeDays: 3, run: async (id) => ({ mentions: await discoverUnlinkedMentions(id), brokenLinks: await discoverBrokenLinkOpportunities(id) }) },
   { name: "aeo", everyDays: 7, afterChangeDays: 3, run: (id) => runAeoActionForBusiness(id, { scanOnly: true }) },
   // Read-only: pulls Search Console page/query data for a house site once its single Google authorization exists; without one it records "not connected" and does nothing.
-  { name: "search_console", everyDays: 1, afterChangeDays: 1, run: (id) => fetchGscPageQuery(id) },
+  // 0.9 days, not 1: the house cycle runs every 22 hours, so a 24-hour gap here skipped every second cycle and made a "daily" pull run about every 44 hours.
+  { name: "search_console", everyDays: 0.9, afterChangeDays: 0.9, run: (id) => fetchGscPageQuery(id) },
   // Reads the stored Search Console rows (fetched just above) and queues off-site and brief opportunities from them; never writes to a site.
-  { name: "search_opportunities", everyDays: 1, afterChangeDays: 1, run: (id) => discoverSearchOpportunities(id) },
+  { name: "search_opportunities", everyDays: 0.9, afterChangeDays: 0.9, run: (id) => discoverSearchOpportunities(id) },
   { name: "competitor_gap", everyDays: 30, afterChangeDays: 7, run: (id) => runCompetitorGapForBusiness(id, { scanOnly: true }) },
 ];
 

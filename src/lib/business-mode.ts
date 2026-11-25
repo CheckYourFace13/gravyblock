@@ -59,7 +59,7 @@ export async function getOperatingMode(businessId: string): Promise<BusinessMode
   };
 }
 
-export type WebResult = { name: string; website: string; snippet?: string };
+export type WebResult = { name: string; website: string; snippet?: string; /** The specific page the search returned, when it was deeper than the site's front page. */ url?: string };
 
 /**
  * Search competitors for non-local businesses: ask a search-grounded model which sites
@@ -134,7 +134,7 @@ export async function webSearchSites(query: string, max = 6): Promise<WebResult[
     const r = await safeFetchText(u.origin, { timeoutMs: 7000, maxBytes: 5000 });
     if (!r.ok || r.status >= 400) continue;
     seen.add(host);
-    res.push({ name: c.name.slice(0, 80), website: u.origin });
+    res.push({ name: c.name.slice(0, 80), website: u.origin, url: u.href.length > u.origin.length + 1 ? u.href : undefined });
     if (res.length >= max) break;
   }
   return res;

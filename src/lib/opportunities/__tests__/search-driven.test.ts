@@ -82,3 +82,25 @@ test("topic phrases come from non-brand searches in the searcher's words", async
   const turkey = topicPhrases([row("https://d.com/a", "how to brine a turkey", 11, 2343, 1.1)], ["drink", "knird"], "drinkknird");
   assert.deepEqual(turkey, ["brine turkey"]);
 });
+
+test("exclusion reasons are grouped by what they mean for the owner", async () => {
+  const { classifyExclusion } = await import("../search-driven");
+  assert.equal(classifyExclusion("Excluded by ‘noindex’ tag", "BLOCKED_BY_META_TAG"), "noindex_tag");
+  assert.equal(classifyExclusion("Crawled - currently not indexed", "INDEXING_ALLOWED"), "crawled_not_indexed");
+  assert.equal(classifyExclusion("Submitted and indexed", "INDEXING_ALLOWED"), "indexed");
+  assert.equal(classifyExclusion("Blocked by robots.txt", null), "blocked_other");
+  assert.equal(classifyExclusion(null, null), "unknown");
+});
+
+test("the dropped-pages finding breaks the loss down by URL section and counts the clicks those pages earned", () => {
+  const prev: PageRow[] = [
+    ...Array.from({ length: 80 }, (_, i) => row(`https://s.com/places/p${i}`, "q", 1, 20, 6)),
+    ...Array.from({ length: 20 }, (_, i) => row(`https://s.com/drink/d${i}`, "q", 0, 10, 8)),
+  ];
+  const cur: PageRow[] = [row("https://s.com/drink/d1", "q", 0, 5, 9)];
+  const d = detectDroppedPages(cur, prev)!;
+  assert.equal(d.clicksOnLostPages, 80);
+  assert.equal(d.byPathPrefix[0]!.prefix, "/places");
+  assert.equal(d.byPathPrefix[0]!.lost, 80);
+  assert.ok(d.sample.length >= 2 && d.sample.some((s) => s.includes("/drink/")));
+});

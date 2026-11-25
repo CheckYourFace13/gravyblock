@@ -148,17 +148,37 @@ export function toCandidate(businessId: string, s: PageStat, windowStart: string
   };
 }
 
-export type DroppedPages = { priorPages: number; lostPages: number; lostShare: number; impressionsBefore: number; impressionsNow: number; sample: string[] };
+export type DroppedPages = { priorPages: number; lostPages: number; lostShare: number; impressionsBefore: number; impressionsNow: number; clicksOnLostPages: number; byPathPrefix: Array<{ prefix: string; before: number; lost: number }>; sample: string[] };
+
+const prefixOf = (u: string): string => {
+  try {
+    const seg = new URL(u).pathname.split("/").filter(Boolean)[0];
+    return seg ? `/${seg}` : "/";
+  } catch {
+    return "?";
+  }
+};
+
+/** Google's reason a page is not in the index, grouped by what it means for the owner. */
+export function classifyExclusion(coverage: string | null, indexing: string | null): "noindex_tag" | "crawled_not_indexed" | "blocked_other" | "indexed" | "unknown" {
+  const c = (coverage ?? "").toLowerCase();
+  if (indexing === "BLOCKED_BY_META_TAG" || c.includes("noindex")) return "noindex_tag";
+  if (c.includes("crawled") && c.includes("not indexed")) return "crawled_not_indexed";
+  if (c.includes("submitted and indexed") || c.includes("indexed, not submitted") || c === "indexed") return "indexed";
+  if (c.includes("blocked") || c.includes("robots") || c.includes("redirect") || c.includes("404") || c.includes("soft")) return "blocked_other";
+  return "unknown";
+}
 
 /** Most of a site's ranking pages vanished from search between two windows: an indexing or quality problem on the site, not a ranking slide. */
 export function detectDroppedPages(cur: PageRow[], prev: PageRow[]): DroppedPages | null {
   const pages = (rows: PageRow[]) => {
-    const m = new Map<string, { page: string; imps: number }>();
+    const m = new Map<string, { page: string; imps: number; clicks: number }>();
     for (const r of rows) {
       if (/[?#]/.test(r.pageUrl)) continue;
       const k = normPage(r.pageUrl);
-      const e = m.get(k) ?? { page: r.pageUrl, imps: 0 };
+      const e = m.get(k) ?? { page: r.pageUrl, imps: 0, clicks: 0 };
       e.imps += r.impressions;
+      e.clicks += r.clicks;
       m.set(k, e);
     }
     return m;
@@ -171,7 +191,29 @@ export function detectDroppedPages(cur: PageRow[], prev: PageRow[]): DroppedPage
   const now = [...c.values()].reduce((s, x) => s + x.imps, 0);
   const share = lost.length / p.size;
   if (share < 0.6 || now > before * 0.5) return null;
-  return { priorPages: p.size, lostPages: lost.length, lostShare: Number(share.toFixed(2)), impressionsBefore: before, impressionsNow: now, sample: lost.slice(0, 5).map(([, v]) => v.page) };
+  const groups = new Map<string, { before: number; lost: number }>();
+  for (const [k, v] of p) {
+    const g = groups.get(prefixOf(v.page)) ?? { before: 0, lost: 0 };
+    g.before++;
+    if (!c.has(k)) g.lost++;
+    groups.set(prefixOf(v.page), g);
+  }
+  // A varied sample: the biggest losers first, one per URL section, so one template cannot hide another.
+  const seen = new Set<string>();
+  const sample: string[] = [];
+  for (const [, v] of lost) {
+    const g = prefixOf(v.page);
+    if (seen.has(g) && sample.length >= 3) continue;
+    seen.add(g);
+    sample.push(v.page);
+    if (sample.length >= 6) break;
+  }
+  return {
+    priorPages: p.size, lostPages: lost.length, lostShare: Number(share.toFixed(2)), impressionsBefore: before, impressionsNow: now,
+    clicksOnLostPages: lost.reduce((s, [, v]) => s + v.clicks, 0),
+    byPathPrefix: [...groups.entries()].map(([prefix, g]) => ({ prefix, ...g })).sort((a, b) => b.lost - a.lost).slice(0, 6),
+    sample,
+  };
 }
 
 /** Google's own view of a few pages that disappeared (read-only URL Inspection, covered by the existing Search Console grant). */
@@ -180,7 +222,7 @@ async function inspectSample(businessId: string, pages: string[]): Promise<Array
   const token = await getFreshAccessToken(businessId).catch(() => null);
   if (!conn?.searchConsoleProperty || !token) return [];
   const out: Array<{ page: string; coverage: string | null; indexing: string | null }> = [];
-  for (const page of pages.slice(0, 3)) {
+  for (const page of pages.slice(0, 6)) {
     try {
       const res = await fetch("https://searchconsole.googleapis.com/v1/urlInspection/index:inspect", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ inspectionUrl: page, siteUrl: conn.searchConsoleProperty }) });
       const j = (await res.json()) as { inspectionResult?: { indexStatusResult?: { coverageState?: string; indexingState?: string } } };
@@ -263,14 +305,25 @@ export async function discoverSearchOpportunities(businessId: string): Promise<{
 
   const dropped = detectDroppedPages(cur, prev);
   if (dropped) {
-    const key = `search:${businessId}:site:pages_dropped:${prior.start}`;
+    const key = `search:${businessId}:site:pages_dropped:${prior.start}:v2`;
     const [exists] = (await db.execute(sql`select 1 from growth_opportunities where dedupe_key = ${key} limit 1`)) as unknown as Array<unknown>;
     if (!exists) {
+      // the first version of this finding (fewer inspected pages, no breakdown) is superseded, not duplicated
+      await db.execute(sql`update growth_opportunities set status = 'expired' where dedupe_key = ${`search:${businessId}:site:pages_dropped:${prior.start}`} and status = 'open'`);
       const inspected = await inspectSample(businessId, dropped.sample);
+      const verdicts = { noindex_tag: 0, crawled_not_indexed: 0, blocked_other: 0, indexed: 0, unknown: 0 } as Record<string, number>;
+      for (const i of inspected) verdicts[classifyExclusion(i.coverage, i.indexing)]++;
       const r = await recordOpportunity({
         businessId, opportunityType: "technical", subtype: "search_pages_dropped", engine: "search_console",
-        evidence: { ...dropped, inspected, note: "most pages that earned impressions in the earlier window earn none now; Google's own status for sample pages is listed above" },
-        valueClass: "growth", expectedImpact: 85, confidence: 70, cost: 2, risk: 1, requiredCapability: "website_write", autoEligible: false, ttlDays: 60, dedupeKey: key,
+        evidence: {
+          ...dropped, inspected, verdicts,
+          priority: "high",
+          reading: verdicts.noindex_tag > 0
+            ? "These pages EARNED search impressions and clicks before and now carry a noindex tag. Pages that earn traffic are valuable by definition, so confirm the tag is intended; if a template or plugin added it by mistake, removing it is the fix."
+            : "These pages earned impressions before and Google now reports them as crawled but not indexed (a quality or duplication judgement, not a tag). Look for thin or near-duplicate template pages and consider consolidating or improving them.",
+          note: "most pages that earned impressions in the earlier window earn none now; Google's own status for sampled pages is in 'inspected'",
+        },
+        valueClass: "growth", expectedImpact: 95, confidence: 75, cost: 2, risk: 1, requiredCapability: "website_write", autoEligible: false, ttlDays: 60, dedupeKey: key,
       });
       if (r.recorded) recorded++;
     }

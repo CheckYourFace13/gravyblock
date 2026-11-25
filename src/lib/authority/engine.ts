@@ -28,7 +28,7 @@ import { markSearchOpportunityActed, searchTopics } from "@/lib/opportunities/se
 import { getOperatingMode, webSearchSites } from "@/lib/business-mode";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
-import { backlinkOpportunities, businesses, getDb, jobs } from "@/lib/db";
+import { backlinkOpportunities, businessCompetitors, businesses, getDb, jobs } from "@/lib/db";
 import { ensureFreshTruth, promotableContent, type BusinessTruth } from "@/lib/truth";
 import { discoverContactEmail } from "@/lib/outreach/discover-contact-email";
 import { isOptedOut, coldOutreachFooter } from "@/lib/email/optout";
@@ -239,8 +239,8 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
   for (const q of queries) {
     if (found + recentCount >= monthlyCap) break;
     const candidates = useWebSearch
-      ? (await webSearchSites(q, 6)).map((w) => ({ name: w.name, site: w.website, types: [] as string[] }))
-      : (await searchPlaces(q)).map((p) => ({ name: p.displayName?.text, site: p.websiteUri, types: p.types ?? [] }));
+      ? (await webSearchSites(q, 6)).map((w) => ({ name: w.name, site: w.website, types: [] as string[], url: w.url as string | undefined }))
+      : (await searchPlaces(q)).map((p) => ({ name: p.displayName?.text, site: p.websiteUri, types: p.types ?? [], url: undefined as string | undefined }));
     for (const c of candidates) {
       const name = c.name;
       const site = c.site;
@@ -257,6 +257,7 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
         sourceType: cls.sourceType,
         targetUrl: site,
         relevanceNote: `Found via "${q}"`,
+        evidenceUrl: c.url ?? null,
         qualityScore: cls.score,
         status: "prospecting",
       });
@@ -269,7 +270,31 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
 }
 
 /** Reads a real published contact address for prospecting rows; nothing is ever guessed. */
-const STOP = new Set("free small code time work works worked real first last long short high good great better full part parts next need needs want wants home people person customers customer owner owners daily weekly month year years today things thing give gives take takes keep keeps same game games gaming night nights league leagues play played bar bars software platform online competition competitions venue venues management signup signups payment payments tool tools event events player players team teams the and for you your our with that this from are was have has will can not but all any get find best top guide local business businesses services service company website site page pages online more about into over than help helps helping provide provides across around near nearby made makes make one new use used using their they them who what when where which while also just like only some such other each every many most much very".split(" "));
+const STOP = new Set("pricing price prices introductory intro limited start started starting look looking source sources official linked link links report reports ideas idea industry free small code time work works worked real first last long short high good great better full part parts next need needs want wants home people person customers customer owner owners daily weekly month year years today things thing give gives take takes keep keeps same game games gaming night nights league leagues play played bar bars software platform online competition competitions venue venues management signup signups payment payments tool tools event events player players team teams the and for you your our with that this from are was have has will can not but all any get find best top guide local business businesses services service company website site page pages online more about into over than help helps helping provide provides across around near nearby made makes make one new use used using their they them who what when where which while also just like only some such other each every many most much very".split(" "));
+
+/**
+ * Inboxes that are not a place to ask for a link: customer support, billing, technical or legal desks, no-reply addresses. A link request sent there is noise to
+ * the recipient and a deliverability and reputation risk for us. Editorial, press, partnership, marketing, general info/hello addresses and named people are fine.
+ */
+const UNSUITABLE_INBOX = /^(support|help|helpdesk|customer[-_.]?(service|care|support|success)?|care|billing|accounts?|accounting|orders?|sales|noreply|no-reply|donotreply|do-not-reply|privacy|legal|abuse|careers?|jobs|hr|security|webmaster|postmaster|tech|technical\w*|it|service|services|returns|shipping|store|shop|reservations?|feedback|complaints?|unsubscribe|compliance|investor\w*|recruit\w*)$/i;
+export function suitableContact(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const [local, domain] = email.toLowerCase().split("@");
+  if (!local || !domain) return false;
+  return !UNSUITABLE_INBOX.test(local.replace(/\+.*$/, ""));
+}
+
+/** Sites a business competes with directly will not link to it; a request to them is wasted and annoying. */
+async function competitorDomains(db: Db, businessId: string): Promise<Set<string>> {
+  const rows = await db.select({ website: businessCompetitors.website }).from(businessCompetitors).where(eq(businessCompetitors.businessId, businessId));
+  return new Set(rows.map((r) => (r.website ? domainOf(r.website) : null)).filter((d): d is string => Boolean(d)));
+}
+
+/** The words the site is actually found for in search; a prospect's page must mention at least one of them. */
+async function searchTopicWords(businessId: string): Promise<string[]> {
+  const phrases = await searchTopics(businessId).catch(() => [] as string[]);
+  return [...new Set(phrases.flatMap((p) => p.split(" ")).map((w) => w.replace(/(ing|es|s)$/, "")).filter((w) => w.length >= 4))];
+}
 
 /** The business's own topical vocabulary, taken from its verified description/services (never invented). */
 function topicVocabulary(truth: BusinessTruth, category: string | null): string[] {
@@ -296,9 +321,11 @@ async function withSearchVocab(businessId: string, vocab: string[]): Promise<str
  * business's topic (>=2 distinct topic words), or be a community/resource listing that
  * mentions the business's verified city AND at least one topic word.
  */
-function assessRelevance(html: string, vocab: string[], city: string | null, minHits = 2): { relevant: boolean; note: string } {
+export function assessRelevance(html: string, vocab: string[], city: string | null, minHits = 2, must: string[] = []): { relevant: boolean; note: string } {
   const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").toLowerCase();
   const hits = vocab.filter((w) => new RegExp(`\\b${w}`).test(text));
+  // When the site's search topics are known, the prospect's page must mention at least one of them: generic overlap ("food", "recipe") is not relevance.
+  if (must.length && !must.some((w) => new RegExp(`\\b${w}`).test(text))) return { relevant: false, note: `Prospect's page does not mention what this site is found for (${must.slice(0, 4).join(", ")})` };
   const resourceSection = /(resources?|partners?|member (benefits|resources)|community links|useful links|directory)/i.test(text);
   const cityHit = city ? text.includes(city.toLowerCase()) : false;
   if (hits.length >= minHits) return { relevant: true, note: `Prospect's own site covers: ${hits.slice(0, 5).join(", ")}` };
@@ -318,15 +345,22 @@ async function qualifyProspects(db: Db, businessId: string, limit = 8, statuses:
   const [catJob] = await db.select({ payload: jobs.payload }).from(jobs).where(and(eq(jobs.businessId, businessId), eq(jobs.type, "category_derived"))).orderBy(desc(jobs.createdAt)).limit(1);
   const mode = await getOperatingMode(businessId);
   const vocab = await withSearchVocab(businessId, topicVocabulary(truth, (catJob?.payload as { category?: string | null } | null)?.category ?? null));
+  const must = await searchTopicWords(businessId);
+  const competitors = await competitorDomains(db, businessId);
   let qualified = 0;
   for (const r of rows) {
+    if (r.targetUrl && competitors.has(domainOf(r.targetUrl) ?? "")) {
+      await db.update(backlinkOpportunities).set({ status: "not_relevant", relevanceNote: "Known competitor of this business" }).where(eq(backlinkOpportunities.id, r.id));
+      continue;
+    }
     if (!r.targetUrl || !RELEVANT_SOURCE_TYPES.includes(r.sourceType as SourceType)) {
       await db.update(backlinkOpportunities).set({ status: "not_relevant" }).where(eq(backlinkOpportunities.id, r.id));
       continue;
     }
     if (vocab.length >= 3) {
-      const page = await safeFetchText(r.targetUrl, { timeoutMs: 9000 });
-      const rel = page.ok && page.status < 400 ? assessRelevance(page.body, vocab, truth.verifiedCity, mode.mode === "local" || mode.mode === "regional" ? 2 : 4) : { relevant: false, note: "Prospect site could not be read" };
+      // Judge the specific page the search found when there is one (a real article or resource), not just the homepage.
+      const page = await safeFetchText(r.evidenceUrl && isSafePublicUrl(r.evidenceUrl) ? r.evidenceUrl : r.targetUrl, { timeoutMs: 9000 });
+      const rel = page.ok && page.status < 400 ? assessRelevance(page.body, vocab, truth.verifiedCity, mode.mode === "local" || mode.mode === "regional" ? 2 : 4, must) : { relevant: false, note: "Prospect site could not be read" };
       if (!rel.relevant) {
         await db.update(backlinkOpportunities).set({ status: "not_relevant", relevanceNote: rel.note }).where(eq(backlinkOpportunities.id, r.id));
         await logEvent(db, businessId, r.id, "not_relevant", { note: rel.note });
@@ -338,6 +372,11 @@ async function qualifyProspects(db: Db, businessId: string, limit = 8, statuses:
     if (!contact.email) {
       await db.update(backlinkOpportunities).set({ status: "no_contact", contactSource: contact.source }).where(eq(backlinkOpportunities.id, r.id));
       await logEvent(db, businessId, r.id, "no_published_contact", { source: contact.source });
+      continue;
+    }
+    if (!suitableContact(contact.email)) {
+      await db.update(backlinkOpportunities).set({ status: "no_contact", contactSource: `unsuitable_inbox:${contact.email!.split("@")[0]}` }).where(eq(backlinkOpportunities.id, r.id));
+      await logEvent(db, businessId, r.id, "unsuitable_contact_inbox", { inbox: contact.email!.split("@")[0] });
       continue;
     }
     await db
@@ -798,6 +837,16 @@ async function sendInitialOutreach(db: Db, businessId: string, truth: BusinessTr
   for (const c of candidates) {
     if (sent >= allowance) break;
     if (!c.contactEmail || !c.relevanceNote) continue; // only prospects that passed the relevance gate are contacted
+    if (c.targetUrl && (await competitorDomains(db, businessId)).has(domainOf(c.targetUrl) ?? "")) {
+      await db.update(backlinkOpportunities).set({ status: "not_relevant", relevanceNote: "Known competitor of this business" }).where(eq(backlinkOpportunities.id, c.id));
+      continue;
+    }
+    if (!suitableContact(c.contactEmail)) {
+      // qualified before the inbox check existed, or the inbox is not an editorial or general contact
+      await db.update(backlinkOpportunities).set({ status: "no_contact", contactSource: `unsuitable_inbox:${c.contactEmail.split("@")[0]}` }).where(eq(backlinkOpportunities.id, c.id));
+      await logEvent(db, businessId, c.id, "unsuitable_contact_inbox", { inbox: c.contactEmail.split("@")[0] });
+      continue;
+    }
     const blocked = await preflight(c.contactEmail);
     if (blocked) {
       if (blocked === "opted_out") await db.update(backlinkOpportunities).set({ status: "unsubscribed" }).where(eq(backlinkOpportunities.id, c.id));

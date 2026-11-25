@@ -14,6 +14,22 @@ export type HouseBrief = { name: string; website: string | null; total: number; 
 
 const clip = (v: unknown, n = 260) => (typeof v === "string" ? v : JSON.stringify(v ?? "")).replace(/\s+/g, " ").slice(0, n);
 
+type Ev = Record<string, unknown> | null;
+/** Plain-language brief text for the search-driven findings; everything else keeps the raw clipped evidence. */
+export function briefEvidence(subtype: string | null, evidence: unknown): string | null {
+  const e = (evidence ?? null) as Ev;
+  if (!e) return null;
+  if (subtype === "search_pages_dropped") {
+    const v = (e.verdicts ?? {}) as Record<string, number>;
+    const groups = Array.isArray(e.byPathPrefix) ? (e.byPathPrefix as Array<{ prefix: string; before: number; lost: number }>).slice(0, 3).map((g) => `${g.prefix} ${g.lost} of ${g.before}`).join(", ") : "";
+    return `HIGH PRIORITY. ${e.lostPages} of ${e.priorPages} pages that earned Google impressions in the earlier 28 days earn none now (impressions ${e.impressionsBefore} to ${e.impressionsNow}; the lost pages had earned ${e.clicksOnLostPages} clicks). By section: ${groups}. Google says for the pages it checked: noindex tag ${v.noindex_tag ?? 0}, crawled but not indexed ${v.crawled_not_indexed ?? 0}, other block ${v.blocked_other ?? 0}, indexed ${v.indexed ?? 0}. ${e.reading ?? ""}`.replace(/\s+/g, " ").slice(0, 900);
+  }
+  if (subtype === "search_low_ctr") {
+    return `${e.url} ranks at position ${e.position} for "${e.query}" with ${e.impressions} impressions but only ${(Number(e.ctr) * 100).toFixed(1)}% of them click (${e.clicks} clicks). The ranking is already won; the title and description decide the click. ${e.seasonal ? "The demand looks seasonal, so check it before the next peak." : ""}`.replace(/\s+/g, " ").slice(0, 500);
+  }
+  return null;
+}
+
 export async function buildHouseSiteBriefs(maxItems = 10): Promise<HouseBrief[]> {
   const db = getDb();
   if (!db) throw new Error("database unavailable");
@@ -27,7 +43,7 @@ export async function buildHouseSiteBriefs(maxItems = 10): Promise<HouseBrief[]>
   for (const r of rows) {
     const brief = byName.get(r.name) ?? { name: r.name, website: r.website, total: 0, items: [] };
     byName.set(r.name, brief);
-    const ev = clip(r.evidence);
+    const ev = briefEvidence(r.subtype, r.evidence) ?? clip(r.evidence);
     const key = `${r.name}|${r.t}|${r.subtype ?? ""}|${ev.slice(0, 80)}`;
     if (seen.has(key)) continue; // the same finding recorded twice is one item
     seen.add(key);

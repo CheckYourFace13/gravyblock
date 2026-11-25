@@ -14,6 +14,7 @@ const base: PortfolioReport = {
   scanFunnel: { ok: true, value: { views: 10, engaged: 3, interacted: 4, submitted: 3, failed: 1, completed: 2, failures: [{ detail: "Could not save report", n: 1 }] } },
   learning: { ok: true, value: [{ type: "association", contacted: 21, acquired: 0, retired: true }] },
   searchDriven: { ok: true, value: { discovered: 4, open: 3, acted: 1, evaluated: 0, positive: 0, items: [{ site: "Outbreak Threat", page: "https://outbreakthreat.com/norovirus-outbreak-map", band: "near_page_one", status: "acted", baselineClicks: 165, afterClicks: null, measured: null }] } },
+  backlinkFunnel: { ok: true, value: { prospectsFound: 400, passedRelevance: 119, hadSuitableContact: 60, pitched: 43, recipients: 43, delivered: 97, bounced: 2, replies: 0, linksVerified: 0, oldestSendDays: 64, newestSendDays: 1, pitchesLast7d: 2, followUpsLast7d: 1, placements: [] } },
   channels: { ok: true, value: [{ channel: "YouTube videos", actions: "2 tagged campaigns", visits: 18, scans: 0, checkouts: 0, note: "n" }] },
   siteDrafts: { ok: true, value: [{ name: "Mic Stage", total: 7 }] },
   actions: { ok: true, value: [{ type: "backlink", discovered: 5, acted: 1, verified: 0, noGain: 0 }] },
@@ -67,4 +68,23 @@ test("channel verdicts never call a small sample a win or a loss", async () => {
   assert.match(t, /SEARCH-DRIVEN WORK/);
   assert.match(t, /CHANNEL COMPARISON/);
   assert.match(t, /norovirus-outbreak-map baseline clicks 165, after not measured: waiting for the 28-day window/);
+});
+
+test("the report separates actions completed from results and never counts prospects as growth", () => {
+  const t = renderPortfolioReport(base);
+  assert.match(t, /OFF-SITE ACTIONS COMPLETED AND PLACEMENTS/);
+  assert.match(t, /2 first pitches and 1 follow-ups sent/);
+  assert.match(t, /97 delivered, 2 bounced; replies received 0; live links verified 0/);
+  assert.match(t, /no link has been verified yet/);
+  assert.match(t, /accepted placements: none/);
+});
+
+test("the site brief for a search finding is plain language and keeps the reading", async () => {
+  const { briefEvidence } = await import("@/lib/house/site-briefs");
+  const t = briefEvidence("search_pages_dropped", { lostPages: 701, priorPages: 728, impressionsBefore: 2271, impressionsNow: 53, clicksOnLostPages: 86, byPathPrefix: [{ prefix: "/places", before: 700, lost: 690 }], verdicts: { noindex_tag: 3, crawled_not_indexed: 3 }, reading: "Confirm the tag is intended." })!;
+  assert.match(t, /HIGH PRIORITY\. 701 of 728 pages/);
+  assert.match(t, /\/places 690 of 700/);
+  assert.match(t, /noindex tag 3, crawled but not indexed 3/);
+  assert.match(t, /Confirm the tag is intended/);
+  assert.equal(briefEvidence("schema", { a: 1 }), null);
 });
