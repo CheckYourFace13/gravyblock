@@ -73,6 +73,10 @@ const toRec = (r: Raw): RecRecord => ({
   verifiedNotifiedAt: d(r.verified_notified_at),
 });
 
+export async function logRecommendationEvent(recommendationId: string, businessId: string, type: string, o: { from?: string | null; to?: string | null; note?: string; meta?: unknown } = {}) {
+  return logEvent(recommendationId, businessId, type, o);
+}
+
 async function logEvent(recommendationId: string, businessId: string, type: string, o: { from?: string | null; to?: string | null; note?: string; meta?: unknown } = {}) {
   const db = getDb()!;
   await db.execute(sql`insert into search_recommendation_events (recommendation_id, business_id, type, from_status, to_status, note, meta)
@@ -101,7 +105,8 @@ export async function syncRecommendations(businessId: string, candidates: Improv
   for (const imp of candidates) {
     const fp = fingerprintOf(businessId, imp.kind, imp.issue, imp.identityUrls);
     const [ex] = rowsOf<Raw>(await db.execute(sql`select * from search_recommendations where business_id = ${businessId} and fingerprint = ${fp} limit 1`));
-    const json = JSON.stringify({ ...imp, ref: shortRef(fp) });
+    const keepRefs = imp.competitorUrls.length === 0 && ex ? ((ex.improvement as Improvement | null)?.competitorUrls ?? []) : imp.competitorUrls;
+    const json = JSON.stringify({ ...imp, competitorUrls: keepRefs, ref: shortRef(fp) });
     const decision = onSeen(ex ? { status: ex.status as Status, verifiedAt: d(ex.verified_at), occurrence: Number(ex.occurrence) } : null, now);
     if (decision.action === "create") {
       const baseline = await captureSnapshots(imp.urls, now);
@@ -117,7 +122,7 @@ export async function syncRecommendations(businessId: string, candidates: Improv
     const id = ex!.id as string;
     if (decision.action === "reopen") {
       const baseline = await captureSnapshots(imp.urls, now);
-      await db.execute(sql`update search_recommendations set status = 'new', occurrence = ${decision.occurrence}, reopened_at = now(), first_emailed_at = null, opened_at = null, in_progress_at = null, completed_at = null, verified_at = null, verified_notified_at = null,
+      await db.execute(sql`update search_recommendations set status = 'new', occurrence = ${decision.occurrence}, reopened_at = now(), copied_at = null, copy_count = 0, first_emailed_at = null, opened_at = null, in_progress_at = null, completed_at = null, verified_at = null, verified_notified_at = null,
         verification = null, outcome = null, baseline = ${JSON.stringify(baseline)}::jsonb, improvement = ${json}::jsonb, title = ${imp.title}, priority = ${imp.priority}, last_seen_at = now(), last_report_week = ${week} where id = ${id}`);
       await logEvent(id, businessId, "reopened", { from: "verified", to: "new", note: `came back after being verified (occurrence ${decision.occurrence})`, meta: { week } });
       out.reopened++;

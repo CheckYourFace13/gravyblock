@@ -9,13 +9,14 @@ import { gatherSearchIntel, weekEndingFor } from "./gather";
 import { buildPrompt, candidateImprovements, deriveImprovements } from "./prompt";
 import { collectEmailItems, loadQueue, markEmailed, measureOutcomes, syncRecommendations, unresolvedImprovements, verifyCompleted, type EmailItem } from "./recommendations";
 import { BUCKET_LABEL, type EmailBucket } from "./recommendation-model";
+import { enqueueGrokbot, grokbotSummary } from "./grokbot";
 import type { Improvement, SiteIntel } from "./types";
 
 type Rows<T> = T[];
 const rowsOf = <T>(r: unknown) => r as unknown as Rows<T>;
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gravyblock.com";
-export const reportLink = (businessId: string) => `${SITE_URL}/admin/house/search-reports/${businessId}`;
+import { reportLink } from "./index-links";
+export { SITE_URL, reportLink } from "./index-links";
 
 export async function generateSearchIntelForSite(businessId: string, now = new Date()): Promise<{ ok: boolean; reason?: string; weekEnding?: string; improvements?: number; sync?: Awaited<ReturnType<typeof syncRecommendations>> }> {
   const db = getDb();
@@ -24,6 +25,7 @@ export async function generateSearchIntelForSite(businessId: string, now = new D
   if (!intel) return { ok: false, reason: "not_eligible_or_missing" };
   // Recommendations are persistent: this updates existing ones, creates only genuinely new ones, and the prompt is built from UNRESOLVED stored work.
   const sync = await syncRecommendations(businessId, candidateImprovements(intel), intel.weekEnding, now);
+  await enqueueGrokbot(businessId, now).catch(() => null); // queue (never send here) new or reopened occurrences found after activation
   const improvements = unresolvedImprovements(await loadQueue(businessId), now);
   const prompt = buildPrompt(intel, improvements);
   await db.execute(sql`insert into search_intel_reports (business_id, week_ending, data, prompt) values (${businessId}, ${intel.weekEnding}, ${JSON.stringify(intel)}::jsonb, ${prompt})
@@ -39,6 +41,7 @@ export async function runDailySearchIntel(businessId: string, now = new Date()):
   const intel = await gatherSearchIntel(businessId, now, { competitors: false });
   if (!intel) return { ok: false, reason: "not_eligible_or_missing" };
   const sync = await syncRecommendations(businessId, candidateImprovements(intel), intel.weekEnding, now);
+  await enqueueGrokbot(businessId, now).catch(() => null);
   const v = await verifyCompleted(businessId, now);
   const m = await measureOutcomes(businessId, now);
   return { ok: true, sync, verified: v.verified, measured: m.measured };
@@ -196,7 +199,9 @@ export async function buildSearchSection(now = new Date()): Promise<{ text: stri
   const week = weekEndingFor(now);
   const houses = (await listHouseAccounts()).map((h) => h.name);
   const reports = await loadReports(week);
-  return renderSearchSection(summarizePortfolio(reports, houses, week), await collectEmailItems(now));
+  const section = renderSearchSection(summarizePortfolio(reports, houses, week), await collectEmailItems(now));
+  const g = await grokbotSummary(now).catch(() => ({ text: "", html: "" }));
+  return { ...section, text: g.text ? `${section.text}\n${g.text}` : section.text, html: `${section.html}${g.html}` };
 }
 
 export { markEmailed };

@@ -1024,6 +1024,32 @@ export const searchRecommendations = pgTable("search_recommendations", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [uniqueIndex("search_recommendations_identity_idx").on(t.businessId, t.fingerprint), index("search_recommendations_status_idx").on(t.businessId, t.status)]);
 
+/**
+ * One row per recommendation occurrence emailed (or queued to be emailed) to the GrokBot automation. The unique idempotency key (recommendation id + occurrence number)
+ * is what makes a send happen at most once per occurrence, however many times a report regenerates or a failed send is retried. Being sent here never changes the
+ * recommendation's workflow status.
+ */
+export const grokbotDeliveries = pgTable("grokbot_deliveries", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  /** null only for the controlled TEST email */
+  recommendationId: uuid("recommendation_id").references(() => searchRecommendations.id, { onDelete: "cascade" }),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }),
+  occurrence: integer("occurrence").notNull().default(1),
+  idempotencyKey: text("idempotency_key").notNull(),
+  /** new | reopened | test */
+  kind: text("kind").notNull(),
+  /** pending | sending | sent | failed | suppressed */
+  status: text("status").notNull().default("pending"),
+  subject: text("subject"),
+  attempts: integer("attempts").notNull().default(0),
+  lastError: text("last_error"),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow().notNull(),
+  resendEmailId: text("resend_email_id"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [uniqueIndex("grokbot_deliveries_key_idx").on(t.idempotencyKey), index("grokbot_deliveries_status_idx").on(t.status, t.nextAttemptAt)]);
+
 /** Append-only history of everything that happened to a recommendation. */
 export const searchRecommendationEvents = pgTable("search_recommendation_events", {
   id: uuid("id").defaultRandom().primaryKey(),

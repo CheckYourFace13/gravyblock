@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { loadLatestReport } from "@/lib/search-intel";
 import { buildPrompt } from "@/lib/search-intel/prompt";
 import { loadEvents, loadQueue, unresolvedImprovements, type RecRecord } from "@/lib/search-intel/recommendations";
+import { loadDeliveries } from "@/lib/search-intel/grokbot";
 import { STATUS_LABEL } from "@/lib/search-intel/recommendation-model";
 import type { Move } from "@/lib/search-intel/analysis";
 import { CopyPrompt, OpenedBeacon, StatusButtons, VerifyNowButton } from "../copy-prompt";
@@ -11,13 +12,15 @@ import { CopyPrompt, OpenedBeacon, StatusButtons, VerifyNowButton } from "../cop
 const BADGE: Record<string, string> = { new: "bg-sky-100 text-sky-800", opened: "bg-indigo-100 text-indigo-800", in_progress: "bg-amber-100 text-amber-800", completed: "bg-violet-100 text-violet-800", verified: "bg-emerald-100 text-emerald-800", dismissed: "bg-zinc-200 text-zinc-600" };
 const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 
-function RecCard({ rec, events, businessId }: { rec: RecRecord; events: Array<{ at: string; type: string; from: string | null; to: string | null; note: string | null }>; businessId: string }) {
+type Sent = { status: string; sentAt: string | null; occurrence: number; error: string | null };
+function RecCard({ rec, events, businessId, sent }: { rec: RecRecord; sent?: Sent; events: Array<{ at: string; type: string; from: string | null; to: string | null; note: string | null }>; businessId: string }) {
   const imp = rec.improvement;
   return (
     <div className="space-y-1.5 rounded-lg border border-zinc-200 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${BADGE[rec.status]}`}>{STATUS_LABEL[rec.status]}</span>
         {rec.copiedAt ? <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-700">Handed off {day(rec.copiedAt)}{rec.copyCount > 1 ? ` (x${rec.copyCount})` : ""}</span> : null}
+        {sent ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${sent.status === "sent" ? "bg-teal-100 text-teal-800" : sent.status === "failed" ? "bg-red-100 text-red-800" : "bg-zinc-100 text-zinc-700"}`}>{sent.status === "sent" ? `Sent to GrokBot ${sent.sentAt?.slice(0, 10)} (occurrence ${sent.occurrence})` : sent.status === "failed" ? `GrokBot email failed, retrying: ${sent.error ?? ""}` : `GrokBot email ${sent.status}`}</span> : null}
         {rec.occurrence > 1 ? <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-800">Reopened, occurrence {rec.occurrence}</span> : null}
         <span className="font-mono text-xs text-zinc-500">{rec.ref}</span>
         <span className="text-xs text-zinc-500">first reported {day(rec.firstSeenAt)}{rec.openedAt ? `, opened ${day(rec.openedAt)}` : ""}{rec.inProgressAt && rec.status === "in_progress" ? `, started ${day(rec.inProgressAt)}` : ""}{rec.completedAt ? `, completed ${day(rec.completedAt)}` : ""}{rec.verifiedAt ? `, verified ${day(rec.verifiedAt)}` : ""}</span>
@@ -71,6 +74,7 @@ export default async function SiteSearchReport({ params }: { params: Promise<{ i
   const now = new Date();
   const queue = await loadQueue(id);
   const events = await loadEvents(queue.map((q) => q.id));
+  const deliveries = await loadDeliveries(id);
   // The prompt covers UNRESOLVED work only (new, opened, in progress), so completed, verified and dismissed items never come back in it.
   const unresolved = unresolvedImprovements(queue, now);
   const prompt = buildPrompt(d, unresolved);
@@ -102,12 +106,12 @@ export default async function SiteSearchReport({ params }: { params: Promise<{ i
         </div>
         <p className="text-xs text-zinc-600">Statuses persist across weekly reports. Opening this page marks new items Opened (a view, not work started). Copying the prompt marks items Handed off without changing their status. Verified means a read-only check of the live page confirmed the fix is deployed; any search result is measured separately and never assumed.</p>
         <h3 className="text-xs font-semibold uppercase text-zinc-500">To do ({group("new", "opened", "in_progress").length})</h3>
-        {group("new", "opened", "in_progress").length ? group("new", "opened", "in_progress").map((q) => <RecCard key={q.id} rec={q} events={events.get(q.id) ?? []} businessId={id} />) : <p className="text-zinc-500">Nothing unresolved.</p>}
+        {group("new", "opened", "in_progress").length ? group("new", "opened", "in_progress").map((q) => <RecCard key={q.id} rec={q} events={events.get(q.id) ?? []} businessId={id} sent={deliveries.get(q.id)} />) : <p className="text-zinc-500">Nothing unresolved.</p>}
         <h3 className="text-xs font-semibold uppercase text-zinc-500">Completed, awaiting verification ({group("completed").length})</h3>
-        {group("completed").map((q) => <RecCard key={q.id} rec={q} events={events.get(q.id) ?? []} businessId={id} />)}
+        {group("completed").map((q) => <RecCard key={q.id} rec={q} events={events.get(q.id) ?? []} businessId={id} sent={deliveries.get(q.id)} />)}
         <h3 className="text-xs font-semibold uppercase text-zinc-500">Verified ({group("verified").length})</h3>
-        {group("verified").map((q) => <RecCard key={q.id} rec={q} events={events.get(q.id) ?? []} businessId={id} />)}
-        <details><summary className="cursor-pointer text-xs font-semibold uppercase text-zinc-500">Dismissed ({group("dismissed").length})</summary><div className="mt-2 space-y-2">{group("dismissed").map((q) => <RecCard key={q.id} rec={q} events={events.get(q.id) ?? []} businessId={id} />)}</div></details>
+        {group("verified").map((q) => <RecCard key={q.id} rec={q} events={events.get(q.id) ?? []} businessId={id} sent={deliveries.get(q.id)} />)}
+        <details><summary className="cursor-pointer text-xs font-semibold uppercase text-zinc-500">Dismissed ({group("dismissed").length})</summary><div className="mt-2 space-y-2">{group("dismissed").map((q) => <RecCard key={q.id} rec={q} events={events.get(q.id) ?? []} businessId={id} sent={deliveries.get(q.id)} />)}</div></details>
       </section>
 
       <section className="space-y-1 rounded-xl border border-zinc-200 bg-white p-4">

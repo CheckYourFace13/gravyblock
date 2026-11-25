@@ -24,6 +24,7 @@ import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
 import { sendWeeklyHouseReport } from "@/lib/email/weekly-house-report";
 import { generateMissingSearchIntel, runDailySearchIntel } from "@/lib/search-intel";
 import { listHouseAccounts } from "@/lib/house";
+import { processGrokbotQueue } from "@/lib/search-intel/grokbot";
 import { backfillScanClassification, markInternalBusinesses } from "@/lib/reporting/classification";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
 import { runLeadDripBatch } from "@/lib/email/lead-drip";
@@ -228,6 +229,16 @@ async function maybeSendDailyReport() {
     }
   } catch (error) {
     console.error("[worker] daily report failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+/** Sends queued GrokBot recommendation emails (daily cap, retry backoff and idempotency live in processGrokbotQueue). A no-op until the owner activates it. */
+async function maybeProcessGrokbotQueue() {
+  try {
+    const r = await processGrokbotQueue();
+    if (r.sent || r.failed || r.suppressed) console.info("[worker] grokbot recommendation emails", r);
+  } catch (error) {
+    console.error("[worker] grokbot queue failed", { error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -625,6 +636,7 @@ async function tick() {
   await maybeClassifyReporting();
   await maybeSendDailyReport();
   await maybeRunDailySearchIntel();
+  await maybeProcessGrokbotQueue();
   await maybeGenerateSearchIntel();
   await maybeSendWeeklyHouseReport();
   await maybeSendMonthlyDigest();
