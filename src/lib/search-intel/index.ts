@@ -33,7 +33,8 @@ export async function generateMissingSearchIntel(now = new Date(), maxSites = 2)
   if (!db) return { generated: [], remaining: 0 };
   const week = weekEndingFor(now);
   const houses = await listHouseAccounts();
-  const have = new Set(rowsOf<{ business_id: string }>(await db.execute(sql`select business_id from search_intel_reports where week_ending = ${week}`)).map((r) => r.business_id));
+  // A report built earlier in the week is refreshed once it is over 18 hours old, so the Friday email always carries data from the day before it goes out.
+  const have = new Set(rowsOf<{ business_id: string }>(await db.execute(sql`select business_id from search_intel_reports where week_ending = ${week} and created_at > now() - interval '18 hours'`)).map((r) => r.business_id));
   const todo = houses.filter((h) => !have.has(h.id));
   const generated: string[] = [];
   for (const h of todo.slice(0, maxSites)) {
