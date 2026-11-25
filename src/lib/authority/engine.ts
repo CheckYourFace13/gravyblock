@@ -24,7 +24,7 @@ import { fullAccessWhere } from "@/lib/entitlement";
 import { recordProof } from "@/lib/proof/ledger";
 import { recordOpportunity, markActed, recordMeasurementByDedupeKey, getMeasurementPlanByDedupeKey } from "@/lib/opportunities/queue";
 import { buildMeasurementPlan } from "@/lib/opportunities/measurement";
-import { markSearchOpportunityActed } from "@/lib/opportunities/search-driven";
+import { markSearchOpportunityActed, searchTopics } from "@/lib/opportunities/search-driven";
 import { getOperatingMode, webSearchSites } from "@/lib/business-mode";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
@@ -191,7 +191,13 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
     .select({ n: sql<number>`count(*)::int` })
     .from(backlinkOpportunities)
     .where(and(eq(backlinkOpportunities.businessId, businessId), gte(backlinkOpportunities.createdAt, monthAgo)));
-  if (recentCount >= MAX_PROSPECTS_PER_BUSINESS_PER_MONTH) return { found: 0, reason: "monthly_prospect_cap_reached" };
+  // Prospects that were discarded as irrelevant or unreachable should not use up the month's discovery allowance (a wrongly aimed search used to lock a site out for 30 days).
+  const [{ n: wasted }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(backlinkOpportunities)
+    .where(and(eq(backlinkOpportunities.businessId, businessId), gte(backlinkOpportunities.createdAt, monthAgo), inArray(backlinkOpportunities.status, ["not_relevant", "no_contact"])));
+  const monthlyCap = MAX_PROSPECTS_PER_BUSINESS_PER_MONTH + Math.min(Number(wasted), 24);
+  if (recentCount >= monthlyCap) return { found: 0, reason: "monthly_prospect_cap_reached" };
 
   const truth = await ensureFreshTruth(businessId);
   if (!truth.sufficient) return { found: 0, reason: `insufficient_truth:${truth.insufficientReason}` };
@@ -201,6 +207,8 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
   const bm = await getOperatingMode(businessId);
   const city = bm.mode === "local" ? bm.city : null;
   const topic = bm.category ?? truth.services[0] ?? null;
+  // What the site is actually found for (Search Console), when it has any. This replaces a stored category label that can be a placeholder.
+  const searchPhrases = await searchTopics(businessId).catch(() => [] as string[]);
 
   // Queries follow the operating mode. Place-bound queries only with a verified place — never a guessed one.
   const queries: string[] = [];
@@ -210,6 +218,9 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
   } else if (bm.mode === "regional" && bm.placeLabel) {
     queries.push(`${bm.placeLabel} business association`, `${bm.placeLabel} news`);
     if (topic) queries.push(`${topic} association ${bm.placeLabel}`, `${topic} blog ${bm.placeLabel}`);
+  } else if (searchPhrases.length) {
+    // National / online with search data: the places that cover what searchers already find this site for.
+    for (const p of searchPhrases) queries.push(`${p} resources`, `${p} news`, `${p} blog`);
   } else if (topic) {
     // National / online: industry associations, resource directories and topical publications.
     queries.push(`${topic} association`, `${topic} industry council`, `${topic} resources directory`, `${topic} magazine`, `${topic} blog guide`);
@@ -226,7 +237,7 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
   const useWebSearch = bm.mode === "national" || bm.mode === "online";
   let found = 0;
   for (const q of queries) {
-    if (found + recentCount >= MAX_PROSPECTS_PER_BUSINESS_PER_MONTH) break;
+    if (found + recentCount >= monthlyCap) break;
     const candidates = useWebSearch
       ? (await webSearchSites(q, 6)).map((w) => ({ name: w.name, site: w.website, types: [] as string[] }))
       : (await searchPlaces(q)).map((p) => ({ name: p.displayName?.text, site: p.websiteUri, types: p.types ?? [] }));
@@ -250,10 +261,10 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
         status: "prospecting",
       });
       found++;
-      if (found + recentCount >= MAX_PROSPECTS_PER_BUSINESS_PER_MONTH) break;
+      if (found + recentCount >= monthlyCap) break;
     }
   }
-  await db.insert(jobs).values({ businessId, type: "authority_discovery", status: "completed", payload: { found, queries, city, topic } });
+  await db.insert(jobs).values({ businessId, type: "authority_discovery", status: "completed", payload: { found, queries, city, topic, searchPhrases } });
   return { found, reason: found ? "ok" : "no_relevant_prospects_found" };
 }
 
@@ -271,6 +282,13 @@ function topicVocabulary(truth: BusinessTruth, category: string | null): string[
     counts.set(stem, (counts.get(stem) ?? 0) + 1);
   }
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 14).map(([w]) => w);
+}
+
+/** Adds the words the site is actually found for in search to its topical vocabulary, so a genuine publication on that topic passes the relevance gate. */
+async function withSearchVocab(businessId: string, vocab: string[]): Promise<string[]> {
+  const phrases = await searchTopics(businessId).catch(() => [] as string[]);
+  const extra = phrases.flatMap((p) => p.split(" ")).map((w) => w.replace(/(ing|es|s)$/, "")).filter((w) => w.length >= 3);
+  return [...new Set([...vocab, ...extra])];
 }
 
 /**
@@ -299,7 +317,7 @@ async function qualifyProspects(db: Db, businessId: string, limit = 8, statuses:
   const truth = await ensureFreshTruth(businessId);
   const [catJob] = await db.select({ payload: jobs.payload }).from(jobs).where(and(eq(jobs.businessId, businessId), eq(jobs.type, "category_derived"))).orderBy(desc(jobs.createdAt)).limit(1);
   const mode = await getOperatingMode(businessId);
-  const vocab = topicVocabulary(truth, (catJob?.payload as { category?: string | null } | null)?.category ?? null);
+  const vocab = await withSearchVocab(businessId, topicVocabulary(truth, (catJob?.payload as { category?: string | null } | null)?.category ?? null));
   let qualified = 0;
   for (const r of rows) {
     if (!r.targetUrl || !RELEVANT_SOURCE_TYPES.includes(r.sourceType as SourceType)) {
@@ -473,7 +491,7 @@ export async function discoverBrokenLinkOpportunities(businessId: string, limit 
   if (!asset) return { found: 0, reason: "no_linkable_asset_in_verified_facts" };
 
   const [catJob] = await db.select({ payload: jobs.payload }).from(jobs).where(and(eq(jobs.businessId, businessId), eq(jobs.type, "category_derived"))).orderBy(desc(jobs.createdAt)).limit(1);
-  const vocab = topicVocabulary(truth, (catJob?.payload as { category?: string | null } | null)?.category ?? null);
+  const vocab = await withSearchVocab(businessId, topicVocabulary(truth, (catJob?.payload as { category?: string | null } | null)?.category ?? null));
   if (vocab.length < 3) return { found: 0, reason: "insufficient_topic_vocabulary" };
 
   // Known-relevant resource pages this business has already been matched against (any status — this is a read, not outreach).

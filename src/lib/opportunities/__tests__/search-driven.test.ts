@@ -62,3 +62,23 @@ test("most ranking pages vanishing between windows is detected as an indexing pr
   assert.equal(detectDroppedPages(prev, prev), null);
   assert.equal(detectDroppedPages(cur, prev.slice(0, 10)), null);
 });
+
+test("topic phrases come from non-brand searches in the searcher's words", async () => {
+  const { topicPhrases } = await import("../search-driven");
+  const rows: PageRow[] = [
+    row("https://o.com/a", "outbreak threat map", 3, 900, 5),
+    row("https://o.com/a", "current stomach virus outbreak map 2026", 69, 5924, 6.3),
+    row("https://o.com/a", "norovirus outbreak map 2026", 42, 1574, 5.6),
+    row("https://o.com/a", "current norovirus outbreak map", 13, 308, 6.8),
+    row("https://o.com/b", "sysco recall 2026", 1, 150, 5.8),
+    row("https://o.com/c", "rare thing", 0, 5, 20),
+  ];
+  // "outbreak threat map" is the brand and is skipped; "outbreak map" queries are the topic even though "outbreak" is part of the brand name
+  const p2 = topicPhrases(rows, ["outbreak", "threat"], "outbreakthreat");
+  assert.ok(!p2.some((x) => /threat/.test(x)));
+  assert.equal(p2[0], "stomach virus outbreak map");
+  assert.ok(p2.includes("norovirus outbreak map") || p2.includes("sysco recall"));
+  assert.ok(!p2.some((x) => /\b2026\b/.test(x)));
+  const turkey = topicPhrases([row("https://d.com/a", "how to brine a turkey", 11, 2343, 1.1)], ["drink", "knird"], "drinkknird");
+  assert.deepEqual(turkey, ["brine turkey"]);
+});

@@ -192,6 +192,46 @@ async function inspectSample(businessId: string, pages: string[]): Promise<Array
   return out;
 }
 
+const PHRASE_DROP = new Set("how what why when where which who is are was can does do the a an of to for in on at and or with from your you my our me near best top current latest new free online recipe recipes guide tips ideas".split(" "));
+
+/**
+ * What the site is actually found for, in the searcher's own words: its top non-brand queries by impressions, reduced to the topic words
+ * ("how to brine a turkey" becomes "brine turkey"). Used to aim off-site prospecting at the right audience instead of a stored category label.
+ */
+export function topicPhrases(rows: PageRow[], nameWords: string[], domainLabel = "", max = 3): string[] {
+  const name = nameWords.map((w) => w.toLowerCase()).filter((w) => w.length >= 3);
+  const label = domainLabel.toLowerCase();
+  const byQuery = new Map<string, number>();
+  for (const r of rows) byQuery.set(r.query.toLowerCase(), (byQuery.get(r.query.toLowerCase()) ?? 0) + r.impressions);
+  const out: Array<{ phrase: string; words: Set<string> }> = [];
+  for (const [q, imps] of [...byQuery.entries()].sort((a, b) => b[1] - a[1])) {
+    if (imps < 20 || out.length >= max) break;
+    const tokens = q.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+    // A branded or navigational query says nothing about the topic. Branded means the whole brand name or the domain label, never one shared word
+    // (a site called "Outbreak Threat" is still found for "norovirus outbreak map").
+    const branded = (label.length >= 4 && (tokens.includes(label) || q.replace(/\s+/g, "").includes(label))) || (name.length > 0 && name.every((w) => tokens.includes(w)));
+    if (branded) continue;
+    const kept = tokens.filter((t) => !PHRASE_DROP.has(t) && !/^\d+$/.test(t) && t.length >= 3);
+    if (kept.length < 1 || kept.length > 4) continue;
+    const words = new Set(kept.map((w) => w.replace(/(ing|es|s)$/, "")));
+    if (out.some((o) => [...words].filter((w) => o.words.has(w)).length / words.size >= 0.5)) continue; // same topic as one already chosen
+    out.push({ phrase: kept.join(" "), words });
+  }
+  return out.map((o) => o.phrase);
+}
+
+export async function searchTopics(businessId: string): Promise<string[]> {
+  const db = getDb();
+  if (!db) return [];
+  const { current } = gscWindows();
+  const rows = await db.select().from(pagePerformance).where(and(eq(pagePerformance.businessId, businessId), eq(pagePerformance.periodStart, current.start)));
+  if (!rows.length) return [];
+  const [b] = (await db.execute(sql`select name, website from businesses where id = ${businessId}::uuid`)) as unknown as Array<{ name: string; website: string | null }>;
+  const domainLabel = (b?.website ?? "").replace(/^https?:\/\//, "").replace(/^www\./, "").split(".")[0] ?? "";
+  const nameWords = (b?.name ?? "").toLowerCase().split(/[^a-z0-9]+/);
+  return topicPhrases(rows.map((r) => ({ pageUrl: r.pageUrl, query: r.query, clicks: r.clicks, impressions: r.impressions, position: r.position })), nameWords, domainLabel);
+}
+
 const MAX_PER_SITE = 5;
 const REACT_COOLDOWN_DAYS = 45;
 

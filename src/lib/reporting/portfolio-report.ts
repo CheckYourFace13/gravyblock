@@ -137,7 +137,7 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
   const backlinks = await measure("portfolio.backlinks", async () => {
     const r = rowsOf<{ acquired: number; inout: number }>(await db.execute(sql`
       select count(*) filter (where o.status = 'acquired')::int acquired,
-             count(*) filter (where o.status in ('contacted', 'followed_up', 'qualified', 'outreach_queued'))::int inout
+             count(*) filter (where o.status in ('contacted', 'followed_up'))::int inout
       from backlink_opportunities o join businesses b on b.id = o.business_id where b.account_type = 'house'`));
     const w = rowsOf<{ n: number }>(await db.execute(sql`
       select count(*)::int n from proof_ledger p join businesses b on b.id = p.business_id
