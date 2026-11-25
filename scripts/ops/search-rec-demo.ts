@@ -1,3 +1,4 @@
+// (redeploy marker: the first build of this change was killed by memory pressure on the shared server)
 // Proves, on the real database and the real live pages (read only), how recommendation history behaves: opening, copying, status changes, weekly regeneration, verification,
 // reappearance after verification, and the Friday-email buckets. It works on a throwaway house-type record (no website, so no engine touches it) that is deleted at the end,
 // so no real recommendation or history is changed.
