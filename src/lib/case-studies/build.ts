@@ -91,8 +91,9 @@ export async function buildGrowthStory(slug: string, now = new Date()): Promise<
     select evidence from growth_opportunities where business_id = ${id} and subtype = 'search_pages_dropped' order by created_at desc limit 1`));
   const dropped = dr?.evidence?.lostPages ? { lost: Number(dr.evidence.lostPages), before: Number(dr.evidence.priorPages ?? 0), impressionsBefore: Number(dr.evidence.impressionsBefore ?? 0), impressionsNow: Number(dr.evidence.impressionsNow ?? 0) } : null;
 
+  const lastCheck = rechecks.length ? { at: new Date(rechecks[rechecks.length - 1]!.created_at).toISOString(), verdicts: rechecks[rechecks.length - 1]!.payload?.verdicts ?? {} } : null;
   const attribution = judgeAttribution({ placements, measure: null });
-  const claims = draftClaims({ startDay, baseline, latest, emailsSent: Number(exec?.emails ?? 0), organisations: Number(exec?.orgs ?? 0), videos: vids.length, linksVerified: placements.length, attribution, droppedPages: dropped });
+  const claims = draftClaims({ startDay, baseline, latest, emailsSent: Number(exec?.emails ?? 0), organisations: Number(exec?.orgs ?? 0), videos: vids.length, linksVerified: placements.length, attribution, droppedPages: dropped, indexCheck: lastCheck ? { at: lastCheck.at, checked: Object.values(lastCheck.verdicts).reduce((a, b) => a + b, 0), indexed: lastCheck.verdicts.indexed ?? 0 } : null });
 
   return {
     slug,

@@ -97,6 +97,8 @@ export type ClaimInput = {
   linksVerified: number;
   attribution: Attribution;
   droppedPages?: { lost: number; before: number; impressionsBefore: number; impressionsNow: number } | null;
+  /** latest weekly Google URL Inspection recheck of previously ranking pages */
+  indexCheck?: { at: string; checked: number; indexed: number } | null;
 };
 
 /** Draft claims written from verified numbers only. Wording is fixed here, so an owner approves sentences, and only the numbers inside them can refresh. */
@@ -115,7 +117,7 @@ export function draftClaims(i: ClaimInput): Claim[] {
     c.push({
       key: "clicks",
       stage: "MEASURED",
-      template: "Google search clicks in the 30 days to {latestEnd}: {latest}, compared with {before} in the 30 days before GravyBlock started ({change}). Source: Google Search Console.",
+      template: "Google search clicks in the 30 days to {latestEnd}: {latest}, compared with {before} in the 30 days before GravyBlock started ({change}). Search demand for many subjects is seasonal and these windows are not adjusted for it. Source: Google Search Console.",
       values: { latestEnd: longDay(i.latest.end), latest: fmt(i.latest.clicks), before: fmt(i.baseline.clicks), change: pct(i.latest.clicks, i.baseline.clicks) },
     });
     c.push({
@@ -131,6 +133,14 @@ export function draftClaims(i: ClaimInput): Claim[] {
       stage: "MEASURED",
       template: "In the latest Search Console comparison, {lost} of {before} pages that earned Google impressions earlier earned none (impressions {impBefore} to {impNow}). The site's own developer has the findings; recovery is being tracked.",
       values: { lost: fmt(i.droppedPages.lost), before: fmt(i.droppedPages.before), impBefore: fmt(i.droppedPages.impressionsBefore), impNow: fmt(i.droppedPages.impressionsNow) },
+    });
+  }
+  if (i.indexCheck) {
+    c.push({
+      key: "indexcheck",
+      stage: "MEASURED",
+      template: "On {date}, Google's URL Inspection reported {indexed} of {checked} sampled pages that used to earn impressions as currently indexed.",
+      values: { date: longDay(i.indexCheck.at.slice(0, 10)), indexed: fmt(i.indexCheck.indexed), checked: fmt(i.indexCheck.checked) },
     });
   }
   c.push({

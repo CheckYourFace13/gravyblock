@@ -9,6 +9,9 @@ import { caseStudyApprovals, getDb } from "../../src/lib/db";
 import { buildGrowthStory, PILOT_SLUGS } from "../../src/lib/case-studies/build";
 import { renderClaim } from "../../src/lib/case-studies/model";
 import { syncSearchHistory, recheckDroppedPages } from "../../src/lib/seo/search-history";
+import { discoverEmbedBriefs } from "../../src/lib/opportunities/embed-briefs";
+import { searchTopics } from "../../src/lib/opportunities/search-driven";
+import { sql } from "drizzle-orm";
 
 async function main() {
   const [cmd, slugArg, publicName, disclosure, approver] = process.argv.slice(2);
@@ -21,6 +24,12 @@ async function main() {
       if (!story) continue;
       console.log(s, "history", JSON.stringify(await syncSearchHistory(story.businessId)));
       if (s === "the-drink-place") console.log(s, "index recheck", JSON.stringify(await recheckDroppedPages(story.businessId)));
+      console.log(s, "embed briefs", JSON.stringify(await discoverEmbedBriefs(story.businessId)));
+      console.log(s, "search topics", JSON.stringify(await searchTopics(story.businessId)));
+      const top = (await db.execute(sql`select query, sum(clicks)::int c, sum(impressions)::int i, round(avg(position)::numeric,1) p from page_performance where business_id = ${story.businessId} and period_start = (select max(period_start) from page_performance where business_id = ${story.businessId}) group by 1 order by 3 desc limit 8`)) as unknown as Array<{ query: string; c: number; i: number; p: string }>;
+      console.log(s, "top queries (latest 28d):", top.map((t) => `${t.query} [${t.c}c ${t.i}i pos ${t.p}]`).join(" | "));
+      const pend = (await db.execute(sql`select source_name, source_type, status, contact_email from backlink_opportunities where business_id = ${story.businessId} and status in ('qualified', 'outreach_queued') and contact_email is not null order by created_at desc limit 8`)) as unknown as Array<Record<string, string>>;
+      for (const p of pend) console.log("  pending prospect", JSON.stringify(p));
     }
     return;
   }
