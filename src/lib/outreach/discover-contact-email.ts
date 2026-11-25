@@ -16,7 +16,7 @@
  * callers should skip rather than guess.
  */
 
-export type ContactSource = "website_mailto" | "structured_data" | "none_found" | "fetch_failed";
+export type ContactSource = "website_mailto" | "structured_data" | "website_text" | "none_found" | "fetch_failed";
 export type ContactConfidence = "verified_published" | "none";
 
 export type DiscoveredContact = {
@@ -57,11 +57,27 @@ const PLACEHOLDER_DOMAINS = new Set([
 // (non-role-account) address — most small-business sites that publish a
 // real contact do it on one of these. Kept short and specific: not a full
 // site crawl, just the pages a business is likely to actually have.
-const SECONDARY_PATHS = ["/contact", "/contact-us", "/about", "/about-us", "/team"];
+// Editorial/partnership pages are where a site that welcomes outside contributions says so; they were the main place an address went unfound.
+const SECONDARY_PATHS = ["/contact", "/contact-us", "/about", "/about-us", "/team", "/press", "/media", "/write-for-us", "/submit", "/partners", "/resources", "/advertise"];
 
 const EMAIL_RE = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
-type Candidate = { email: string; sourceUrl: string; fromStructuredData: boolean };
+type Candidate = { email: string; sourceUrl: string; fromStructuredData: boolean; fromText?: boolean };
+
+/**
+ * Addresses written out in a page's visible text ("Email us at press@club.org"), the way many small sites publish a contact instead of a mailto: link.
+ * Only visible text counts (scripts, styles and attributes are dropped), obvious file names are rejected, and callers still require the address to be on
+ * the site's own domain, so a stray third-party address in an article is never picked up.
+ */
+export function extractTextEmails(html: string): string[] {
+  const text = html
+    .replace(/<(script|style|noscript)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&#0*64;|&commat;/gi, "@")
+    .replace(/\s*[\[(]\s*at\s*[\])]\s*/gi, "@");
+  const found = text.match(/[a-zA-Z0-9._+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}/g) ?? [];
+  return [...new Set(found.map((e) => e.toLowerCase()).filter((e) => !/\.(png|jpe?g|gif|webp|svg|css|js)$/.test(e) && EMAIL_RE.test(e)))];
+}
 
 function scoreCandidate(email: string, siteDomain: string): number {
   const [local, domain] = email.toLowerCase().split("@");
@@ -184,6 +200,7 @@ export async function discoverContactEmail(websiteUrl: string): Promise<Discover
   let candidates = [
     ...extractMailtoCandidates(homepageHtml, websiteUrl),
     ...extractStructuredDataCandidates(homepageHtml, websiteUrl),
+    ...extractTextEmails(homepageHtml).map((email) => ({ email, sourceUrl: websiteUrl, fromStructuredData: false, fromText: true })),
   ];
 
   let winner = bestCandidate(candidates, siteDomain);
@@ -201,7 +218,7 @@ export async function discoverContactEmail(websiteUrl: string): Promise<Discover
     for (const result of secondaryResults) {
       if (result.status !== "fulfilled" || !result.value) continue;
       const { url, html } = result.value;
-      candidates = [...candidates, ...extractMailtoCandidates(html, url), ...extractStructuredDataCandidates(html, url)];
+      candidates = [...candidates, ...extractMailtoCandidates(html, url), ...extractStructuredDataCandidates(html, url), ...extractTextEmails(html).map((email) => ({ email, sourceUrl: url, fromStructuredData: false, fromText: true }))];
     }
     const improved = bestCandidate(candidates, siteDomain);
     if (improved && (!winner || scoreCandidate(improved.email, siteDomain) > scoreCandidate(winner.email, siteDomain) || isNamedAddress(improved.email))) {
@@ -215,7 +232,7 @@ export async function discoverContactEmail(websiteUrl: string): Promise<Discover
 
   return {
     email: winner.email,
-    source: winner.fromStructuredData ? "structured_data" : "website_mailto",
+    source: winner.fromStructuredData ? "structured_data" : winner.fromText ? "website_text" : "website_mailto",
     confidence: "verified_published",
     discoverySourceUrl: winner.sourceUrl,
     isNamed: isNamedAddress(winner.email),

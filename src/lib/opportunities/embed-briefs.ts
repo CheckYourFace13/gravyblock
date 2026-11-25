@@ -50,6 +50,31 @@ export function classifyWidgetKinds(urls: string[]): Array<{ kind: WidgetKind; i
   return out;
 }
 
+const GENERIC_SECTIONS = new Set("about contact privacy terms blog news guides guide stories story legal cities states tools weather events subscribe advertise search sitemap help faq affiliate-disclosure places drink drinks".split(" "));
+
+/** The subject sections a site is built around (its biggest sitemap folders, e.g. "boat-launches", "marinas"), as plain words. Used to aim off-site prospecting at what the site really offers. */
+export function sectionTopicsFromUrls(urls: string[], max = 3): string[] {
+  const counts = new Map<string, number>();
+  for (const u of urls) {
+    try {
+      const seg = new URL(u).pathname.split("/").filter(Boolean)[0];
+      if (seg && /^[a-z][a-z-]{3,}$/.test(seg) && !GENERIC_SECTIONS.has(seg) && !/\d/.test(seg) && seg.split("-").length <= 3) counts.set(seg, (counts.get(seg) ?? 0) + 1);
+    } catch {
+      /* ignore */
+    }
+  }
+  return [...counts.entries()].filter(([, n]) => n >= 5).sort((a, b) => b[1] - a[1]).slice(0, max).map(([s]) => s.replace(/-/g, " "));
+}
+
+export async function sectionTopics(website: string, max = 3): Promise<string[]> {
+  try {
+    const origin = new URL(/^https?:\/\//i.test(website) ? website : `https://${website}`).origin;
+    return sectionTopicsFromUrls(await sitemapUrls(origin), max);
+  } catch {
+    return [];
+  }
+}
+
 async function sitemapUrls(origin: string): Promise<string[]> {
   const root = await safeFetchText(`${origin}/sitemap.xml`, { timeoutMs: 9000 });
   if (!root.ok || root.status >= 400) return [];

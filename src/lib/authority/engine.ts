@@ -31,6 +31,7 @@ import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { backlinkOpportunities, businessCompetitors, businesses, getDb, jobs } from "@/lib/db";
 import { ensureFreshTruth, promotableContent, type BusinessTruth } from "@/lib/truth";
 import { discoverContactEmail } from "@/lib/outreach/discover-contact-email";
+import { sectionTopics } from "@/lib/opportunities/embed-briefs";
 import { isOptedOut, coldOutreachFooter } from "@/lib/email/optout";
 import { assertOutreachSendingAllowed } from "@/lib/outreach/pause-guard";
 import { checkOutreachHealth } from "@/lib/outreach/outreach-health";
@@ -225,6 +226,11 @@ export async function discoverAuthorityProspects(businessId: string): Promise<{ 
     // National / online: industry associations, resource directories and topical publications.
     queries.push(`${topic} association`, `${topic} industry council`, `${topic} resources directory`, `${topic} magazine`, `${topic} blog guide`);
   }
+  // Aim some searches at what the site actually offers (its biggest sections, e.g. "boat launches", "marinas") so prospects are places that would genuinely reference it.
+  if (biz?.website && (bm.mode === "local" || bm.mode === "regional")) {
+    const place = bm.mode === "local" ? city : bm.placeLabel;
+    if (place) for (const t of await sectionTopics(biz.website)) queries.push(`${t} ${place} resources`);
+  }
   if (queries.length === 0) return { found: 0, reason: "no_verified_location_or_topic_to_search" };
 
   const existing = await db.select({ targetUrl: backlinkOpportunities.targetUrl }).from(backlinkOpportunities).where(eq(backlinkOpportunities.businessId, businessId));
@@ -333,11 +339,11 @@ export function assessRelevance(html: string, vocab: string[], city: string | nu
   return { relevant: false, note: `Prospect's site does not cover the business's topics (${hits.length} topic words matched)` };
 }
 
-async function qualifyProspects(db: Db, businessId: string, limit = 8, statuses: string[] = ["prospecting"], onlyUnassessed = false): Promise<number> {
+async function qualifyProspects(db: Db, businessId: string, limit = 8, statuses: string[] = ["prospecting"], onlyUnassessed = false, retryNoContact = false): Promise<number> {
   const rows = await db
     .select()
     .from(backlinkOpportunities)
-    .where(and(eq(backlinkOpportunities.businessId, businessId), inArray(backlinkOpportunities.status, statuses), onlyUnassessed ? sql`${backlinkOpportunities.relevanceNote} is null` : sql`true`))
+    .where(and(eq(backlinkOpportunities.businessId, businessId), inArray(backlinkOpportunities.status, statuses), onlyUnassessed ? sql`${backlinkOpportunities.relevanceNote} is null` : sql`true`, retryNoContact ? sql`${backlinkOpportunities.contactSource} in ('none_found', 'fetch_failed')` : sql`true`))
     .orderBy(desc(backlinkOpportunities.qualityScore))
     .limit(limit);
   if (rows.length === 0) return 0;
@@ -370,8 +376,9 @@ async function qualifyProspects(db: Db, businessId: string, limit = 8, statuses:
     }
     const contact = await discoverContactEmail(r.targetUrl);
     if (!contact.email) {
-      await db.update(backlinkOpportunities).set({ status: "no_contact", contactSource: contact.source }).where(eq(backlinkOpportunities.id, r.id));
-      await logEvent(db, businessId, r.id, "no_published_contact", { source: contact.source });
+      // a retried prospect is marked so it is only ever retried once with the improved contact search
+      await db.update(backlinkOpportunities).set({ status: "no_contact", contactSource: retryNoContact ? `${contact.source}_v2` : contact.source }).where(eq(backlinkOpportunities.id, r.id));
+      await logEvent(db, businessId, r.id, "no_published_contact", { source: contact.source, retry: retryNoContact });
       continue;
     }
     if (!suitableContact(contact.email)) {
@@ -1167,7 +1174,7 @@ export async function discoverAndQualify(businessId: string): Promise<{ discover
   const db = getDb();
   if (!db) return { discovery: { found: 0, reason: "no_db" }, qualified: 0 };
   const discovery = await discoverAuthorityProspects(businessId);
-  const qualified = await qualifyProspects(db, businessId, 12);
+  const qualified = (await qualifyProspects(db, businessId, 12)) + (await qualifyProspects(db, businessId, 6, ["no_contact"], false, true));
   return { discovery, qualified };
 }
 
