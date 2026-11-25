@@ -53,7 +53,7 @@ export type PortfolioReport = {
   offsite: Metric<ProductOffsite[]>;
   attribution: Metric<VideoAttribution[]>;
   weekly: Metric<WeekOverWeek>;
-  revenue: Metric<{ customers: number; mrr: number }>;
+  revenue: Metric<{ customers: number; mrr: number; registrationsNow: number; registrationsBefore: number; registrationsTotal: number }>;
   backlinks: Metric<{ acquired: number; inOutreach: number; acquiredThisWeek: number }>;
   search: Metric<{ connected: number; clicks28d: number | null; impressions28d: number | null; bySite?: Array<{ name: string; clicks: number; impressions: number; priorClicks: number; priorImpressions: number }> }>;
   scanFunnel: Metric<{ views: number; engaged: number; interacted: number; submitted: number; failed: number; completed: number; failures: Array<{ detail: string; n: number }> }>;
@@ -148,7 +148,13 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
 
   const revenue = await measure("portfolio.revenue", async () => {
     const c = await getRealCustomers();
-    return { customers: c.customers.length, mrr: c.mrr };
+    // A registration is a customer account with an email address (scans alone create business rows without one); house accounts never count.
+    const g = rowsOf<{ now: number; before: number; total: number }>(await db.execute(sql`
+      select count(*) filter (where created_at >= ${since}::timestamptz)::int now,
+             count(*) filter (where created_at >= ${prevSince}::timestamptz and created_at < ${since}::timestamptz)::int before,
+             count(*)::int total
+      from businesses where account_type = 'customer' and account_email is not null`));
+    return { customers: c.customers.length, mrr: c.mrr, registrationsNow: Number(g[0]?.now ?? 0), registrationsBefore: Number(g[0]?.before ?? 0), registrationsTotal: Number(g[0]?.total ?? 0) };
   });
 
   const backlinks = await measure("portfolio.backlinks", async () => {
@@ -342,6 +348,7 @@ export function renderPortfolioReport(r: PortfolioReport): string {
     out.push(`  checkouts started by those visitors: ${delta(w.videoCheckouts)}`);
     out.push(`  publications that failed: ${delta(w.publicationsFailed)}`);
   }
+  out.push(`  registrations (new customer accounts): ${r.revenue.ok ? `${r.revenue.value.registrationsNow} this period, ${r.revenue.value.registrationsBefore} the period before, ${r.revenue.value.registrationsTotal} all time` : `unavailable: ${r.revenue.error}`}`);
   out.push(`  paying customers and revenue: ${r.revenue.ok ? `${r.revenue.value.customers} paying customers, $${r.revenue.value.mrr.toFixed(2)} monthly recurring revenue (house accounts are never counted)` : `unavailable: ${r.revenue.error}`}`);
   out.push(`  verified backlinks: ${r.backlinks.ok ? `${r.backlinks.value.acquired} live and verified in total, ${r.backlinks.value.acquiredThisWeek} new this period, ${r.backlinks.value.inOutreach} pitches still in progress` : `unavailable: ${r.backlinks.error}`}`);
   if (!r.search.ok) out.push(`  search performance: unavailable: ${r.search.error}`);

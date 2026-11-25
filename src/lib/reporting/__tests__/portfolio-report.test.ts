@@ -8,7 +8,7 @@ const base: PortfolioReport = {
   offsite: { ok: true, value: [{ slug: "gravyblock", liveVideos: 2, views: 10, likes: 1, comments: 0, failed: 1, waiting: 0, lastPublished: "2026-11-22T10:00:00Z", metricsAsOf: null }] },
   attribution: { ok: true, value: [] },
   weekly: { ok: true, value: { viewsLifetime: { now: 12, before: 10 }, videosPublished: { now: 1, before: 3 }, publicationsFailed: { now: 0, before: 2 }, videoVisits: { now: 4, before: 1 }, videoScansCompleted: { now: 0, before: 0 }, videoCheckouts: { now: 0, before: 0 } } },
-  revenue: { ok: true, value: { customers: 0, mrr: 0 } },
+  revenue: { ok: true, value: { customers: 0, mrr: 0, registrationsNow: 0, registrationsBefore: 0, registrationsTotal: 7 } },
   backlinks: { ok: true, value: { acquired: 0, acquiredThisWeek: 0, inOutreach: 5 } },
   search: { ok: true, value: { connected: 0, clicks28d: null, impressions28d: null } },
   scanFunnel: { ok: true, value: { views: 10, engaged: 3, interacted: 4, submitted: 3, failed: 1, completed: 2, failures: [{ detail: "Could not save report", n: 1 }] } },
