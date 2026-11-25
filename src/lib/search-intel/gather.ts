@@ -81,7 +81,10 @@ async function competitorSection(businessId: string, website: string | null, row
       }
       entries = all;
     }
-    const pages = entries.filter((e) => !e.isIndex && (() => { try { return hostOf(e.loc) === host; } catch { return false; } })()).slice(0, 1500);
+    // a sitemap can list one URL twice, and one insert cannot touch the same row twice, so keep the first of each
+    const uniq = new Map<string, (typeof entries)[number]>();
+    for (const e of entries) if (!e.isIndex && !uniq.has(e.loc) && (() => { try { return hostOf(e.loc) === host; } catch { return false; } })()) uniq.set(e.loc, e);
+    const pages = [...uniq.values()].slice(0, 1500);
     const urls = pages.map((p) => p.loc);
     if (!urls.length) continue;
     result.sitemapsRead++;
