@@ -141,6 +141,44 @@ function chooseAsset(truth: BusinessTruth, website: string | null): { url: strin
   return null;
 }
 
+const normPage = (u: string) => u.replace(/[?#].*$/, "").replace(/\/+$/, "").toLowerCase();
+
+/**
+ * Search-data aware asset choice: among the pages GravyBlock could ask others to link to, prefer the one Google already shows the most (Search Console impressions
+ * in the last periods, positions 4 to 40), because a link to a page that already ranks moves it toward traffic fastest. Falls back to the plain choice when there is
+ * no search data or none of the candidate pages appear in it.
+ */
+export function pickAssetBySearch(candidates: Array<{ url: string; title: string }>, perf: Array<{ pageUrl: string; impressions: number; position: number }>): { url: string; title: string } | null {
+  const score = new Map<string, number>();
+  for (const p of perf) {
+    if (p.position < 4 || p.position > 40) continue;
+    const k = normPage(p.pageUrl);
+    score.set(k, (score.get(k) ?? 0) + p.impressions);
+  }
+  let best: { url: string; title: string } | null = null;
+  let bestScore = 0;
+  for (const c of candidates) {
+    const s = score.get(normPage(c.url)) ?? 0;
+    if (s > bestScore) { best = c; bestScore = s; }
+  }
+  return best;
+}
+
+async function chooseAssetWithSearch(db: Db, businessId: string, truth: BusinessTruth, website: string | null): Promise<{ url: string; title: string } | null> {
+  const plain = chooseAsset(truth, website);
+  try {
+    const candidates = [
+      ...promotableContent(truth.facts).filter((f) => f.sourceUrl && !/\/events?\//i.test(f.sourceUrl)).map((f) => ({ url: f.sourceUrl as string, title: f.value })),
+      ...truth.facts.filter((f) => f.key === "service" && f.sourceUrl).map((f) => ({ url: f.sourceUrl as string, title: f.value })),
+    ];
+    if (!candidates.length) return plain;
+    const perf = (await db.execute(sql`select page_url, sum(impressions)::int imps, avg(position)::float pos from page_performance where business_id = ${businessId}::uuid group by page_url`)) as unknown as Array<{ page_url: string; imps: number; pos: number }>;
+    return pickAssetBySearch(candidates, perf.map((r) => ({ pageUrl: r.page_url, impressions: Number(r.imps), position: Number(r.pos) }))) ?? plain;
+  } catch {
+    return plain;
+  }
+}
+
 /* ─────────────── 1. discovery + qualification ─────────────── */
 
 export async function discoverAuthorityProspects(businessId: string): Promise<{ found: number; reason: string }> {
@@ -713,7 +751,7 @@ async function sendInitialOutreach(db: Db, businessId: string, truth: BusinessTr
     .limit(1);
   if (!biz) return 0;
   const replyTo = replyToFor(biz, truth);
-  const asset = chooseAsset(truth, biz.website);
+  const asset = await chooseAssetWithSearch(db, businessId, truth, biz.website);
   if (!replyTo || !asset) {
     await db.insert(jobs).values({ businessId, type: "authority_blocked", status: "completed", payload: { reason: !replyTo ? "no_reply_to_address" : "no_linkable_asset_in_verified_facts" } });
     return 0;

@@ -30,7 +30,7 @@ export type PortfolioReport = {
   weekly: Metric<WeekOverWeek>;
   revenue: Metric<{ customers: number; mrr: number }>;
   backlinks: Metric<{ acquired: number; inOutreach: number; acquiredThisWeek: number }>;
-  search: Metric<{ connected: number; clicks28d: number | null; impressions28d: number | null }>;
+  search: Metric<{ connected: number; clicks28d: number | null; impressions28d: number | null; bySite?: Array<{ name: string; clicks: number; impressions: number; priorClicks: number; priorImpressions: number }> }>;
   scanFunnel: Metric<{ views: number; engaged: number; interacted: number; submitted: number; failed: number; completed: number; failures: Array<{ detail: string; n: number }> }>;
   siteDrafts: Metric<Array<{ name: string; total: number }>>;
   learning: Metric<Array<{ type: string; contacted: number; acquired: number; retired: boolean }>>;
@@ -141,10 +141,15 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
         or exists (select 1 from google_oauth_connections g where g.business_id = b.id and g.search_console_property is not null))`));
     const connected = Number(c[0]?.n ?? 0);
     if (!connected) return { connected, clicks28d: null, impressions28d: null };
-    const t = rowsOf<{ clicks: number | null; imps: number | null }>(await db.execute(sql`
-      select sum(p.clicks)::int clicks, sum(p.impressions)::int imps from page_performance p join businesses b on b.id = p.business_id
-      where b.account_type = 'house' and p.fetched_at >= now() - interval '35 days'`));
-    return { connected, clicks28d: t[0]?.clicks ?? null, impressions28d: t[0]?.imps ?? null };
+    // Each site stores two 28-day windows (current and the one before it). Only the latest window is "last 28 days"; the earlier one is the comparison.
+    const w = rowsOf<{ name: string; start: string; clicks: number; imps: number }>(await db.execute(sql`
+      select b.name, p.period_start::text start, sum(p.clicks)::int clicks, sum(p.impressions)::int imps from page_performance p join businesses b on b.id = p.business_id
+      where b.account_type = 'house' and p.fetched_at >= now() - interval '35 days' group by 1, 2 order by 1, 2 desc`));
+    const by = new Map<string, Array<{ clicks: number; imps: number }>>();
+    for (const r of w) by.set(r.name, [...(by.get(r.name) ?? []), { clicks: Number(r.clicks), imps: Number(r.imps) }]);
+    const bySite = [...by.entries()].map(([name, v]) => ({ name, clicks: v[0]!.clicks, impressions: v[0]!.imps, priorClicks: v[1]?.clicks ?? 0, priorImpressions: v[1]?.imps ?? 0 }));
+    if (!bySite.length) return { connected, clicks28d: null, impressions28d: null };
+    return { connected, clicks28d: bySite.reduce((s, x) => s + x.clicks, 0), impressions28d: bySite.reduce((s, x) => s + x.impressions, 0), bySite };
   });
 
   const scanFunnel = await measure("portfolio.scanFunnel", async () => {
@@ -249,7 +254,13 @@ export function renderPortfolioReport(r: PortfolioReport): string {
   out.push(`  verified backlinks: ${r.backlinks.ok ? `${r.backlinks.value.acquired} live and verified in total, ${r.backlinks.value.acquiredThisWeek} new this period, ${r.backlinks.value.inOutreach} pitches still in progress` : `unavailable: ${r.backlinks.error}`}`);
   if (!r.search.ok) out.push(`  search performance: unavailable: ${r.search.error}`);
   else if (!r.search.value.connected) out.push("  search performance (Search Console): not measured, no house site is connected");
-  else out.push(`  search performance (Search Console, ${r.search.value.connected} sites connected, last 28 days): ${r.search.value.clicks28d ?? na} clicks, ${r.search.value.impressions28d ?? na} impressions`);
+  else {
+    out.push(`  search performance (Search Console, ${r.search.value.connected} sites connected, latest 28 days): ${r.search.value.clicks28d ?? na} clicks, ${r.search.value.impressions28d ?? na} impressions`);
+    for (const s of [...(r.search.value.bySite ?? [])].sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions)) {
+      const d = (cur: number, prev: number) => (cur >= prev ? "+" : "") + (cur - prev);
+      out.push(`    ${s.name.padEnd(16)} ${String(s.clicks).padStart(4)} clicks (${d(s.clicks, s.priorClicks)} vs the 28 days before), ${String(s.impressions).padStart(6)} impressions (${d(s.impressions, s.priorImpressions)})`);
+    }
+  }
   out.push("");
   out.push("OFF-SITE (YouTube, platform counters, lifetime)");
   if (!r.offsite.ok) out.push(`  unavailable: ${r.offsite.error}`);

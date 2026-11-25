@@ -43,3 +43,14 @@ test("a failed metric shows as unavailable, never as zero", () => {
   assert.match(t, /unavailable: db down/);
   assert.doesNotMatch(t, /total: 0 live videos/);
 });
+
+test("search section shows only the latest 28 days per site with the change against the window before", () => {
+  const t = renderPortfolioReport({
+    ...base,
+    search: { ok: true, value: { connected: 2, clicks28d: 160, impressions28d: 9000, bySite: [{ name: "Quiet Site", clicks: 7, impressions: 400, priorClicks: 9, priorImpressions: 300 }, { name: "Busy Site", clicks: 153, impressions: 8600, priorClicks: 100, priorImpressions: 7000 }] } },
+  });
+  assert.match(t, /latest 28 days\): 160 clicks, 9000 impressions/);
+  assert.match(t, /Busy Site\s+153 clicks \(\+53 vs the 28 days before\)/);
+  assert.match(t, /Quiet Site\s+7 clicks \(-2 vs the 28 days before\)/);
+  assert.ok(t.indexOf("Busy Site") < t.indexOf("Quiet Site"));
+});
