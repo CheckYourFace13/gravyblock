@@ -972,6 +972,33 @@ export const searchDaily = pgTable("search_daily", {
 }, (t) => [uniqueIndex("search_daily_business_day_idx").on(t.businessId, t.day)]);
 
 /**
+ * Weekly search and competitor intelligence, one row per site per week (week_ending is the Friday the report belongs to).
+ * `data` is the full structured analysis and `prompt` the ready-to-paste development instruction; the previous row is what "changed since last report" compares to.
+ */
+export const searchIntelReports = pgTable("search_intel_reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  weekEnding: text("week_ending").notNull(),
+  data: jsonb("data").notNull(),
+  prompt: text("prompt").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [uniqueIndex("search_intel_reports_business_week_idx").on(t.businessId, t.weekEnding)]);
+
+/**
+ * Public pages seen on a competitor's own sitemap, with the first and last date GravyBlock observed each. "Newly published" is only ever claimed for a URL
+ * first seen after an earlier observation of that same site existed; the first observation is a baseline, never a change.
+ */
+export const competitorPageObservations = pgTable("competitor_page_observations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  competitorHost: text("competitor_host").notNull(),
+  url: text("url").notNull(),
+  lastmod: text("lastmod"),
+  firstSeen: timestamp("first_seen", { withTimezone: true }).defaultNow().notNull(),
+  lastSeen: timestamp("last_seen", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [uniqueIndex("competitor_page_obs_business_url_idx").on(t.businessId, t.url), index("competitor_page_obs_host_idx").on(t.businessId, t.competitorHost)]);
+
+/**
  * Owner-approved public growth-story claims. Nothing about a site appears on the public Real Growth Stories page unless an approved row
  * exists, and only the claim keys inside that approved snapshot can ever render (their numbers refresh automatically; new claims need a new approval).
  */

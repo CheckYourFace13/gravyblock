@@ -22,6 +22,7 @@ import { getDb, businesses, contentQueue, jobs } from "@/lib/db";
 import { queueContentForBusiness } from "@/lib/content-gen/queue-content";
 import { sendDailyOwnerReport } from "@/lib/email/daily-owner-report";
 import { sendWeeklyHouseReport } from "@/lib/email/weekly-house-report";
+import { generateMissingSearchIntel } from "@/lib/search-intel";
 import { backfillScanClassification, markInternalBusinesses } from "@/lib/reporting/classification";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
 import { runLeadDripBatch } from "@/lib/email/lead-drip";
@@ -226,6 +227,23 @@ async function maybeSendDailyReport() {
     }
   } catch (error) {
     console.error("[worker] daily report failed", { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+/**
+ * Thursday 20:00 UTC through Friday 13:59 UTC: build each house site's weekly search and competitor report, two sites per pass (read only), so every
+ * site report exists before the Friday email goes out. Each site is generated once per week; a missing one is retried on the next pass.
+ */
+async function maybeGenerateSearchIntel() {
+  const now = new Date();
+  const day = now.getUTCDay();
+  const hour = now.getUTCHours();
+  if (!((day === 4 && hour >= 20) || (day === 5 && hour < 14))) return;
+  try {
+    const r = await generateMissingSearchIntel(now, 2);
+    if (r.generated.length) console.info("[worker] search intelligence generated", r);
+  } catch (error) {
+    console.error("[worker] search intelligence failed", { error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -582,6 +600,7 @@ async function tick() {
 
   await maybeClassifyReporting();
   await maybeSendDailyReport();
+  await maybeGenerateSearchIntel();
   await maybeSendWeeklyHouseReport();
   await maybeSendMonthlyDigest();
   await maybeSendQuarterlyUpsell();
