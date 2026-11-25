@@ -917,16 +917,69 @@ async function sendFollowUps(db: Db, businessId: string, truth: BusinessTruth, b
 
 const RESOURCE_PATH = /\/(resources?|partners?|links?|members?|directory|sponsors?|news|blog|community|businesses|listings?)(\/|$)/i;
 
+/** True for the customer's own host or any of its subdomains (a link to www.x.com, blog.x.com or x.com is a link to x.com). */
+export function hostIsCustomer(host: string | null, customerDomain: string): boolean {
+  if (!host) return false;
+  const h = host.replace(/^www\./i, "").toLowerCase();
+  return h === customerDomain || h.endsWith(`.${customerDomain}`);
+}
+
+/**
+ * Pages worth fetching from a sitemap: those whose address mentions the pitched site (brand words or domain label),
+ * or a resource-style section, best match first. Never more than `max`, so verification stays a handful of polite fetches.
+ */
+export function pickSitemapCandidates(xml: string, tokens: string[], max: number): string[] {
+  const locs = [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)].map((m) => m[1]!.replace(/&amp;/g, "&"));
+  const toks = tokens.map((t) => t.toLowerCase()).filter((t) => t.length >= 4);
+  const scored: Array<{ u: string; s: number }> = [];
+  for (const u of locs) {
+    if (/\.(xml|jpe?g|png|gif|webp|pdf|svg)(\?|$)/i.test(u)) continue;
+    let path = "";
+    try {
+      path = new URL(u).pathname.toLowerCase();
+    } catch {
+      continue;
+    }
+    const tokenHits = toks.filter((t) => path.includes(t)).length;
+    const s = tokenHits * 3 + (RESOURCE_PATH.test(path) ? 1 : 0);
+    if (s > 0) scored.push({ u, s });
+  }
+  return scored.sort((a, b) => b.s - a.s).slice(0, max).map((x) => x.u);
+}
+
 export type LinkCheck = { linked: boolean; pageUrl?: string; href?: string; rel?: string; mentionedWithoutLink?: boolean };
 
-export async function checkForLink(prospectSite: string, customerDomain: string, brandName: string): Promise<LinkCheck> {
+export async function checkForLink(prospectSite: string, customerDomain: string, brandName: string, hints: { evidenceUrl?: string | null } = {}): Promise<LinkCheck> {
   const home = await safeFetchText(prospectSite, { timeoutMs: 9000 });
   if (!home.ok || home.status >= 400) return { linked: false };
   const pages: { url: string; html: string }[] = [{ url: home.finalUrl, html: home.body }];
   const extra = new Set<string>();
+  // 1) the specific page the pitch was about: the likeliest place a link would be added
+  if (hints.evidenceUrl && isSafePublicUrl(hints.evidenceUrl) && hints.evidenceUrl !== home.finalUrl && domainOf(hints.evidenceUrl) === domainOf(home.finalUrl)) extra.add(hints.evidenceUrl);
+  // 2) the sitemap: pages whose address mentions the pitched site, found without crawling
+  try {
+    const origin = new URL(home.finalUrl).origin;
+    const sm = await safeFetchText(`${origin}/sitemap.xml`, { timeoutMs: 6000 });
+    if (sm.ok && sm.status < 400 && /<(urlset|sitemapindex)/i.test(sm.body)) {
+      let xml = sm.body;
+      if (/<sitemapindex/i.test(xml)) {
+        const kids = [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)].map((m) => m[1]!).filter((u) => /post|page|news|blog|article/i.test(u)).slice(0, 2);
+        xml = "";
+        for (const k of kids) {
+          const c = await safeFetchText(k, { timeoutMs: 6000 });
+          if (c.ok && c.status < 400) xml += c.body;
+        }
+      }
+      const tokens = [...brandName.split(/\W+/), customerDomain.split(".")[0] ?? ""];
+      for (const u of pickSitemapCandidates(xml, tokens, 4)) if (isSafePublicUrl(u) && domainOf(u) === domainOf(home.finalUrl)) extra.add(u);
+    }
+  } catch {
+    /* sitemap is a bonus; the homepage and resource links below still run */
+  }
+  const maxExtra = extra.size + 4;
   const re = /<a[^>]+href=["']([^"'#]+)["']/gi;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(home.body)) && extra.size < 4) {
+  while ((m = re.exec(home.body)) && extra.size < maxExtra) {
     try {
       const abs = new URL(m[1]!, home.finalUrl).toString();
       if (domainOf(abs) === domainOf(home.finalUrl) && RESOURCE_PATH.test(new URL(abs).pathname) && abs !== home.finalUrl) extra.add(abs);
@@ -950,7 +1003,7 @@ export async function checkForLink(prospectSite: string, customerDomain: string,
       } catch {
         host = null;
       }
-      if (host && host === customerDomain) {
+      if (hostIsCustomer(host, customerDomain)) {
         const rel = lm[0].match(/rel=["']([^"']+)["']/i)?.[1];
         return { linked: true, pageUrl: p.url, href, rel };
       }
@@ -978,7 +1031,7 @@ export async function verifyAcquisitions(businessId: string, limit = 6): Promise
   let acquired = 0;
   for (const r of rows) {
     if (!r.targetUrl) continue;
-    const check = await checkForLink(r.targetUrl, customerDomain, biz?.name ?? "");
+    const check = await checkForLink(r.targetUrl, customerDomain, biz?.name ?? "", { evidenceUrl: r.evidenceUrl });
     if (check.linked) {
       await db
         .update(backlinkOpportunities)
