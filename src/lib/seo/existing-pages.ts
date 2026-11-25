@@ -72,7 +72,7 @@ function sha(s: string): string {
   return createHash("sha256").update(s).digest("hex").slice(0, 16);
 }
 
-async function gscQuery(
+export async function gscQuery(
   accessToken: string,
   property: string,
   win: Window,

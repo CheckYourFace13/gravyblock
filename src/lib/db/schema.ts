@@ -6,6 +6,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -956,6 +957,35 @@ export const pagePerformance = pgTable("page_performance", {
   periodEnd: text("period_end").notNull(),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+/**
+ * One row per site per day of Search Console totals (clicks, impressions, impression-weighted position), read-only history used as the
+ * before/after baseline for growth stories. Search Console keeps about 16 months, so the first run backfills that.
+ */
+export const searchDaily = pgTable("search_daily", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  day: text("day").notNull(),
+  clicks: integer("clicks").notNull().default(0),
+  impressions: integer("impressions").notNull().default(0),
+  position: doublePrecision("position").notNull().default(0),
+}, (t) => [uniqueIndex("search_daily_business_day_idx").on(t.businessId, t.day)]);
+
+/**
+ * Owner-approved public growth-story claims. Nothing about a site appears on the public Real Growth Stories page unless an approved row
+ * exists, and only the claim keys inside that approved snapshot can ever render (their numbers refresh automatically; new claims need a new approval).
+ */
+export const caseStudyApprovals = pgTable("case_study_approvals", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  businessId: uuid("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  /** Public display name chosen by the owner (never has to reveal common ownership). */
+  publicName: text("public_name").notNull(),
+  claims: jsonb("claims").notNull(),
+  disclosure: text("disclosure").notNull(),
+  approvedBy: text("approved_by").notNull(),
+  status: text("status").notNull().default("approved"),
+  approvedAt: timestamp("approved_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index("case_study_approvals_business_idx").on(t.businessId, t.status)]);
 
 /** Neutral review requests to real completed customers fed by the customer's own systems. */
 export const reviewRequests = pgTable("review_requests", {

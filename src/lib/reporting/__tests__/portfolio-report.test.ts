@@ -15,6 +15,7 @@ const base: PortfolioReport = {
   learning: { ok: true, value: [{ type: "association", contacted: 21, acquired: 0, retired: true }] },
   searchDriven: { ok: true, value: { discovered: 4, open: 3, acted: 1, evaluated: 0, positive: 0, items: [{ site: "Outbreak Threat", page: "https://outbreakthreat.com/norovirus-outbreak-map", band: "near_page_one", status: "acted", baselineClicks: 165, afterClicks: null, measured: null }] } },
   backlinkFunnel: { ok: true, value: { prospectsFound: 400, passedRelevance: 119, hadSuitableContact: 60, pitched: 43, recipients: 43, delivered: 97, bounced: 2, replies: 0, linksVerified: 0, oldestSendDays: 64, newestSendDays: 1, pitchesLast7d: 2, followUpsLast7d: 1, placements: [] } },
+  stories: { ok: true, value: [{ name: "Boating Chicago", startDay: "2026-09-21", baselineClicks: 3, latestClicks: 5, linksVerified: 0, briefsOpen: 14, approvedPublic: false, attributable: false }] },
   channels: { ok: true, value: [{ channel: "YouTube videos", actions: "2 tagged campaigns", visits: 18, scans: 0, checkouts: 0, note: "n" }] },
   siteDrafts: { ok: true, value: [{ name: "Mic Stage", total: 7 }] },
   actions: { ok: true, value: [{ type: "backlink", discovered: 5, acted: 1, verified: 0, noGain: 0 }] },

@@ -28,6 +28,8 @@ import { runAeoActionForBusiness } from "@/lib/ai-visibility/aeo-actions";
 import { runBasicSeoForBusiness } from "@/lib/seo/basic-autopilot";
 import { fetchGscPageQuery } from "@/lib/seo/existing-pages";
 import { discoverSearchOpportunities } from "@/lib/opportunities/search-driven";
+import { recheckDroppedPages, syncSearchHistory } from "@/lib/seo/search-history";
+import { discoverEmbedBriefs } from "@/lib/opportunities/embed-briefs";
 import { discoverAndQualify, discoverBrokenLinkOpportunities, discoverUnlinkedMentions } from "@/lib/authority/engine";
 import { SITE_ADAPTERS, autoConnectManagedSites, capabilitiesFor, detectConnector, type SiteAdapterKind } from "@/lib/site-publish/adapters";
 import { evaluateMeasurementPlans } from "@/lib/opportunities/evaluate";
@@ -249,6 +251,12 @@ const ENGINE_DISCOVERY: Array<{ name: string; everyDays: number; afterChangeDays
   { name: "search_console", everyDays: 0.5, afterChangeDays: 0.5, run: (id) => fetchGscPageQuery(id) },
   // Reads the stored Search Console rows (fetched just above) and queues off-site and brief opportunities from them; never writes to a site.
   { name: "search_opportunities", everyDays: 0.5, afterChangeDays: 0.5, run: (id) => discoverSearchOpportunities(id) },
+  // Read-only daily Search Console totals (16-month backfill on first run): the before/after baseline for growth stories.
+  { name: "search_history", everyDays: 0.5, afterChangeDays: 0.5, run: (id) => syncSearchHistory(id) },
+  // Weekly Google URL Inspection of the pages a pages-dropped finding named, so index recovery by the site's own agent is tracked without touching the site.
+  { name: "index_recheck", everyDays: 6.5, afterChangeDays: 6.5, run: (id) => recheckDroppedPages(id) },
+  // Briefs (never site writes) for useful linkable tools and directories the site already has, as embeddable-widget proposals for its own agent.
+  { name: "embed_briefs", everyDays: 14, afterChangeDays: 14, run: (id) => discoverEmbedBriefs(id) },
   { name: "competitor_gap", everyDays: 30, afterChangeDays: 7, run: (id) => runCompetitorGapForBusiness(id, { scanOnly: true }) },
 ];
 

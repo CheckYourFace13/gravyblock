@@ -4,6 +4,7 @@ import { getInternalBusinesses } from "./classification";
 import { getRealCustomers, measure, type Metric } from "./acquisition";
 import { buildHouseSiteBriefs } from "@/lib/house/site-briefs";
 import { getSourceTypeStats } from "@/lib/authority/engine";
+import { buildGrowthStory, PILOT_SLUGS } from "@/lib/case-studies/build";
 
 /**
  * One combined, read-only portfolio report for the 12 House Accounts (the Friday report, also available on demand).
@@ -60,6 +61,7 @@ export type PortfolioReport = {
   siteDrafts: Metric<Array<{ name: string; total: number }>>;
   searchDriven: Metric<SearchDriven>;
   backlinkFunnel: Metric<BacklinkFunnel>;
+  stories: Metric<Array<{ name: string; startDay: string | null; baselineClicks: number | null; latestClicks: number | null; linksVerified: number; briefsOpen: number; approvedPublic: boolean; attributable: boolean }>>;
   channels: Metric<ChannelRow[]>;
   learning: Metric<Array<{ type: string; contacted: number; acquired: number; retired: boolean }>>;
   actions: Metric<Array<{ type: string; discovered: number; acted: number; verified: number; noGain: number }>>;
@@ -252,6 +254,17 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
     };
   });
 
+  const stories = await measure("portfolio.stories", async () => {
+    const out: Array<{ name: string; startDay: string | null; baselineClicks: number | null; latestClicks: number | null; linksVerified: number; briefsOpen: number; approvedPublic: boolean; attributable: boolean }> = [];
+    for (const slug of Object.keys(PILOT_SLUGS)) {
+      const s = await buildGrowthStory(slug);
+      if (!s) continue;
+      const ap = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from case_study_approvals where business_id = ${s.businessId} and status = 'approved'`));
+      out.push({ name: s.name, startDay: s.start.day, baselineClicks: s.baseline?.clicks ?? null, latestClicks: s.latest?.clicks ?? null, linksVerified: s.verified.links.length, briefsOpen: s.recommended.briefs, approvedPublic: Number(ap[0]?.n ?? 0) > 0, attributable: s.attribution.attributable });
+    }
+    return out;
+  });
+
   const channels = await measure("portfolio.channels", async () => {
     const youtube = attribution.ok ? attribution.value.reduce((a, v) => ({ s: a.s + v.sessions, c: a.c + v.scansCompleted, k: a.k + v.checkouts }), { s: 0, c: 0, k: 0 }) : null;
     const o = rowsOf<{ sent: number }>(await db.execute(sql`select count(*)::int sent from jobs where type = 'authority_outreach_sent' and created_at >= ${since}::timestamptz`));
@@ -326,7 +339,7 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
     return { houseCount: Number(h[0]?.houses ?? 0), searchConsoleConnected: s, publishingLiveEnabled: live[0] ? live[0].value === true || live[0].value === "true" : null, citationsNeedingOwner: Number(h[0]?.citations ?? 0), proofLedgerEntries: Number(proof[0]?.n ?? 0) };
   });
 
-  return { generatedAt: nowIso, windowDays, offsite, attribution, weekly, revenue, backlinks, search, scanFunnel, siteDrafts, searchDriven, backlinkFunnel, channels, learning, actions, engines, health, setup };
+  return { generatedAt: nowIso, windowDays, offsite, attribution, weekly, revenue, backlinks, search, scanFunnel, siteDrafts, searchDriven, backlinkFunnel, stories, channels, learning, actions, engines, health, setup };
 }
 
 const na = "not measured";
@@ -383,6 +396,10 @@ export function renderPortfolioReport(r: PortfolioReport): string {
     out.push(`  viewed the scan page ${f.views} (${f.engaged} showed human input such as a scroll, tap or key press), touched the form ${f.interacted}, submitted ${f.submitted}, hit an error ${f.failed}, completed a scan ${f.completed}`);
     if (f.failures.length) out.push(`  errors shown to visitors: ${f.failures.map((x) => `"${x.detail}" x${x.n}`).join("; ")}`);
   }
+  out.push("");
+  out.push("GROWTH STORIES (pilot sites; measured change versus the 30 days before GravyBlock's first action, never presented as caused by it unless a verified placement and page-level result exist)");
+  if (!r.stories.ok) out.push(`  unavailable: ${r.stories.error}`);
+  else for (const s of r.stories.value) out.push(`  ${s.name}: started ${s.startDay ?? "not yet"}; Google clicks ${s.latestClicks ?? "n/a"} in the latest 30 days vs ${s.baselineClicks ?? "n/a"} before; live links verified ${s.linksVerified}; site briefs open ${s.briefsOpen}; attributable to GravyBlock: ${s.attributable ? "yes" : "not established"}; public story: ${s.approvedPublic ? "approved" : "not published (awaiting owner review)"}`);
   out.push("");
   out.push("OFF-SITE ACTIONS COMPLETED AND PLACEMENTS (a pitch sent is an action, not a result; only a live link found on the other site's page counts as earned)");
   if (!r.backlinkFunnel.ok) out.push(`  unavailable: ${r.backlinkFunnel.error}`);

@@ -217,7 +217,7 @@ export function detectDroppedPages(cur: PageRow[], prev: PageRow[]): DroppedPage
 }
 
 /** Google's own view of a few pages that disappeared (read-only URL Inspection, covered by the existing Search Console grant). */
-async function inspectSample(businessId: string, pages: string[]): Promise<Array<{ page: string; coverage: string | null; indexing: string | null }>> {
+export async function inspectSample(businessId: string, pages: string[]): Promise<Array<{ page: string; coverage: string | null; indexing: string | null }>> {
   const conn = await getGoogleConnection(businessId).catch(() => null);
   const token = await getFreshAccessToken(businessId).catch(() => null);
   if (!conn?.searchConsoleProperty || !token) return [];
