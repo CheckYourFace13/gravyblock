@@ -43,7 +43,8 @@ export function urlMatchScore(url: string, tokens: string[]): number {
 export function matchCompetitorUrls(urlsByHost: Map<string, string[]>, tokens: string[], max = 4): Array<{ host: string; url: string; score: number }> {
   const perHost: Array<{ host: string; url: string; score: number }> = [];
   for (const [host, urls] of urlsByHost) {
-    const scored = urls.map((url) => ({ host, url, score: urlMatchScore(url, tokens) })).filter((x) => x.score > 0).sort((a, b) => b.score - a.score || a.url.length - b.url.length);
+    // a reference page must cover nearly all of the query's words in its address, so an event blog that shares one or two words is not offered as a comparison
+    const scored = urls.map((url) => ({ host, url, score: urlMatchScore(url, tokens) })).filter((x) => x.score >= 0.8).sort((a, b) => b.score - a.score || a.url.length - b.url.length);
     if (scored[0]) perHost.push(scored[0]);
   }
   return perHost.sort((a, b) => b.score - a.score).slice(0, max);

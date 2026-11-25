@@ -205,16 +205,18 @@ export async function gatherSearchIntel(businessId: string, now = new Date()): P
     select opportunity_type t, subtype, expected_impact imp, confidence conf, evidence from growth_opportunities
     where business_id = ${businessId} and status = 'open' and required_capability = 'website_write' and opportunity_type in ('existing_page_seo','schema','ctr','technical','conversion','content_gap','internal_link')
     order by (expected_impact * confidence) desc limit 40`));
-  const seenText = new Set<string>();
-  const openBriefs: SiteIntel["openBriefs"] = [];
+  // One line per kind of finding: the same defect on many pages is one item that lists its pages, and raw evidence is written in plain words.
+  const grouped = new Map<string, { type: string; subtype: string | null; impact: number; detail: string; urls: string[] }>();
   for (const b of briefRows) {
-    const text = (briefEvidence(b.subtype, b.evidence) ?? JSON.stringify(b.evidence ?? "")).replace(/\s+/g, " ").slice(0, 260);
     if (b.subtype === "search_pages_dropped" || b.subtype === "search_low_ctr") continue; // already covered with fresher numbers above
-    if (seenText.has(text)) continue;
-    seenText.add(text);
-    openBriefs.push({ type: b.t, subtype: b.subtype, impact: Number(b.imp), text });
-    if (openBriefs.length >= 8) break;
+    const ev = (b.evidence ?? {}) as { url?: string; path?: string; detail?: string };
+    const detail = (briefEvidence(b.subtype, b.evidence) ?? ev.detail ?? JSON.stringify(b.evidence ?? "")).replace(/\s+/g, " ").slice(0, 240);
+    const key = `${b.t}|${b.subtype ?? ""}`;
+    const g = grouped.get(key) ?? { type: b.t, subtype: b.subtype, impact: Number(b.imp), detail, urls: [] };
+    if (ev.url && !g.urls.includes(ev.url)) g.urls.push(ev.url);
+    grouped.set(key, g);
   }
+  const openBriefs: SiteIntel["openBriefs"] = [...grouped.values()].sort((a, b) => b.impact - a.impact).slice(0, 6).map((g) => ({ type: g.type, subtype: g.subtype, impact: g.impact, text: g.urls.length ? `${g.detail} Affected (${g.urls.length}): ${g.urls.slice(0, 5).join(", ")}${g.urls.length > 5 ? ", ..." : ""}` : g.detail }));
 
   const [au] = rowsOf<{ qualified: number; contacted: number; acquired: number }>(await db.execute(sql`
     select count(*) filter (where status = 'qualified')::int qualified, count(*) filter (where status in ('contacted', 'followed_up'))::int contacted, count(*) filter (where status = 'acquired')::int acquired from backlink_opportunities where business_id = ${businessId}`));

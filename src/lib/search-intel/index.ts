@@ -90,11 +90,13 @@ export function summarizePortfolio(reports: StoredReport[], allSites: string[], 
   }));
   const sum = (f: (r: PortfolioRow) => number | null) => rows.reduce((s, r) => s + (f(r) ?? 0), 0);
   const movers = rows.filter((r) => r.sample === "ok" && r.clicks28 !== null && r.clicks28Prev !== null).map((r) => ({ site: r.name, change: (r.clicks28 ?? 0) - (r.clicks28Prev ?? 0) }));
+  // Portfolio-wide: each site's single best improvement, then the five best of those, so one site's overlapping findings cannot fill the list.
   const priorities: Priority[] = reports
-    .flatMap((r) => deriveImprovements(r.data).map((i) => ({ site: r.name, businessId: r.businessId, title: i.title, potentialClicks28: i.potentialClicks28, kind: i.kind, priority: i.priority })))
-    .sort((a, b) => b.priority - a.priority)
+    .map((r) => ({ r, best: deriveImprovements(r.data)[0] }))
+    .filter((x): x is { r: StoredReport; best: Improvement } => !!x.best)
+    .sort((a, b) => b.best.priority - a.best.priority)
     .slice(0, 5)
-    .map(({ priority: _p, ...rest }) => rest);
+    .map(({ r, best }) => ({ site: r.name, businessId: r.businessId, title: best.title, potentialClicks28: best.potentialClicks28, kind: best.kind }));
   const have = new Set(reports.map((r) => r.name));
   return {
     weekEnding,

@@ -79,8 +79,9 @@ export function deriveImprovements(intel: SiteIntel): Improvement[] {
         "Keep the page's content, URL and canonical unchanged.",
       ],
       acceptance: ["The new title and description are live in the rendered HTML (view-source), unique on the site, within length limits, and truthful.", "No other page's metadata changed."],
-      potentialClicks28: e.clicksMissing,
-      priority: e.clicksMissing * 10,
+      // a better title closes only part of the gap to a typical click rate, so the estimate counts 30% of it
+      potentialClicks28: Math.round(e.clicksMissing * 0.3),
+      priority: e.clicksMissing * 3,
     });
   }
 
@@ -108,8 +109,8 @@ export function deriveImprovements(intel: SiteIntel): Improvement[] {
         "Add original, genuinely useful content or functionality where the page is missing something searchers want. Add internal links to this page from relevant, already-indexed pages with descriptive anchor text.",
       ],
       acceptance: ["The page answers each listed query in its first screen or an obvious section, with original wording.", "Existing content, URL, canonical and structured data are preserved or improved; nothing is removed that earns clicks."],
-      potentialClicks28: Math.round(gain),
-      priority: gain * 6,
+      potentialClicks28: Math.round(gain * 0.5),
+      priority: gain * 3,
     });
   }
 
