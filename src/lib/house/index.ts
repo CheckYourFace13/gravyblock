@@ -27,6 +27,7 @@ import { runCompetitorGapForBusiness } from "@/lib/competitors/gap-engine";
 import { runAeoActionForBusiness } from "@/lib/ai-visibility/aeo-actions";
 import { runBasicSeoForBusiness } from "@/lib/seo/basic-autopilot";
 import { fetchGscPageQuery } from "@/lib/seo/existing-pages";
+import { discoverSearchOpportunities } from "@/lib/opportunities/search-driven";
 import { discoverAndQualify, discoverBrokenLinkOpportunities, discoverUnlinkedMentions } from "@/lib/authority/engine";
 import { SITE_ADAPTERS, autoConnectManagedSites, capabilitiesFor, detectConnector, type SiteAdapterKind } from "@/lib/site-publish/adapters";
 import { evaluateMeasurementPlans } from "@/lib/opportunities/evaluate";
@@ -245,6 +246,8 @@ const ENGINE_DISCOVERY: Array<{ name: string; everyDays: number; afterChangeDays
   { name: "aeo", everyDays: 7, afterChangeDays: 3, run: (id) => runAeoActionForBusiness(id, { scanOnly: true }) },
   // Read-only: pulls Search Console page/query data for a house site once its single Google authorization exists; without one it records "not connected" and does nothing.
   { name: "search_console", everyDays: 1, afterChangeDays: 1, run: (id) => fetchGscPageQuery(id) },
+  // Reads the stored Search Console rows (fetched just above) and queues off-site and brief opportunities from them; never writes to a site.
+  { name: "search_opportunities", everyDays: 1, afterChangeDays: 1, run: (id) => discoverSearchOpportunities(id) },
   { name: "competitor_gap", everyDays: 30, afterChangeDays: 7, run: (id) => runCompetitorGapForBusiness(id, { scanOnly: true }) },
 ];
 

@@ -13,6 +13,8 @@ const base: PortfolioReport = {
   search: { ok: true, value: { connected: 0, clicks28d: null, impressions28d: null } },
   scanFunnel: { ok: true, value: { views: 10, engaged: 3, interacted: 4, submitted: 3, failed: 1, completed: 2, failures: [{ detail: "Could not save report", n: 1 }] } },
   learning: { ok: true, value: [{ type: "association", contacted: 21, acquired: 0, retired: true }] },
+  searchDriven: { ok: true, value: { discovered: 4, open: 3, acted: 1, evaluated: 0, positive: 0, items: [{ site: "Outbreak Threat", page: "https://outbreakthreat.com/norovirus-outbreak-map", band: "near_page_one", status: "acted", baselineClicks: 165, afterClicks: null, measured: null }] } },
+  channels: { ok: true, value: [{ channel: "YouTube videos", actions: "2 tagged campaigns", visits: 18, scans: 0, checkouts: 0, note: "n" }] },
   siteDrafts: { ok: true, value: [{ name: "Mic Stage", total: 7 }] },
   actions: { ok: true, value: [{ type: "backlink", discovered: 5, acted: 1, verified: 0, noGain: 0 }] },
   engines: { ok: true, value: [{ name: "GravyBlock", open: 3, acted: 1, verified: 0, noGain: 0 }] },
@@ -53,4 +55,16 @@ test("search section shows only the latest 28 days per site with the change agai
   assert.match(t, /Busy Site\s+153 clicks \(\+53 vs the 28 days before\)/);
   assert.match(t, /Quiet Site\s+7 clicks \(-2 vs the 28 days before\)/);
   assert.ok(t.indexOf("Busy Site") < t.indexOf("Quiet Site"));
+});
+
+test("channel verdicts never call a small sample a win or a loss", async () => {
+  const { judgeChannel } = await import("../portfolio-report");
+  assert.match(judgeChannel(18, 0), /too early/);
+  assert.match(judgeChannel(150, 0), /no conversions at this volume/);
+  assert.match(judgeChannel(40, 3), /working/);
+  assert.equal(judgeChannel(null, null), "NOT MEASURED");
+  const t = renderPortfolioReport(base);
+  assert.match(t, /SEARCH-DRIVEN WORK/);
+  assert.match(t, /CHANNEL COMPARISON/);
+  assert.match(t, /norovirus-outbreak-map baseline clicks 165, after not measured: waiting for the 28-day window/);
 });

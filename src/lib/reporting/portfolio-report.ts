@@ -22,6 +22,15 @@ export type VideoAttribution = { campaign: string; sessions: number; scansStarte
 export type HouseEngine = { name: string; open: number; acted: number; verified: number; noGain: number };
 export type Pair = { now: number; before: number };
 export type WeekOverWeek = { viewsLifetime: Pair; videosPublished: Pair; publicationsFailed: Pair; videoVisits: Pair; videoScansCompleted: Pair; videoCheckouts: Pair };
+export type SearchDriven = { discovered: number; open: number; acted: number; evaluated: number; positive: number; items: Array<{ site: string; page: string; band: string; status: string; baselineClicks: number | null; afterClicks: number | null; measured: string | null }> };
+export type ChannelRow = { channel: string; actions: string; visits: number | null; scans: number | null; checkouts: number | null; note: string };
+/** Small samples are never called a win or a loss. */
+export function judgeChannel(visits: number | null, conversions: number | null): string {
+  if (visits === null || conversions === null) return "NOT MEASURED";
+  if (conversions >= 3) return "working (3 or more conversions)";
+  if (visits >= 100 && conversions === 0) return "no conversions at this volume (100 or more visits)";
+  return `too early to judge (${visits} visits, ${conversions} conversions; needs 30+ visits or 3+ conversions)`;
+}
 export type PortfolioReport = {
   generatedAt: string;
   windowDays: number;
@@ -33,6 +42,8 @@ export type PortfolioReport = {
   search: Metric<{ connected: number; clicks28d: number | null; impressions28d: number | null; bySite?: Array<{ name: string; clicks: number; impressions: number; priorClicks: number; priorImpressions: number }> }>;
   scanFunnel: Metric<{ views: number; engaged: number; interacted: number; submitted: number; failed: number; completed: number; failures: Array<{ detail: string; n: number }> }>;
   siteDrafts: Metric<Array<{ name: string; total: number }>>;
+  searchDriven: Metric<SearchDriven>;
+  channels: Metric<ChannelRow[]>;
   learning: Metric<Array<{ type: string; contacted: number; acquired: number; retired: boolean }>>;
   actions: Metric<Array<{ type: string; discovered: number; acted: number; verified: number; noGain: number }>>;
   engines: Metric<HouseEngine[]>;
@@ -173,6 +184,40 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
       .map(([type, s]) => ({ type, contacted: s.contacted, acquired: s.acquired, retired: Boolean(s.retired) }))
       .sort((a, b) => b.contacted - a.contacted));
 
+  const searchDriven = await measure("portfolio.searchDriven", async () => {
+    const c = rowsOf<{ disc: number; open: number; acted: number; ev: number; pos: number }>(await db.execute(sql`
+      select count(*) filter (where o.created_at >= ${since}::timestamptz)::int disc,
+             count(*) filter (where o.status = 'open')::int open,
+             count(*) filter (where o.status in ('acted', 'verified', 'no_gain'))::int acted,
+             count(*) filter (where o.measured_result is not null and o.measured_result->>'status' <> 'TOO_EARLY')::int ev,
+             count(*) filter (where o.measured_result->>'status' = 'POSITIVE')::int pos
+      from growth_opportunities o join businesses b on b.id = o.business_id where b.account_type = 'house' and o.engine = 'search_console'`));
+    const it = rowsOf<{ site: string; page: string | null; band: string | null; status: string; base: number | null; after: number | null; ms: string | null }>(await db.execute(sql`
+      select b.name site, o.evidence->>'url' page, o.evidence->>'band' band, o.status, (o.measurement_plan->>'baselineValue')::float base, (o.measured_result->>'afterValue')::float after, o.measured_result->>'status' ms
+      from growth_opportunities o join businesses b on b.id = o.business_id where b.account_type = 'house' and o.engine = 'search_console' and o.status in ('acted', 'verified', 'no_gain') order by o.acted_at desc nulls last limit 8`));
+    const x = c[0];
+    return { discovered: Number(x?.disc ?? 0), open: Number(x?.open ?? 0), acted: Number(x?.acted ?? 0), evaluated: Number(x?.ev ?? 0), positive: Number(x?.pos ?? 0), items: it.map((r) => ({ site: r.site, page: r.page ?? "", band: r.band ?? "", status: r.status, baselineClicks: r.base === null ? null : Number(r.base), afterClicks: r.after === null ? null : Number(r.after), measured: r.ms })) };
+  });
+
+  const channels = await measure("portfolio.channels", async () => {
+    const youtube = attribution.ok ? attribution.value.reduce((a, v) => ({ s: a.s + v.sessions, c: a.c + v.scansCompleted, k: a.k + v.checkouts }), { s: 0, c: 0, k: 0 }) : null;
+    const o = rowsOf<{ sent: number }>(await db.execute(sql`select count(*)::int sent from jobs where type = 'authority_outreach_sent' and created_at >= ${since}::timestamptz`));
+    const cold = rowsOf<{ visits: number; scans: number; checks: number }>(await db.execute(sql`
+      select count(distinct session_id) filter (where event_type in ('scan_started', 'report_landed', 'pricing_viewed'))::int visits,
+             count(distinct session_id) filter (where event_type = 'scan_completed')::int scans,
+             count(distinct session_id) filter (where event_type = 'checkout_started')::int checks
+      from funnel_events e where e.created_at >= ${since}::timestamptz and e.session_id is not null and e.utm_source = 'cold_outreach'
+        and not exists (select 1 from funnel_events x where x.session_id = e.session_id and x.metadata->>'excluded' is not null)`));
+    const sent = Number(o[0]?.sent ?? 0);
+    const rows: ChannelRow[] = [
+      { channel: "YouTube videos", actions: attribution.ok ? `${attribution.value.length} tagged campaigns` : "NOT MEASURED", visits: youtube ? youtube.s : null, scans: youtube ? youtube.c : null, checkouts: youtube ? youtube.k : null, note: "visits to gravyblock.com only; other sites NOT MEASURED" },
+      { channel: "Backlink outreach", actions: `${sent} pitches sent`, visits: Number(cold[0]?.visits ?? 0), scans: Number(cold[0]?.scans ?? 0), checkouts: Number(cold[0]?.checks ?? 0), note: "visits tagged cold_outreach; a pitch that links back is not tagged, so live links are counted separately" },
+      { channel: "Citations and directories", actions: "listings", visits: null, scans: null, checkouts: null, note: "listings carry no referral tag, so visits are NOT MEASURED" },
+      { channel: "Search (organic)", actions: "see search-driven work", visits: null, scans: null, checkouts: null, note: "Search Console clicks are not tied to scans or signups, so conversions are NOT MEASURED" },
+    ];
+    return rows;
+  });
+
   const siteDrafts = await measure("portfolio.siteDrafts", async () => (await buildHouseSiteBriefs(1)).map((b) => ({ name: b.name, total: b.total })));
 
   const actions = await measure("portfolio.actions", async () => {
@@ -228,7 +273,7 @@ export async function gatherPortfolioReport(windowDays = 7): Promise<PortfolioRe
     return { houseCount: Number(h[0]?.houses ?? 0), searchConsoleConnected: s, publishingLiveEnabled: live[0] ? live[0].value === true || live[0].value === "true" : null, citationsNeedingOwner: Number(h[0]?.citations ?? 0), proofLedgerEntries: Number(proof[0]?.n ?? 0) };
   });
 
-  return { generatedAt: nowIso, windowDays, offsite, attribution, weekly, revenue, backlinks, search, scanFunnel, siteDrafts, learning, actions, engines, health, setup };
+  return { generatedAt: nowIso, windowDays, offsite, attribution, weekly, revenue, backlinks, search, scanFunnel, siteDrafts, searchDriven, channels, learning, actions, engines, health, setup };
 }
 
 const na = "not measured";
@@ -284,6 +329,19 @@ export function renderPortfolioReport(r: PortfolioReport): string {
     out.push(`  viewed the scan page ${f.views} (${f.engaged} showed human input such as a scroll, tap or key press), touched the form ${f.interacted}, submitted ${f.submitted}, hit an error ${f.failed}, completed a scan ${f.completed}`);
     if (f.failures.length) out.push(`  errors shown to visitors: ${f.failures.map((x) => `"${x.detail}" x${x.n}`).join("; ")}`);
   }
+  out.push("");
+  out.push("SEARCH-DRIVEN WORK (Search Console findings that became actions; a page is judged on its own clicks after 28 days, never on the action itself)");
+  if (!r.searchDriven.ok) out.push(`  unavailable: ${r.searchDriven.error}`);
+  else {
+    const s = r.searchDriven.value;
+    out.push(`  queued this period ${s.discovered}, open ${s.open}, acted on ${s.acted}, measured after the window ${s.evaluated}, positive ${s.positive}`);
+    if (!s.items.length) out.push("  no search-driven action has been taken yet");
+    for (const i of s.items) out.push(`  ${i.site.padEnd(16)} ${i.band.padEnd(14)} ${i.page.replace(/^https?:\/\//, "").slice(0, 52)} baseline clicks ${i.baselineClicks ?? na}, after ${i.afterClicks ?? na}: ${i.measured ?? "waiting for the 28-day window"}`);
+  }
+  out.push("");
+  out.push("CHANNEL COMPARISON (qualified visits, scans and checkouts for gravyblock.com; verdicts need enough volume)");
+  if (!r.channels.ok) out.push(`  unavailable: ${r.channels.error}`);
+  else for (const c of r.channels.value) out.push(`  ${c.channel.padEnd(26)} ${c.actions}; visits ${c.visits ?? na}, scans ${c.scans ?? na}, checkouts ${c.checkouts ?? na}: ${judgeChannel(c.visits, c.checkouts)} (${c.note})`);
   out.push("");
   out.push("WHAT THE ENGINE LEARNED (backlink outreach by prospect type; a type with 12 or more contacts and no verified link is retired from new pitches)");
   if (!r.learning.ok) out.push(`  unavailable: ${r.learning.error}`);

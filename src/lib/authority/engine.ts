@@ -24,6 +24,7 @@ import { fullAccessWhere } from "@/lib/entitlement";
 import { recordProof } from "@/lib/proof/ledger";
 import { recordOpportunity, markActed, recordMeasurementByDedupeKey, getMeasurementPlanByDedupeKey } from "@/lib/opportunities/queue";
 import { buildMeasurementPlan } from "@/lib/opportunities/measurement";
+import { markSearchOpportunityActed } from "@/lib/opportunities/search-driven";
 import { getOperatingMode, webSearchSites } from "@/lib/business-mode";
 import { randomUUID } from "node:crypto";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
@@ -800,6 +801,8 @@ async function sendInitialOutreach(db: Db, businessId: string, truth: BusinessTr
     });
     await logEvent(db, businessId, c.id, "outreach_sent", { resendEmailId: res.id, assetUrl: asset.url, targetUrl: c.targetUrl });
     await markActed(`authority_prospect:${c.id}`, { actionId: c.id, verificationStatus: "unverified", measurementPlan: buildMeasurementPlan("backlink", 0, "n/a") });
+    // The pitch pointed at this page; if search data queued it as an opportunity, record the action and start its measurement window.
+    await markSearchOpportunityActed(businessId, asset.url, c.id);
     sent++;
     budget.left--;
   }
