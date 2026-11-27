@@ -154,8 +154,8 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
     used.add(page);
   }
 
-  // 4b. The biggest topic the site is visible for but far back (positions 21 to 60): the largest real demand it already touches. Depth and authority, not a rewrite.
-  for (const c of deep.clusters.filter((x) => !x.branded && x.position > 20 && x.position <= 60 && x.impressions >= Math.max(300, total * 0.1)).slice(0, 1)) {
+  // 4b. The biggest topic the site is visible for but far back (positions 21 to 80): the largest real demand it already touches. Depth and authority, not a rewrite.
+  for (const c of deep.clusters.filter((x) => !x.branded && x.position > 20 && x.position <= 80 && x.impressions >= Math.max(300, total * 0.1)).slice(0, 1)) {
     const page = c.pages[0]!;
     if (used.has(page)) continue;
     const refs = intel.competitors.queries.filter((q) => c.queries.includes(q.query));

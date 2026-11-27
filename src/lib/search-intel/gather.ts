@@ -177,7 +177,7 @@ async function competitorSection(
   const fresh = rowsOf<{ host: string; url: string; first_seen: string }>(await db.execute(sql`select o.competitor_host host, o.url, o.first_seen from competitor_page_observations o where o.business_id = ${businessId} and o.first_seen >= ${since}::timestamptz
     and o.first_seen > (select min(x.first_seen) + interval '1 hour' from competitor_page_observations x where x.business_id = o.business_id and x.competitor_host = o.competitor_host)
     order by o.first_seen desc limit 200`));
-  result.newPages = newPagesSince(fresh.map((f) => ({ host: f.host, url: f.url, firstSeen: new Date(f.first_seen).toISOString() })), hostsWithBaseline, since);
+  result.newPages = newPagesSince(fresh.map((f) => ({ host: f.host, url: f.url, firstSeen: new Date(f.first_seen).toISOString() })), hostsWithBaseline, since).filter((p) => urlsByHost.has(p.host)); // only competitors that passed the relevance check
   if (result.baselineEstablishedToday.length) notes.push(`First observation (baseline, no changes claimed) for: ${result.baselineEstablishedToday.join(", ")}.`);
 
   // The site's own important queries: biggest non-trivial audiences first.
