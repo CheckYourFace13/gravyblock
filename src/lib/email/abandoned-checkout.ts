@@ -8,6 +8,7 @@
  * Worker calls runAbandonedCheckoutBatch() every tick; deduped via jobs table.
  */
 
+import { htmlToText, listUnsubscribeHeaders } from "@/lib/email/optout";
 import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";
 import { and, eq, isNotNull, isNull, gte, sql } from "drizzle-orm";
 import { getDb, businesses, jobs } from "@/lib/db";
@@ -115,7 +116,7 @@ async function sendEmail(to: string, subject: string, htmlIn: string): Promise<b
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ from, reply_to: CUSTOMER_REPLY_TO, to: [to], subject, html }),
+    body: JSON.stringify({ from, reply_to: CUSTOMER_REPLY_TO, to: [to], subject, html, text: htmlToText(html), headers: listUnsubscribeHeaders(to) }),
   });
   return res.ok;
 }

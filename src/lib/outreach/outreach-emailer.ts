@@ -1,7 +1,7 @@
 import type { Prospect } from "./prospect-finder";
 import { CUSTOMER_FROM_NAME, outreachFrom } from "@/lib/email/identity";
 import type { ProspectPreScan } from "./prospect-prescan";
-import { isOptedOut, coldOutreachFooter } from "@/lib/email/optout";
+import { isOptedOut, coldOutreachFooter, listUnsubscribeHeaders } from "@/lib/email/optout";
 import { assertOutreachSendingAllowed } from "./pause-guard";
 import { classifyFindingStrength, naturalFindingPhrase, findingSubjectPhrase } from "./finding-quality";
 
@@ -487,6 +487,7 @@ export async function sendFollowupEmail(params: {
       subject,
       html,
       text,
+      headers: listUnsubscribeHeaders(params.email),
       tags: [
         { name: "type", value: "cold_outreach_followup" },
       ],
@@ -580,6 +581,7 @@ ${SENDER_NAME}`;
       subject,
       html,
       text,
+      headers: listUnsubscribeHeaders(params.email),
       tags: [{ name: "type", value: "cold_outreach_breakup" }],
     }),
   });
@@ -644,6 +646,7 @@ export async function sendProspectEmail(
       subject,
       html,
       text,
+      headers: listUnsubscribeHeaders(toEmail),
       tags: [
         { name: "type", value: "cold_outreach" },
         { name: "city", value: prospect.city.toLowerCase().replace(/\s+/g, "_") },

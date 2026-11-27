@@ -131,8 +131,8 @@ export function buildGrokbotEmail(i: EmailInput): { subject: string; text: strin
   L.push("", `GravyBlock admin (sign-in required): ${reportLink(i.site.businessId)}`);
   const text = scrubPersonal(L.join("\n"));
   const subject = buildSubject(i.site.name, i.ref, imp, i.kind);
-  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  return { subject, text, html: `<pre style="font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;color:#18181b">${esc(text)}</pre>` };
+  // Plain text only: no HTML, links or tracking. It is what an automation reads best, and plain mail is the least spam-like format for a technical message.
+  return { subject, text, html: "" };
 }
 
 export type SendResult = { ok: boolean; id?: string; error?: string };
@@ -146,7 +146,7 @@ export const sendViaResend: SendFn = async (m) => {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "Idempotency-Key": `gravyblock-grokbot-${m.idempotencyKey}`.slice(0, 250) },
-      body: JSON.stringify({ from: m.from, to: [m.to], subject: m.subject, text: m.text, html: m.html, tags: [{ name: "type", value: "grokbot_recommendation" }] }),
+      body: JSON.stringify({ from: m.from, to: [m.to], subject: m.subject, text: m.text, ...(m.html ? { html: m.html } : {}), tags: [{ name: "type", value: "grokbot_recommendation" }] }),
       signal: AbortSignal.timeout(20_000),
     });
     const body = (await res.json().catch(() => ({}))) as { id?: string; message?: string; name?: string };

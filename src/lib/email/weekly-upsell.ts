@@ -1,3 +1,4 @@
+import { htmlToText, listUnsubscribeHeaders } from "@/lib/email/optout";
 import { desc, eq, gte, and, ne, sql } from "drizzle-orm";
 import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";
 import { isOptedOut } from "@/lib/email/optout";
@@ -201,7 +202,7 @@ async function sendUpsellEmail(
   await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, reply_to: CUSTOMER_REPLY_TO, to: [to], subject: `GravyBlock weekly update — ${businessName}`, html }),
+    body: JSON.stringify({ from, reply_to: CUSTOMER_REPLY_TO, to: [to], subject: `GravyBlock weekly update — ${businessName}`, html, text: htmlToText(html), headers: listUnsubscribeHeaders(to) }),
   }).catch((err) => console.error("[upsell-email] send failed", err));
 }
 

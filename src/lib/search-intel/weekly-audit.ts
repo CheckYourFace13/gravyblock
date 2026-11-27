@@ -149,15 +149,14 @@ export function buildSiteAuditEmail(i: SiteAuditInput): { subject: string; text:
   return { subject: `[GravyBlock Weekly Audit] ${i.week} — ${i.report.name} (${i.index} of ${i.total})`, text, buckets };
 }
 
-const html = (text: string) => `<pre style="font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;color:#18181b">${text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`;
-
 type Delivery = { id: string; status: string; attempts: number };
 
+/** Claim a delivery for sending. A failed one is retried at most every 10 minutes; one stuck mid-send for 15 minutes is retried with the same idempotency key. */
 async function claim(key: string, businessId: string | null, subject: string): Promise<Delivery | null> {
   const db = getDb()!;
   await db.execute(sql`insert into grokbot_deliveries (recommendation_id, business_id, occurrence, idempotency_key, kind, status, subject) values (null, ${businessId}, 1, ${key}, 'weekly_audit', 'pending', ${subject}) on conflict (idempotency_key) do nothing`);
   const [d] = rowsOf<Delivery>(await db.execute(sql`update grokbot_deliveries set status = 'sending', attempts = attempts + 1, updated_at = now(), subject = ${subject}
-    where idempotency_key = ${key} and attempts < 6 and (status in ('pending', 'failed') or (status = 'sending' and updated_at < now() - interval '15 minutes')) returning id, status, attempts`));
+    where idempotency_key = ${key} and attempts < 6 and (status = 'pending' or (status = 'failed' and updated_at < now() - interval '10 minutes') or (status = 'sending' and updated_at < now() - interval '15 minutes')) returning id, status, attempts`));
   return d ?? null;
 }
 
@@ -167,98 +166,142 @@ async function finish(id: string, r: { ok: boolean; id?: string; error?: string 
   else await db.execute(sql`update grokbot_deliveries set status = 'failed', last_error = ${r.error ?? "send failed"}, updated_at = now() where id = ${id}::uuid`);
 }
 
-export type AuditResult = { week: string; sites: number; sent: number; alreadySent: number; failed: number; suppressed: number; summarySent: boolean; refreshed: string[]; results: Array<{ site: string; status: string; resendEmailId?: string; error?: string }> };
+/**
+ * Deliverability: the audit goes out as a few plain-text parts (each kept under Gmail's ~100 KB clipping size, whole sites never split), at least
+ * PART_GAP_MS apart, instead of one email per site in a burst. Part 1 starts with the portfolio summary. No HTML, no tracking, no attachments.
+ */
+export const PART_LIMIT_CHARS = 60_000;
+export const PART_GAP_MS = 5 * 60_000;
+
+export function packParts(blocks: string[], limit = PART_LIMIT_CHARS): number[][] {
+  const parts: number[][] = [];
+  let cur: number[] = [];
+  let size = 0;
+  blocks.forEach((b, i) => {
+    if (cur.length && size + b.length > limit) {
+      parts.push(cur);
+      cur = [];
+      size = 0;
+    }
+    cur.push(i);
+    size += b.length;
+  });
+  if (cur.length) parts.push(cur);
+  return parts;
+}
+
+export type AuditResult = { week: string; sites: number; parts: number; sent: number; alreadySent: number; failed: number; waiting: boolean; complete: boolean; refreshed: string[]; results: Array<{ part: number; sites: string[]; status: string; resendEmailId?: string; error?: string; chars?: number }> };
+
+/** True when this week's audit has been fully delivered (including the earlier one-email-per-site format, recognised by its summary email). */
+async function weekComplete(week: string): Promise<boolean> {
+  const db = getDb()!;
+  const [x] = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key in (${`audit:${week}:complete`}, ${`audit:${week}:summary`})`));
+  return Number(x?.n ?? 0) > 0;
+}
 
 /**
- * Sends this week's audit: per-site emails first, then the portfolio summary. Safe to call repeatedly: sent emails are skipped, failed ones retried.
- * `freshSince` forces any report older than that instant to be regenerated before sending.
+ * Sends this week's audit. Safe to call repeatedly (the worker calls it every 30 seconds in the send window): sent parts are skipped, the next part waits until
+ * PART_GAP_MS after the previous one, failed parts are retried. `freshSince` forces any report older than that instant to be regenerated before sending.
  */
-export async function sendWeeklyAudit(now = new Date(), opts: { send?: SendFn; freshSince?: Date; spacingMs?: number } = {}): Promise<AuditResult> {
+export async function sendWeeklyAudit(now = new Date(), opts: { send?: SendFn; freshSince?: Date; gapMs?: number } = {}): Promise<AuditResult> {
   const db = getDb();
   const week = weekEndingFor(now);
-  const out: AuditResult = { week, sites: 0, sent: 0, alreadySent: 0, failed: 0, suppressed: 0, summarySent: false, refreshed: [], results: [] };
+  const out: AuditResult = { week, sites: 0, parts: 0, sent: 0, alreadySent: 0, failed: 0, waiting: false, complete: false, refreshed: [], results: [] };
   if (!db) return out;
+  if (await weekComplete(week)) return { ...out, complete: true };
   const cfg = grokbotConfig();
   const send = opts.send ?? sendViaResend;
-  const spacing = opts.spacingMs ?? 700; // comfortably under Resend's per-second limit
+  const gap = opts.gapMs ?? PART_GAP_MS;
   const freshSince = opts.freshSince ?? chicagoInstant(chicagoParts(now).ymd, 5, 0);
-  for (let pass = 0; pass < 4; pass++) {
-    const g = await generateMissingSearchIntel(now, 12, { freshSince });
-    out.refreshed.push(...g.generated);
-    if (!g.remaining) break;
+  const anySent = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key like ${`audit:${week}:part:%`}`));
+  // refresh only before the first part goes out, so every part of one week's audit describes the same data
+  if (Number(anySent[0]?.n ?? 0) === 0) {
+    for (let pass = 0; pass < 4; pass++) {
+      const g = await generateMissingSearchIntel(now, 12, { freshSince });
+      out.refreshed.push(...g.generated);
+      if (!g.remaining) break;
+    }
   }
   const houses = await listHouseAccounts();
   const reports = await loadReports(week);
   out.sites = reports.length;
   const ordered = houses.map((h) => reports.find((r) => r.businessId === h.id)).filter((r): r is StoredReport => !!r);
+  const [prevAudit] = rowsOf<{ at: string | null }>(await db.execute(sql`select max(sent_at) at from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key not like ${`audit:${week}:%`}`));
+  const previousAuditAt = prevAudit?.at ? new Date(prevAudit.at) : null;
+  const blocks: string[] = [];
   const summaryLines: string[] = [];
   let idx = 0;
   for (const report of ordered) {
     idx++;
-    const key = `audit:${week}:${report.businessId}`;
-    const [prev] = rowsOf<{ sent_at: string }>(await db.execute(sql`select sent_at from grokbot_deliveries where kind = 'weekly_audit' and business_id = ${report.businessId} and status = 'sent' and idempotency_key <> ${key} order by sent_at desc limit 1`));
     const sentRows = rowsOf<{ recommendation_id: string; sent_at: string }>(await db.execute(sql`select recommendation_id, sent_at from grokbot_deliveries where business_id = ${report.businessId} and kind in ('new', 'reopened') and status = 'sent'`));
     const queue = await loadQueue(report.businessId);
-    // only this occurrence's own send counts as handed off
     const sent = new Map<string, string>();
     for (const s of sentRows) {
       const rec = queue.find((q) => q.id === s.recommendation_id);
       const began = rec ? (rec.occurrence > 1 ? rec.reopenedAt : rec.firstSeenAt) : null;
       if (rec && (!began || new Date(s.sent_at) >= began)) sent.set(s.recommendation_id, new Date(s.sent_at).toISOString());
     }
-    const email = buildSiteAuditEmail({ report, queue, sent, previousAuditAt: prev ? new Date(prev.sent_at) : null, index: idx, total: ordered.length, week, now });
+    const email = buildSiteAuditEmail({ report, queue, sent, previousAuditAt, index: idx, total: ordered.length, week, now });
+    blocks.push(`\n\n######## SITE ${idx} OF ${ordered.length}: ${report.name} ########\n\n${email.text}`);
     summaryLines.push(`- ${report.name}: ${Object.entries(email.buckets).map(([b, n]) => `${b} ${n}`).join(", ") || "no recommendations"}; 28-day clicks ${report.data.w28?.cur.clicks ?? "n/a"}${report.data.w28 ? ` (${sign(report.data.w28.clicksChange)})` : ""}`);
-    const [done] = rowsOf<{ status: string }>(await db.execute(sql`select status from grokbot_deliveries where idempotency_key = ${key}`));
-    if (done?.status === "sent") { out.alreadySent++; out.results.push({ site: report.name, status: "already sent" }); continue; }
-    if (containsSensitive(email.text)) {
-      await db.execute(sql`insert into grokbot_deliveries (business_id, occurrence, idempotency_key, kind, status, subject, last_error) values (${report.businessId}, 1, ${key}, 'weekly_audit', 'suppressed', ${email.subject}, 'looked like it contained a credential') on conflict (idempotency_key) do update set status = 'suppressed'`);
-      out.suppressed++;
-      out.results.push({ site: report.name, status: "suppressed" });
-      continue;
-    }
-    const c = await claim(key, report.businessId, email.subject);
-    if (!c) { out.results.push({ site: report.name, status: "not claimable (in flight or out of attempts)" }); continue; }
-    const r = await send({ to: cfg.to, from: cfg.from, subject: email.subject, text: email.text, html: html(email.text), idempotencyKey: key });
-    await finish(c.id, r);
-    if (r.ok) out.sent++;
-    else out.failed++;
-    out.results.push({ site: report.name, status: r.ok ? "sent" : "failed", resendEmailId: r.id, error: r.error });
-    await new Promise((res) => setTimeout(res, spacing));
   }
-  // portfolio summary last, so it can say what was delivered
+  const parts = packParts(blocks);
+  out.parts = parts.length;
   const s = summarizePortfolio(reports, houses.map((h) => h.name), week);
-  const summaryKey = `audit:${week}:summary`;
-  const [sDone] = rowsOf<{ status: string }>(await db.execute(sql`select status from grokbot_deliveries where idempotency_key = ${summaryKey}`));
-  if (sDone?.status !== "sent") {
-    const text = scrubPersonal([
-      `GRAVYBLOCK WEEKLY SEARCH & COMPETITOR AUDIT: PORTFOLIO SUMMARY, week ending ${week}`,
-      `${ordered.length} site audits are sent as separate emails with the subject "[GravyBlock Weekly Audit] ${week} — <site> (n of ${ordered.length})". Each contains the full audit and a copy-ready development instruction for that site's own developer.`,
-      "Nothing in these emails changes a task's status, and GravyBlock never edits these sites.",
-      "",
-      `Portfolio (Google search clicks only, not total visitors): 28 days ${s.totals.clicks28} clicks (${sign(s.totals.clicks28 - s.totals.clicks28Prev)}), ${s.totals.impressions28} impressions (${sign(s.totals.impressions28 - s.totals.impressions28Prev)}); 7 days ${s.totals.clicks7} clicks (${sign(s.totals.clicks7 - s.totals.clicks7Prev)}).`,
-      `Gains: ${s.gains.map((g) => `${g.site} ${sign(g.change)}`).join(", ") || "none large enough to read"}. Losses: ${s.losses.map((g) => `${g.site} ${sign(g.change)}`).join(", ") || "none large enough to read"}.`,
-      s.missing.length ? `Not available this week: ${s.missing.join(", ")}.` : `All ${houses.length} sites covered.`,
-      "",
-      "Recommendations by status per site (NEW means first reported since the previous audit; HANDED OFF means already emailed on its own or copied):",
-      ...summaryLines,
-      "",
-      "Top priorities this week:",
-      ...s.priorities.map((p, n) => `${n + 1}. ${p.site}: ${p.title}`),
-    ].join("\n"));
-    const c = await claim(summaryKey, null, `[GravyBlock Weekly Audit] ${week} — Portfolio summary (${ordered.length} sites)`);
-    if (c) {
-      const r = await send({ to: cfg.to, from: cfg.from, subject: `[GravyBlock Weekly Audit] ${week} — Portfolio summary (${ordered.length} sites)`, text, html: html(text), idempotencyKey: summaryKey });
-      await finish(c.id, r);
-      out.summarySent = r.ok;
-      out.results.push({ site: "PORTFOLIO SUMMARY", status: r.ok ? "sent" : "failed", resendEmailId: r.id, error: r.error });
-      if (r.ok) out.sent++;
-      else out.failed++;
+  const summary = [
+    `GRAVYBLOCK WEEKLY SEARCH & COMPETITOR AUDIT, week ending ${week}`,
+    `This audit covers ${ordered.length} sites in ${parts.length} part(s), sent a few minutes apart. Each site section is complete: its audit, its recommendations by status and one copy-ready development instruction for that site's own developer.`,
+    "Nothing in these emails changes a task's status, and GravyBlock never edits these sites.",
+    "",
+    `Portfolio (Google search clicks only, not total visitors): 28 days ${s.totals.clicks28} clicks (${sign(s.totals.clicks28 - s.totals.clicks28Prev)}), ${s.totals.impressions28} impressions (${sign(s.totals.impressions28 - s.totals.impressions28Prev)}); 7 days ${s.totals.clicks7} clicks (${sign(s.totals.clicks7 - s.totals.clicks7Prev)}).`,
+    `Gains: ${s.gains.map((g) => `${g.site} ${sign(g.change)}`).join(", ") || "none large enough to read"}. Losses: ${s.losses.map((g) => `${g.site} ${sign(g.change)}`).join(", ") || "none large enough to read"}.`,
+    s.missing.length ? `Not available this week: ${s.missing.join(", ")}.` : `All ${houses.length} sites covered.`,
+    "",
+    "Recommendations by status per site (NEW means first reported since the previous audit; HANDED OFF means already emailed on its own or copied):",
+    ...summaryLines,
+    "",
+    "Top priorities this week:",
+    ...s.priorities.map((p, n) => `${n + 1}. ${p.site}: ${p.title}`),
+    "",
+    "Parts:",
+    ...parts.map((p, n) => `- Part ${n + 1}: ${p.map((i) => ordered[i]!.name).join(", ")}`),
+  ].join("\n");
+
+  for (let n = 0; n < parts.length; n++) {
+    const key = `audit:${week}:part:${n + 1}`;
+    const names = parts[n]!.map((i) => ordered[i]!.name);
+    const [row] = rowsOf<{ status: string; sent_at: string | null }>(await db.execute(sql`select status, sent_at from grokbot_deliveries where idempotency_key = ${key}`));
+    if (row?.status === "sent") { out.alreadySent++; continue; }
+    if (n > 0) {
+      const [prev] = rowsOf<{ sent_at: string | null; status: string }>(await db.execute(sql`select status, sent_at from grokbot_deliveries where idempotency_key = ${`audit:${week}:part:${n}`}`));
+      if (prev?.status !== "sent" || !prev.sent_at || now.getTime() - new Date(prev.sent_at).getTime() < gap) { out.waiting = true; break; }
     }
-  } else out.summarySent = true;
+    const header = `GRAVYBLOCK WEEKLY AUDIT ${week}, PART ${n + 1} OF ${parts.length}: ${names.join(", ")}`;
+    const text = scrubPersonal(`${header}\n\n${n === 0 ? `${summary}\n` : ""}${parts[n]!.map((i) => blocks[i]).join("")}\n`);
+    const subject = `[GravyBlock Weekly Audit] ${week} — Part ${n + 1} of ${parts.length} (${names.length} site${names.length === 1 ? "" : "s"})`;
+    if (containsSensitive(text)) {
+      await db.execute(sql`insert into grokbot_deliveries (occurrence, idempotency_key, kind, status, subject, last_error) values (1, ${key}, 'weekly_audit', 'suppressed', ${subject}, 'looked like it contained a credential') on conflict (idempotency_key) do update set status = 'suppressed'`);
+      out.results.push({ part: n + 1, sites: names, status: "suppressed" });
+      break;
+    }
+    const c = await claim(key, null, subject);
+    if (!c) { out.results.push({ part: n + 1, sites: names, status: "waiting (in flight or retry not due)" }); out.waiting = true; break; }
+    const r = await send({ to: cfg.to, from: cfg.from, subject, text, html: "", idempotencyKey: key });
+    await finish(c.id, r);
+    out.results.push({ part: n + 1, sites: names, status: r.ok ? "sent" : "failed", resendEmailId: r.id, error: r.error, chars: text.length });
+    if (!r.ok) { out.failed++; break; }
+    out.sent++;
+    if (n + 1 < parts.length) { out.waiting = true; break; } // the next part goes out on a later pass, at least the gap later
+  }
+  const [{ n: done }] = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key like ${`audit:${week}:part:%`}`));
+  if (Number(done) >= parts.length) {
+    await db.execute(sql`insert into grokbot_deliveries (occurrence, idempotency_key, kind, status, subject, sent_at) values (1, ${`audit:${week}:complete`}, 'weekly_audit', 'sent', ${`all ${parts.length} parts delivered`}, now()) on conflict (idempotency_key) do nothing`);
+    out.complete = true;
+  }
   return out;
 }
 
-/** Scheduler step, called every 30 seconds by the worker: refresh during Friday 05:00 Chicago, send from 06:00 (retrying until noon). */
+/** Scheduler step, called every 30 seconds by the worker: refresh during Friday 05:00 Chicago, send from 06:00 (paced parts, retries until noon). */
 export async function weeklyAuditTick(now = new Date()): Promise<{ phase: AuditPhase; result?: unknown }> {
   const phase = auditPhase(now);
   if (phase === "idle") return { phase };
@@ -266,11 +309,6 @@ export async function weeklyAuditTick(now = new Date()): Promise<{ phase: AuditP
     const g = await generateMissingSearchIntel(now, 3, { freshSince: chicagoInstant(chicagoParts(now).ymd, 5, 0) });
     return { phase, result: g };
   }
-  const db = getDb();
-  if (!db) return { phase };
-  const week = weekEndingFor(now);
-  const houses = await listHouseAccounts();
-  const [{ n }] = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where kind = 'weekly_audit' and status in ('sent', 'suppressed') and idempotency_key like ${`audit:${week}:%`}`));
-  if (Number(n) >= houses.length + 1) return { phase }; // everything for this week already delivered
+  if (!getDb() || (await weekComplete(weekEndingFor(now)))) return { phase };
   return { phase, result: await sendWeeklyAudit(now) };
 }

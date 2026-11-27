@@ -32,7 +32,7 @@ import { backlinkOpportunities, businessCompetitors, businesses, getDb, jobs } f
 import { ensureFreshTruth, promotableContent, type BusinessTruth } from "@/lib/truth";
 import { discoverContactEmail } from "@/lib/outreach/discover-contact-email";
 import { sectionTopics } from "@/lib/opportunities/embed-briefs";
-import { isOptedOut, coldOutreachFooter } from "@/lib/email/optout";
+import { isOptedOut, coldOutreachFooter, listUnsubscribeHeaders } from "@/lib/email/optout";
 import { assertOutreachSendingAllowed } from "@/lib/outreach/pause-guard";
 import { checkOutreachHealth } from "@/lib/outreach/outreach-health";
 import { getRemainingSharedBudget } from "@/lib/outreach/send-budget";
@@ -784,6 +784,7 @@ async function sendPitch(input: { to: string; business: string; subject: string;
       subject: input.subject,
       text: input.text + footer,
       html,
+      headers: listUnsubscribeHeaders(input.to),
       tags: [{ name: "type", value: "authority_outreach" }],
     }),
   });

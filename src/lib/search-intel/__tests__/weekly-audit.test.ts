@@ -45,3 +45,12 @@ test("handed off (sent or copied), opened, in progress, completed, verified, and
   assert.equal(auditBucket(rec({ status: "verified" }), true, prevAudit), "VERIFIED");
   assert.equal(auditBucket(rec({ status: "dismissed" }), true, prevAudit), null);
 });
+
+import { packParts } from "../weekly-audit";
+test("the audit is packed into a few parts under the size limit, never splitting a site", () => {
+  const blocks = Array.from({ length: 12 }, (_, i) => "x".repeat(i === 3 ? 25_000 : 12_000));
+  const parts = packParts(blocks, 60_000);
+  assert.ok(parts.length >= 3 && parts.length <= 4);
+  assert.deepEqual(parts.flat(), blocks.map((_, i) => i));
+  for (const p of parts) assert.ok(p.reduce((s, i) => s + blocks[i]!.length, 0) <= 60_000 || p.length === 1);
+});

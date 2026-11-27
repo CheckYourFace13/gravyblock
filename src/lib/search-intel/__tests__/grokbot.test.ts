@@ -63,7 +63,7 @@ test("credentials block a send and personal details are removed", () => {
 test("the email carries everything needed and says that sending changes nothing", () => {
   const m = buildGrokbotEmail({ site: { name: "Example Site", website: "https://example.com/", businessId: "b1" }, ref: "SR-1A2B3C", occurrence: 1, kind: "new", improvement: imp(), intel: intel(), now: new Date("2026-11-26T15:00:00Z") });
   for (const s of ["Website: https://example.com/", "Recommendation ID: SR-1A2B3C", "AFFECTED URLS", "https://example.com/marinas", "CURRENT GOOGLE SEARCH CONSOLE EVIDENCE", "CTR 1.0%", "COMPETITOR REFERENCES", "https://rival.com/chicago-marinas", "SPECIFIC IMPROVEMENTS TO MAKE", "EXISTING FEATURES AND PROTECTIONS TO PRESERVE", "COPY-READY DEVELOPMENT INSTRUCTION", "ACCEPTANCE TESTS", "PRODUCTION VERIFICATION", "REPORT BACK", "does not change the task", "GravyBlock never edits this site"]) assert.ok(m.text.includes(s), s);
-  assert.ok(m.html.includes("<pre"));
+  assert.equal(m.html, ""); // plain text only
   const t = buildGrokbotEmail({ site: { name: "Example Site", website: "https://example.com/", businessId: "b1" }, ref: "SR-TEST00", occurrence: 1, kind: "test", improvement: imp(), intel: intel(), now: new Date() });
   assert.match(t.text, /^\*\*\* TEST MESSAGE/);
 });

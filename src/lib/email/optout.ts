@@ -59,6 +59,32 @@ export async function recordOptOut(email: string): Promise<void> {
   });
 }
 
+/**
+ * RFC 8058 one-click unsubscribe headers for marketing and outreach mail. Gmail and Yahoo expect these on promotional mail (an "Unsubscribe" button in the inbox
+ * instead of the spam button); the URL accepts a POST (one-click) and a GET (the existing confirmation page). Suppression is the same email_optout record as the
+ * footer link, so nothing about who is suppressed changes.
+ */
+export function listUnsubscribeHeaders(email: string, leadId?: string): Record<string, string> {
+  return { "List-Unsubscribe": `<${unsubscribeUrl(email, leadId)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" };
+}
+
+/** A readable plain-text alternative for HTML-only messages (multipart mail with a text part is the norm; HTML-only is a spam-filter signal). */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<a\s[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, (_m, href: string, label: string) => {
+      const t = label.replace(/<[^>]+>/g, "").trim();
+      return t && !href.startsWith("mailto:") && t !== href ? `${t} (${href})` : t || href;
+    })
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|h[1-6]|li|tr|table|ul|ol)>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&middot;/g, "·").replace(/&bull;/g, "•").replace(/&mdash;/g, "-").replace(/&rarr;/g, "->")
+    .replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
 /** Unsubscribe footer HTML to append to all marketing emails. */
 export function unsubscribeFooter(email: string, leadId?: string): string {
   const url = unsubscribeUrl(email, leadId);

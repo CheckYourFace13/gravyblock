@@ -1,3 +1,4 @@
+import { htmlToText, listUnsubscribeHeaders } from "@/lib/email/optout";
 import { and, eq, gte, inArray, ne, sql } from "drizzle-orm";
 import { CUSTOMER_FROM, CUSTOMER_REPLY_TO } from "@/lib/email/identity";
 import { getDb, businesses, leads, jobs, visibilitySnapshots } from "@/lib/db";
@@ -171,7 +172,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ from, reply_to: CUSTOMER_REPLY_TO, to: [to], subject, html }),
+    body: JSON.stringify({ from, reply_to: CUSTOMER_REPLY_TO, to: [to], subject, html, text: htmlToText(html), headers: listUnsubscribeHeaders(to) }),
   });
   return res.ok;
 }

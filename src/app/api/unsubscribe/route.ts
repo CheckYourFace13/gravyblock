@@ -107,3 +107,25 @@ export async function GET(request: NextRequest) {
 
   return confirmationPage(email);
 }
+
+/**
+ * RFC 8058 one-click unsubscribe: mail clients (Gmail, Yahoo, Apple) POST "List-Unsubscribe=One-Click" to the List-Unsubscribe URL with no page view.
+ * Same suppression as the GET link: the lead is marked unsubscribed and an email_optout record blocks every future marketing or outreach send.
+ */
+export async function POST(request: NextRequest) {
+  const encodedEmail = request.nextUrl.searchParams.get("e");
+  const leadId = request.nextUrl.searchParams.get("lid");
+  const email = encodedEmail ? decodeEmail(encodedEmail) : null;
+  if (!email || !email.includes("@")) return new NextResponse("Invalid unsubscribe request", { status: 400 });
+  const db = getDb();
+  if (db) {
+    if (leadId) await db.update(leads).set({ pipelineStatus: "unsubscribed" }).where(eq(leads.id, leadId)).catch(() => {});
+    await db.update(leads).set({ pipelineStatus: "unsubscribed" }).where(eq(sql`lower(${leads.email})`, email.toLowerCase())).catch(() => {});
+    const already = await db.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.type, "email_optout"), eq(sql`lower(payload->>'email')`, email.toLowerCase()))).limit(1).catch(() => []);
+    if (already.length === 0) {
+      await db.insert(jobs).values({ type: "email_optout", status: "completed", payload: { email: email.toLowerCase(), unsubscribedAt: new Date().toISOString(), source: "one_click" } }).catch(() => {});
+    }
+    console.info("[unsubscribe] one-click opt-out", { leadId });
+  }
+  return new NextResponse("Unsubscribed", { status: 200, headers: { "content-type": "text/plain" } });
+}
