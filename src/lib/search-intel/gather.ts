@@ -343,13 +343,16 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
     }
     demand.suggestions = suggestions.length;
     const siteQueries = [...q28cur, ...q28prev].map((q) => q.key);
-    const missing = uncaptured(suggestions, siteQueries, profile.topicWords);
+    // platform names ("... reddit") describe where people ask, not what they want; drop them
+    const missing = uncaptured(suggestions, siteQueries, profile.topicWords).filter((q) => !/\b(reddit|youtube|tiktok|yelp|wikipedia|amazon|facebook|instagram|quora|craigslist)\b/.test(q));
     const groups = new Map<string, string[]>();
     for (const m of missing) {
       const key = tokensOf(m).slice(0, 2).sort().join(" ");
       (groups.get(key) ?? groups.set(key, []).get(key)!).push(m);
     }
-    for (const [, qs] of [...groups.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 4)) {
+    // a demand topic needs at least two different suggestions behind it; a lone odd suggestion ("marina city split balconies") is not a topic
+    for (const [, qsRaw] of [...groups.entries()].filter(([, v]) => v.length >= 2).sort((a, b) => b[1].length - a[1].length).slice(0, 4)) {
+      const qs = [...qsRaw].sort((a, b) => a.length - b.length); // the plainest phrasing leads
       const pages: DeepIntel["demand"]["uncaptured"][number]["competitorPages"] = [];
       if (comp) {
         for (const mm of matchCompetitorUrls(comp.urlsByHost, queryTokens(qs[0]!), 2)) {

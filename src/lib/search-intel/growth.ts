@@ -154,6 +154,49 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
     used.add(page);
   }
 
+  // 4b. The biggest topic the site is visible for but far back (positions 21 to 60): the largest real demand it already touches. Depth and authority, not a rewrite.
+  for (const c of deep.clusters.filter((x) => !x.branded && x.position > 20 && x.position <= 60 && x.impressions >= Math.max(300, total * 0.1)).slice(0, 1)) {
+    const page = c.pages[0]!;
+    if (used.has(page)) continue;
+    const refs = intel.competitors.queries.filter((q) => c.queries.includes(q.query));
+    drafts.push({
+      kind: "topic_ranking", category: "ranking improvement", issue: `topic_ranking:${c.key}`, identityUrls: [page],
+      title: `Build real depth for "${c.label}": the site's biggest search topic, currently far back at position ${c.position}`,
+      urls: c.pages,
+      evidence: [
+        `Topic "${c.label}" (${c.queries.length} related queries, ${c.intent} intent): ${c.impressions} impressions but only ${c.clicks} clicks at average position ${c.position} (${w28}). Queries: ${c.queries.slice(0, 5).map((q) => `"${q}"`).join(", ")}.`,
+        ...refs.flatMap((q) => q.gaps).slice(0, 2).map((g) => `Competing page: ${g.evidence} (observed ${g.observedAt.slice(0, 10)}).`),
+      ],
+      competitorUrls: refs.flatMap((q) => q.competitorPages.map((p) => `${p.url} ("${p.title}", observed ${p.observedAt.slice(0, 10)})`)).slice(0, 3),
+      actions: [
+        `Make ${pathOf(page)} the most useful page for this intent using the site's own knowledge (verified options, prices or availability where true, how to choose, what to expect), not a longer generic article.`,
+        "Link to it from every related page on the site with descriptive anchor text; GravyBlock's off-site promotion will point earned mentions at this page.",
+      ],
+      acceptance: ["The page clearly answers the listed searches with original, specific information; no new thin pages were created."],
+      potentialClicks28: Math.round(c.impressions * 0.01),
+      traffic: c.impressions * 0.01, value: valuable([page]) + 0.3, evidenceQ: sampleQ, success: 0.25, systemic: false, effort: 2.5, risk: 1,
+    });
+    used.add(page);
+  }
+
+  // 4c. Searches that appeared this window with real impressions: early demand worth meeting while it is new.
+  for (const q of deep.emerging.filter((x) => x.impressions >= 50).slice(0, 1)) {
+    const page = deep.pageQuery.find((r) => r.query === q.key)?.page;
+    if (page && used.has(page)) continue;
+    drafts.push({
+      kind: "topic_ranking", category: "ranking improvement", issue: `emerging:${q.key}`, identityUrls: page ? [page] : [],
+      title: `Meet the new "${q.key}" searches while they are new`,
+      urls: page ? [page] : [],
+      evidence: [`"${q.key}" had no impressions in the 28 days before and ${q.impressions} in the latest 28 days (${w28}) at position ${q.position.toFixed(1)}${page ? `, shown for ${pathOf(page)}` : ""}.`],
+      competitorUrls: [],
+      actions: [page ? `Check that ${pathOf(page)} genuinely serves this search; if it does, say so plainly in its title, first heading and opening; if not, point the searcher to the page that does.` : "Find the page that best serves this search and make that explicit in its title and opening."],
+      acceptance: ["The page matching this search names it plainly and answers it in the first screen."],
+      potentialClicks28: Math.round(q.impressions * 0.03),
+      traffic: q.impressions * 0.03, value: valuable(page ? [page] : []), evidenceQ: 0.7, success: 0.4, systemic: false, effort: 1, risk: 1,
+    });
+    if (page) used.add(page);
+  }
+
   // 5. Cannibalization.
   const can = deep.cannibal.find((x) => x.impressions >= 100 && !x.pages.some((p) => used.has(p.page)));
   if (can) {
@@ -166,7 +209,7 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
       actions: ["Choose the page that best serves the intent; point the others to it with contextual internal links and differentiate their titles toward their own topics. Do not delete or redirect pages without approval."],
       acceptance: ["One clearly primary page for the query; the others re-targeted, not removed."],
       potentialClicks28: Math.round(can.impressions * 0.02),
-      traffic: can.impressions * 0.02, value: valuable(can.pages.map((p) => p.page)), evidenceQ: sampleQ, success: 0.5, systemic: false, effort: 1.5, risk: 1.3,
+      traffic: can.impressions * 0.02, value: valuable(can.pages.map((p) => p.page)), evidenceQ: sampleQ, success: can.pages[0]!.position > 40 ? 0.25 : 0.5, systemic: false, effort: 1.5, risk: 1.3,
     });
   }
 
