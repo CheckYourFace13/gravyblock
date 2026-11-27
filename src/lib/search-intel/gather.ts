@@ -14,6 +14,51 @@ import { briefEvidence } from "@/lib/house/site-briefs";
 import { addDays, type Daily } from "@/lib/case-studies/model";
 import { changesSince, compareWindows, dataStatus, endDayFor, joinWindows, lowCtrPairs, movers, rankingBands, seasonality, type QueryRow, type Row } from "./analysis";
 import { featureGaps, matchCompetitorUrls, newPagesSince, pageFeatures, queryTokens, type PageFeatures } from "./competitors";
+import { brandSplit, brandTokens, cannibalization, clusterQueries, competitorRelevance, emergingQueries, sectionStats, toSplit, tokensOf, trend90, uncaptured, type Split } from "./deep";
+import { profileFor } from "./profiles";
+import { getBusinessTruth } from "@/lib/truth";
+import type { DeepIntel } from "./types";
+
+/** Public autocomplete suggestions for one phrase (shows that people type these; says nothing about how often). Polite: one request per seed, short timeout. */
+async function autocomplete(seed: string): Promise<string[]> {
+  const r = await safeFetchText(`https://duckduckgo.com/ac/?q=${encodeURIComponent(seed)}&type=list`, { timeoutMs: 6000, maxBytes: 50_000, accept: "application/json" });
+  if (!r.ok || r.status >= 400) return [];
+  try {
+    const j = JSON.parse(r.body) as unknown;
+    const list = Array.isArray(j) && Array.isArray(j[1]) ? (j[1] as unknown[]) : Array.isArray(j) ? (j as Array<{ phrase?: string }>).map((x) => x?.phrase) : [];
+    return list.filter((x): x is string => typeof x === "string").slice(0, 10);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Learning from verified outcomes: per recommendation kind, measured outcomes across the house sites nudge future ranking (0.8 to 1.2). Needs at least three
+ * measured outcomes for a kind before it moves at all, so one lucky or unlucky result changes nothing.
+ */
+async function learnedKindWeights(): Promise<Record<string, number>> {
+  const db = getDb();
+  if (!db) return {};
+  const rows = rowsOf<{ kind: string; verdict: string; n: number }>(await db.execute(sql`
+    select r.kind, r.outcome->>'verdict' verdict, count(*)::int n from search_recommendations r join businesses b on b.id = r.business_id
+    where b.account_type = 'house' and r.outcome is not null and r.outcome->>'verdict' in ('improved', 'no_material_change', 'declined') group by 1, 2`));
+  const by = new Map<string, { up: number; flat: number; down: number }>();
+  for (const r of rows) {
+    const e = by.get(r.kind) ?? { up: 0, flat: 0, down: 0 };
+    if (r.verdict === "improved") e.up += Number(r.n);
+    else if (r.verdict === "declined") e.down += Number(r.n);
+    else e.flat += Number(r.n);
+    by.set(r.kind, e);
+  }
+  const out: Record<string, number> = {};
+  for (const [k, e] of by) {
+    const n = e.up + e.flat + e.down;
+    if (n < 3) continue;
+    out[k] = Number(Math.max(0.8, Math.min(1.2, 1 + ((e.up - e.down) / n) * 0.2)).toFixed(2));
+  }
+  return out;
+}
+import { webSearchSites } from "@/lib/business-mode";
 import type { CompetitorQuery, SiteIntel } from "./types";
 
 type Rows<T> = T[];
@@ -47,46 +92,64 @@ async function fetchFeatures(url: string, observedAt: string): Promise<PageFeatu
   return pageFeatures(r.body, r.finalUrl, observedAt);
 }
 
-async function competitorSection(businessId: string, website: string | null, rows: Row[], observedAtIso: string): Promise<SiteIntel["competitors"]> {
+async function readSitemapUrls(origin: string, host: string): Promise<Array<{ loc: string; lastmod: Date | null }> | null> {
+  const hostOf = (u: string) => new URL(u).hostname.replace(/^www\./, "").toLowerCase();
+  const sm = await safeFetchText(`${origin}/sitemap.xml`, { timeoutMs: 8000, maxBytes: 1_500_000 });
+  if (!sm.ok || sm.status >= 400) return null;
+  let entries = parseSitemap(sm.body);
+  if (entries.some((e) => e.isIndex)) {
+    const kids = entries.filter((e) => e.isIndex).map((e) => e.loc).filter((u) => isSafePublicUrl(u)).slice(0, 3);
+    const all: typeof entries = [];
+    for (const k of kids) {
+      const child = await safeFetchText(k, { timeoutMs: 8000, maxBytes: 1_500_000 });
+      if (child.ok && child.status < 400) all.push(...parseSitemap(child.body));
+    }
+    entries = all;
+  }
+  // a sitemap can list one URL twice, and one insert cannot touch the same row twice, so keep the first of each
+  const uniq = new Map<string, { loc: string; lastmod: Date | null }>();
+  for (const e of entries) if (!e.isIndex && !uniq.has(e.loc) && (() => { try { return hostOf(e.loc) === host; } catch { return false; } })()) uniq.set(e.loc, { loc: e.loc, lastmod: e.lastmod });
+  return [...uniq.values()].slice(0, 1500);
+}
+
+/**
+ * Competitors are kept only when their own published pages cover this site's topic (profile topic words). Famous brands that merely share a category
+ * (a coffee chain for a bar-discovery site) are rejected and listed as rejected. When fewer than two relevant competitors are on record, a small number of
+ * existing web searches (the same capped research tool the engine already uses) look for real sites serving the site's main intents.
+ */
+async function competitorSection(
+  businessId: string,
+  website: string | null,
+  rows: Row[],
+  observedAtIso: string,
+  ctx: { topicWords: string[] | null; seeds: string[] } = { topicWords: null, seeds: [] },
+): Promise<{ section: SiteIntel["competitors"]; urlsByHost: Map<string, string[]>; filter: { kept: string[]; rejected: Array<{ site: string; reason: string }> } }> {
   const db = getDb()!;
   const notes: string[] = [];
-  const known = rowsOf<{ name: string; website: string | null }>(await db.execute(sql`select name, website from business_competitors where business_id = ${businessId} and status = 'active' and website is not null order by created_at desc limit 6`))
-    .filter((c): c is { name: string; website: string } => !!c.website && !!isSafePublicUrl(c.website));
-  const result: SiteIntel["competitors"] = { observedAt: observedAtIso, known: known.map((k) => ({ name: k.name, website: k.website })), sitemapsRead: 0, pagesObserved: 0, baselineEstablishedToday: [], newPages: [], queries: [], notes };
-  if (!known.length) {
-    notes.push("No competitors are on record for this site yet, so no competitor observation was made. The competitor discovery engine adds them monthly.");
-    return result;
-  }
   const hostOf = (u: string) => new URL(u).hostname.replace(/^www\./, "").toLowerCase();
+  const ownHost = (() => { try { return website ? hostOf(/^https?:\/\//i.test(website) ? website : `https://${website}`) : ""; } catch { return ""; } })();
+  const onRecord = rowsOf<{ name: string; website: string | null }>(await db.execute(sql`select name, website from business_competitors where business_id = ${businessId} and status = 'active' and website is not null order by created_at desc limit 8`))
+    .filter((c): c is { name: string; website: string } => !!c.website && !!isSafePublicUrl(c.website));
+  const kept: Array<{ name: string; website: string }> = [];
+  const filter = { kept: [] as string[], rejected: [] as Array<{ site: string; reason: string }> };
   const urlsByHost = new Map<string, string[]>();
-  const hostsWithBaseline = new Set<string>();
-  const earlier = rowsOf<{ host: string }>(await db.execute(sql`select distinct competitor_host host from competitor_page_observations where business_id = ${businessId}`));
-  for (const e of earlier) hostsWithBaseline.add(e.host);
+  const hostsWithBaseline = new Set<string>(rowsOf<{ host: string }>(await db.execute(sql`select distinct competitor_host host from competitor_page_observations where business_id = ${businessId}`)).map((e) => e.host));
+  const result: SiteIntel["competitors"] = { observedAt: observedAtIso, known: [], sitemapsRead: 0, pagesObserved: 0, baselineEstablishedToday: [], newPages: [], queries: [], notes };
 
-  for (const c of known) {
-    const host = hostOf(c.website);
-    const origin = new URL(c.website).origin;
-    const sm = await safeFetchText(`${origin}/sitemap.xml`, { timeoutMs: 8000, maxBytes: 1_500_000 });
-    if (!sm.ok || sm.status >= 400) {
-      notes.push(`${host}: sitemap not readable, so its pages were not observed.`);
-      continue;
-    }
-    let entries = parseSitemap(sm.body);
-    if (entries.some((e) => e.isIndex)) {
-      const kids = entries.filter((e) => e.isIndex).map((e) => e.loc).filter((u) => isSafePublicUrl(u)).slice(0, 3);
-      const all: typeof entries = [];
-      for (const k of kids) {
-        const child = await safeFetchText(k, { timeoutMs: 8000, maxBytes: 1_500_000 });
-        if (child.ok && child.status < 400) all.push(...parseSitemap(child.body));
-      }
-      entries = all;
-    }
-    // a sitemap can list one URL twice, and one insert cannot touch the same row twice, so keep the first of each
-    const uniq = new Map<string, (typeof entries)[number]>();
-    for (const e of entries) if (!e.isIndex && !uniq.has(e.loc) && (() => { try { return hostOf(e.loc) === host; } catch { return false; } })()) uniq.set(e.loc, e);
-    const pages = [...uniq.values()].slice(0, 1500);
+  const consider = async (c: { name: string; website: string }, via: string) => {
+    if (kept.length >= 5) return;
+    let host = "";
+    try { host = hostOf(c.website); } catch { return; }
+    if (!host || host === ownHost || urlsByHost.has(host) || filter.rejected.some((r) => r.site === host)) return;
+    const pages = await readSitemapUrls(new URL(c.website).origin, host);
+    if (!pages || !pages.length) { filter.rejected.push({ site: host, reason: "no readable sitemap, so its pages could not be checked" }); return; }
     const urls = pages.map((p) => p.loc);
-    if (!urls.length) continue;
+    if (ctx.topicWords) {
+      const rel = competitorRelevance(urls, ctx.topicWords);
+      if (!rel.relevant) { filter.rejected.push({ site: host, reason: `its pages do not cover this site's topic (${rel.matches} of ${urls.length} page addresses use the topic's words)` }); return; }
+    }
+    kept.push(c);
+    filter.kept.push(`${host} (${via})`);
     result.sitemapsRead++;
     urlsByHost.set(host, urls);
     result.pagesObserved += urls.length;
@@ -96,6 +159,19 @@ async function competitorSection(businessId: string, website: string | null, row
       await db.execute(sql`insert into competitor_page_observations (business_id, competitor_host, url, lastmod) values ${sql.join(chunk.map((e) => sql`(${businessId}, ${host}, ${e.loc}, ${e.lastmod ? e.lastmod.toISOString().slice(0, 10) : null})`), sql`, `)}
         on conflict (business_id, url) do update set last_seen = now(), lastmod = excluded.lastmod`);
     }
+  };
+  for (const c of onRecord) await consider(c, "on record");
+  if (kept.length < 2 && ctx.seeds.length) {
+    for (const seed of ctx.seeds.slice(0, 2)) {
+      const found = await webSearchSites(seed, 5).catch(() => []);
+      for (const f of found) await consider({ name: f.name, website: f.website }, `found by a web search for "${seed}" on ${observedAtIso.slice(0, 10)}; not a Google ranking`);
+    }
+  }
+  result.known = kept.map((k) => ({ name: k.name, website: k.website }));
+  if (filter.rejected.length) notes.push(`Rejected as not genuinely competing: ${filter.rejected.map((r) => `${r.site} (${r.reason})`).join("; ")}.`);
+  if (!kept.length) {
+    notes.push("No relevant competitor could be confirmed this week, so no competitor comparison was made.");
+    return { section: result, urlsByHost, filter };
   }
   const since = new Date(Date.now() - 8 * 86_400_000).toISOString();
   const fresh = rowsOf<{ host: string; url: string; first_seen: string }>(await db.execute(sql`select o.competitor_host host, o.url, o.first_seen from competitor_page_observations o where o.business_id = ${businessId} and o.first_seen >= ${since}::timestamptz
@@ -125,9 +201,9 @@ async function competitorSection(businessId: string, website: string | null, row
     const ourPage = website && isSafePublicUrl(e.best.page) ? await fetchFeatures(e.best.page, observedAtIso) : null;
     const gaps = observed.flatMap((o) => featureGaps(ourPage, o)).slice(0, 4);
     result.queries.push({ query, impressions: e.impressions, position: Number((e.weighted / e.impressions).toFixed(1)), ourPage, competitorPages: observed, gaps });
-    if (!matches.length) notes.push(`"${query}": none of the ${known.length} known competitors publishes a page whose address matches this query, so no comparison was made.`);
+    if (!matches.length) notes.push(`"${query}": none of the ${kept.length} relevant competitors publishes a page whose address matches this query, so no comparison was made.`);
   }
-  return result;
+  return { section: result, urlsByHost, filter };
 }
 
 export async function gatherSearchIntel(businessId: string, now = new Date(), opts: { competitors?: boolean } = {}): Promise<SiteIntel | null> {
@@ -155,6 +231,14 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
   let parts: Pick<SiteIntel, "w7" | "w28" | "queries7" | "queries28" | "pages7" | "pages28" | "bands" | "seasonal"> = { ...empty };
   let rows: Row[] = [];
   let topPages: SiteIntel["topPages"] = [];
+  // v2 deeper analysis inputs (all for the latest 28-day window unless named otherwise)
+  let devices: Split[] = [];
+  let countries: Split[] = [];
+  let searchTypes: DeepIntel["searchTypes"] = { image: null, video: null };
+  let q28cur: QueryRow[] = [];
+  let q28prev: QueryRow[] = [];
+  let p28cur: QueryRow[] = [];
+  let p28prev: QueryRow[] = [];
   if (!token || !property) {
     dataQualityNotes.push("Search Console is not connected for this site, so no search data is available.");
   } else if (daily.length) {
@@ -186,6 +270,20 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
       seasonal: seasonality(daily, endDay),
     };
     topPages = (p28c ?? []).filter((r) => r.keys?.[0]).map((r) => ({ page: r.keys![0]!, clicks: Math.round(r.clicks ?? 0), impressions: Math.round(r.impressions ?? 0) })).sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions).slice(0, 8);
+    q28cur = q28c ? toQ(q28c) : [];
+    q28prev = q28p ? toQ(q28p) : [];
+    p28cur = p28c ? toQ(p28c) : [];
+    p28prev = p28p ? toQ(p28p) : [];
+    const [dCur, ctry, img, vid] = await Promise.all([
+      gscQuery(token, property, win(28, 0), ["device"], { rowLimit: 10 }),
+      gscQuery(token, property, win(28, 0), ["country"], { rowLimit: 20 }),
+      gscQuery(token, property, win(28, 0), [], { searchType: "image" }),
+      gscQuery(token, property, win(28, 0), [], { searchType: "video" }),
+    ]);
+    devices = dCur ? toSplit(dCur) : [];
+    countries = ctry ? toSplit(ctry).sort((a, b) => b.impressions - a.impressions).slice(0, 6) : [];
+    const one = (r: typeof img, key: string): Split | null => (r && r[0] ? { key, clicks: Math.round(r[0].clicks ?? 0), impressions: Math.round(r[0].impressions ?? 0), ctr: r[0].impressions ? (r[0].clicks ?? 0) / r[0].impressions : 0, position: Number((r[0].position ?? 0).toFixed(1)) } : null);
+    searchTypes = { image: one(img, "image"), video: one(vid, "video") };
     for (const [label, c] of [["7-day", parts.w7], ["28-day", parts.w28]] as const) {
       if (c?.sample === "low") dataQualityNotes.push(`${label} comparison is low-sample (very few clicks and impressions); treat movements as noise.`);
       if (c?.sample === "missing") dataQualityNotes.push(`${label} comparison is missing days of data in one window.`);
@@ -194,7 +292,7 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
 
   const [dr] = rowsOf<{ evidence: { lostPages?: number; priorPages?: number; impressionsBefore?: number; impressionsNow?: number; reading?: string; sample?: string[] } | null }>(await db.execute(sql`
     select evidence from growth_opportunities where business_id = ${businessId} and subtype = 'search_pages_dropped' order by created_at desc limit 1`));
-  const rechecks = (await latestIndexRechecks(businessId, 3)).map((r) => ({ at: r.createdAt.toISOString(), verdicts: (r.payload as { verdicts?: Record<string, number> } | null)?.verdicts ?? {} }));
+  const rechecks = (await latestIndexRechecks(businessId, 3)).map((r) => ({ at: r.createdAt.toISOString(), verdicts: (r.payload as { verdicts?: Record<string, number> } | null)?.verdicts ?? {} })).filter((r, i, all) => all.findIndex((x) => x.at.slice(0, 10) === r.at.slice(0, 10) && JSON.stringify(x.verdicts) === JSON.stringify(r.verdicts)) === i); // one line per distinct check
   const indexing: SiteIntel["indexing"] = {
     dropped: dr?.evidence?.lostPages ? { lost: Number(dr.evidence.lostPages), before: Number(dr.evidence.priorPages ?? 0), impressionsBefore: Number(dr.evidence.impressionsBefore ?? 0), impressionsNow: Number(dr.evidence.impressionsNow ?? 0), reading: dr.evidence.reading ?? null, sample: dr.evidence.sample ?? [] } : null,
     rechecks,
@@ -221,10 +319,64 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
   const [au] = rowsOf<{ qualified: number; contacted: number; acquired: number }>(await db.execute(sql`
     select count(*) filter (where status = 'qualified')::int qualified, count(*) filter (where status in ('contacted', 'followed_up'))::int contacted, count(*) filter (where status = 'acquired')::int acquired from backlink_opportunities where business_id = ${businessId}`));
 
-  // The daily change check skips the (slower, polite) competitor observation; competitors are observed once a week in the full report.
-  const competitors = opts.competitors === false
-    ? { observedAt: now.toISOString(), known: [], sitemapsRead: 0, pagesObserved: 0, baselineEstablishedToday: [], newPages: [], queries: [], notes: ["Competitors are observed in the weekly report, not in the daily change check."] }
-    : await competitorSection(businessId, biz.website, rows, now.toISOString());
+  const profile = profileFor(biz.name);
+  const truth = await getBusinessTruth(businessId).catch(() => null);
+  const brand = brandTokens(biz.name, biz.website);
+  // The daily change check skips the (slower, polite) competitor and demand research; both run once a week in the full report.
+  const weekly = opts.competitors !== false;
+  const comp = weekly
+    ? await competitorSection(businessId, biz.website, rows, now.toISOString(), { topicWords: profile?.topicWords ?? null, seeds: profile?.seeds ?? [] })
+    : null;
+  const competitors: SiteIntel["competitors"] = comp?.section ?? { observedAt: now.toISOString(), known: [], sitemapsRead: 0, pagesObserved: 0, baselineEstablishedToday: [], newPages: [], queries: [], notes: ["Competitors are observed in the weekly report, not in the daily change check."] };
+
+  // Search demand the site is missing: public autocomplete shows what people type (not how often); anything the site already appears for is removed.
+  const demand: DeepIntel["demand"] = { source: "DuckDuckGo public autocomplete", checkedAt: now.toISOString(), seeds: [], suggestions: 0, uncaptured: [], notes: [] };
+  if (weekly && profile) {
+    const suggestions: string[] = [];
+    for (const seed of profile.seeds.slice(0, 8)) {
+      demand.seeds.push(seed);
+      suggestions.push(...(await autocomplete(seed)));
+    }
+    demand.suggestions = suggestions.length;
+    const siteQueries = [...q28cur, ...q28prev].map((q) => q.key);
+    const missing = uncaptured(suggestions, siteQueries, profile.topicWords);
+    const groups = new Map<string, string[]>();
+    for (const m of missing) {
+      const key = tokensOf(m).slice(0, 2).sort().join(" ");
+      (groups.get(key) ?? groups.set(key, []).get(key)!).push(m);
+    }
+    for (const [, qs] of [...groups.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 4)) {
+      const pages: DeepIntel["demand"]["uncaptured"][number]["competitorPages"] = [];
+      if (comp) {
+        for (const mm of matchCompetitorUrls(comp.urlsByHost, queryTokens(qs[0]!), 2)) {
+          const f = await fetchFeatures(mm.url, now.toISOString());
+          if (f) pages.push({ url: f.url, title: f.title, observedAt: f.observedAt });
+        }
+      }
+      demand.uncaptured.push({ label: qs[0]!, queries: qs.slice(0, 6), competitorPages: pages });
+    }
+    if (!suggestions.length) demand.notes.push("Public autocomplete returned nothing this week, so no missing-demand finding was made.");
+  } else if (weekly) demand.notes.push("No site profile on record, so missing demand was not researched.");
+
+  const learnedWeights = await learnedKindWeights();
+  const deep: DeepIntel = {
+    profile: profile ? { what: profile.what, audience: profile.audience, conversions: profile.conversions } : null,
+    truthDescription: truth?.description ? truth.description.replace(/\s+/g, " ").slice(0, 400) : null,
+    window28: { start: addDays(endDay, -27), end: endDay },
+    trend90: trend90(daily, endDay),
+    devices,
+    countries,
+    searchTypes,
+    brand: brandSplit(q28cur, brand),
+    clusters: clusterQueries(rows, brand),
+    emerging: emergingQueries(q28cur, q28prev),
+    cannibal: cannibalization(rows),
+    sections: sectionStats(p28cur, p28prev),
+    pageQuery: rows.slice().sort((a, b) => b.impressions - a.impressions).slice(0, 60),
+    demand,
+    competitorFilter: comp?.filter ?? { kept: [], rejected: [] },
+    learnedWeights,
+  };
   const intel: SiteIntel = {
     version: 1,
     site: { businessId, name: biz.name, website: biz.website },
@@ -242,6 +394,7 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
     authority: { qualified: Number(au?.qualified ?? 0), contacted: Number(au?.contacted ?? 0), verifiedLinks: Number(au?.acquired ?? 0), note: "Backlink counts for competitors are NOT AVAILABLE (no free source exists). These are this site's own outreach results only." },
     changes: [],
     dataQualityNotes,
+    deep,
   };
   intel.changes = parts.w28 && parts.bands ? changesSince(prevReport?.data ?? null, { w28: parts.w28, bands: { b4_10: parts.bands.b4_10 } }) : ["No search data this week, so nothing can be compared with the previous report."];
   if (prevReport?.data && competitors.newPages.length) intel.changes.push(`${competitors.newPages.length} competitor page(s) first observed this week (listed below).`);

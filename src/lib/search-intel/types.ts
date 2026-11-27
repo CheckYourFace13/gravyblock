@@ -1,5 +1,7 @@
 import type { BandRow, Compare, DataStatus, LowCtr, Move, Seasonal } from "./analysis";
 import type { FeatureGap, PageFeatures } from "./competitors";
+import type { Cluster, QP, SectionStat, Split } from "./deep";
+import type { Totals, QueryRow } from "./analysis";
 
 export type CompetitorQuery = {
   query: string;
@@ -49,6 +51,8 @@ export type SiteIntel = {
   authority: { qualified: number; contacted: number; verifiedLinks: number; note: string };
   changes: string[];
   dataQualityNotes: string[];
+  /** v2 deeper analysis (absent in reports built before it existed) */
+  deep?: DeepIntel;
 };
 
 export type Improvement = {
@@ -57,7 +61,9 @@ export type Improvement = {
   identityUrls: string[];
   /** short reference such as SR-1A2B3C, filled in from the stored recommendation so a developer can report back against it */
   ref?: string;
-  kind: "indexing" | "low_ctr" | "near_page_one" | "page_two" | "declining" | "competitor_gap" | "confirmed_problem";
+  kind: "indexing" | "low_ctr" | "near_page_one" | "page_two" | "declining" | "competitor_gap" | "confirmed_problem" | "systemic_ctr" | "topic_ranking" | "cannibalization" | "new_demand" | "conversion" | "mobile_ctr";
+  /** what kind of growth this is, in the owner's terms */
+  category?: "technical recovery" | "CTR optimization" | "ranking improvement" | "new search demand" | "conversion";
   title: string;
   urls: string[];
   evidence: string[];
@@ -67,4 +73,23 @@ export type Improvement = {
   /** Upper-bound estimate of extra Google clicks per 28 days if fully fixed; never a forecast. */
   potentialClicks28: number;
   priority: number;
+};
+
+export type DeepIntel = {
+  profile: { what: string; audience: string; conversions: string[] } | null;
+  truthDescription: string | null;
+  window28: { start: string; end: string };
+  trend90: { cur: Totals; prev: Totals } | null;
+  devices: Split[];
+  countries: Split[];
+  searchTypes: { image: Split | null; video: Split | null };
+  brand: { brandedClicks: number; brandedImpressions: number; nonBrandedClicks: number; nonBrandedImpressions: number };
+  clusters: Cluster[];
+  emerging: QueryRow[];
+  cannibal: Array<{ query: string; impressions: number; pages: Array<{ page: string; impressions: number; position: number }> }>;
+  sections: SectionStat[];
+  pageQuery: QP[];
+  demand: { source: string; checkedAt: string; seeds: string[]; suggestions: number; uncaptured: Array<{ label: string; queries: string[]; competitorPages: Array<{ url: string; title: string; observedAt: string }> }>; notes: string[] };
+  competitorFilter: { kept: string[]; rejected: Array<{ site: string; reason: string }> };
+  learnedWeights: Record<string, number>;
 };

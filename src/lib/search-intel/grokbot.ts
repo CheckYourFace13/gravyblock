@@ -22,7 +22,7 @@ const rowsOf = <T>(r: unknown) => r as unknown as Rows<T>;
 
 export const MAX_ATTEMPTS = 5;
 /** Concrete changes only. page_two is a research/validation note and stays in the Friday report and admin, not in GrokBot's inbox. */
-export const ACTIONABLE_KINDS: ReadonlyArray<Improvement["kind"]> = ["indexing", "low_ctr", "near_page_one", "declining", "competitor_gap", "confirmed_problem"];
+export const ACTIONABLE_KINDS: ReadonlyArray<Improvement["kind"]> = ["indexing", "low_ctr", "near_page_one", "declining", "competitor_gap", "systemic_ctr", "topic_ranking", "cannibalization", "new_demand", "conversion", "mobile_ctr"];
 
 export function grokbotConfig(env: Record<string, string | undefined> = process.env) {
   const cap = Number(env.GROKBOT_DAILY_CAP ?? 6);
@@ -83,6 +83,13 @@ export function issueSummary(imp: Pick<Improvement, "kind" | "issue" | "urls">):
       case "competitor_gap": return `Competitor gap on ${p}`;
       case "page_two": return `Validate page for ${p}`;
       case "confirmed_problem": return `${(imp.issue.split(":")[1] ?? imp.issue).replace(/_/g, " ")} on ${imp.urls.length} page${imp.urls.length === 1 ? "" : "s"}`;
+      case "systemic_ctr": return `Search snippets under-clicked across ${(imp.issue.split(":")[1] ?? "a section")}`;
+      case "topic_ranking": return `Win the "${imp.issue.split(":").slice(1).join(":")}" searches`;
+      case "cannibalization": return `Two pages compete for "${imp.issue.split(":").slice(1).join(":")}"`;
+      case "new_demand": return `Uncaptured searches: ${imp.issue.split(":").slice(1).join(":")}`;
+      case "conversion": return "Turn search visitors into sign-ups";
+      case "mobile_ctr": return "Mobile searchers click far less than desktop";
+      default: return imp.kind;
     }
   })();
   return s.length > 90 ? `${s.slice(0, 87)}...` : s;
@@ -173,8 +180,13 @@ type RecRow = { id: string; business_id: string; occurrence: number; first_seen_
 export async function enqueueGrokbot(businessId: string, now = new Date(), opts: { activatedAt?: Date | null } = {}): Promise<{ queued: number; reason?: string }> {
   const db = getDb();
   if (!db) return { queued: 0, reason: "no_db" };
-  const activatedAt = opts.activatedAt === undefined ? await getActivation() : opts.activatedAt;
-  if (!activatedAt) return { queued: 0, reason: "not_active" };
+  const activated = opts.activatedAt === undefined ? await getActivation() : opts.activatedAt;
+  if (!activated) return { queued: 0, reason: "not_active" };
+  // The improved (v2) analysis re-describes every site's problems once. Those first v2 recommendations reach GrokBot in the next weekly audit, not as a burst
+  // of "new" action emails: immediate emails resume for occurrences that begin after the first weekly audit completed after the v2 switch.
+  const gate = opts.activatedAt === undefined ? await v2Gate() : { open: true, since: null };
+  if (!gate.open) return { queued: 0, reason: "waiting_for_first_v2_weekly_audit" };
+  const activatedAt = gate.since && gate.since > activated ? gate.since : activated;
   const recs = rowsOf<RecRow>(await db.execute(sql`
     select r.id, r.business_id, r.occurrence, r.first_seen_at, r.reopened_at, r.improvement, r.status, r.fingerprint ref_fp
     from search_recommendations r join businesses b on b.id = r.business_id
@@ -190,6 +202,16 @@ export async function enqueueGrokbot(businessId: string, now = new Date(), opts:
   }
   void now;
   return { queued };
+}
+
+/** Open once a weekly audit has fully completed after the v2 switch marker; immediate emails then cover only occurrences that began after it. */
+export async function v2Gate(): Promise<{ open: boolean; since: Date | null }> {
+  const db = getDb();
+  if (!db) return { open: false, since: null };
+  const [m] = rowsOf<{ at: string }>(await db.execute(sql`select min(created_at) at from jobs where type = 'search_intel_v2_baseline'`));
+  if (!m?.at) return { open: true, since: null };
+  const [g] = rowsOf<{ at: string | null }>(await db.execute(sql`select min(sent_at) at from grokbot_deliveries where idempotency_key like 'audit:%:complete' and sent_at > ${m.at}::timestamptz`));
+  return g?.at ? { open: true, since: new Date(g.at) } : { open: false, since: null };
 }
 
 async function reportIntel(businessId: string): Promise<SiteIntel | null> {

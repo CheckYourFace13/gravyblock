@@ -14,7 +14,7 @@ export function senderExceptions(rows: Row[], grokbotFailed: number): string[] {
   const out: string[] = [];
   for (const r of rows) {
     const sent = r.delivered + r.bounced;
-    if (sent >= 20 && r.bounced / sent > 0.02) out.push(`${r.t}: bounce rate ${((r.bounced / sent) * 100).toFixed(1)}% (${r.bounced} of ${sent}); keep it under 2%`);
+    if (sent >= 10 && r.bounced / sent > 0.02) out.push(`${r.t}: bounce rate ${((r.bounced / sent) * 100).toFixed(1)}% (${r.bounced} of ${sent}); keep it under 2%`);
     if (r.complained > 0) out.push(`${r.t}: ${r.complained} spam complaint(s)`);
   }
   if (grokbotFailed > 0) out.push(`GrokBot: ${grokbotFailed} email(s) failed this week (see the GrokBot line)`);
@@ -38,9 +38,9 @@ export async function senderHealthSection(now = new Date()): Promise<string> {
   const L: string[] = [];
   L.push("SENDER HEALTH (last 7 days; hello@gravyblock.com via Resend)");
   L.push(`  Unsolicited outreach: ${pause.paused ? `PAUSED since ${pause.since?.slice(0, 10) ?? "unknown"} (${pause.reason ?? "sender reputation"}); resuming needs your approval` : "running"}${pause.error ? ` (state unreadable, treated as paused: ${pause.error})` : ""}`);
-  L.push(`  ${rows.length ? rows.map((r) => `${r.t}: ${r.delivered} delivered, ${r.bounced} bounced${Number(r.complained) ? `, ${r.complained} complaints` : ""}`).join("; ") : "no email events recorded"}`);
+  L.push(`  ${rows.length ? rows.map((r) => { const n = Number(r.delivered) + Number(r.bounced); return `${r.t}: ${n} sent, ${r.bounced} bounced (${n ? ((Number(r.bounced) / n) * 100).toFixed(1) : "0.0"}%)${n < 10 ? " [small sample: too few to call healthy]" : ""}${Number(r.complained) ? `, ${r.complained} complaints` : ""}`; }).join("; ") : "no email events recorded"}`);
   L.push(`  GrokBot emails: ${Number(g?.sent ?? 0)} sent, ${Number(g?.failed ?? 0)} failed`);
   L.push("  Inbox vs spam placement: NOT MEASURED (delivered only means the receiving server accepted the message; Gmail placement needs Gmail Postmaster Tools or the recipient's own check).");
-  L.push(ex.length ? `  EXCEPTIONS: ${ex.join("; ")}` : "  No exceptions.");
+  L.push(ex.length ? `  EXCEPTIONS: ${ex.join("; ")}` : "  No exceptions among email types with at least 10 sends (smaller samples are labelled above and are not called healthy).");
   return L.join("\n");
 }

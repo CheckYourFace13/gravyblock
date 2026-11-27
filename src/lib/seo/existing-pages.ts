@@ -77,7 +77,7 @@ export async function gscQuery(
   property: string,
   win: Window,
   dimensions: string[],
-  opts: { pageEquals?: string; rowLimit?: number } = {},
+  opts: { pageEquals?: string; rowLimit?: number; searchType?: "web" | "image" | "video" | "news" | "discover" } = {},
 ): Promise<GscRow[] | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 25_000);
@@ -90,6 +90,7 @@ export async function gscQuery(
         endDate: win.end,
         dimensions,
         rowLimit: opts.rowLimit ?? 1000,
+        ...(opts.searchType ? { type: opts.searchType } : {}),
         ...(opts.pageEquals ? { dimensionFilterGroups: [{ filters: [{ dimension: "page", operator: "equals", expression: opts.pageEquals }] }] } : {}),
       }),
       signal: controller.signal,

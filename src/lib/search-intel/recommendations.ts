@@ -288,3 +288,26 @@ export async function markEmailed(items: Array<Pick<EmailItem, "id" | "businessI
 }
 
 export { normalizeUrl };
+
+/** Kinds the v2 analysis no longer produces on their own (a page drop is part of technical recovery; hygiene warnings are not growth opportunities). */
+const LEGACY_KINDS = ["declining", "confirmed_problem", "competitor_gap", "page_two", "near_page_one"];
+
+/**
+ * Retires older single-symptom recommendations that the improved, root-cause-grouped audit replaces, so GrokBot and the owner are not handed the same
+ * problem twice. Only items nobody has started (new or opened) are retired, with a history note; anything in progress, completed or verified is untouched.
+ */
+export async function supersedeLegacy(businessId: string, current: Improvement[]): Promise<number> {
+  const db = getDb();
+  if (!db) return 0;
+  const keep = new Set(current.map((c) => fingerprintOf(businessId, c.kind, c.issue, c.identityUrls)));
+  const rows = rowsOf<{ id: string; fingerprint: string; status: string }>(await db.execute(sql`
+    select id, fingerprint, status from search_recommendations where business_id = ${businessId} and status in ('new', 'opened') and kind in (${sql.join(LEGACY_KINDS.map((k) => sql`${k}`), sql`, `)})`));
+  let n = 0;
+  for (const r of rows) {
+    if (keep.has(r.fingerprint)) continue;
+    await db.execute(sql`update search_recommendations set status = 'dismissed', dismissed_at = now() where id = ${r.id}::uuid and status in ('new', 'opened')`);
+    await logEvent(r.id, businessId, "status", { from: r.status, to: "dismissed", note: "superseded by the improved audit: grouped under its root cause or not a growth opportunity" });
+    n++;
+  }
+  return n;
+}

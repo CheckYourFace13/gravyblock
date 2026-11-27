@@ -54,7 +54,7 @@ function isMeaningfulPrompt(prompt: string): boolean {
 function titleFromPrompt(prompt: string): string | null {
   const m = prompt.match(/(?:best|highly-rated|most trusted|top-rated|leading)s+(.+?)s+((?:in|near|serving)s+[^?.]+?)s*(?:[?.]|$)/i);
   if (!m) return null;
-  const what = m[1]!.replace(/s+(providers?|options|companies|services)$/i, "").trim();
+  const what = m[1]!.replace(/\s+(providers?|options|companies|services)$/i, "").trim();
   const where = m[2]!.trim();
   if (!what || what.length > 60 || where.length > 60) return null;
   return `How to choose ${what} ${where}`;

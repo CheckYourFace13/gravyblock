@@ -7,7 +7,8 @@ import { getDb } from "@/lib/db";
 import { listHouseAccounts } from "@/lib/house";
 import { gatherSearchIntel, weekEndingFor } from "./gather";
 import { buildPrompt, candidateImprovements, deriveImprovements } from "./prompt";
-import { collectEmailItems, loadQueue, markEmailed, measureOutcomes, syncRecommendations, unresolvedImprovements, verifyCompleted, type EmailItem } from "./recommendations";
+import { growthOpportunities } from "./growth";
+import { collectEmailItems, loadQueue, markEmailed, supersedeLegacy, measureOutcomes, syncRecommendations, unresolvedImprovements, verifyCompleted, type EmailItem } from "./recommendations";
 import { BUCKET_LABEL, type EmailBucket } from "./recommendation-model";
 import { enqueueGrokbot, grokbotSummary } from "./grokbot";
 import type { Improvement, SiteIntel } from "./types";
@@ -24,7 +25,10 @@ export async function generateSearchIntelForSite(businessId: string, now = new D
   const intel = await gatherSearchIntel(businessId, now);
   if (!intel) return { ok: false, reason: "not_eligible_or_missing" };
   // Recommendations are persistent: this updates existing ones, creates only genuinely new ones, and the prompt is built from UNRESOLVED stored work.
-  const sync = await syncRecommendations(businessId, candidateImprovements(intel), intel.weekEnding, now);
+  // v2: growth opportunities ranked and deduplicated by root cause; older single-symptom recommendations they replace are retired with a history note
+  const candidates = intel.deep ? growthOpportunities(intel) : candidateImprovements(intel);
+  const sync = await syncRecommendations(businessId, candidates, intel.weekEnding, now);
+  if (intel.deep) await supersedeLegacy(businessId, candidates).catch(() => null);
   await enqueueGrokbot(businessId, now).catch(() => null); // queue (never send here) new or reopened occurrences found after activation
   const improvements = unresolvedImprovements(await loadQueue(businessId), now);
   const prompt = buildPrompt(intel, improvements);
@@ -40,7 +44,7 @@ export async function generateSearchIntelForSite(businessId: string, now = new D
 export async function runDailySearchIntel(businessId: string, now = new Date()): Promise<{ ok: boolean; sync?: Awaited<ReturnType<typeof syncRecommendations>>; verified?: number; measured?: number; reason?: string }> {
   const intel = await gatherSearchIntel(businessId, now, { competitors: false });
   if (!intel) return { ok: false, reason: "not_eligible_or_missing" };
-  const sync = await syncRecommendations(businessId, candidateImprovements(intel), intel.weekEnding, now);
+  const sync = await syncRecommendations(businessId, intel.deep ? growthOpportunities(intel) : candidateImprovements(intel), intel.weekEnding, now);
   await enqueueGrokbot(businessId, now).catch(() => null);
   const v = await verifyCompleted(businessId, now);
   const m = await measureOutcomes(businessId, now);

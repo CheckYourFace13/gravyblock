@@ -36,3 +36,8 @@ test("sender-health flags high bounce rates, complaints and GrokBot failures onl
   assert.match(ex[2]!, /GrokBot: 2 email/);
   assert.equal(senderExceptions([{ t: "ok", delivered: 100, bounced: 1, hard: 0, complained: 0 }], 0).length, 0);
 });
+
+test("the alert threshold is 10 sends", () => {
+  assert.equal(senderExceptions([{ t: "authority_outreach", delivered: 16, bounced: 2, hard: 2, complained: 0 }], 0).length, 1);
+  assert.equal(senderExceptions([{ t: "nine", delivered: 8, bounced: 1, hard: 1, complained: 0 }], 0).length, 0);
+});

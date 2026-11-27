@@ -26,7 +26,7 @@ export function briefEvidence(subtype: string | null, evidence: unknown): string
   }
   if (subtype === "embeddable_widget_brief") {
     const examples = Array.isArray(e.examples) ? (e.examples as string[]).join(", ") : "";
-    return `Proposal for the site's own developer: ${e.proposal} Likely users: ${e.whoMightUseIt}. Built on ${e.existingPages} existing page(s) (${examples}). Rules: ${e.rules} Judged on: ${e.measuredBy}.`.replace(/s+/g, " ").slice(0, 900);
+    return `Proposal for the site's own developer: ${e.proposal} Likely users: ${e.whoMightUseIt}. Built on ${e.existingPages} existing page(s) (${examples}). Rules: ${e.rules} Judged on: ${e.measuredBy}.`.replace(/\s+/g, " ").slice(0, 900);
   }
   if (subtype === "search_low_ctr") {
     return `${e.url} ranks at position ${e.position} for "${e.query}" with ${e.impressions} impressions but only ${(Number(e.ctr) * 100).toFixed(1)}% of them click (${e.clicks} clicks). The ranking is already won; the title and description decide the click. ${e.seasonal ? "The demand looks seasonal, so check it before the next peak." : ""}`.replace(/\s+/g, " ").slice(0, 500);
