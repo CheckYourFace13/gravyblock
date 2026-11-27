@@ -232,6 +232,12 @@ export function packParts(blocks: string[], limit = PART_LIMIT_CHARS): number[][
 export type AuditResult = { week: string; sites: number; parts: number; sent: number; alreadySent: number; failed: number; waiting: boolean; complete: boolean; refreshed: string[]; results: Array<{ part: number; sites: string[]; status: string; resendEmailId?: string; error?: string; chars?: number }> };
 
 /** True when this week's audit has been fully delivered (including the earlier one-email-per-site format, recognised by its summary email). */
+async function keySent(key: string): Promise<boolean> {
+  const db = getDb()!;
+  const [x] = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where status = 'sent' and idempotency_key = ${key}`));
+  return Number(x?.n ?? 0) > 0;
+}
+
 async function weekComplete(week: string): Promise<boolean> {
   const db = getDb()!;
   const [x] = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key in (${`audit:${week}:complete`}, ${`audit:${week}:summary`})`));
@@ -239,13 +245,13 @@ async function weekComplete(week: string): Promise<boolean> {
 }
 
 /** Builds this week's audit (summary, one section per site, parts) from the stored reports without sending or writing anything. */
-export async function composeWeeklyAudit(now: Date, week: string) {
+export async function composeWeeklyAudit(now: Date, week: string, ownPrefix = `audit:${week}`) {
   const db = getDb()!;
   const houses = await listHouseAccounts();
   const reports = await loadReports(week);
   
   const ordered = houses.map((h) => reports.find((r) => r.businessId === h.id)).filter((r): r is StoredReport => !!r);
-  const [prevAudit] = rowsOf<{ at: string | null }>(await db.execute(sql`select max(sent_at) at from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key not like ${`audit:${week}:%`}`));
+  const [prevAudit] = rowsOf<{ at: string | null }>(await db.execute(sql`select max(sent_at) at from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key not like ${`${ownPrefix}:%`}`));
   const previousAuditAt = prevAudit?.at ? new Date(prevAudit.at) : null;
   const blocks: string[] = [];
   const summaryLines: string[] = [];
@@ -299,17 +305,19 @@ export async function composeWeeklyAudit(now: Date, week: string) {
  * Sends this week's audit. Safe to call repeatedly (the worker calls it every 30 seconds in the send window): sent parts are skipped, the next part waits until
  * PART_GAP_MS after the previous one, failed parts are retried. `freshSince` forces any report older than that instant to be regenerated before sending.
  */
-export async function sendWeeklyAudit(now = new Date(), opts: { send?: SendFn; freshSince?: Date; gapMs?: number } = {}): Promise<AuditResult> {
+export async function sendWeeklyAudit(now = new Date(), opts: { send?: SendFn; freshSince?: Date; gapMs?: number; batch?: string } = {}): Promise<AuditResult> {
   const db = getDb();
   const week = weekEndingFor(now);
   const out: AuditResult = { week, sites: 0, parts: 0, sent: 0, alreadySent: 0, failed: 0, waiting: false, complete: false, refreshed: [], results: [] };
   if (!db) return out;
-  if (await weekComplete(week)) return { ...out, complete: true };
+  // An owner-authorized resend uses its own key prefix, so the weekly keys (and the Friday schedule) are untouched and the resend itself sends at most once.
+  const prefix = opts.batch ? `audit:resend:${opts.batch}` : `audit:${week}`;
+  if (opts.batch ? await keySent(`${prefix}:complete`) : await weekComplete(week)) return { ...out, complete: true };
   const cfg = grokbotConfig();
   const send = opts.send ?? sendViaResend;
   const gap = opts.gapMs ?? PART_GAP_MS;
   const freshSince = opts.freshSince ?? chicagoInstant(chicagoParts(now).ymd, 5, 0);
-  const anySent = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key like ${`audit:${week}:part:%`}`));
+  const anySent = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key like ${`${prefix}:part:%`}`));
   // refresh only before the first part goes out, so every part of one week's audit describes the same data
   if (Number(anySent[0]?.n ?? 0) === 0) {
     for (let pass = 0; pass < 4; pass++) {
@@ -318,7 +326,7 @@ export async function sendWeeklyAudit(now = new Date(), opts: { send?: SendFn; f
       if (!g.remaining) break;
     }
   }
-  const { houses, reports, ordered, blocks, parts, summary, complete } = await composeWeeklyAudit(now, week);
+  const { houses, reports, ordered, blocks, parts, summary, complete } = await composeWeeklyAudit(now, week, prefix);
   out.sites = reports.length;
   out.parts = parts.length;
   if (!complete) {
@@ -328,17 +336,17 @@ export async function sendWeeklyAudit(now = new Date(), opts: { send?: SendFn; f
   void houses;
 
   for (let n = 0; n < parts.length; n++) {
-    const key = `audit:${week}:part:${n + 1}`;
+    const key = `${prefix}:part:${n + 1}`;
     const names = parts[n]!.map((i) => ordered[i]!.name);
     const [row] = rowsOf<{ status: string; sent_at: string | null }>(await db.execute(sql`select status, sent_at from grokbot_deliveries where idempotency_key = ${key}`));
     if (row?.status === "sent") { out.alreadySent++; continue; }
     if (n > 0) {
-      const [prev] = rowsOf<{ sent_at: string | null; status: string }>(await db.execute(sql`select status, sent_at from grokbot_deliveries where idempotency_key = ${`audit:${week}:part:${n}`}`));
+      const [prev] = rowsOf<{ sent_at: string | null; status: string }>(await db.execute(sql`select status, sent_at from grokbot_deliveries where idempotency_key = ${`${prefix}:part:${n}`}`));
       if (prev?.status !== "sent" || !prev.sent_at || now.getTime() - new Date(prev.sent_at).getTime() < gap) { out.waiting = true; break; }
     }
     const header = `GRAVYBLOCK WEEKLY AUDIT ${week}, PART ${n + 1} OF ${parts.length}: ${names.join(", ")}`;
     const text = scrubPersonal(`${header}\n\n${n === 0 ? `${summary}\n` : ""}${parts[n]!.map((i) => blocks[i]).join("")}\n`);
-    const subject = `[GravyBlock Weekly Audit] ${week} — Part ${n + 1} of ${parts.length} (${names.length} site${names.length === 1 ? "" : "s"})`;
+    const subject = `[GravyBlock Weekly Audit] ${week}${opts.batch ? ` — authorized resend ${opts.batch}` : ""} — Part ${n + 1} of ${parts.length} (${names.length} site${names.length === 1 ? "" : "s"})`;
     if (containsSensitive(text)) {
       await db.execute(sql`insert into grokbot_deliveries (occurrence, idempotency_key, kind, status, subject, last_error) values (1, ${key}, 'weekly_audit', 'suppressed', ${subject}, 'looked like it contained a credential') on conflict (idempotency_key) do update set status = 'suppressed'`);
       out.results.push({ part: n + 1, sites: names, status: "suppressed" });
@@ -353,9 +361,9 @@ export async function sendWeeklyAudit(now = new Date(), opts: { send?: SendFn; f
     out.sent++;
     if (n + 1 < parts.length) { out.waiting = true; break; } // the next part goes out on a later pass, at least the gap later
   }
-  const [{ n: done }] = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key like ${`audit:${week}:part:%`}`));
+  const [{ n: done }] = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key like ${`${prefix}:part:%`}`));
   if (Number(done) >= parts.length) {
-    await db.execute(sql`insert into grokbot_deliveries (occurrence, idempotency_key, kind, status, subject, sent_at) values (1, ${`audit:${week}:complete`}, 'weekly_audit', 'sent', ${`all ${parts.length} parts delivered`}, now()) on conflict (idempotency_key) do nothing`);
+    await db.execute(sql`insert into grokbot_deliveries (occurrence, idempotency_key, kind, status, subject, sent_at) values (1, ${`${prefix}:complete`}, 'weekly_audit', 'sent', ${`all ${parts.length} parts delivered`}, now()) on conflict (idempotency_key) do nothing`);
     out.complete = true;
   }
   return out;

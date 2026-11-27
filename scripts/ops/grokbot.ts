@@ -41,6 +41,23 @@ async function main() {
     console.log(JSON.stringify(r, null, 1));
     return;
   }
+  if (cmd === "audit-resend") {
+    // Owner-authorized one-time resend of the full audit under its own batch id (keys audit:resend:<batch>:...), paced parts, refreshed data.
+    // Refuses to start a second resend batch within 24 hours, so a repeated command cannot trigger another batch by accident.
+    const batch = process.argv[3];
+    if (!batch || !/^[a-z0-9-]{6,60}$/.test(batch)) throw new Error("usage: audit-resend <batch-id> (lowercase letters, digits, dashes)");
+    const other = (await db.execute(sql`select distinct split_part(idempotency_key, ':', 3) b from grokbot_deliveries where idempotency_key like 'audit:resend:%' and created_at > now() - interval '24 hours'`)) as unknown as Array<{ b: string }>;
+    if (other.some((o) => o.b !== batch)) throw new Error(`another resend batch already ran in the last 24 hours (${other.map((o) => o.b).join(", ")}); not starting a second one`);
+    const { sendWeeklyAudit: send } = await import("../../src/lib/search-intel/weekly-audit");
+    const started = new Date();
+    for (let i = 0; i < 80; i++) {
+      const r = await send(new Date(), { batch, freshSince: new Date(started.getTime() - 1000) });
+      console.log(new Date().toISOString(), JSON.stringify({ sites: r.sites, parts: r.parts, sent: r.sent, alreadySent: r.alreadySent, failed: r.failed, complete: r.complete, refreshed: r.refreshed.length, results: r.results }));
+      if (r.complete) break;
+      await new Promise((res) => setTimeout(res, 30_000));
+    }
+    return;
+  }
   if (cmd === "audit-dryrun") {
     // builds this week's audit from stored reports exactly as it would be sent, and prints the checks; sends and writes nothing
     const { weekEndingFor } = await import("../../src/lib/search-intel/gather");
