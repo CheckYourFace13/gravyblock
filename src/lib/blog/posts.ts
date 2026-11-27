@@ -22,8 +22,8 @@ export const BLOG_POSTS: BlogPost[] = [
     title: "Google Business Profile Not Showing Up? Here's How to Fix It",
     metaDescription: "If your Google Business Profile isn't appearing in Maps or local search, these are the most common reasons and exactly how to fix each one.",
     publishedAt: "2026-05-01",
-    updatedAt: "2026-10-07",
-    body: `Your Google Business Profile isn't showing up in search, and you're losing customers to competitors who rank above you. Here's exactly why it happens and how to fix it.
+    updatedAt: "2026-11-27",
+    body: `Your Google Business Profile isn't showing up in search, and you're losing customers to competitors who rank above you. If you're thinking "my business isn't showing up on Google," the cause is usually one of a handful of fixable problems. Here's why it happens and how to fix it.
 
 ## Why Is My Google Business Profile Not Showing Up?
 
@@ -37,6 +37,18 @@ The most common reasons a GBP listing disappears or doesn't rank are: the listin
 4. **NAP inconsistency** — If your name, address, or phone number is different on Yelp, Facebook, YellowPages, or your own website, Google loses confidence in your listing.
 5. **Low review count** — Profiles with under 10 reviews rarely appear in the competitive top-3 Map Pack.
 6. **No recent activity** — An active profile gives searchers current information. Listings with no posts, no new photos and no Q&As for a long time can look abandoned.
+
+## Google Maps Doesn't Show My Business: What to Check
+
+If you can't find your business on Google Maps at all (not just lower down the list), work through these in order:
+
+1. **Verification is incomplete or pending.** A profile that isn't verified, or whose verification is still being reviewed, may not appear in Maps. Open your profile while signed in to Google and look for a "Get verified" or "Verification in progress" message.
+2. **The profile is suspended or restricted.** Google shows a notice on the profile when this happens. Fix the cause (often a business name with extra keywords, a virtual office or PO box address, or a duplicate profile), then submit a reinstatement request through Google's form. Don't create a new profile to get around it.
+3. **The business isn't eligible for a profile.** Google Business Profiles are for businesses that meet customers in person during their stated hours, at a location or at the customer's address. Online-only businesses generally aren't eligible.
+4. **The address is hidden for a service-area business.** If you serve customers at their location and hid your address, you won't appear as a pin on a street address. You can still appear for searches within the service areas you set, so check those areas are correct.
+5. **The pin is in the wrong place.** Check the map marker in your profile's address settings and move it to your real entrance if it's off.
+6. **The profile is new or was just edited.** New profiles and important edits (name, address, category) are reviewed by Google before they show, which can take some time. Check the profile for a "pending" or "under review" message before making more changes.
+7. **You're searching from far away or for the wrong thing.** Search your exact business name, or search Maps while zoomed in on your area. Appearing for "plumber near me" is a ranking question, covered in the steps below, not a visibility problem.
 
 ## How to Fix a GBP That Isn't Ranking
 
@@ -193,6 +205,8 @@ Google's local ranking algorithm uses three main factors:
 **Distance** — How close your business is to the searcher (or the location they specify). You can't change your address, but you can expand your service area and create location-specific content.
 
 **Prominence** — How well-known and trusted your business is. This is the factor you can most directly influence through reviews, citations, links, and content.
+
+For a side-by-side look at how the map pack differs from regular organic results and from Google Ads, see [what the Google 3-Pack is and how you get in it](/guides/google-3-pack).
 
 > Industry surveys of local SEO professionals, such as Whitespark's annual Local Search Ranking Factors study, have generally ranked Google Business Profile signals (completeness, category, reviews) among the most influential factors for local pack rankings.
 

@@ -12,7 +12,7 @@ const guides = [
   {
     href: "/guides/google-3-pack",
     title: "What is the Google 3-Pack (and how do you get in it)?",
-    description: "The map pack shows three businesses at the top of local search results. Here's how Google chooses who gets in, and the exact steps to rank there.",
+    description: "The map pack shows three businesses at the top of local search results. How Google chooses who gets in, how it compares with organic results and Google Ads, and the steps to rank there.",
   },
   {
     href: "/guides/local-citation-sites-usa",

@@ -59,6 +59,10 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
           ],
         },
         {
+          title: "Know which part of the results page you are working on",
+          body: "The map pack (the Google 3-Pack) is won on your Business Profile, the regular organic results below it are won on your website, and the 'Sponsored' results are paid ads. The 3-Pack guide compares the three side by side: what appears in each, what decides placement and what you control.",
+        },
+        {
           title: "Turn visibility into calls",
           body: "Ranking gets you seen, and the profile and site have to get you contacted. Make sure the call button works and the number is right, answer or return calls quickly, switch messaging on only if you can reply promptly, and put a tap-to-call number and today's hours at the top of the page the profile links to. Check the Business Profile performance figures for calls, direction requests and website visits, and look at them month by month rather than day by day.",
         },
@@ -67,7 +71,7 @@ export const QUESTION_GUIDES: Record<string, QuestionGuide> = {
           body: "Do not buy reviews, create profiles for places where you have no staffed premises, stuff keywords into the name or description, or duplicate profiles for the same address. These shortcuts can lead to suspension, which costs far more than any gain. Results also take time: changes to a profile and its reviews usually show up over weeks, not days.",
         },
       ],
-      relatedLinks: related,
+      relatedLinks: [{ href: "/guides/google-3-pack", label: "The Google 3-Pack vs organic results vs Google Ads" }, ...related],
     },
   },
   "how-to-get-more-google-reviews": {

@@ -35,6 +35,14 @@ const jsonLd = {
     },
     {
       "@type": "Question",
+      name: "How is the Google 3-Pack different from Google Ads?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Places in the 3-Pack cannot be bought: Google says local results are based mainly on relevance, distance and prominence, and clicks are free. Google Ads are labelled 'Sponsored', are placed by an auction that combines your bid with ad quality and landing page experience, and cost money per click (or per lead for Local Services Ads).",
+      },
+    },
+    {
+      "@type": "Question",
       name: "What is the difference between the 3-Pack and organic search results?",
       acceptedAnswer: {
         "@type": "Answer",
@@ -122,7 +130,8 @@ export default function Google3PackGuidePage() {
         <p>
           Claim and verify your listing if you haven't. Then fill in every field: primary and secondary
           categories, all services you offer, business description (use your city and main services naturally),
-          hours, photos (exterior, interior, team), and Q&amp;A. Incomplete profiles rank significantly lower.
+          hours, photos (exterior, interior, team), and Q&amp;A. Google says complete, accurate information helps it
+          match your profile to the right searches.
         </p>
         <h3>Step 2: Build and clean up citations</h3>
         <p>
@@ -133,8 +142,8 @@ export default function Google3PackGuidePage() {
         <h3>Step 3: Grow your Google reviews</h3>
         <p>
           Ask every satisfied customer for a review — in person, by email, or by text. The recency of
-          reviews matters as much as the volume. A business that gets 5 new reviews per month consistently
-          will outrank a competitor with more total reviews but nothing recent.
+          reviews matters too: Google lists review count and score among the signals of prominence, and a
+          steady flow of recent reviews tells customers the business is active.
         </p>
         <h3>Step 4: Publish local content on your website</h3>
         <p>
@@ -147,6 +156,62 @@ export default function Google3PackGuidePage() {
           Links from local news sites, community blogs, chamber of commerce directories, and industry
           associations build your prominence score. Even unlinked mentions of your business name and city
           on authoritative sites help.
+        </p>
+
+        <h2>Local 3-Pack vs. organic results vs. Google Ads</h2>
+        <p>
+          A local search results page usually mixes three different kinds of result, and each one is earned in a
+          different way. Knowing which is which tells you where your effort (or budget) actually goes.
+        </p>
+        <div className="not-prose -mx-4 overflow-x-auto sm:mx-0">
+          <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+            <caption className="sr-only">How the Google Local 3-Pack, organic results and Google Ads compare</caption>
+            <thead>
+              <tr className="border-b-2 border-zinc-300 bg-zinc-50 align-bottom">
+                <th scope="col" className="w-[19%] px-3 py-2 font-semibold text-zinc-900"></th>
+                <th scope="col" className="px-3 py-2 font-semibold text-zinc-900">Local 3-Pack</th>
+                <th scope="col" className="px-3 py-2 font-semibold text-zinc-900">Organic results</th>
+                <th scope="col" className="px-3 py-2 font-semibold text-zinc-900">Google Ads</th>
+              </tr>
+            </thead>
+            <tbody className="align-top">
+              <tr className="border-b border-zinc-200">
+                <th scope="row" className="px-3 py-2 font-semibold text-zinc-900">What appears</th>
+                <td className="px-3 py-2">A map and three Business Profile listings: name, category, rating and review count, hours, and buttons to call, get directions or visit the website.</td>
+                <td className="px-3 py-2">Links to web pages, each with a title, address (URL) and short description. Some show extras such as review stars or FAQs from structured data.</td>
+                <td className="px-3 py-2">Results labelled &quot;Sponsored&quot;. They can appear above or below the organic results and in the map results, and can show call buttons or locations.</td>
+              </tr>
+              <tr className="border-b border-zinc-200">
+                <th scope="row" className="px-3 py-2 font-semibold text-zinc-900">What decides placement</th>
+                <td className="px-3 py-2">Google says local results are based mainly on relevance, distance and prominence.</td>
+                <td className="px-3 py-2">How relevant and useful Google judges the page to be for the search, including its content, links pointing to it and page experience.</td>
+                <td className="px-3 py-2">An auction: your bid combined with Google&apos;s assessment of the ad&apos;s quality and relevance and the landing page experience.</td>
+              </tr>
+              <tr className="border-b border-zinc-200">
+                <th scope="row" className="px-3 py-2 font-semibold text-zinc-900">Cost of a click</th>
+                <td className="px-3 py-2">Free</td>
+                <td className="px-3 py-2">Free</td>
+                <td className="px-3 py-2">You pay per click (or per lead for Local Services Ads, which run in some service categories).</td>
+              </tr>
+              <tr className="border-b border-zinc-200">
+                <th scope="row" className="px-3 py-2 font-semibold text-zinc-900">What you control</th>
+                <td className="px-3 py-2">Profile accuracy and completeness, categories, hours, photos, getting and answering reviews, consistent name, address and phone across the web. Not your distance from the searcher.</td>
+                <td className="px-3 py-2">Your website: useful pages for each service and area, titles and descriptions, speed and mobile usability, and earning links and mentions.</td>
+                <td className="px-3 py-2">Budget, bids, the searches and areas you target, ad text and the page the ad sends people to.</td>
+              </tr>
+              <tr>
+                <th scope="row" className="px-3 py-2 font-semibold text-zinc-900">How quickly it works</th>
+                <td className="px-3 py-2">Builds over time; no position is guaranteed.</td>
+                <td className="px-3 py-2">Builds over time; no position is guaranteed.</td>
+                <td className="px-3 py-2">Can show as soon as the ads are approved, and stops when you stop paying.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The practical takeaway: the 3-Pack is won on your Business Profile, organic results are won on your
+          website, and ads are bought. Most local businesses get the most lasting value from the first two,
+          because they keep working without a per-click cost.
         </p>
 
         <h2>The 3-Pack vs. organic results: do you need both?</h2>
