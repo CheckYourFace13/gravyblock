@@ -7,6 +7,7 @@
 import { sql } from "drizzle-orm";
 import { getDb, jobs } from "../../src/lib/db";
 import { getActivation, grokbotConfig, processGrokbotQueue, sendGrokbotTest } from "../../src/lib/search-intel/grokbot";
+import { auditPhase, chicagoParts, nextAuditSend, sendWeeklyAudit } from "../../src/lib/search-intel/weekly-audit";
 
 async function main() {
   const db = getDb();
@@ -32,6 +33,22 @@ async function main() {
   if (cmd === "deactivate") {
     await db.insert(jobs).values({ type: "grokbot_deactivation", status: "completed", payload: {} });
     console.log("deactivated");
+    return;
+  }
+  if (cmd === "audit-now") {
+    // one-time initial delivery: refresh every site's data now, then send this week's audit (idempotent: the scheduled 06:00 run will not repeat it)
+    const r = await sendWeeklyAudit(new Date(), { freshSince: new Date(Date.now() - 5 * 60_000) });
+    console.log(JSON.stringify(r, null, 1));
+    return;
+  }
+  if (cmd === "schedule") {
+    const now = new Date();
+    const next = nextAuditSend(now);
+    const p = chicagoParts(next);
+    console.log("now (Chicago):", JSON.stringify(chicagoParts(now)), "phase:", auditPhase(now));
+    console.log("next weekly audit:", next.toISOString(), "UTC =", p.weekday, p.ymd, `${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`, "America/Chicago");
+    const rows = (await db.execute(sql`select idempotency_key, status, resend_email_id, sent_at from grokbot_deliveries where kind = 'weekly_audit' order by created_at`)) as unknown as Array<Record<string, unknown>>;
+    for (const r of rows) console.log(" ", JSON.stringify(r));
     return;
   }
   if (cmd === "process") {

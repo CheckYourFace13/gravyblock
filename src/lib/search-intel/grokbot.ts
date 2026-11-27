@@ -208,11 +208,11 @@ export async function processGrokbotQueue(now = new Date(), opts: { send?: SendF
   if (cfg.paused) return { ...out, skipped: "paused" };
   const send = opts.send ?? sendViaResend;
   const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
-  const [{ n }] = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where status = 'sent' and kind <> 'test' and sent_at >= ${dayStart}::timestamptz`));
+  const [{ n }] = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where status = 'sent' and kind in ('new', 'reopened') and sent_at >= ${dayStart}::timestamptz`));
   let slots = Math.max(0, cfg.dailyCap - Number(n));
   const due = rowsOf<{ id: string }>(await db.execute(sql`
     select d.id from grokbot_deliveries d left join search_recommendations r on r.id = d.recommendation_id
-    where d.kind <> 'test' and d.attempts < ${MAX_ATTEMPTS}
+    where d.kind in ('new', 'reopened') and d.attempts < ${MAX_ATTEMPTS}
       and ((d.status in ('pending', 'failed') and d.next_attempt_at <= ${now.toISOString()}::timestamptz) or (d.status = 'sending' and d.updated_at < ${new Date(now.getTime() - 15 * 60_000).toISOString()}::timestamptz))
     order by coalesce(r.priority, 0) desc, d.created_at limit 50`));
   for (const row of due) {
@@ -267,7 +267,7 @@ export async function grokbotSummary(now = new Date()): Promise<{ text: string; 
   const act = await getActivation();
   const cfg = grokbotConfig();
   const since = new Date(now.getTime() - 7 * 86_400_000).toISOString();
-  const rows = rowsOf<{ status: string; n: number }>(await db.execute(sql`select status, count(*)::int n from grokbot_deliveries where kind <> 'test' and created_at >= ${since}::timestamptz group by 1`));
+  const rows = rowsOf<{ status: string; n: number }>(await db.execute(sql`select status, count(*)::int n from grokbot_deliveries where kind in ('new', 'reopened') and created_at >= ${since}::timestamptz group by 1`));
   const c = (s: string) => Number(rows.find((r) => r.status === s)?.n ?? 0);
   const fails = rowsOf<{ name: string; last_error: string | null; attempts: number; status: string }>(await db.execute(sql`
     select b.name, d.last_error, d.attempts, d.status from grokbot_deliveries d join businesses b on b.id = d.business_id where d.kind <> 'test' and d.status in ('failed') and d.created_at >= ${since}::timestamptz limit 5`));

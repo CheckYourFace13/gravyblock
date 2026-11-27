@@ -25,6 +25,7 @@ import { sendWeeklyHouseReport } from "@/lib/email/weekly-house-report";
 import { generateMissingSearchIntel, runDailySearchIntel } from "@/lib/search-intel";
 import { listHouseAccounts } from "@/lib/house";
 import { processGrokbotQueue } from "@/lib/search-intel/grokbot";
+import { weeklyAuditTick } from "@/lib/search-intel/weekly-audit";
 import { backfillScanClassification, markInternalBusinesses } from "@/lib/reporting/classification";
 import { sendWeeklyUpsellEmails } from "@/lib/email/weekly-upsell";
 import { runLeadDripBatch } from "@/lib/email/lead-drip";
@@ -1117,6 +1118,31 @@ async function drainHouseRequests() {
 setInterval(() => {
   if (consumeHouseWake()) void drainHouseRequests();
 }, 10_000);
+
+// Weekly GrokBot audit: its own 30-second clock (the main tick runs every 30 minutes, too coarse for "Friday 06:00 America/Chicago"). Refresh from 05:00, send at 06:00,
+// retry failures no more than every 10 minutes until noon. Idempotency keys make a second pass or a second process harmless.
+let auditRunning = false;
+let lastAuditSendAttempt = 0;
+setInterval(() => {
+  if (auditRunning) return;
+  const now = Date.now();
+  auditRunning = true;
+  void (async () => {
+    try {
+      const { auditPhase } = await import("@/lib/search-intel/weekly-audit");
+      const phase = auditPhase(new Date(now));
+      if (phase === "idle") return;
+      if (phase === "send" && lastAuditSendAttempt && now - lastAuditSendAttempt < 10 * 60_000) return;
+      if (phase === "send") lastAuditSendAttempt = now;
+      const r = await weeklyAuditTick(new Date(now));
+      if (r.result) console.info("[worker] weekly grokbot audit", JSON.stringify(r).slice(0, 600));
+    } catch (error) {
+      console.error("[worker] weekly grokbot audit failed", { error: error instanceof Error ? error.message : String(error) });
+    } finally {
+      auditRunning = false;
+    }
+  })();
+}, 30_000);
 
 console.info("[worker] started", {
   intervalMs: WORKER_INTERVAL_MS,

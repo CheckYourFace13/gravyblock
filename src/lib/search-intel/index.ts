@@ -48,13 +48,13 @@ export async function runDailySearchIntel(businessId: string, now = new Date()):
 }
 
 /** Generates reports for house sites that do not yet have one for this week, a few at a time so a worker pass stays short. */
-export async function generateMissingSearchIntel(now = new Date(), maxSites = 2): Promise<{ generated: string[]; remaining: number }> {
+export async function generateMissingSearchIntel(now = new Date(), maxSites = 2, opts: { freshSince?: Date } = {}): Promise<{ generated: string[]; remaining: number }> {
   const db = getDb();
   if (!db) return { generated: [], remaining: 0 };
   const week = weekEndingFor(now);
   const houses = await listHouseAccounts();
   // A report built earlier in the week is refreshed once it is over 18 hours old, so the Friday email always carries data from the day before it goes out.
-  const have = new Set(rowsOf<{ business_id: string }>(await db.execute(sql`select business_id from search_intel_reports where week_ending = ${week} and created_at > now() - interval '18 hours'`)).map((r) => r.business_id));
+  const have = new Set(rowsOf<{ business_id: string }>(await db.execute(sql`select business_id from search_intel_reports where week_ending = ${week} and created_at > ${(opts.freshSince ?? new Date(now.getTime() - 18 * 3_600_000)).toISOString()}::timestamptz`)).map((r) => r.business_id));
   const todo = houses.filter((h) => !have.has(h.id));
   const generated: string[] = [];
   for (const h of todo.slice(0, maxSites)) {
