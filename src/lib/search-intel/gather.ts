@@ -284,6 +284,10 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
     countries = ctry ? toSplit(ctry).sort((a, b) => b.impressions - a.impressions).slice(0, 6) : [];
     const one = (r: typeof img, key: string): Split | null => (r && r[0] ? { key, clicks: Math.round(r[0].clicks ?? 0), impressions: Math.round(r[0].impressions ?? 0), ctr: r[0].impressions ? (r[0].clicks ?? 0) / r[0].impressions : 0, position: Number((r[0].position ?? 0).toFixed(1)) } : null);
     searchTypes = { image: one(img, "image"), video: one(vid, "video") };
+    // Google withholds rare queries for privacy: query-level rows cover only part of the site's impressions. Say how much, so query findings are not over-read.
+    const qImpr = q28cur.reduce((s, r) => s + r.impressions, 0);
+    const siteImpr = parts.w28?.cur.impressions ?? 0;
+    if (siteImpr > 0) dataQualityNotes.push(`Query-level data covers ${Math.round((Math.min(qImpr, siteImpr) / siteImpr) * 100)}% of the site's ${siteImpr} impressions in the latest 28 days; Google withholds rare queries, so query and topic findings describe only that part.`);
     for (const [label, c] of [["7-day", parts.w7], ["28-day", parts.w28]] as const) {
       if (c?.sample === "low") dataQualityNotes.push(`${label} comparison is low-sample (very few clicks and impressions); treat movements as noise.`);
       if (c?.sample === "missing") dataQualityNotes.push(`${label} comparison is missing days of data in one window.`);

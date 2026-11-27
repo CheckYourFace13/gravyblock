@@ -63,6 +63,7 @@ test("uncaptured demand: on-topic suggestions the site never appears for", () =>
 test("a famous brand is not a competitor unless its own pages cover the topic", () => {
   const coffee = Array.from({ length: 300 }, (_, i) => `https://www.starbucks.com/menu/product/${i}/hot`);
   assert.equal(competitorRelevance(coffee, ["bar", "happy-hour", "cocktail", "drink"]).relevant, false);
-  const rival = [...Array.from({ length: 40 }, (_, i) => `https://rival.com/bars/chicago-bar-${i}`), ...Array.from({ length: 20 }, (_, i) => `https://rival.com/about/${i}`)];
+  const rival = [...Array.from({ length: 40 }, (_, i) => `https://rival.com/bars/chicago-bar-${i}`), ...Array.from({ length: 10 }, (_, i) => `https://rival.com/cocktail/recipe-${i}`), ...Array.from({ length: 20 }, (_, i) => `https://rival.com/about/${i}`)];
+  assert.equal(competitorRelevance(Array.from({ length: 60 }, (_, i) => `https://coffee.com/espresso-bar/${i}`), ["bar", "happy-hour", "cocktail"]).relevant, false); // one ambiguous word is not enough
   assert.equal(competitorRelevance(rival, ["bar", "happy-hour", "cocktail"]).relevant, true);
 });

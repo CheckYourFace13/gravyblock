@@ -124,7 +124,8 @@ export function buildSiteAuditEmail(i: SiteAuditInput): { subject: string; text:
     L.push(st.length ? `- Image and video search (28 days): ${st.map((x) => `${x!.key} ${x!.clicks} clicks / ${x!.impressions} impressions`).join("; ")}.` : "- Image and video search (28 days): no impressions.");
     if (deep.sections.length) L.push(`- By site section (28 days vs the 28 before): ${deep.sections.slice(0, 4).map((x) => `${x.section} ${x.pages} pages, ${x.clicks} clicks (was ${x.clicksPrev}), ${x.impressions} impressions (was ${x.impressionsPrev})`).join("; ")}.`);
     if (deep.emerging.length) L.push(`- New searches appearing this window: ${deep.emerging.slice(0, 5).map((q) => `"${q.key}" (${q.impressions})`).join(", ")}.`);
-    if (deep.clusters.length) L.push(`- Biggest search topics (28 days): ${deep.clusters.slice(0, 4).map((c) => `"${c.label}" ${c.impressions} impressions at position ${c.position} (${c.intent})`).join("; ")}.`);
+    const bigTopics = deep.clusters.filter((c) => c.impressions >= 20);
+    L.push(bigTopics.length ? `- Biggest search topics (28 days): ${bigTopics.slice(0, 4).map((c) => `"${c.label}" ${c.impressions} impressions at position ${c.position} (${c.intent})`).join("; ")}.` : "- No search topic reached 20 impressions in the latest 28 days.");
   }
   const limits = [...d.status.notes, ...d.dataQualityNotes];
   L.push(`- Limits: Search Console only shows searches the site already appears for; small numbers are noise.${limits.length ? ` ${limits.join(" ")}` : ""}`);

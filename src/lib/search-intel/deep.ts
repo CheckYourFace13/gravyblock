@@ -171,11 +171,14 @@ export function uncaptured(suggestions: string[], siteQueries: string[], topicWo
 export function competitorRelevance(urls: string[], topicWords: string[]): { relevant: boolean; matches: number; share: number } {
   const topic = topicWords.map((w) => w.toLowerCase());
   let matches = 0;
+  const distinct = new Set<string>();
   for (const u of urls) {
     let p = "";
     try { p = new URL(u).pathname.toLowerCase(); } catch { continue; }
-    if (topic.some((w) => new RegExp(`(^|[/_-])${w.replace(/[^a-z0-9-]/g, "")}([/_.-]|s?$|s?[/_.-])`).test(p))) matches++;
+    const hit = topic.filter((w) => new RegExp(`(^|[/_-])${w.replace(/[^a-z0-9-]/g, "")}([/_.-]|s?$|s?[/_.-])`).test(p));
+    if (hit.length) { matches++; hit.forEach((h) => distinct.add(h)); }
   }
   const share = urls.length ? matches / urls.length : 0;
-  return { relevant: matches >= 5 && (share >= 0.05 || matches >= 25), matches, share: Number(share.toFixed(3)) };
+  // several different topic words must appear, so one ambiguous word (a coffee chain's "espresso bar") cannot qualify a site
+  return { relevant: matches >= 5 && distinct.size >= 2 && (share >= 0.05 || matches >= 25), matches, share: Number(share.toFixed(3)) };
 }

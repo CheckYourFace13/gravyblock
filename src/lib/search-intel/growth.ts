@@ -189,6 +189,7 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
       competitorUrls: g.competitorPages.map((p) => `${p.url} ("${p.title}", observed ${p.observedAt.slice(0, 10)})`),
       actions: [
         section ? `Extend the existing ${section} pages to serve this intent before creating anything new.` : "Find the existing page closest to this intent and extend it before creating anything new.",
+        ...(profile?.demandHint ? [profile.demandHint] : []),
         "If a new page or tool is justified, build ONE substantive, original page that genuinely serves the searcher (no thin or templated near-duplicates), and link it from relevant indexed pages.",
         profile ? `Tie it to the site's conversion: ${profile.conversions[0]}.` : "Give the visitor an obvious next step.",
       ],

@@ -15,19 +15,24 @@ export type SiteProfile = {
   seeds: string[];
   topicWords: string[];
   valuableSections: string[];
+  /** how this site should meet new demand with what it already has */
+  demandHint?: string;
   seasonal?: Array<{ months: number[]; topic: string }>;
 };
 
 export const SITE_PROFILES: Record<string, SiteProfile> = {
   "The Drink Place": {
+    demandHint: "Answer it with the venue data the site already has (verified hours, happy-hour times, drinks): for example a city or neighbourhood list filtered by what is open or on special, not a generic article.",
     what: "drink and venue discovery: where to get a specific drink, verified happy hours, drink menus, venue pages",
     audience: "people deciding where to go for a drink tonight or this week, and venue owners who want to claim and manage their listing",
     conversions: ["account registration", "venue claim (venue owners)", "searching for a drink or venue"],
-    seeds: ["happy hour near me", "happy hour chicago", "best old fashioned near me", "cocktail bars open late", "drink specials tonight", "bars with happy hour today", "where to get a margarita near me", "claim my bar listing"],
-    topicWords: ["bar", "bars", "happy-hour", "happy", "cocktail", "cocktails", "drink", "drinks", "brewery", "taproom", "wine", "pub", "lounge", "nightlife", "menu"],
+    seeds: ["happy hour near me", "happy hour chicago", "best old fashioned near me", "cocktail bars open late", "drink specials tonight", "bars with happy hour today", "where to get a margarita near me", "rooftop bars chicago"],
+    // alcohol and bar words only: "drink" and "menu" alone would let coffee chains through
+    topicWords: ["bar", "bars", "happy-hour", "happy", "cocktail", "cocktails", "brewery", "breweries", "taproom", "wine", "pub", "pubs", "lounge", "nightlife", "beer", "whiskey", "tequila", "spirits", "margarita", "rooftop"],
     valuableSections: ["/places", "/happy-hour", "/business", "/drink", "/cities", "/chicago"],
   },
   "Boating Chicago": {
+    demandHint: "Answer it with the site's own launch, marina, lake and conditions data: for example a filtered directory or comparison with verified details, not a generic article.",
     what: "Chicago boating guide: lakes, boat launches, marinas, conditions, destinations, boating tools, plus rental and charter referrals",
     audience: "Chicago-area boaters and people planning a boat day, rental or charter",
     conversions: ["rental or charter referral", "newsletter subscription", "using a boating tool (float plan, checklist, weather)"],
@@ -37,6 +42,7 @@ export const SITE_PROFILES: Record<string, SiteProfile> = {
     seasonal: [{ months: [3, 4, 5], topic: "boating season opening: launches, marinas, slips, rentals" }],
   },
   "Drink Knird": {
+    demandHint: "Answer it with a genuinely tested recipe in the site's existing recipe format, published ahead of the seasonal peak.",
     what: "recipes, cocktails and seasonal cooking content",
     audience: "home cooks and home bartenders looking for a recipe right now, strongly seasonal",
     conversions: ["affiliate product clicks", "newsletter subscription", "return visits"],
@@ -46,6 +52,7 @@ export const SITE_PROFILES: Record<string, SiteProfile> = {
     seasonal: [{ months: [11, 12], topic: "Thanksgiving, holiday and New Year drinks and recipes" }, { months: [5, 6, 7], topic: "summer cocktails and grilling" }],
   },
   "Outbreak Threat": {
+    demandHint: "Answer it with the site's existing official-source data: a focused map or tracker page for that disease or recall, updated from the same feeds.",
     what: "public-health intelligence: official outbreak and recall notices mapped by location with plain-English summaries",
     audience: "people checking whether an outbreak or recall affects them, and readers who want alerts",
     conversions: ["alert/newsletter subscription", "return visits to maps"],
@@ -55,6 +62,7 @@ export const SITE_PROFILES: Record<string, SiteProfile> = {
     seasonal: [{ months: [11, 12, 1, 2, 3], topic: "norovirus and flu season" }],
   },
   GravyBlock: {
+    demandHint: "Answer it by pointing to the free scan or a focused free tool, so the searcher can act immediately.",
     what: "automated local SEO for small businesses: free visibility scan, then subscription plans",
     audience: "small local business owners trying to get found on Google and maps",
     conversions: ["free scan completed", "subscription started"],
