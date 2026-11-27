@@ -54,3 +54,10 @@ test("the audit is packed into a few parts under the size limit, never splitting
   assert.deepEqual(parts.flat(), blocks.map((_, i) => i));
   for (const p of parts) assert.ok(p.reduce((s, i) => s + blocks[i]!.length, 0) <= 60_000 || p.length === 1);
 });
+
+import { relativize, siteBase } from "../weekly-audit";
+test("the site's own URLs become paths; other domains are untouched", () => {
+  assert.equal(siteBase("https://www.boatingchicago.com/"), "https://boatingchicago.com");
+  const t = relativize("See https://boatingchicago.com/marinas and https://www.boatingchicago.com/ and http://boatingchicago.com, not https://boatingchicago.com.evil.io/x or https://rival.com/boatingchicago.com", "https://boatingchicago.com");
+  assert.equal(t, "See /marinas and / and /, not https://boatingchicago.com.evil.io/x or https://rival.com/boatingchicago.com");
+});

@@ -149,6 +149,21 @@ export function buildSiteAuditEmail(i: SiteAuditInput): { subject: string; text:
   return { subject: `[GravyBlock Weekly Audit] ${i.week} — ${i.report.name} (${i.index} of ${i.total})`, text, buckets };
 }
 
+/** https://host of a site's website, or null. */
+export function siteBase(website: string | null): string | null {
+  try {
+    return website ? `https://${new URL(/^https?:\/\//i.test(website) ? website : `https://${website}`).hostname.replace(/^www\./i, "")}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Rewrites the site's own absolute URLs (with or without www, http or https) as paths; other sites' URLs are untouched. */
+export function relativize(text: string, base: string): string {
+  const host = base.replace(/^https?:\/\//, "").replace(/[.]/g, "\\.");
+  return text.replace(new RegExp(`https?://(?:www\\.)?${host}(?![\\w.-])(/[^\\s"')<>]*)?`, "gi"), (_m, path?: string) => path || "/");
+}
+
 type Delivery = { id: string; status: string; attempts: number };
 
 /** Claim a delivery for sending. A failed one is retried at most every 10 minutes; one stuck mid-send for 15 minutes is retried with the same idempotency key. */
@@ -242,7 +257,9 @@ export async function sendWeeklyAudit(now = new Date(), opts: { send?: SendFn; f
       if (rec && (!began || new Date(s.sent_at) >= began)) sent.set(s.recommendation_id, new Date(s.sent_at).toISOString());
     }
     const email = buildSiteAuditEmail({ report, queue, sent, previousAuditAt, index: idx, total: ordered.length, week, now });
-    blocks.push(`\n\n######## SITE ${idx} OF ${ordered.length}: ${report.name} ########\n\n${email.text}`);
+    // Fewer links per message: the site's own URLs are written as paths under one stated base (the 27 Nov audits carried 37 to 87 full URLs each).
+    const base = siteBase(report.data.site.website);
+    blocks.push(`\n\n######## SITE ${idx} OF ${ordered.length}: ${report.name} ########\n${base ? `All paths in this section are on ${base}\n` : ""}\n${base ? relativize(email.text, base) : email.text}`);
     summaryLines.push(`- ${report.name}: ${Object.entries(email.buckets).map(([b, n]) => `${b} ${n}`).join(", ") || "no recommendations"}; 28-day clicks ${report.data.w28?.cur.clicks ?? "n/a"}${report.data.w28 ? ` (${sign(report.data.w28.clicksChange)})` : ""}`);
   }
   const parts = packParts(blocks);
