@@ -3,6 +3,7 @@ import { CUSTOMER_FROM_NAME, outreachFrom } from "@/lib/email/identity";
 import type { ProspectPreScan } from "./prospect-prescan";
 import { isOptedOut, coldOutreachFooter, listUnsubscribeHeaders } from "@/lib/email/optout";
 import { assertOutreachSendingAllowed } from "./pause-guard";
+import { assertColdOutreachAllowed } from "./cold-pause";
 import { classifyFindingStrength, naturalFindingPhrase, findingSubjectPhrase } from "./finding-quality";
 
 type SendEmailResult = { ok: boolean; skipped?: boolean; reason?: string; resendEmailId?: string | null };
@@ -455,6 +456,11 @@ export async function sendFollowupEmail(params: {
   if (!pauseCheck.allowed) {
     return { ok: false, skipped: true, reason: pauseCheck.reason };
   }
+  // Unsolicited-outreach pause (sender reputation), separate from the admin pause; see cold-pause.ts.
+  const coldCheck = await assertColdOutreachAllowed(params.email);
+  if (!coldCheck.allowed) {
+    return { ok: false, skipped: true, reason: coldCheck.reason };
+  }
 
   // Prefer linking back to the SAME personalized report already run for this
   // business — never make a prospect re-run a scan GravyBlock already did.
@@ -523,6 +529,11 @@ export async function sendBreakupEmail(params: {
   const pauseCheck = await assertOutreachSendingAllowed(params.email);
   if (!pauseCheck.allowed) {
     return { ok: false, skipped: true, reason: pauseCheck.reason };
+  }
+  // Unsolicited-outreach pause (sender reputation), separate from the admin pause; see cold-pause.ts.
+  const coldCheck = await assertColdOutreachAllowed(params.email);
+  if (!coldCheck.allowed) {
+    return { ok: false, skipped: true, reason: coldCheck.reason };
   }
 
   let linkUrl: string;
@@ -614,6 +625,11 @@ export async function sendProspectEmail(
   const pauseCheck = await assertOutreachSendingAllowed(toEmail);
   if (!pauseCheck.allowed) {
     return { ok: false, skipped: true, reason: pauseCheck.reason };
+  }
+  // Unsolicited-outreach pause (sender reputation), separate from the admin pause; see cold-pause.ts.
+  const coldCheck = await assertColdOutreachAllowed(toEmail);
+  if (!coldCheck.allowed) {
+    return { ok: false, skipped: true, reason: coldCheck.reason };
   }
 
   // Attach the recipient email to the prospect so the HTML footer can build the unsubscribe link

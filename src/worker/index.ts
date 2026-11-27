@@ -70,6 +70,7 @@ import { runLocalPackTrackingBatch } from "@/lib/seo/local-pack-tracker";
 import { runOutreachBatch } from "@/lib/outreach/run-outreach-batch";
 import { getTodaysOutreachTarget } from "@/lib/outreach/outreach-calendar";
 import { runFollowupOutreachBatch } from "@/lib/outreach/run-followup-batch";
+import { coldOutreachPauseState } from "@/lib/outreach/cold-pause";
 import { runBreakupOutreachBatch } from "@/lib/outreach/run-breakup-batch";
 import { runGbpReviewReplyBatch } from "@/lib/gbp/review-responder";
 import { ensureResendWebhookRegistered } from "@/lib/integrations/resend-setup";
@@ -400,6 +401,8 @@ async function runColdOutreachWindow(
   const now = new Date();
   if (now.getUTCHours() < hour || now.getUTCHours() > hour + 1) return;
   if (await hasJobRunToday(`cold_outreach_${windowKey}`)) return;
+  // While unsolicited outreach is paused, do not even search for new prospects (the send boundary would refuse them anyway).
+  if ((await coldOutreachPauseState()).paused) return;
 
   let target: { city: string; state: string; industry: string; industryLabel: string };
   if (overrideTarget) {

@@ -34,6 +34,7 @@ import { discoverContactEmail } from "@/lib/outreach/discover-contact-email";
 import { sectionTopics } from "@/lib/opportunities/embed-briefs";
 import { isOptedOut, coldOutreachFooter, listUnsubscribeHeaders } from "@/lib/email/optout";
 import { assertOutreachSendingAllowed } from "@/lib/outreach/pause-guard";
+import { assertColdOutreachAllowed } from "@/lib/outreach/cold-pause";
 import { checkOutreachHealth } from "@/lib/outreach/outreach-health";
 import { getRemainingSharedBudget } from "@/lib/outreach/send-budget";
 import { safeFetchText, isSafePublicUrl } from "@/lib/net/safe-fetch";
@@ -806,6 +807,9 @@ async function preflight(to: string): Promise<string | null> {
   if (await isOptedOut(to)) return "opted_out";
   const gate = await assertOutreachSendingAllowed(to);
   if (!gate.allowed) return gate.reason ?? "paused";
+  // authority pitches and their follow-ups are unsolicited too, so the reputation pause applies to them
+  const cold = await assertColdOutreachAllowed(to);
+  if (!cold.allowed) return cold.reason;
   return null;
 }
 

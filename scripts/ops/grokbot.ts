@@ -41,6 +41,20 @@ async function main() {
     console.log(JSON.stringify(r, null, 1));
     return;
   }
+  if (cmd === "audit-dryrun") {
+    // builds this week's audit from stored reports exactly as it would be sent, and prints the checks; sends and writes nothing
+    const { weekEndingFor } = await import("../../src/lib/search-intel/gather");
+    const { composeWeeklyAudit } = await import("../../src/lib/search-intel/weekly-audit");
+    const week = weekEndingFor(new Date());
+    const c = await composeWeeklyAudit(new Date(), week);
+    console.log(`week ${week}: ${c.ordered.length} of ${c.houses.length} sites, ${c.parts.length} parts, all sections placed with instructions: ${c.complete}`);
+    c.parts.forEach((p, n) => {
+      const text = `${n === 0 ? c.summary : ""}${p.map((i) => c.blocks[i]).join("")}`;
+      const urls = text.match(/https?:\/\/\S+/g) ?? [];
+      console.log(`  part ${n + 1}: ${text.length} chars, ${urls.length} full URLs, sites: ${p.map((i) => c.ordered[i]!.name).join(", ")}`);
+    });
+    return;
+  }
   if (cmd === "schedule") {
     const now = new Date();
     const next = nextAuditSend(now);

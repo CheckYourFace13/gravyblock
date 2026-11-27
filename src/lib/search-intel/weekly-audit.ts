@@ -214,32 +214,12 @@ async function weekComplete(week: string): Promise<boolean> {
   return Number(x?.n ?? 0) > 0;
 }
 
-/**
- * Sends this week's audit. Safe to call repeatedly (the worker calls it every 30 seconds in the send window): sent parts are skipped, the next part waits until
- * PART_GAP_MS after the previous one, failed parts are retried. `freshSince` forces any report older than that instant to be regenerated before sending.
- */
-export async function sendWeeklyAudit(now = new Date(), opts: { send?: SendFn; freshSince?: Date; gapMs?: number } = {}): Promise<AuditResult> {
-  const db = getDb();
-  const week = weekEndingFor(now);
-  const out: AuditResult = { week, sites: 0, parts: 0, sent: 0, alreadySent: 0, failed: 0, waiting: false, complete: false, refreshed: [], results: [] };
-  if (!db) return out;
-  if (await weekComplete(week)) return { ...out, complete: true };
-  const cfg = grokbotConfig();
-  const send = opts.send ?? sendViaResend;
-  const gap = opts.gapMs ?? PART_GAP_MS;
-  const freshSince = opts.freshSince ?? chicagoInstant(chicagoParts(now).ymd, 5, 0);
-  const anySent = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key like ${`audit:${week}:part:%`}`));
-  // refresh only before the first part goes out, so every part of one week's audit describes the same data
-  if (Number(anySent[0]?.n ?? 0) === 0) {
-    for (let pass = 0; pass < 4; pass++) {
-      const g = await generateMissingSearchIntel(now, 12, { freshSince });
-      out.refreshed.push(...g.generated);
-      if (!g.remaining) break;
-    }
-  }
+/** Builds this week's audit (summary, one section per site, parts) from the stored reports without sending or writing anything. */
+export async function composeWeeklyAudit(now: Date, week: string) {
+  const db = getDb()!;
   const houses = await listHouseAccounts();
   const reports = await loadReports(week);
-  out.sites = reports.length;
+  
   const ordered = houses.map((h) => reports.find((r) => r.businessId === h.id)).filter((r): r is StoredReport => !!r);
   const [prevAudit] = rowsOf<{ at: string | null }>(await db.execute(sql`select max(sent_at) at from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key not like ${`audit:${week}:%`}`));
   const previousAuditAt = prevAudit?.at ? new Date(prevAudit.at) : null;
@@ -263,7 +243,12 @@ export async function sendWeeklyAudit(now = new Date(), opts: { send?: SendFn; f
     summaryLines.push(`- ${report.name}: ${Object.entries(email.buckets).map(([b, n]) => `${b} ${n}`).join(", ") || "no recommendations"}; 28-day clicks ${report.data.w28?.cur.clicks ?? "n/a"}${report.data.w28 ? ` (${sign(report.data.w28.clicksChange)})` : ""}`);
   }
   const parts = packParts(blocks);
-  out.parts = parts.length;
+  
+  // Every site's section must land in exactly one part with its instruction, so nothing disappears when the audit is split. Refuse to send otherwise.
+  const placed = parts.flat().sort((a, b) => a - b);
+  if (placed.length !== blocks.length || placed.some((v, i) => v !== i) || blocks.some((b) => !b.includes("COPY-READY DEVELOPMENT INSTRUCTION"))) {
+    return { houses, reports, ordered, blocks, parts, summary: "", complete: false as const };
+  }
   const s = summarizePortfolio(reports, houses.map((h) => h.name), week);
   const summary = [
     `GRAVYBLOCK WEEKLY SEARCH & COMPETITOR AUDIT, week ending ${week}`,
@@ -283,6 +268,40 @@ export async function sendWeeklyAudit(now = new Date(), opts: { send?: SendFn; f
     "Parts:",
     ...parts.map((p, n) => `- Part ${n + 1}: ${p.map((i) => ordered[i]!.name).join(", ")}`),
   ].join("\n");
+  return { houses, reports, ordered, blocks, parts, summary, complete: true as const };
+}
+
+/**
+ * Sends this week's audit. Safe to call repeatedly (the worker calls it every 30 seconds in the send window): sent parts are skipped, the next part waits until
+ * PART_GAP_MS after the previous one, failed parts are retried. `freshSince` forces any report older than that instant to be regenerated before sending.
+ */
+export async function sendWeeklyAudit(now = new Date(), opts: { send?: SendFn; freshSince?: Date; gapMs?: number } = {}): Promise<AuditResult> {
+  const db = getDb();
+  const week = weekEndingFor(now);
+  const out: AuditResult = { week, sites: 0, parts: 0, sent: 0, alreadySent: 0, failed: 0, waiting: false, complete: false, refreshed: [], results: [] };
+  if (!db) return out;
+  if (await weekComplete(week)) return { ...out, complete: true };
+  const cfg = grokbotConfig();
+  const send = opts.send ?? sendViaResend;
+  const gap = opts.gapMs ?? PART_GAP_MS;
+  const freshSince = opts.freshSince ?? chicagoInstant(chicagoParts(now).ymd, 5, 0);
+  const anySent = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from grokbot_deliveries where kind = 'weekly_audit' and status = 'sent' and idempotency_key like ${`audit:${week}:part:%`}`));
+  // refresh only before the first part goes out, so every part of one week's audit describes the same data
+  if (Number(anySent[0]?.n ?? 0) === 0) {
+    for (let pass = 0; pass < 4; pass++) {
+      const g = await generateMissingSearchIntel(now, 12, { freshSince });
+      out.refreshed.push(...g.generated);
+      if (!g.remaining) break;
+    }
+  }
+  const { houses, reports, ordered, blocks, parts, summary, complete } = await composeWeeklyAudit(now, week);
+  out.sites = reports.length;
+  out.parts = parts.length;
+  if (!complete) {
+    out.results.push({ part: 0, sites: [], status: "refused: a site section was missing or incomplete" });
+    return out;
+  }
+  void houses;
 
   for (let n = 0; n < parts.length; n++) {
     const key = `audit:${week}:part:${n + 1}`;

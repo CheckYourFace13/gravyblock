@@ -1,6 +1,7 @@
 import { gatherPortfolioReport, renderPortfolioReport } from "@/lib/reporting/portfolio-report";
 import { buildSearchSection, generateMissingSearchIntel, markEmailed } from "@/lib/search-intel";
 import type { EmailItem } from "@/lib/search-intel/recommendations";
+import { senderHealthSection } from "@/lib/email/sender-health";
 
 const OWNER_EMAIL = "chris@gravyblock.com";
 
@@ -11,7 +12,8 @@ export async function buildWeeklyHouseReport(): Promise<{ subject: string; html:
   // The weekly search and competitor reports are normally generated before the send; any still missing are generated here (a few at a time) so the one email is complete.
   await generateMissingSearchIntel(new Date(), 3).catch(() => null);
   const search = await buildSearchSection().catch((err) => ({ text: `WEEKLY SEARCH AND COMPETITOR INTELLIGENCE: unavailable (${err instanceof Error ? err.message : "error"})`, html: "", included: [] as EmailItem[] }));
-  const text = `${search.text}\n\n${renderPortfolioReport(await gatherPortfolioReport(7))}`;
+  const health = await senderHealthSection().catch((err) => `SENDER HEALTH: unavailable (${err instanceof Error ? err.message : "error"})`);
+  const text = `${search.text}\n\n${health}\n\n${renderPortfolioReport(await gatherPortfolioReport(7))}`;
   const day = new Date().toISOString().slice(0, 10);
   return {
     subject: `GravyBlock House Accounts: weekly growth report ${day}`,
