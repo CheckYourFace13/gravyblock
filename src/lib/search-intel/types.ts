@@ -1,5 +1,6 @@
 import type { BandRow, Compare, DataStatus, LowCtr, Move, Seasonal } from "./analysis";
 import type { FeatureGap, PageFeatures } from "./competitors";
+import type { LaunchPlan, SearchStage } from "./research";
 import type { Cluster, DemandStrength, ImprMove, QP, SeasonalQuery, SectionStat, Split } from "./deep";
 import type { Totals, QueryRow } from "./analysis";
 
@@ -134,6 +135,10 @@ export type DeepIntel = {
   partners?: Array<{ name: string; url: string; note: string; foundAt: string }>;
   /** live state of pages that lost most of their visibility (a redirect, noindex or canonical elsewhere means the loss is deliberate) */
   lossChecks?: Array<{ url: string; status: number | null; finalUrl: string; indexable: boolean; canonical: string }>;
+  /** where the site stands with Google (launch, early data, established); moves on its own as data accumulates */
+  stage?: { stage: SearchStage; reason: string };
+  /** launch-stage plan (absent once the site is established in Search Console) */
+  launch?: LaunchPlan | null;
 };
 
 export type DemandGroup = DeepIntel["demand"]["uncaptured"][number];

@@ -19,7 +19,7 @@ import { profileFor } from "./profiles";
 import { getBusinessTruth } from "@/lib/truth";
 import type { DeepIntel } from "./types";
 
-import { collectSuggestions, coversIntent, fetchDetail, inventoryMatches, ourStrengths, topicGaps, type PageDetail } from "./research";
+import { buildLaunchPlan, collectSuggestions, coversIntent, fetchDetail, inventoryMatches, ourStrengths, searchStage, topicGaps, type PageDetail } from "./research";
 import { demandStrength, impressionMovers, intentOf, seasonalAhead, templateLosses, type QP } from "./deep";
 import type { IntentResearch } from "./types";
 
@@ -374,6 +374,9 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
   const brand = brandTokens(biz.name, biz.website);
   // The daily change check skips the (slower, polite) competitor and demand research; both run once a week in the full report.
   const weekly = opts.competitors !== false;
+  // launch stage (no Search Console, or too little data): research demand more widely and plan the site, instead of waiting for Google data
+  const stageInfo = searchStage(Boolean(token && property), parts.w28 ? parts.w28.cur.impressions : null);
+  const launching = stageInfo.stage !== "established";
   const comp = weekly
     ? await competitorSection(businessId, biz.website, rows, now.toISOString(), { topicWords: profile?.topicWords ?? null, seeds: profile?.seeds ?? [], candidates: profile?.competitorCandidates ?? [] })
     : null;
@@ -397,13 +400,15 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
   const demand: DeepIntel["demand"] = { source: "Google and DuckDuckGo public autocomplete", checkedAt: now.toISOString(), seeds: [], suggestions: 0, uncaptured: [], notes: [] };
   if (weekly && profile) {
     const clustersNow = clusterQueries(rows, brand).filter((c) => !c.branded && c.impressions >= 30).slice(0, 2).map((c) => c.label);
-    const seeds = [...new Set([...profile.seeds.slice(0, 8), ...clustersNow])];
+    // launch stage: every profile seed plus "<competitor> alternative" for relevant competitors, so switching searches are researched too
+    const altSeeds = launching && comp ? comp.section.known.slice(0, 3).map((k) => `${k.website.replace(/^https?:\/\/(www\.)?/, "").split(".")[0]} alternative`) : [];
+    const seeds = [...new Set([...profile.seeds.slice(0, launching ? 14 : 8), ...clustersNow, ...altSeeds])];
     demand.seeds.push(...seeds);
     const sugg = await collectSuggestions(seeds, { ddgSeeds: 8 });
     demand.suggestions = sugg.size;
     const siteQueries = [...q28cur, ...q28prev].map((q) => q.key);
     // platform names ("... reddit") describe where people ask, not what they want; drop them
-    const missing = uncaptured([...sugg.keys()], siteQueries, profile.topicWords).filter((q) => !/\b(reddit|youtube|tiktok|yelp|wikipedia|amazon|facebook|instagram|quora|craigslist)\b/.test(q));
+    const missing = uncaptured([...sugg.keys()], siteQueries, profile.topicWords).filter((q) => !/\b(reddit|youtube|tiktok|yelp|wikipedia|amazon|facebook|instagram|quora|craigslist)\b/.test(q) && !/\.(com|net|org|io|co|app)\b/.test(q)); // a site name ("calculator.net") is navigation to someone else
     const groups = new Map<string, string[]>();
     for (const m of missing) {
       const key = tokensOf(m).slice(0, 2).sort().join(" ");
@@ -412,7 +417,7 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
     const month = now.getUTCMonth() + 1;
     const soon = profile.seasonal?.find((x) => x.months.some((m) => m === month || m === (month % 12) + 1 || m === ((month + 1) % 12) + 1));
     // a demand topic needs at least two different suggestions behind it; a lone odd suggestion ("marina city split balconies") is not a topic
-    const cands = [...groups.entries()].filter(([, v]) => v.length >= 2).sort((a, b) => b[1].length - a[1].length).slice(0, 8);
+    const cands = [...groups.entries()].filter(([, v]) => v.length >= 2).sort((a, b) => b[1].length - a[1].length).slice(0, launching ? 14 : 8);
     for (const [, qsRaw] of cands) {
       const qs = [...qsRaw].sort((a, b) => a.length - b.length); // the plainest phrasing leads
       const label = qs[0]!;
@@ -448,7 +453,7 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
       demand.uncaptured.push({ label, queries: qs.slice(0, 6), competitorPages: pages, sources, strength, intent, existingPage });
     }
     demand.uncaptured.sort((a, b) => (b.strength?.score ?? 0) - (a.strength?.score ?? 0));
-    demand.uncaptured = demand.uncaptured.slice(0, 6);
+    demand.uncaptured = demand.uncaptured.slice(0, launching ? 10 : 6);
     if (!sugg.size) demand.notes.push("Public autocomplete returned nothing this week, so no missing-demand finding was made.");
     demand.notes.push("Autocomplete proves people type a phrase; it says nothing about how many do. No search volumes are estimated.");
   } else if (weekly) demand.notes.push("No site profile on record, so missing demand was not researched.");
@@ -537,6 +542,17 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
     intents,
     partners,
     lossChecks,
+    stage: stageInfo,
+    launch: launching && profile && demand.uncaptured.length
+      ? buildLaunchPlan({
+          stage: stageInfo.stage,
+          reason: stageInfo.reason,
+          clusters: demand.uncaptured.map((g) => ({ label: g.label, queries: g.queries, intent: g.intent ?? "informational", score: g.strength?.score ?? 0, level: g.strength?.level ?? "weak", ourPage: g.existingPage ? { url: g.existingPage.url, covers: g.existingPage.covers } : null, competitorPages: g.competitorPages.map((c) => ({ url: c.url, title: c.title })) })),
+          valuableSections: profile.valuableSections,
+          conversion: profile.conversions[0] ?? "the main next step",
+          gscConnected: Boolean(token && property),
+        })
+      : null,
   };
   const intel: SiteIntel = {
     version: 1,

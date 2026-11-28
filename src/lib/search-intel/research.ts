@@ -8,7 +8,7 @@
  * Pure helpers are exported for tests; the fetchers are polite (one request at a time, short timeouts).
  */
 import { safeFetchText, isSafePublicUrl } from "@/lib/net/safe-fetch";
-import { pageFeatures, urlMatchScore, type PageFeatures } from "./competitors";
+import { pageFeatures, type PageFeatures } from "./competitors";
 import { tokensOf } from "./deep";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -85,11 +85,24 @@ export async function fetchDetail(url: string, observedAt: string): Promise<Page
 }
 
 /** The site's own pages whose address best matches a search (most of its meaningful words in the path), best first. */
-export function inventoryMatches(urls: string[], query: string, max = 3, min = 0.6): string[] {
+export function inventoryMatches(urls: string[], query: string, max = 3, min = 0.5): string[] {
   const toks = tokensOf(query);
   if (!toks.length) return [];
+  // share of the search's words in the page address (a page at /tools/rental-roi is a candidate for "rental property calculator roi");
+  // the page itself must still plainly cover the search (coversIntent) before anything is treated as served
+  const score = (u: string) => {
+    let path = "";
+    try {
+      path = new URL(u).pathname;
+    } catch {
+      return 0;
+    }
+    const hay = new Set(tokensOf(path.replace(/[/_-]+/g, " ")));
+    const hits = toks.filter((t) => hay.has(t)).length;
+    return toks.length === 1 ? (hits ? 1 : 0) : hits >= 2 ? hits / toks.length : 0;
+  };
   return urls
-    .map((u) => ({ u, s: urlMatchScore(u, toks) }))
+    .map((u) => ({ u, s: score(u) }))
     .filter((x) => x.s >= min)
     .sort((a, b) => b.s - a.s || a.u.length - b.u.length)
     .slice(0, max)
@@ -140,4 +153,105 @@ export function ourStrengths(ours: PageDetail | null, theirs: PageDetail[]): str
   if (ours.hasFaqSchema && !theirs.some((t) => t.hasFaqSchema)) s.push(`${ours.url} answers questions with FAQ markup; the competing pages do not`);
   if (ours.words >= Math.max(...theirs.map((t) => t.words)) * 1.3 && ours.words >= 600) s.push(`${ours.url} is more detailed (about ${ours.words} words against at most ${Math.max(...theirs.map((t) => t.words))})`);
   return s;
+}
+
+/* ───────────── launch stage: search growth before Google has meaningful data ───────────── */
+
+export type SearchStage = "launch" | "early data" | "established";
+
+/**
+ * Where a site stands with Google. Launch: Search Console not connected (data UNAVAILABLE, never reported as zero) or under 300 impressions in 28 days.
+ * Early data: under 3,000. Established: enough data to optimise from Search Console alone. The engine moves between stages on its own as data accumulates.
+ */
+export function searchStage(connected: boolean, impressions28: number | null): { stage: SearchStage; reason: string } {
+  if (!connected) return { stage: "launch", reason: "Search Console is not connected for this site, so Google data is unavailable (not zero). Planning uses public demand signals and competitor pages." };
+  if (impressions28 === null) return { stage: "launch", reason: "No complete 28-day Search Console window yet." };
+  if (impressions28 < 300) return { stage: "launch", reason: `Only ${impressions28} Google impressions in the latest 28 days: too little to optimise from, so planning leads with public demand signals.` };
+  if (impressions28 < 3000) return { stage: "early data", reason: `${impressions28} Google impressions in the latest 28 days: early data, combined with public demand signals.` };
+  return { stage: "established", reason: `${impressions28} Google impressions in the latest 28 days: optimised primarily from Search Console data.` };
+}
+
+export type LaunchCluster = {
+  label: string;
+  queries: string[];
+  intent: string;
+  score: number;
+  level: string;
+  ourPage: { url: string; covers: boolean } | null;
+  competitorPages: Array<{ url: string; title: string }>;
+};
+
+export type LaunchPlan = {
+  stage: SearchStage;
+  reason: string;
+  clusters: Array<LaunchCluster & { action: "make the existing page plainly answer it" | "expand the closest page" | "create one focused page or tool"; section: string }>;
+  architecture: Array<{ section: string; clusters: string[]; existing: boolean }>;
+  internalLinks: string[];
+  plan90: Array<{ window: string; steps: string[] }>;
+};
+
+const pathOfUrl = (u: string) => {
+  try {
+    return new URL(u).pathname || "/";
+  } catch {
+    return u;
+  }
+};
+
+/** Turns researched search clusters into a launch plan: which page serves each cluster, a simple hub structure, the internal links, and the first 90 days. */
+export function buildLaunchPlan(i: { stage: SearchStage; reason: string; clusters: LaunchCluster[]; valuableSections: string[]; conversion: string; gscConnected: boolean }): LaunchPlan {
+  const sectionFor = (c: LaunchCluster) => {
+    if (c.ourPage) {
+      const seg = pathOfUrl(c.ourPage.url).split("/").filter(Boolean)[0];
+      return seg ? `/${seg}` : "/";
+    }
+    const toks = tokensOf([c.label, ...c.queries].join(" "));
+    // what kind of page the search wants points at the section that holds that kind of page
+    const hint: Array<[RegExp, RegExp]> = [[/\b(calculator|checker|generator|template|estimator)\b/, /tool/], [/\balternatives?\b/, /alternative/], [/\b(vs|versus|compare|comparison)\b/, /compare/]];
+    const text = [c.label, ...c.queries].join(" ").toLowerCase();
+    for (const [q, sec] of hint) if (q.test(text)) { const hit = i.valuableSections.find((s) => sec.test(s)); if (hit) return hit; }
+    return i.valuableSections.find((s) => s !== "/" && toks.some((t) => s.replace(/[^a-z]/g, " ").split(" ").some((w) => w && tokensOf(w)[0] === t))) ?? "new focused page";
+  };
+  const clusters = [...i.clusters]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10)
+    .map((c) => ({ ...c, section: sectionFor(c), action: c.ourPage?.covers ? ("make the existing page plainly answer it" as const) : c.ourPage ? ("expand the closest page" as const) : ("create one focused page or tool" as const) }));
+  const bySection = new Map<string, { clusters: string[]; existing: boolean }>();
+  for (const c of clusters) {
+    const e = bySection.get(c.section) ?? { clusters: [], existing: c.section !== "new focused page" };
+    e.clusters.push(c.label);
+    bySection.set(c.section, e);
+  }
+  const architecture = [...bySection.entries()].map(([section, e]) => ({ section, ...e }));
+  const internalLinks: string[] = [];
+  for (const c of clusters.filter((x) => x.ourPage).slice(0, 6)) {
+    const hub = c.section === "/" ? "the home page" : c.section;
+    internalLinks.push(`${hub} links to ${pathOfUrl(c.ourPage!.url)} with descriptive anchor text such as "${c.label}"; that page links on to ${i.conversion}.`);
+  }
+  if (clusters.some((c) => !c.ourPage)) internalLinks.push("Every new page is linked from its hub section and from the home page or main navigation where it fits, never left orphaned.");
+  const existing = clusters.filter((c) => c.ourPage);
+  const missing = clusters.filter((c) => !c.ourPage);
+  const plan90 = [
+    {
+      window: "Days 1 to 14",
+      steps: [
+        i.gscConnected ? "Confirm the sitemap is submitted in Search Console and every public page in it returns 200, is indexable and self-canonical." : "Verify the domain in Google Search Console (owner action) and submit the sitemap, so real search data starts accumulating.",
+        ...(existing.length ? [`Make the existing pages plainly answer their strongest searches: ${existing.slice(0, 3).map((c) => `${pathOfUrl(c.ourPage!.url)} for "${c.label}"`).join("; ")}.`] : []),
+      ],
+    },
+    {
+      window: "Days 15 to 45",
+      steps: missing.length
+        ? [`Create at most two original pages or tools for the strongest missing searches: ${missing.slice(0, 2).map((c) => `"${c.label}"`).join(" and ")}. One substantive page per intent, no thin variants.`]
+        : ["Deepen the pages above with original detail where competing pages answer more of the searcher's questions."],
+    },
+    {
+      window: "Days 46 to 90",
+      steps: [
+        "Earn first mentions: legitimate listings, directories and partner pages relevant to the audience (owner-approved; unsolicited outreach stays paused).",
+        "Read Search Console weekly per cluster. Once the site passes 300 impressions in 28 days, GravyBlock switches to data-driven optimisation automatically.",
+      ],
+    },
+  ];
+  return { stage: i.stage, reason: i.reason, clusters, architecture, internalLinks, plan90 };
 }

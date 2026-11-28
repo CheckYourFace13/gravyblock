@@ -451,7 +451,9 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
   // 9. Searches the site is not found for (public autocomplete; no volumes exist, so no click estimate is made). Existing pages are expanded before anything new.
   const month = new Date(intel.generatedAt).getUTCMonth() + 1;
   const seasonNow = profile?.seasonal?.find((s) => s.months.some((m) => m === month || m === (month % 12) + 1 || m === ((month + 1) % 12) + 1));
-  for (const g of deep.demand.uncaptured.filter((x) => (x.strength?.score ?? 2) >= 1.5).slice(0, 3)) {
+  // a launch-stage site has little Search Console data, so its growth comes mostly from searches it is not yet found for
+  const launchStage = deep.stage ? deep.stage.stage !== "established" : false;
+  for (const g of deep.demand.uncaptured.filter((x) => (x.strength?.score ?? 2) >= 1.5).slice(0, launchStage ? 5 : 3)) {
     const toks = tokensOf(g.label);
     const seasonal = Boolean(seasonNow && toks.some((t) => seasonNow.topic.toLowerCase().includes(t)));
     const section = profile?.valuableSections.find((s) => s !== "/" && toks.some((t) => s.includes(t))) ?? null;

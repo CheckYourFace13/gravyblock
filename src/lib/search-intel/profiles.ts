@@ -27,6 +27,8 @@ export type SiteProfile = {
    * (see competitorRelevance), and rejected ones are listed as rejected in the report.
    */
   competitorCandidates?: string[];
+  /** the site does not run display ads: never recommend AdSense, ad placements or ad-driven monetization */
+  noDisplayAds?: boolean;
 };
 
 export const SITE_PROFILES: Record<string, SiteProfile> = {
@@ -159,6 +161,21 @@ export const SITE_PROFILES: Record<string, SiteProfile> = {
     seeds: ["event venue management software", "brewery private event booking", "beo software for restaurants", "private dining booking software", "event proposal software for venues"],
     topicWords: ["event", "events", "venue", "venues", "booking", "beo", "catering", "private", "proposal", "inquiry", "wedding"],
     valuableSections: ["/", "/features", "/pricing"],
+  },
+  // Verified 2026-11-28 from the HourLantern repository (README, STATUS, LAUNCH_CHECKLIST) and the live site: invitation beta at hourlantern.com; Stripe live
+  // payments and live email are not on. Published by iScream Studio. Not an ad-supported site: no AdSense or display-ad recommendations, ever.
+  HourLantern: {
+    what: "time tracking, rates, budgets, reports and invoices for freelancers and small teams, without screenshots or activity surveillance (invitation beta)",
+    audience: "freelancers, consultants and small teams who bill by the hour, including people leaving Harvest, Toggl or Clockify",
+    conversions: ["joining the beta (account sign-up)", "importing data from another time tracker", "using a free calculator"],
+    priorities: ["freelancers and small teams choosing a time tracker", "people switching from Harvest, Toggl, Clockify and similar tools", "free billing and rate calculators that lead to sign-up", "time tracking without employee surveillance", "beta sign-ups"],
+    valueWords: ["time", "tracking", "tracker", "timesheet", "billable", "hours", "invoice", "freelancer", "alternative", "calculator", "rate"],
+    seeds: ["time tracking for freelancers", "free time tracker for small teams", "time tracking without screenshots", "billable hours tracker", "freelance hourly rate calculator", "harvest alternative", "toggl alternative", "clockify alternative", "timesheet app with invoicing", "how to track billable hours", "time tracking app for consultants", "project budget tracking for agencies"],
+    topicWords: ["time", "tracking", "tracker", "timesheet", "timesheets", "billable", "hours", "invoice", "invoicing", "freelancer", "freelance", "timer", "harvest", "toggl", "clockify"],
+    valuableSections: ["/beta", "/features", "/tools", "/pricing", "/compare", "/alternatives", "/switch"],
+    competitorCandidates: ["https://www.getharvest.com", "https://toggl.com", "https://clockify.me", "https://www.timecamp.com", "https://everhour.com"],
+    demandHint: "Answer it with what HourLantern verifiably does today (timer, dated rates, budgets, reports, invoices, imports, no surveillance) or with a genuinely useful free calculator; never claim integrations or payments that are not live. Competitor names belong only on the compare, alternatives and switch pages (the site's own rule).",
+    noDisplayAds: true,
   },
   "iScream Studio": {
     priorities: ["small business owners looking for website, SEO and AEO help", "inquiries", "players of the studio's games"],

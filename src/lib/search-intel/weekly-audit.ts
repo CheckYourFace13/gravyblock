@@ -169,6 +169,11 @@ export function buildSiteAuditEmail(i: SiteAuditInput): { subject: string; text:
   if (sa?.queries.length) L.push(`- Coming season (searches that earned impressions ${sa.window.start} to ${sa.window.end} last year, not yet this year): ${sa.queries.slice(0, 5).map((q) => `"${q.query}" ${q.impressionsLastYear} last year`).join(", ")}.`);
   else if (sa) L.push(`- Coming season: ${sa.note}`);
   if (deep?.inventory) L.push(`- Checked against the site's own ${deep.inventory.pages} sitemap pages, so existing pages are expanded before anything new is built.`);
+  if (deep?.stage) L.push(`- Search stage: ${deep.stage.stage}. ${deep.stage.reason}`);
+  if (deep?.launch) {
+    L.push(`- Launch plan: ${deep.launch.architecture.map((a) => `${a.section}${a.existing ? "" : " (new)"}: ${a.clusters.slice(0, 3).map((c) => `"${c}"`).join(", ")}`).join("; ")}.`);
+    L.push(`- First 90 days: ${deep.launch.plan90.map((w) => `${w.window}: ${w.steps[0]}`).join(" | ")}`);
+  }
 
   // D
   L.push("", `D. COMPETITOR INTELLIGENCE (public pages observed ${d.competitors.observedAt.slice(0, 10)}; a published page is not a ranking; competitor traffic and backlinks are not available)`);
@@ -328,9 +333,8 @@ export async function composeWeeklyAudit(now: Date, week: string, ownPrefix = `a
     blocks.push(`\n\n######## SITE ${idx} OF ${ordered.length}: ${report.name} ########\n${base ? `All paths in this section are on ${base}\n` : ""}\n${base ? relativize(email.text, base) : email.text}`);
     summaryLines.push(`- ${report.name}: ${Object.entries(email.buckets).map(([b, n]) => `${b} ${n}`).join(", ") || "no recommendations"}; 28-day clicks ${report.data.w28?.cur.clicks ?? "n/a"}${report.data.w28 ? ` (${sign(report.data.w28.clicksChange)})` : ""}`);
   }
-  // three parts as before: the part size grows with the audit (never past 90,000 characters, well under Gmail's clipping size), so a fuller audit stays in three
-  const totalChars = blocks.reduce((n, b) => n + b.length, 0);
-  const parts = packParts(blocks, Math.min(90_000, Math.max(PART_LIMIT_CHARS, Math.ceil(totalChars / 3) + 6_000)));
+  // parts stay under PART_LIMIT_CHARS (well below Gmail's clipping size); the NUMBER of parts adjusts to the number of sites, so no site is ever dropped to fit
+  const parts = packParts(blocks);
   
   // Every site's section must land in exactly one part with its instruction, so nothing disappears when the audit is split. Refuse to send otherwise.
   const placed = parts.flat().sort((a, b) => a - b);
@@ -382,7 +386,7 @@ export async function sendWeeklyAudit(now = new Date(), opts: { send?: SendFn; f
   // refresh only before the first part goes out, so every part of one week's audit describes the same data
   if (Number(anySent[0]?.n ?? 0) === 0) {
     for (let pass = 0; pass < 4; pass++) {
-      const g = await generateMissingSearchIntel(now, 12, { freshSince });
+      const g = await generateMissingSearchIntel(now, 50, { freshSince }); // every house site, however many there are
       out.refreshed.push(...g.generated);
       if (!g.remaining) break;
     }

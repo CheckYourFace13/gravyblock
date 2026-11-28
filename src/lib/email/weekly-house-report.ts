@@ -7,7 +7,7 @@ const OWNER_EMAIL = "chris@gravyblock.com";
 
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-/** The one consolidated Friday report for the 12 House Accounts. Read-only; goes to the owner only. */
+/** The one consolidated Friday report for every House Account. Read-only; goes to the owner only. */
 export async function buildWeeklyHouseReport(): Promise<{ subject: string; html: string; text: string; included: EmailItem[] }> {
   // The weekly search and competitor reports are normally generated before the send; any still missing are generated here (a few at a time) so the one email is complete.
   await generateMissingSearchIntel(new Date(), 3).catch(() => null);

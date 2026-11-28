@@ -5,6 +5,7 @@
  */
 import { expectedCtr, type BandRow } from "./analysis";
 import type { Improvement, SiteIntel } from "./types";
+import { profileFor } from "./profiles";
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 const pathOf = (u: string) => {
@@ -203,15 +204,23 @@ export function candidateImprovements(intel: SiteIntel): Improvement[] {
   return out;
 }
 
-/** Highest priority first, at most `max`, at most two of any one kind so a single theme cannot fill the list. */
+/**
+ * Highest priority first, at most `max`, at most two of any one kind so a single theme cannot fill the list, unless there is nothing else to show (a site
+ * in its launch stage may have only new-demand opportunities, and empty slots help no one).
+ */
 export function pickTop<T extends { kind: string; priority: number }>(list: T[], max = 5): T[] {
   const picked: T[] = [];
   const perKind = new Map<string, number>();
-  for (const i of [...list].sort((a, b) => b.priority - a.priority)) {
+  const sorted = [...list].sort((a, b) => b.priority - a.priority);
+  for (const i of sorted) {
     if ((perKind.get(i.kind) ?? 0) >= 2) continue;
     perKind.set(i.kind, (perKind.get(i.kind) ?? 0) + 1);
     picked.push(i);
-    if (picked.length === max) break;
+    if (picked.length === max) return picked;
+  }
+  for (const i of sorted) {
+    if (picked.length >= Math.min(max, 3)) break;
+    if (!picked.includes(i)) picked.push(i);
   }
   return picked;
 }
@@ -237,6 +246,16 @@ export function buildPrompt(intel: SiteIntel, improvements: Improvement[], done:
     lines.push(`- What a qualified visitor should do next: ${intel.deep.profile.conversions.join("; ")}.`);
     lines.push("- Respect existing functionality and the site's own indexing safeguards; if a change would conflict with one, explain instead of overriding it.");
     lines.push("- Every change must attract MORE relevant visitors or turn more of them into users; an SEO score is not the goal.");
+    if (profileFor(intel.site.name)?.noDisplayAds) lines.push("- This site does not run display ads. Do not add AdSense, ad slots or any ad-driven monetization.");
+    lines.push("");
+  }
+  const launch = intel.deep?.launch;
+  if (launch) {
+    lines.push(`LAUNCH-STAGE SEARCH PLAN (${launch.stage}: ${launch.reason})`);
+    lines.push("Search clusters, strongest observable demand first (public autocomplete proves people type them, not how many):");
+    for (const c of launch.clusters.slice(0, 6)) lines.push(`- "${c.label}" (${c.intent}, demand ${c.score}/5): ${c.action}${c.ourPage ? ` (${pathOf(c.ourPage.url)})` : ` under ${c.section}`}.`);
+    if (launch.internalLinks.length) lines.push("Internal links:", list(launch.internalLinks.slice(0, 5), ""));
+    for (const w of launch.plan90) lines.push(`${w.window}:`, list(w.steps, ""));
     lines.push("");
   }
   if (done.length) {

@@ -29,6 +29,7 @@ test("inventory matching finds the site's own page for a search by its address",
   const urls = ["https://rentalnoodle.com/", "https://rentalnoodle.com/tools/rental-property-roi-calculator", "https://rentalnoodle.com/resources/how-to-screen-tenants"];
   assert.deepEqual(inventoryMatches(urls, "rental property calculator roi", 1), ["https://rentalnoodle.com/tools/rental-property-roi-calculator"]);
   assert.deepEqual(inventoryMatches(urls, "best pizza chicago"), []);
+  assert.deepEqual(inventoryMatches(["https://rentalnoodle.com/tools/rental-roi", "https://rentalnoodle.com/tools/late-fee"], "rental property calculator roi", 1), ["https://rentalnoodle.com/tools/rental-roi"]);
 });
 
 test("headings, topic gaps and strengths come from what each page visibly has", () => {
