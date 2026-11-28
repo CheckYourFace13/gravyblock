@@ -124,14 +124,20 @@ export async function liveImplementation(imp: Pick<Improvement, "kind" | "urls" 
   if (imp.kind === "new_demand" || imp.kind === "seasonal") {
     const queries = targetQueriesOf(imp);
     if (!queries.length) return null;
-    const pages = [...new Set([...imp.urls, ...queries.flatMap((q) => inventoryMatches(inv.urls, q, 2))])].slice(0, 5);
-    for (const u of pages) {
-      const f = await fetchDetail(u, now.toISOString()).catch(() => null);
-      if (!f) continue;
-      const c = coversIntent(f, queries);
-      coverage.push({ url: f.url, covered: c.covered, by: c.by, indexable: f.indexable });
-      if (c.covered && f.indexable) break;
+    const pages = [...new Set([...queries.slice(0, 2).flatMap((q) => inventoryMatches(inv.urls, q, 2)), ...imp.urls, ...queries.slice(2).flatMap((q) => inventoryMatches(inv.urls, q, 1))])].slice(0, 6);
+    const details = new Map<string, Awaited<ReturnType<typeof fetchDetail>>>();
+    for (const u of pages) details.set(u, await fetchDetail(u, now.toISOString()).catch(() => null));
+    // the main search first, across every candidate page, before any variant: the evidence then names the page that really serves the intent
+    let found = false;
+    for (const q of queries) {
+      for (const [, f] of details) {
+        if (!f) continue;
+        const c = coversIntent(f, [q]);
+        if (c.covered && f.indexable) { coverage.push({ url: f.url, covered: true, by: c.by, indexable: true }); found = true; break; }
+      }
+      if (found) break;
     }
+    if (!found) for (const [, f] of details) if (f) coverage.push({ url: f.url, covered: false, by: null, indexable: f.indexable });
   }
   return implementationEvidence(imp, baseline ?? [], current, coverage);
 }
