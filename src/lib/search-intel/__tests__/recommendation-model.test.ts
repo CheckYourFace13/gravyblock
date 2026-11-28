@@ -24,8 +24,10 @@ test("regeneration keeps status: the same problem is an update, never a new task
   assert.equal(onSeen({ status: "dismissed", verifiedAt: null, occurrence: 1 }, NOW).action, "keep");
 });
 
-test("a verified item that returns is reopened with a new occurrence, but not while search data still reflects the time before the fix", () => {
-  assert.deepEqual(onSeen({ status: "verified", verifiedAt: days(40), occurrence: 1 }, NOW), { action: "reopen", status: "new", occurrence: 2 });
+test("a verified item is reopened only when the live check shows a regression, never because search data still shows the old symptom", () => {
+  assert.deepEqual(onSeen({ status: "verified", verifiedAt: days(40), occurrence: 1 }, NOW, false), { action: "reopen", status: "new", occurrence: 2 });
+  assert.equal(onSeen({ status: "verified", verifiedAt: days(40), occurrence: 1 }, NOW, true).action, "keep");
+  assert.equal(onSeen({ status: "verified", verifiedAt: days(400), occurrence: 1 }, NOW, null).action, "keep");
   assert.equal(onSeen({ status: "verified", verifiedAt: days(5), occurrence: 1 }, NOW).action, "keep");
 });
 
@@ -102,4 +104,46 @@ test("outcome never claims a result too early, on small numbers, and always says
   assert.match(up.note, /not proof the work caused it/);
   assert.equal(classifyOutcome({ clicks: 30, impressions: 900 }, { clicks: 10, impressions: 500 }, true, NOW).verdict, "declined");
   assert.equal(classifyOutcome({ clicks: 30, impressions: 900 }, { clicks: 31, impressions: 900 }, true, NOW).verdict, "no_material_change");
+});
+
+/* ───────────── v3: recognising completed work ───────────── */
+import { implementationEvidence, sameWork, targetQueriesOf } from "../recommendation-model";
+
+const snap3 = (url: string, over: Partial<ReturnType<typeof snapshotFromHtml>> = {}) => ({ ...snapshotFromHtml(url, 200, "<title>Old</title><main><h2>a</h2><p>words here</p></main>", null, "2026-11-27T00:00:00Z"), words: 1000, ...over });
+
+test("a rewritten title on the live site completes title work, whoever deployed it", () => {
+  const u = "https://rentalnoodle.com/resources/packing";
+  const ev = implementationEvidence({ kind: "low_ctr" }, [snap3(u)], [snap3(u, { title: "New, clearer title" })], []);
+  assert.equal(ev?.implemented, true);
+  assert.equal(implementationEvidence({ kind: "low_ctr" }, [snap3(u)], [snap3(u)], [])?.implemented, false);
+});
+
+test("a page that now serves missing searches completes the demand item; a non-indexable page does not", () => {
+  const ok = implementationEvidence({ kind: "new_demand" }, [], [], [{ url: "https://rentalnoodle.com/tools/roi-calculator", covered: true, by: "title covers", indexable: true }]);
+  assert.equal(ok?.implemented, true);
+  const hidden = implementationEvidence({ kind: "new_demand" }, [], [], [{ url: "https://x.com/p", covered: true, by: "title covers", indexable: false }]);
+  assert.equal(hidden?.implemented, false);
+});
+
+test("a page improved since it was first reported completes ranking work; an unchanged page does not; indexing is never auto-completed", () => {
+  const u = "https://gravyblock.com/guides/google-3-pack";
+  assert.equal(implementationEvidence({ kind: "topic_ranking" }, [snap3(u, { h2s: 8 })], [snap3(u, { h2s: 9, words: 1250 })], [])?.implemented, true);
+  assert.equal(implementationEvidence({ kind: "topic_ranking" }, [snap3(u)], [snap3(u)], [])?.implemented, false);
+  assert.equal(implementationEvidence({ kind: "indexing" }, [snap3(u)], [snap3(u)], []), null);
+});
+
+test("the same work under a shifted label is recognised; different work is not", () => {
+  const a = { kind: "topic_ranking", issue: "topic_ranking:google pack", urls: ["https://gravyblock.com/guides/google-3-pack"], title: 'Build real depth for "google 3 pack"' };
+  const b = { kind: "topic_ranking", issue: "topic_ranking:3 pack", urls: ["https://gravyblock.com/guides/google-3-pack/"], title: 'Move "3 pack google" toward the top 3' };
+  assert.equal(sameWork(a, b), true);
+  const c = { kind: "new_demand", issue: "new_demand:property rental", urls: [], title: 'Capture "rental property calculator roi" searches', targetQueries: ["rental property calculator roi", "rental property roi calculator"] };
+  const d = { kind: "new_demand", issue: "new_demand:calculator roi", urls: [], title: 'Capture "roi calculator rental property" searches' };
+  const e = { kind: "new_demand", issue: "new_demand:screen tenant", urls: [], title: 'Capture "how to screen tenants" searches' };
+  assert.equal(sameWork(c, d), true);
+  assert.equal(sameWork(c, e), false);
+  assert.equal(sameWork(a, e), false);
+});
+
+test("target searches are read from older records that predate the targetQueries field", () => {
+  assert.deepEqual(targetQueriesOf({ title: 'Capture "my business isn\'t showing up on google" searches', evidence: ['People type these: "my business isn\'t showing up on google", "business not showing on google maps".'] }), ["my business isn't showing up on google", "business not showing on google maps"]);
 });

@@ -204,11 +204,12 @@ export async function enqueueGrokbot(businessId: string, now = new Date(), opts:
   return { queued };
 }
 
-/** Open once a weekly audit has fully completed after the v2 switch marker; immediate emails then cover only occurrences that began after it. */
+/** Open once a weekly audit has fully completed after the latest analysis switch marker (v2 or v3); immediate emails then cover only occurrences that began after it. */
 export async function v2Gate(): Promise<{ open: boolean; since: Date | null }> {
   const db = getDb();
   if (!db) return { open: false, since: null };
-  const [m] = rowsOf<{ at: string }>(await db.execute(sql`select min(created_at) at from jobs where type = 'search_intel_v2_baseline'`));
+  // the most recent analysis switch (v2, then v3) holds immediate emails until the first weekly audit after it has been delivered
+  const [m] = rowsOf<{ at: string }>(await db.execute(sql`select max(created_at) at from jobs where type in ('search_intel_v2_baseline', 'search_intel_v3_baseline')`));
   if (!m?.at) return { open: true, since: null };
   const [g] = rowsOf<{ at: string | null }>(await db.execute(sql`select min(sent_at) at from grokbot_deliveries where idempotency_key like 'audit:%:complete' and sent_at > ${m.at}::timestamptz`));
   return g?.at ? { open: true, since: new Date(g.at) } : { open: false, since: null };

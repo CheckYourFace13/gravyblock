@@ -182,3 +182,74 @@ export function competitorRelevance(urls: string[], topicWords: string[]): { rel
   // several different topic words must appear, so one ambiguous word (a coffee chain's "espresso bar") cannot qualify a site
   return { relevant: matches >= 5 && distinct.size >= 2 && (share >= 0.05 || matches >= 25), matches, share: Number(share.toFixed(3)) };
 }
+
+/* ───────────── v3: demand strength, seasonal look-ahead, template losses, 90-day movement ───────────── */
+
+export type DemandStrength = { score: number; level: "strong" | "moderate" | "weak"; signals: string[] };
+
+/**
+ * How strong the evidence is that a search matters, from observable signals only (no search volume exists for free, so none is claimed).
+ * 0 to 5: suggested by both autocomplete engines, many distinct phrasings, competitors publishing pages for it, related impressions the site already earns,
+ * an approaching season, and an intent close to the site's conversion.
+ */
+export function demandStrength(g: { variants: number; sources: string[]; competitorPages: number; relatedImpressions: number; seasonalSoon: boolean; intent: Intent }): DemandStrength {
+  let score = 0;
+  const signals: string[] = [];
+  const both = g.sources.length >= 2;
+  score += both ? 1.5 : g.sources.length ? 0.75 : 0;
+  signals.push(both ? `suggested by both ${g.sources.join(" and ")}` : g.sources.length ? `suggested by ${g.sources[0]}` : "no autocomplete source");
+  if (g.variants >= 4) { score += 1; signals.push(`${g.variants} different phrasings`); }
+  else if (g.variants >= 2) { score += 0.5; signals.push(`${g.variants} phrasings`); }
+  if (g.competitorPages > 0) { score += 1; signals.push(`${g.competitorPages} relevant competitor page(s) published for it`); }
+  if (g.relatedImpressions >= 20) { score += 0.5; signals.push(`the site already earns ${g.relatedImpressions} impressions on related searches`); }
+  if (g.seasonalSoon) { score += 0.5; signals.push("its season is approaching"); }
+  if (g.intent === "transactional" || g.intent === "local") { score += 0.5; signals.push(`${g.intent} intent (close to a visit or sign-up)`); }
+  score = Math.min(5, Number(score.toFixed(1)));
+  return { score, level: score >= 3.5 ? "strong" : score >= 2 ? "moderate" : "weak", signals };
+}
+
+export type SeasonalQuery = { query: string; page: string; impressionsLastYear: number; clicksLastYear: number; impressionsNow: number };
+
+/**
+ * Searches that earned impressions in the coming weeks LAST year (Search Console keeps 16 months) and are not earning them yet: demand to prepare for before
+ * it peaks. Only queries with a real audience last year; current impressions from the latest 28 days.
+ */
+export function seasonalAhead(lastYear: QP[], now: QueryRow[], minImpr = 30, max = 8): SeasonalQuery[] {
+  const nowBy = new Map(now.map((r) => [r.key, r.impressions]));
+  const by = new Map<string, { impressions: number; clicks: number; best: QP }>();
+  for (const r of lastYear) {
+    const e = by.get(r.query) ?? { impressions: 0, clicks: 0, best: r };
+    e.impressions += r.impressions;
+    e.clicks += r.clicks;
+    if (r.impressions > e.best.impressions) e.best = r;
+    by.set(r.query, e);
+  }
+  return [...by.entries()]
+    .filter(([q, e]) => e.impressions >= minImpr && (nowBy.get(q) ?? 0) < e.impressions * 0.5)
+    .map(([q, e]) => ({ query: q, page: e.best.page, impressionsLastYear: e.impressions, clicksLastYear: e.clicks, impressionsNow: nowBy.get(q) ?? 0 }))
+    .sort((a, b) => b.impressionsLastYear - a.impressionsLastYear)
+    .slice(0, max);
+}
+
+/** Whole sections (page templates) losing visibility together: one systemic finding instead of many single-page ones. */
+export function templateLosses(sections: SectionStat[], minPrev = 200, maxShare = 0.7): SectionStat[] {
+  return sections.filter((s) => s.pagesPrev >= 3 && s.impressionsPrev >= minPrev && s.impressions < s.impressionsPrev * maxShare).sort((a, b) => b.impressionsPrev - b.impressions - (a.impressionsPrev - a.impressions));
+}
+
+export type ImprMove = { key: string; imprCur: number; imprPrev: number; clicksCur: number; clicksPrev: number; posCur: number | null };
+/** Queries gaining and losing impressions between two equal windows (impressions lead clicks, so this shows direction earlier). */
+export function impressionMovers(cur: QueryRow[], prev: QueryRow[], minImpr = 30, max = 6): { gaining: ImprMove[]; losing: ImprMove[] } {
+  const m = new Map<string, ImprMove>();
+  for (const r of cur) m.set(r.key, { key: r.key, imprCur: r.impressions, imprPrev: 0, clicksCur: r.clicks, clicksPrev: 0, posCur: Number(r.position.toFixed(1)) });
+  for (const r of prev) {
+    const e = m.get(r.key) ?? { key: r.key, imprCur: 0, imprPrev: 0, clicksCur: 0, clicksPrev: 0, posCur: null };
+    e.imprPrev = r.impressions;
+    e.clicksPrev = r.clicks;
+    m.set(r.key, e);
+  }
+  const ok = [...m.values()].filter((x) => Math.max(x.imprCur, x.imprPrev) >= minImpr);
+  return {
+    gaining: ok.filter((x) => x.imprCur > x.imprPrev * 1.2).sort((a, b) => b.imprCur - b.imprPrev - (a.imprCur - a.imprPrev)).slice(0, max),
+    losing: ok.filter((x) => x.imprCur < x.imprPrev * 0.8).sort((a, b) => a.imprCur - a.imprPrev - (b.imprCur - b.imprPrev)).slice(0, max),
+  };
+}

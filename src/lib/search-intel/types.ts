@@ -1,6 +1,6 @@
 import type { BandRow, Compare, DataStatus, LowCtr, Move, Seasonal } from "./analysis";
 import type { FeatureGap, PageFeatures } from "./competitors";
-import type { Cluster, QP, SectionStat, Split } from "./deep";
+import type { Cluster, DemandStrength, ImprMove, QP, SeasonalQuery, SectionStat, Split } from "./deep";
 import type { Totals, QueryRow } from "./analysis";
 
 export type CompetitorQuery = {
@@ -61,7 +61,7 @@ export type Improvement = {
   identityUrls: string[];
   /** short reference such as SR-1A2B3C, filled in from the stored recommendation so a developer can report back against it */
   ref?: string;
-  kind: "indexing" | "low_ctr" | "near_page_one" | "page_two" | "declining" | "competitor_gap" | "confirmed_problem" | "systemic_ctr" | "topic_ranking" | "cannibalization" | "new_demand" | "conversion" | "mobile_ctr";
+  kind: "indexing" | "low_ctr" | "near_page_one" | "page_two" | "declining" | "competitor_gap" | "confirmed_problem" | "systemic_ctr" | "topic_ranking" | "cannibalization" | "new_demand" | "conversion" | "mobile_ctr" | "seasonal" | "template_loss";
   /** what kind of growth this is, in the owner's terms */
   category?: "technical recovery" | "CTR optimization" | "ranking improvement" | "new search demand" | "conversion";
   title: string;
@@ -73,6 +73,19 @@ export type Improvement = {
   /** Upper-bound estimate of extra Google clicks per 28 days if fully fixed; never a forecast. */
   potentialClicks28: number;
   priority: number;
+  /** v3 decision support (absent on older records) */
+  horizon?: "quick win" | "medium term" | "long term";
+  confidence?: "high" | "medium" | "low";
+  /** how this brings MORE relevant visitors, sign-ups or customers (not an SEO score) */
+  why?: string;
+  /** what is uncertain about it */
+  uncertainty?: string;
+  /** how success will be judged afterwards */
+  measure?: string;
+  /** the searches this targets; used to recognise work already live on the site */
+  targetQueries?: string[];
+  scope?: "page" | "template" | "site";
+  demand?: DemandStrength;
 };
 
 export type DeepIntel = {
@@ -89,7 +102,51 @@ export type DeepIntel = {
   cannibal: Array<{ query: string; impressions: number; pages: Array<{ page: string; impressions: number; position: number }> }>;
   sections: SectionStat[];
   pageQuery: QP[];
-  demand: { source: string; checkedAt: string; seeds: string[]; suggestions: number; uncaptured: Array<{ label: string; queries: string[]; competitorPages: Array<{ url: string; title: string; observedAt: string }> }>; notes: string[] };
+  demand: {
+    source: string;
+    checkedAt: string;
+    seeds: string[];
+    suggestions: number;
+    uncaptured: Array<{
+      label: string;
+      queries: string[];
+      competitorPages: Array<{ url: string; title: string; observedAt: string }>;
+      /** v3 */
+      sources?: string[];
+      strength?: DemandStrength;
+      intent?: string;
+      existingPage?: { url: string; title: string; covers: boolean; indexable: boolean } | null;
+    }>;
+    notes: string[];
+  };
   competitorFilter: { kept: string[]; rejected: Array<{ site: string; reason: string }> };
   learnedWeights: Record<string, number>;
+  /** v3 additions (absent in reports built before them) */
+  googleBrand?: { source: "Google branded classification" | "name match estimate"; branded: Split | null; nonBranded: Split | null; note: string };
+  appearances?: Split[];
+  surfaces?: Array<Split & { clicksPrev: number; impressionsPrev: number }>;
+  queries90?: { window: { start: string; end: string }; gaining: ImprMove[]; losing: ImprMove[] } | null;
+  seasonalAhead?: { window: { start: string; end: string }; queries: SeasonalQuery[]; note: string } | null;
+  templateLosses?: SectionStat[];
+  coverage?: { pageQueryRows: number; truncated: boolean; queryShare: number | null };
+  inventory?: { pages: number; source: string };
+  intents?: IntentResearch[];
+  partners?: Array<{ name: string; url: string; note: string; foundAt: string }>;
+};
+
+export type DemandGroup = DeepIntel["demand"]["uncaptured"][number];
+
+/** One important search intent: the page of ours that serves it, competing pages published for it, and what each side covers. */
+export type IntentResearch = {
+  label: string;
+  queries: string[];
+  source: "search console" | "autocomplete";
+  position: number | null;
+  impressions: number;
+  ourUrl: string | null;
+  competitorPages: Array<{ url: string; title: string; host: string; observedAt: string; words: number; hasTool: boolean; tables: number; hasFaqSchema: boolean }>;
+  theyCover: string[];
+  weDoBetter: string[];
+  gaps: FeatureGap[];
+  observedAt: string;
 };

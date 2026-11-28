@@ -77,7 +77,15 @@ export async function gscQuery(
   property: string,
   win: Window,
   dimensions: string[],
-  opts: { pageEquals?: string; rowLimit?: number; searchType?: "web" | "image" | "video" | "news" | "discover" } = {},
+  opts: {
+    pageEquals?: string;
+    rowLimit?: number;
+    startRow?: number;
+    searchType?: "web" | "image" | "video" | "news" | "discover" | "googleNews" | "webMultimodal";
+    /** extra filters (AND), e.g. { dimension: "brandedClassification", expression: "NON_BRANDED" } */
+    filters?: Array<{ dimension: string; operator?: string; expression: string }>;
+    aggregationType?: "auto" | "byPage" | "byProperty";
+  } = {},
 ): Promise<GscRow[] | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 25_000);
@@ -91,7 +99,11 @@ export async function gscQuery(
         dimensions,
         rowLimit: opts.rowLimit ?? 1000,
         ...(opts.searchType ? { type: opts.searchType } : {}),
-        ...(opts.pageEquals ? { dimensionFilterGroups: [{ filters: [{ dimension: "page", operator: "equals", expression: opts.pageEquals }] }] } : {}),
+        ...(opts.startRow ? { startRow: opts.startRow } : {}),
+        ...(opts.aggregationType ? { aggregationType: opts.aggregationType } : {}),
+        ...(opts.pageEquals || opts.filters?.length
+          ? { dimensionFilterGroups: [{ filters: [...(opts.pageEquals ? [{ dimension: "page", operator: "equals", expression: opts.pageEquals }] : []), ...(opts.filters ?? []).map((f) => ({ operator: "equals", ...f }))] }] }
+          : {}),
       }),
       signal: controller.signal,
       cache: "no-store",

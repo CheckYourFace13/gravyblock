@@ -19,17 +19,22 @@ import { profileFor } from "./profiles";
 import { getBusinessTruth } from "@/lib/truth";
 import type { DeepIntel } from "./types";
 
-/** Public autocomplete suggestions for one phrase (shows that people type these; says nothing about how often). Polite: one request per seed, short timeout. */
-async function autocomplete(seed: string): Promise<string[]> {
-  const r = await safeFetchText(`https://duckduckgo.com/ac/?q=${encodeURIComponent(seed)}&type=list`, { timeoutMs: 6000, maxBytes: 50_000, accept: "application/json" });
-  if (!r.ok || r.status >= 400) return [];
-  try {
-    const j = JSON.parse(r.body) as unknown;
-    const list = Array.isArray(j) && Array.isArray(j[1]) ? (j[1] as unknown[]) : Array.isArray(j) ? (j as Array<{ phrase?: string }>).map((x) => x?.phrase) : [];
-    return list.filter((x): x is string => typeof x === "string").slice(0, 10);
-  } catch {
-    return [];
+import { collectSuggestions, coversIntent, fetchDetail, inventoryMatches, ourStrengths, topicGaps, type PageDetail } from "./research";
+import { demandStrength, impressionMovers, intentOf, seasonalAhead, templateLosses, type QP } from "./deep";
+import type { IntentResearch } from "./types";
+
+/** Every row of a Search Console request, paged with startRow (the API returns at most 25,000 rows per request and only its top rows overall). */
+async function gscAll(token: string, property: string, win: { start: string; end: string }, dims: string[], opts: { pageSize?: number; max?: number } = {}) {
+  const size = opts.pageSize ?? 5000;
+  const max = opts.max ?? 15000;
+  const out: NonNullable<Awaited<ReturnType<typeof gscQuery>>> = [];
+  for (let start = 0; start < max; start += size) {
+    const r = await gscQuery(token, property, win, dims, { rowLimit: size, startRow: start });
+    if (r === null) return start === 0 ? null : out;
+    out.push(...r);
+    if (r.length < size) break;
   }
+  return out;
 }
 
 /**
@@ -92,7 +97,7 @@ async function fetchFeatures(url: string, observedAt: string): Promise<PageFeatu
   return pageFeatures(r.body, r.finalUrl, observedAt);
 }
 
-async function readSitemapUrls(origin: string, host: string): Promise<Array<{ loc: string; lastmod: Date | null }> | null> {
+export async function readSitemapUrls(origin: string, host: string): Promise<Array<{ loc: string; lastmod: Date | null }> | null> {
   const hostOf = (u: string) => new URL(u).hostname.replace(/^www\./, "").toLowerCase();
   const sm = await safeFetchText(`${origin}/sitemap.xml`, { timeoutMs: 8000, maxBytes: 1_500_000 });
   if (!sm.ok || sm.status >= 400) return null;
@@ -122,7 +127,7 @@ async function competitorSection(
   website: string | null,
   rows: Row[],
   observedAtIso: string,
-  ctx: { topicWords: string[] | null; seeds: string[] } = { topicWords: null, seeds: [] },
+  ctx: { topicWords: string[] | null; seeds: string[]; candidates?: string[] } = { topicWords: null, seeds: [] },
 ): Promise<{ section: SiteIntel["competitors"]; urlsByHost: Map<string, string[]>; filter: { kept: string[]; rejected: Array<{ site: string; reason: string }> } }> {
   const db = getDb()!;
   const notes: string[] = [];
@@ -137,7 +142,7 @@ async function competitorSection(
   const result: SiteIntel["competitors"] = { observedAt: observedAtIso, known: [], sitemapsRead: 0, pagesObserved: 0, baselineEstablishedToday: [], newPages: [], queries: [], notes };
 
   const consider = async (c: { name: string; website: string }, via: string) => {
-    if (kept.length >= 5) return;
+    if (kept.length >= 6) return;
     let host = "";
     try { host = hostOf(c.website); } catch { return; }
     if (!host || host === ownHost || urlsByHost.has(host) || filter.rejected.some((r) => r.site === host)) return;
@@ -161,6 +166,8 @@ async function competitorSection(
     }
   };
   for (const c of onRecord) await consider(c, "on record");
+  // candidate sites for the main intents (from the site profile), each verified the same way: its own pages must cover the topic
+  for (const w of ctx.candidates ?? []) if (isSafePublicUrl(w)) await consider({ name: new URL(w).hostname.replace(/^www\./, ""), website: w }, "candidate for the site's main intents, verified from its own sitemap");
   if (kept.length < 2 && ctx.seeds.length) {
     for (const seed of ctx.seeds.slice(0, 2)) {
       const found = await webSearchSites(seed, 5).catch(() => []);
@@ -189,7 +196,7 @@ async function competitorSection(
     if (r.impressions > e.best.impressions) e.best = r;
     byQuery.set(r.query, e);
   }
-  const important = [...byQuery.entries()].filter(([, e]) => e.impressions >= 20).sort((a, b) => b[1].impressions - a[1].impressions).slice(0, 3);
+  const important = [...byQuery.entries()].filter(([, e]) => e.impressions >= 20).sort((a, b) => b[1].impressions - a[1].impressions).slice(0, 2);
   for (const [query, e] of important) {
     const tokens = queryTokens(query);
     const matches = matchCompetitorUrls(urlsByHost, tokens, 3);
@@ -239,6 +246,12 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
   let q28prev: QueryRow[] = [];
   let p28cur: QueryRow[] = [];
   let p28prev: QueryRow[] = [];
+  let coverage: NonNullable<DeepIntel["coverage"]> = { pageQueryRows: 0, truncated: false, queryShare: null };
+  let googleBrand: DeepIntel["googleBrand"];
+  let appearances: Split[] = [];
+  let surfaces: NonNullable<DeepIntel["surfaces"]> = [];
+  let queries90: DeepIntel["queries90"] = null;
+  let seasonal: DeepIntel["seasonalAhead"] = null;
   if (!token || !property) {
     dataQualityNotes.push("Search Console is not connected for this site, so no search data is available.");
   } else if (daily.length) {
@@ -252,13 +265,14 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
       gscQuery(token, property, win(7, 7), ["page"], { rowLimit: 500 }),
       gscQuery(token, property, win(28, 0), ["page"], { rowLimit: 1000 }),
       gscQuery(token, property, win(28, 28), ["page"], { rowLimit: 1000 }),
-      gscQuery(token, property, win(28, 0), ["page", "query"], { rowLimit: 2500 }),
+      gscAll(token, property, win(28, 0), ["page", "query"], { pageSize: 5000, max: 15000 }),
     ]);
     const failed = [q7c, q7p, q28c, q28p, p7c, p7p, p28c, p28p, pq].filter((x) => x === null).length;
     if (failed) dataQualityNotes.push(`${failed} of 9 Search Console requests failed this run; sections that depend on them are marked unavailable rather than guessed.`);
     const mv = (c: typeof q7c, p: typeof q7p, minImpr: number) => (c && p ? movers(joinWindows(toQ(c), toQ(p)), { minImpr, max: 8 }) : null);
     rows = (pq ?? []).filter((r) => r.keys?.[0] && r.keys?.[1]).map((r) => ({ page: r.keys![0]!, query: r.keys![1]!, clicks: Math.round(r.clicks ?? 0), impressions: Math.round(r.impressions ?? 0), position: r.position ?? 0 }));
-    if (pq && pq.length >= 2500) dataQualityNotes.push("The 28-day page and query table hit its 2,500 row limit, so very small queries are not all included.");
+    coverage = { pageQueryRows: pq?.length ?? 0, truncated: (pq?.length ?? 0) >= 15000, queryShare: null };
+    if (coverage.truncated) dataQualityNotes.push("The 28-day page and query table reached GravyBlock's 15,000 row cap, so the smallest queries are not all included.");
     parts = {
       w7: compareWindows(daily, endDay, 7),
       w28: compareWindows(daily, endDay, 28),
@@ -284,9 +298,41 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
     countries = ctry ? toSplit(ctry).sort((a, b) => b.impressions - a.impressions).slice(0, 6) : [];
     const one = (r: typeof img, key: string): Split | null => (r && r[0] ? { key, clicks: Math.round(r[0].clicks ?? 0), impressions: Math.round(r[0].impressions ?? 0), ctr: r[0].impressions ? (r[0].clicks ?? 0) / r[0].impressions : 0, position: Number((r[0].position ?? 0).toFixed(1)) } : null);
     searchTypes = { image: one(img, "image"), video: one(vid, "video") };
+
+    // v3: Google's own branded split (API since 16 Nov 2026, data from 21 Feb 2026, only for properties Google classifies), search appearances,
+    // every search surface (web, image, video, news tab, Discover, Google News, Lens/Circle to Search) against the previous 28 days,
+    // 90-day query movement, and the queries that earned impressions in the coming 8 weeks LAST year (Search Console keeps 16 months).
+    const surfaceTypes = ["web", "image", "video", "news", "discover", "googleNews", "webMultimodal"] as const;
+    const [brandCur, appear, q90c, q90p, lastYear, ...surf] = await Promise.all([
+      gscQuery(token, property, win(28, 0), ["brandedClassification"], { rowLimit: 10 }),
+      gscQuery(token, property, win(28, 0), ["searchAppearance"], { rowLimit: 50 }),
+      gscQuery(token, property, win(90, 0), ["query"], { rowLimit: 5000 }),
+      gscQuery(token, property, win(90, 90), ["query"], { rowLimit: 5000 }),
+      gscQuery(token, property, { start: addDays(endDay, -364 + 1), end: addDays(endDay, -364 + 56) }, ["query", "page"], { rowLimit: 5000 }),
+      ...surfaceTypes.flatMap((t) => [gscQuery(token, property, win(28, 0), [], { searchType: t }), gscQuery(token, property, win(28, 28), [], { searchType: t })]),
+    ]);
+    const bsplit = brandCur ? toSplit(brandCur) : [];
+    googleBrand = bsplit.length
+      ? { source: "Google branded classification", branded: bsplit.find((x) => x.key === "BRANDED") ?? null, nonBranded: bsplit.find((x) => x.key === "NON_BRANDED") ?? null, note: "Google's own classification of branded searches (Search Console API)." }
+      : { source: "name match estimate", branded: null, nonBranded: null, note: "Google does not classify branded searches for this property (too little volume or not a top-level property), so the brand split below is GravyBlock's estimate from the site name." };
+    appearances = appear ? toSplit(appear).sort((a, b) => b.impressions - a.impressions) : [];
+    surfaces = surfaceTypes.map((t, n) => {
+      const c = surf[n * 2]?.[0];
+      const p = surf[n * 2 + 1]?.[0];
+      return { key: t, clicks: Math.round(c?.clicks ?? 0), impressions: Math.round(c?.impressions ?? 0), ctr: c?.impressions ? (c.clicks ?? 0) / c.impressions : 0, position: Number((c?.position ?? 0).toFixed(1)), clicksPrev: Math.round(p?.clicks ?? 0), impressionsPrev: Math.round(p?.impressions ?? 0) };
+    }).filter((x) => x.impressions + x.impressionsPrev > 0);
+    if (q90c && q90p) queries90 = { window: win(90, 0), ...impressionMovers(toQ(q90c), toQ(q90p)) };
+    if (lastYear) {
+      const ly: QP[] = lastYear.filter((r) => r.keys?.[0] && r.keys?.[1]).map((r) => ({ query: r.keys![0]!, page: r.keys![1]!, clicks: Math.round(r.clicks ?? 0), impressions: Math.round(r.impressions ?? 0), position: r.position ?? 0 }));
+      const w = { start: addDays(endDay, -364 + 1), end: addDays(endDay, -364 + 56) };
+      seasonal = ly.length
+        ? { window: w, queries: seasonalAhead(ly, q28cur), note: `Searches that earned impressions from ${w.start} to ${w.end} (the same 8 weeks ahead, one year earlier) and are not yet earning them now.` }
+        : { window: w, queries: [], note: "No Search Console data for the same weeks last year, so no seasonal look-ahead is possible yet." };
+    }
     // Google withholds rare queries for privacy: query-level rows cover only part of the site's impressions. Say how much, so query findings are not over-read.
     const qImpr = q28cur.reduce((s, r) => s + r.impressions, 0);
     const siteImpr = parts.w28?.cur.impressions ?? 0;
+    if (siteImpr > 0) coverage.queryShare = Math.round((Math.min(qImpr, siteImpr) / siteImpr) * 100);
     if (siteImpr > 0) dataQualityNotes.push(`Query-level data covers ${Math.round((Math.min(qImpr, siteImpr) / siteImpr) * 100)}% of the site's ${siteImpr} impressions in the latest 28 days; Google withholds rare queries, so query and topic findings describe only that part.`);
     for (const [label, c] of [["7-day", parts.w7], ["28-day", parts.w28]] as const) {
       if (c?.sample === "low") dataQualityNotes.push(`${label} comparison is low-sample (very few clicks and impressions); treat movements as noise.`);
@@ -329,41 +375,121 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
   // The daily change check skips the (slower, polite) competitor and demand research; both run once a week in the full report.
   const weekly = opts.competitors !== false;
   const comp = weekly
-    ? await competitorSection(businessId, biz.website, rows, now.toISOString(), { topicWords: profile?.topicWords ?? null, seeds: profile?.seeds ?? [] })
+    ? await competitorSection(businessId, biz.website, rows, now.toISOString(), { topicWords: profile?.topicWords ?? null, seeds: profile?.seeds ?? [], candidates: profile?.competitorCandidates ?? [] })
     : null;
   const competitors: SiteIntel["competitors"] = comp?.section ?? { observedAt: now.toISOString(), known: [], sitemapsRead: 0, pagesObserved: 0, baselineEstablishedToday: [], newPages: [], queries: [], notes: ["Competitors are observed in the weekly report, not in the daily change check."] };
 
-  // Search demand the site is missing: public autocomplete shows what people type (not how often); anything the site already appears for is removed.
-  const demand: DeepIntel["demand"] = { source: "DuckDuckGo public autocomplete", checkedAt: now.toISOString(), seeds: [], suggestions: 0, uncaptured: [], notes: [] };
+  // The site's own content inventory (its sitemap), so missing demand is matched to an existing page before anything new is proposed.
+  const ownOrigin = (() => { try { return biz.website ? new URL(/^https?:\/\//i.test(biz.website) ? biz.website : `https://${biz.website}`).origin : null; } catch { return null; } })();
+  const ownHost = ownOrigin ? new URL(ownOrigin).hostname.replace(/^www\./, "").toLowerCase() : "";
+  const inventoryUrls = weekly && ownOrigin ? ((await readSitemapUrls(ownOrigin, ownHost).catch(() => null)) ?? []).map((e) => e.loc) : [];
+  const inventory = { pages: inventoryUrls.length, source: inventoryUrls.length ? `${ownOrigin}/sitemap.xml` : "sitemap not readable" };
+  const detailCache = new Map<string, PageDetail | null>();
+  const detail = async (u: string): Promise<PageDetail | null> => {
+    if (detailCache.has(u)) return detailCache.get(u) ?? null;
+    const f = await fetchDetail(u, now.toISOString()).catch(() => null);
+    detailCache.set(u, f);
+    return f;
+  };
+
+  // Search demand the site is missing: public autocomplete (Google and DuckDuckGo) shows what people type, not how often; anything the site already appears for
+  // is removed. Seeds: the site profile's core searches plus the biggest non-brand topics Google already associates with the site.
+  const demand: DeepIntel["demand"] = { source: "Google and DuckDuckGo public autocomplete", checkedAt: now.toISOString(), seeds: [], suggestions: 0, uncaptured: [], notes: [] };
   if (weekly && profile) {
-    const suggestions: string[] = [];
-    for (const seed of profile.seeds.slice(0, 8)) {
-      demand.seeds.push(seed);
-      suggestions.push(...(await autocomplete(seed)));
-    }
-    demand.suggestions = suggestions.length;
+    const clustersNow = clusterQueries(rows, brand).filter((c) => !c.branded && c.impressions >= 30).slice(0, 2).map((c) => c.label);
+    const seeds = [...new Set([...profile.seeds.slice(0, 8), ...clustersNow])];
+    demand.seeds.push(...seeds);
+    const sugg = await collectSuggestions(seeds, { ddgSeeds: 8 });
+    demand.suggestions = sugg.size;
     const siteQueries = [...q28cur, ...q28prev].map((q) => q.key);
     // platform names ("... reddit") describe where people ask, not what they want; drop them
-    const missing = uncaptured(suggestions, siteQueries, profile.topicWords).filter((q) => !/\b(reddit|youtube|tiktok|yelp|wikipedia|amazon|facebook|instagram|quora|craigslist)\b/.test(q));
+    const missing = uncaptured([...sugg.keys()], siteQueries, profile.topicWords).filter((q) => !/\b(reddit|youtube|tiktok|yelp|wikipedia|amazon|facebook|instagram|quora|craigslist)\b/.test(q));
     const groups = new Map<string, string[]>();
     for (const m of missing) {
       const key = tokensOf(m).slice(0, 2).sort().join(" ");
       (groups.get(key) ?? groups.set(key, []).get(key)!).push(m);
     }
+    const month = now.getUTCMonth() + 1;
+    const soon = profile.seasonal?.find((x) => x.months.some((m) => m === month || m === (month % 12) + 1 || m === ((month + 1) % 12) + 1));
     // a demand topic needs at least two different suggestions behind it; a lone odd suggestion ("marina city split balconies") is not a topic
-    for (const [, qsRaw] of [...groups.entries()].filter(([, v]) => v.length >= 2).sort((a, b) => b[1].length - a[1].length).slice(0, 4)) {
+    const cands = [...groups.entries()].filter(([, v]) => v.length >= 2).sort((a, b) => b[1].length - a[1].length).slice(0, 8);
+    for (const [, qsRaw] of cands) {
       const qs = [...qsRaw].sort((a, b) => a.length - b.length); // the plainest phrasing leads
+      const label = qs[0]!;
+      const toks = tokensOf(label);
       const pages: DeepIntel["demand"]["uncaptured"][number]["competitorPages"] = [];
+      let competitorCount = 0;
       if (comp) {
-        for (const mm of matchCompetitorUrls(comp.urlsByHost, queryTokens(qs[0]!), 2)) {
-          const f = await fetchFeatures(mm.url, now.toISOString());
+        const mm = matchCompetitorUrls(comp.urlsByHost, queryTokens(label), 3);
+        competitorCount = mm.length;
+        for (const x of mm.slice(0, 2)) {
+          const f = await detail(x.url);
           if (f) pages.push({ url: f.url, title: f.title, observedAt: f.observedAt });
         }
       }
-      demand.uncaptured.push({ label: qs[0]!, queries: qs.slice(0, 6), competitorPages: pages });
+      // an existing page of ours for this intent: expand it rather than create another page
+      let existingPage: { url: string; title: string; covers: boolean; indexable: boolean } | null = null;
+      for (const u of inventoryMatches(inventoryUrls, label, 2)) {
+        const f = await detail(u);
+        if (!f) continue;
+        const c = coversIntent(f, qs);
+        existingPage = { url: f.url, title: f.title, covers: c.covered, indexable: f.indexable };
+        if (c.covered) break;
+      }
+      const sources = [...new Set(qs.flatMap((q) => [...(sugg.get(q) ?? [])]))];
+      const related = q28cur
+        .filter((r) => {
+          const t = tokensOf(r.key);
+          return t.length > 0 && toks.length > 0 && toks.filter((w) => t.includes(w)).length / toks.length >= 0.5;
+        })
+        .reduce((sum, r) => sum + r.impressions, 0);
+      const intent = intentOf(label, brand);
+      const strength = demandStrength({ variants: qs.length, sources, competitorPages: competitorCount, relatedImpressions: related, seasonalSoon: Boolean(soon && toks.some((t) => soon.topic.toLowerCase().includes(t))), intent });
+      demand.uncaptured.push({ label, queries: qs.slice(0, 6), competitorPages: pages, sources, strength, intent, existingPage });
     }
-    if (!suggestions.length) demand.notes.push("Public autocomplete returned nothing this week, so no missing-demand finding was made.");
+    demand.uncaptured.sort((a, b) => (b.strength?.score ?? 0) - (a.strength?.score ?? 0));
+    demand.uncaptured = demand.uncaptured.slice(0, 6);
+    if (!sugg.size) demand.notes.push("Public autocomplete returned nothing this week, so no missing-demand finding was made.");
+    demand.notes.push("Autocomplete proves people type a phrase; it says nothing about how many do. No search volumes are estimated.");
   } else if (weekly) demand.notes.push("No site profile on record, so missing demand was not researched.");
+
+  // Competitor research per important intent: the biggest non-brand topics the site ranks for (not yet top 3) and the strongest missing demand.
+  const intents: IntentResearch[] = [];
+  if (weekly && comp) {
+    const fromGsc = clusterQueries(rows, brand)
+      .filter((c) => !c.branded && c.position > 3 && c.impressions >= 30)
+      .slice(0, 3)
+      .map((c) => ({ label: c.label, queries: c.queries, source: "search console" as const, position: c.position as number | null, impressions: c.impressions, ourUrl: (c.pages[0] ?? null) as string | null }));
+    const fromDemand = demand.uncaptured.slice(0, 2).map((g) => ({ label: g.label, queries: g.queries, source: "autocomplete" as const, position: null as number | null, impressions: 0, ourUrl: g.existingPage?.url ?? null }));
+    for (const it of [...fromGsc, ...fromDemand]) {
+      const matches = matchCompetitorUrls(comp.urlsByHost, queryTokens(it.label), 2);
+      const theirs: PageDetail[] = [];
+      for (const m of matches) {
+        const f = await detail(m.url);
+        if (f) theirs.push(f);
+      }
+      const ours = it.ourUrl ? await detail(it.ourUrl) : null;
+      const hostOfUrl = (u: string) => {
+        try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; }
+      };
+      intents.push({
+        ...it,
+        competitorPages: theirs.map((t) => ({ url: t.url, title: t.title, host: hostOfUrl(t.url), observedAt: t.observedAt, words: t.words, hasTool: t.hasTool, tables: t.tables, hasFaqSchema: t.hasFaqSchema })),
+        theyCover: topicGaps(ours, theirs),
+        weDoBetter: ourStrengths(ours, theirs),
+        gaps: theirs.flatMap((t) => featureGaps(ours, t)).slice(0, 3),
+        observedAt: now.toISOString(),
+      });
+    }
+  }
+
+  // Legitimate listing and partnership prospects GravyBlock's authority research already qualified (public pages, with dates). Owner action only:
+  // unsolicited outreach stays paused.
+  const partners = rowsOf<{ source_name: string; url: string | null; relevance_note: string | null; created_at: string }>(await db.execute(sql`
+    select source_name, coalesce(evidence_url, target_url) url, relevance_note, created_at from backlink_opportunities
+    where business_id = ${businessId} and status = 'qualified' order by quality_score desc nulls last, created_at desc limit 4`))
+    .filter((p) => p.url)
+    .map((p) => ({ name: p.source_name, url: p.url!, note: (p.relevance_note ?? "").replace(/\s+/g, " ").slice(0, 160), foundAt: new Date(p.created_at).toISOString().slice(0, 10) }));
 
   const learnedWeights = await learnedKindWeights();
   const deep: DeepIntel = {
@@ -383,6 +509,16 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
     demand,
     competitorFilter: comp?.filter ?? { kept: [], rejected: [] },
     learnedWeights,
+    googleBrand,
+    appearances,
+    surfaces,
+    queries90,
+    seasonalAhead: seasonal,
+    templateLosses: templateLosses(sectionStats(p28cur, p28prev, 20)),
+    coverage,
+    inventory,
+    intents,
+    partners,
   };
   const intel: SiteIntel = {
     version: 1,

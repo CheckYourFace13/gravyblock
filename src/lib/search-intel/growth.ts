@@ -1,16 +1,19 @@
 /**
- * Growth opportunities (v2): what each site should DO to earn more qualified searches, visitors and sign-ups, ranked, deduplicated by root cause and
+ * Growth opportunities (v3): what each site should DO to earn more qualified searches, visitors, sign-ups and customers, ranked, deduplicated by root cause and
  * validated before anyone sees them. Pure functions over the stored analysis; nothing here touches a site.
  *
- * Ranking = traffic potential x business value x evidence quality x likelihood of success x systemic reach x learned weight / (effort x risk).
+ * Ranking = realistic extra clicks x likelihood of getting them x business value x evidence quality x systemic reach x learned weight / (effort x risk).
+ * "Realistic" matters: a page at position 60 with many impressions is NOT automatically worth more than a page at position 8, because moving from 60 to page
+ * one is far less likely and takes far longer. Every item says when it can pay off (quick win, medium term, long term), how confident GravyBlock is, how it
+ * brings more relevant visitors (not a better SEO score), and how success will be measured.
  * Categories: technical recovery, CTR optimization, ranking improvement, new search demand, conversion.
- * Rejected on purpose: generic hygiene warnings, single-page nits when a template is the cause, widget proposals, and anything whose text fails validation.
+ * Rejected on purpose: generic hygiene warnings, single-page nits when a template is the cause, widget proposals, weak demand, and any corrupted text.
  */
 import { expectedCtr } from "./analysis";
 import { sectionOf, mobileGap, tokensOf } from "./deep";
-import { profileFor } from "./profiles";
+import { profileFor, type SiteProfile } from "./profiles";
 import { pickTop } from "./prompt";
-import type { Improvement, SiteIntel } from "./types";
+import type { Improvement, IntentResearch, SiteIntel } from "./types";
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 const pathOf = (u: string) => {
@@ -28,6 +31,17 @@ export function scoreOf(d: Draft, learned: Record<string, number> = {}): number 
   return Number(((traffic * d.value * d.evidenceQ * d.success * (d.systemic ? 1.5 : 1) * (learned[d.kind] ?? 1)) / (d.effort * d.risk)).toFixed(2));
 }
 
+/**
+ * What a ranking improvement can realistically earn: the target is a position the page can plausibly reach in the next few months (three places up on page one,
+ * the middle of page one from page two, the bottom of page one from further back), and the likelihood falls the further back the page starts.
+ */
+export function realisticGain(position: number, impressions: number, ctr: number): { clicks: number; success: number; target: number; horizon: NonNullable<Improvement["horizon"]> } {
+  const target = position <= 3 ? position : position <= 10 ? Math.max(1, position - 3) : position <= 20 ? 6 : position <= 40 ? 10 : 15;
+  const success = position <= 10 ? 0.8 : position <= 20 ? 0.55 : position <= 40 ? 0.3 : position <= 80 ? 0.12 : 0.05;
+  const horizon = position <= 10 ? "quick win" : position <= 20 ? "medium term" : "long term";
+  return { clicks: Math.max(0, impressions * (expectedCtr(target) - ctr)), success, target, horizon };
+}
+
 const BAD_TEXT = [/\bundefined\b/, /\bNaN\b/, /\[object Object\]/, /\$\{/, /\bnull\b clicks/];
 /** Rejects generated text that is corrupted or empty (for example words with letters stripped out) before it can reach an email. */
 export function textLooksValid(s: string): boolean {
@@ -43,18 +57,54 @@ export function textLooksValid(s: string): boolean {
 }
 
 export function validateImprovement(i: Improvement): boolean {
-  return textLooksValid(i.title) && i.evidence.length > 0 && i.evidence.every(textLooksValid) && i.actions.every(textLooksValid) && i.acceptance.length > 0;
+  return textLooksValid(i.title) && i.evidence.length > 0 && i.evidence.every(textLooksValid) && i.actions.every(textLooksValid) && i.acceptance.length > 0 && (!i.why || textLooksValid(i.why));
 }
+
+/** The site priority a set of searches serves best, in the owner's own terms, so "why" names a business outcome. */
+function priorityFor(profile: SiteProfile | null, words: string[]): string | null {
+  if (!profile?.priorities?.length) return profile?.conversions[0] ?? null;
+  const toks = new Set(words.flatMap(tokensOf));
+  const scored = profile.priorities.map((p) => ({ p, n: tokensOf(p).filter((t) => toks.has(t)).length }));
+  const best = scored.sort((a, b) => b.n - a.n)[0]!;
+  return best.n > 0 ? best.p : profile.priorities[0]!;
+}
+
+function intentFor(deep: NonNullable<SiteIntel["deep"]>, label: string, queries: string[]): IntentResearch | null {
+  const toks = new Set([label, ...queries].flatMap(tokensOf));
+  let best: { r: IntentResearch; n: number } | null = null;
+  for (const r of deep.intents ?? []) {
+    const n = tokensOf(r.label).filter((t) => toks.has(t)).length / Math.max(1, tokensOf(r.label).length);
+    if (n >= 0.6 && (!best || n > best.n)) best = { r, n };
+  }
+  return best?.r ?? null;
+}
+
+const competitorLines = (r: IntentResearch | null): string[] => {
+  if (!r?.competitorPages.length) return [];
+  const out = [`Competing pages published for this intent (relevant competitors' own sites, observed ${r.observedAt.slice(0, 10)}; publishing is not a ranking): ${r.competitorPages.map((p) => `${p.url} ("${p.title.slice(0, 70)}", about ${p.words} words${p.hasTool ? ", has a tool" : ""}${p.tables ? `, ${p.tables} table(s)` : ""})`).join("; ")}.`];
+  if (r.theyCover.length) out.push(`Sections those pages have that ours does not mention: ${r.theyCover.slice(0, 4).join("; ")}.`);
+  if (r.weDoBetter.length) out.push(`Ours already does better: ${r.weDoBetter.join("; ")}. Keep it.`);
+  return out;
+};
 
 export function growthOpportunities(intel: SiteIntel): Improvement[] {
   const deep = intel.deep;
   if (!deep) return [];
   const profile = profileFor(intel.site.name);
-  const valuable = (urls: string[]) => (profile && urls.some((u) => profile.valuableSections.some((s) => (s === "/" ? pathOf(u) === "/" : pathOf(u).startsWith(s)))) ? 1.5 : 1);
   const w28 = `${deep.window28.start} to ${deep.window28.end}`;
   const sampleQ = intel.w28?.sample === "ok" ? 1 : 0.6;
   const drafts: Draft[] = [];
   const used = new Set<string>();
+  /** business value 1 to 2.2: the site's money sections, its value words, and intents close to a visit or sign-up */
+  const valueOf = (urls: string[], words: string[] = [], intent?: string) => {
+    let v = 1;
+    if (profile && urls.some((u) => profile.valuableSections.some((s) => (s === "/" ? pathOf(u) === "/" : pathOf(u).startsWith(s))))) v += 0.4;
+    const toks = new Set(words.flatMap(tokensOf));
+    if (profile?.valueWords?.some((w) => toks.has(tokensOf(w)[0] ?? w))) v += 0.4;
+    if (intent === "transactional" || intent === "local") v += 0.4;
+    return Math.min(2.2, v);
+  };
+  const conv = profile?.conversions[0] ?? "the site's main next step";
 
   // 1. Technical recovery: one item per root cause. Pages that lost everything are part of it, not separate "investigate the drop" tasks.
   const d = intel.indexing.dropped;
@@ -83,17 +133,49 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
       ],
       acceptance: ["A table of sampled URLs: status, robots, canonical, in sitemap, before and after, with the reason each is indexed or deliberately excluded.", "URL Inspection live test reports 'URL is available to Google' for at least 5 pages that should be indexed."],
       potentialClicks28: Math.max(lostClicks, Math.round((d.impressionsBefore - d.impressionsNow) * 0.02)),
-      traffic: Math.max(lostClicks, (d.impressionsBefore - d.impressionsNow) * 0.02), value: valuable(d.sample) + 0.5, evidenceQ: 1, success: 0.7, systemic: true, effort: 2, risk: 1.5,
+      horizon: "medium term", confidence: recheck ? "high" : "medium", scope: "template",
+      why: `These pages already proved they attract searchers (${lostClicks || "some"} clicks before they dropped out). Restoring the ones worth indexing brings back visitors who were already finding the site${profile ? `, and with them ${conv}` : ""}.`,
+      uncertainty: "Some exclusions may be deliberate quality safeguards; Google decides what it indexes and can take weeks to re-crawl.",
+      measure: "Impressions and clicks of the restored pages over the 28 days after the fix, and their URL Inspection status.",
+      traffic: Math.max(lostClicks, (d.impressionsBefore - d.impressionsNow) * 0.02), value: valueOf(d.sample) + 0.3, evidenceQ: 1, success: 0.7, systemic: true, effort: 2, risk: 1.5,
     });
   }
 
-  // 2. CTR: a template-level fix when several pages in one section are under-clicked, otherwise the single biggest page.
+  // 2. A whole section (page template) losing visibility together, when it is not already the indexing item above.
+  const droppedSections = new Set((d?.sample ?? []).map(sectionOf));
+  for (const t of (deep.templateLosses ?? []).filter((x) => !droppedSections.has(x.section) && x.section !== "/").slice(0, 1)) {
+    const pages = (intel.pages28?.declining ?? []).filter((m) => sectionOf(m.key) === t.section).slice(0, 5).map((m) => m.key);
+    const lostImpr = t.impressionsPrev - t.impressions;
+    const prevCtr = t.impressionsPrev ? t.clicksPrev / t.impressionsPrev : 0.01;
+    drafts.push({
+      kind: "template_loss", category: "technical recovery", issue: `template_loss:${t.section}`, identityUrls: [],
+      title: `Find why the whole ${t.section} section is losing Google visibility`,
+      urls: pages,
+      evidence: [`${t.section} pages: impressions ${t.impressionsPrev} to ${t.impressions}, clicks ${t.clicksPrev} to ${t.clicks}, pages with impressions ${t.pagesPrev} to ${t.pages} (${w28} against the 28 days before).`],
+      competitorUrls: [],
+      actions: [
+        `Check recent changes to the ${t.section} template in git history (titles, canonical, robots, internal links, rendering) and compare a page that lost visibility with one that held up.`,
+        "Fix the template, not individual pages; if no defect is found, record that the loss is seasonal or algorithmic instead of changing anything.",
+      ],
+      acceptance: ["A written cause with evidence (defect, seasonal or unknown) and a template-level fix only where a defect was found."],
+      potentialClicks28: Math.round(lostImpr * prevCtr),
+      horizon: "medium term", confidence: "medium", scope: "template",
+      why: `The section lost ${lostImpr} impressions in 28 days; a template defect would keep costing visitors on every page of it.`,
+      uncertainty: "The loss may be seasonal or a Google ranking change rather than a defect on the site.",
+      measure: "The section's impressions and clicks over the next 28 days against the latest 28.",
+      traffic: lostImpr * prevCtr, value: valueOf(pages), evidenceQ: sampleQ, success: 0.5, systemic: true, effort: 1.5, risk: 1.2,
+    });
+    pages.forEach((p) => used.add(p));
+  }
+
+  // 3. CTR: a template-level fix when several pages in one section are under-clicked, otherwise the single biggest page. Only where already on page one.
   const bySection = new Map<string, typeof intel.lowCtr>();
-  for (const r of intel.lowCtr) (bySection.get(sectionOf(r.page)) ?? bySection.set(sectionOf(r.page), []).get(sectionOf(r.page))!).push(r);
+  for (const r of intel.lowCtr.filter((x) => x.position <= 8)) (bySection.get(sectionOf(r.page)) ?? bySection.set(sectionOf(r.page), []).get(sectionOf(r.page))!).push(r);
   for (const [section, list] of [...bySection.entries()].sort((a, b) => b[1].reduce((s, r) => s + r.clicksMissing, 0) - a[1].reduce((s, r) => s + r.clicksMissing, 0)).slice(0, 1)) {
     const missing = list.reduce((s, r) => s + r.clicksMissing, 0);
     if (missing < 5) continue;
     const pages = [...new Set(list.map((r) => r.page))];
+    if (pages.some((p) => used.has(p))) continue;
     const systemic = pages.length >= 2;
     drafts.push({
       kind: systemic ? "systemic_ctr" : "low_ctr", category: "CTR optimization", issue: systemic ? `systemic_ctr:${section}` : "low_ctr", identityUrls: systemic ? [] : [pages[0]!],
@@ -107,12 +189,17 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
       ],
       acceptance: ["New titles and descriptions are live, unique, accurate and within length limits on every page of the template."],
       potentialClicks28: Math.round(missing * 0.3),
-      traffic: missing * 0.3, value: valuable(pages), evidenceQ: sampleQ, success: 0.6, systemic, effort: 1, risk: 1,
+      targetQueries: list.slice(0, 4).map((r) => r.query),
+      horizon: "quick win", confidence: intel.w28?.sample === "ok" ? "medium" : "low", scope: systemic ? "template" : "page",
+      why: "Google already shows these pages on page one; a result that says plainly what the searcher gets turns impressions the site already earns into visits.",
+      uncertainty: "Google may rewrite titles, and rich results or ads above the page also lower clicks.",
+      measure: "CTR and clicks of the listed queries over the 28 days after the change, at similar positions.",
+      traffic: missing * 0.3, value: valueOf(pages, list.map((r) => r.query)), evidenceQ: sampleQ, success: 0.6, systemic, effort: 1, risk: 1,
     });
     pages.forEach((p) => used.add(p));
   }
 
-  // 3. Mobile presentation gap.
+  // 4. Mobile presentation gap.
   const mg = mobileGap(deep.devices);
   if (mg) {
     drafts.push({
@@ -124,80 +211,121 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
       actions: ["Check mobile titles (truncation), page speed and layout shift on the top pages; check that structured data renders the same on mobile."],
       acceptance: ["Mobile Lighthouse scores and visible titles verified on the top 3 pages."],
       potentialClicks28: Math.round(mg.mobileImpr * (mg.desktopCtr - mg.mobileCtr) * 0.3),
+      horizon: "quick win", confidence: "medium", scope: "site",
+      why: "Most searchers are on phones; if they skip the result there, the site loses visitors it already ranks for.",
+      uncertainty: "Mobile and desktop results pages differ, so part of the gap may be layout rather than the site.",
+      measure: "Mobile CTR over the next 28 days against desktop.",
       traffic: mg.mobileImpr * (mg.desktopCtr - mg.mobileCtr) * 0.3, value: 1, evidenceQ: sampleQ, success: 0.5, systemic: true, effort: 1.5, risk: 1,
     });
   }
 
-  // 4. Ranking improvement by topic: clusters already on page one or two.
+  // 5. Ranking improvement by topic, scored by what is realistically reachable (position 8 beats position 60 even with fewer impressions).
   const total = deep.clusters.reduce((s, c) => s + c.impressions, 0) || 1;
-  for (const c of deep.clusters.filter((x) => !x.branded && x.position >= 4 && x.position <= 20 && x.impressions >= Math.max(40, total * 0.04)).slice(0, 2)) {
+  const rankable = deep.clusters.filter((x) => !x.branded && x.position >= 4 && x.position <= 80 && x.impressions >= Math.max(30, total * 0.03));
+  for (const c of rankable.slice(0, 6)) {
     const page = c.pages[0]!;
     if (used.has(page)) continue;
+    const g = realisticGain(c.position, c.impressions, c.ctr);
+    const research = intentFor(deep, c.label, c.queries);
     const refs = intel.competitors.queries.filter((q) => c.queries.includes(q.query));
-    const gap = refs.flatMap((q) => q.gaps).slice(0, 2);
-    const gain = c.impressions * Math.max(0, expectedCtr(Math.max(1, c.position - 3)) - c.ctr) * 0.5;
     const intentAction =
       c.intent === "local" ? "Make it the best answer for someone deciding right now: today's hours, what is on now (specials, happy hour, events), location and how to get there, above the fold."
       : c.intent === "transactional" ? "Make the offer and the next step unmistakable: price or availability where true, and one clear action."
       : "Answer the question in the first screen, then cover the related questions people search (listed in the evidence) in clearly headed sections.";
+    const title =
+      c.position <= 10 ? `Move "${c.label}" from position ${c.position} toward the top 3 with ${pathOf(page)}`
+      : c.position <= 20 ? `Lift "${c.label}" from page two (position ${c.position}) onto page one with ${pathOf(page)}`
+      : `Build real depth for "${c.label}": ${c.impressions} impressions but far back at position ${c.position}`;
     drafts.push({
       kind: "topic_ranking", category: "ranking improvement", issue: `topic_ranking:${c.key}`, identityUrls: [page],
-      title: `Win more of the "${c.label}" searches with ${pathOf(page)}`,
-      urls: c.pages,
-      evidence: [`Topic "${c.label}" (${c.queries.length} related queries, ${c.intent} intent): ${c.impressions} impressions, ${c.clicks} clicks, average position ${c.position} (${w28}). Queries: ${c.queries.slice(0, 5).map((q) => `"${q}"`).join(", ")}.`, ...gap.map((g) => `Competing page: ${g.evidence} (observed ${g.observedAt.slice(0, 10)}).`)],
-      competitorUrls: refs.flatMap((q) => q.competitorPages.map((p) => `${p.url} ("${p.title}", observed ${p.observedAt.slice(0, 10)})`)).slice(0, 3),
-      actions: [intentAction, "Add internal links to this page from related, already-indexed pages with descriptive anchor text.", "Write in the site's own voice from its own facts; do not copy competitor text or structure."],
-      acceptance: ["The page answers each listed query in an obvious section; existing content and URL preserved."],
-      potentialClicks28: Math.round(gain),
-      traffic: gain, value: valuable([page]), evidenceQ: sampleQ, success: 0.45, systemic: false, effort: 2, risk: 1,
-    });
-    used.add(page);
-  }
-
-  // 4b. The biggest topic the site is visible for but far back (positions 21 to 80): the largest real demand it already touches. Depth and authority, not a rewrite.
-  for (const c of deep.clusters.filter((x) => !x.branded && x.position > 20 && x.position <= 80 && x.impressions >= Math.max(300, total * 0.1)).slice(0, 1)) {
-    const page = c.pages[0]!;
-    if (used.has(page)) continue;
-    const refs = intel.competitors.queries.filter((q) => c.queries.includes(q.query));
-    drafts.push({
-      kind: "topic_ranking", category: "ranking improvement", issue: `topic_ranking:${c.key}`, identityUrls: [page],
-      title: `Build real depth for "${c.label}": the site's biggest search topic, currently far back at position ${c.position}`,
+      title,
       urls: c.pages,
       evidence: [
-        `Topic "${c.label}" (${c.queries.length} related queries, ${c.intent} intent): ${c.impressions} impressions but only ${c.clicks} clicks at average position ${c.position} (${w28}). Queries: ${c.queries.slice(0, 5).map((q) => `"${q}"`).join(", ")}.`,
-        ...refs.flatMap((q) => q.gaps).slice(0, 2).map((g) => `Competing page: ${g.evidence} (observed ${g.observedAt.slice(0, 10)}).`),
+        `Topic "${c.label}" (${c.queries.length} related queries, ${c.intent} intent): ${c.impressions} impressions, ${c.clicks} clicks, average position ${c.position} (${w28}). Queries: ${c.queries.slice(0, 5).map((q) => `"${q}"`).join(", ")}.`,
+        ...competitorLines(research),
+        ...(!research ? refs.flatMap((q) => q.gaps).slice(0, 2).map((x) => `Competing page: ${x.evidence} (observed ${x.observedAt.slice(0, 10)}).`) : []),
       ],
-      competitorUrls: refs.flatMap((q) => q.competitorPages.map((p) => `${p.url} ("${p.title}", observed ${p.observedAt.slice(0, 10)})`)).slice(0, 3),
+      competitorUrls: (research?.competitorPages.map((p) => `${p.url} ("${p.title.slice(0, 70)}", observed ${p.observedAt.slice(0, 10)})`) ?? refs.flatMap((q) => q.competitorPages.map((p) => `${p.url} ("${p.title}", observed ${p.observedAt.slice(0, 10)})`))).slice(0, 3),
       actions: [
-        `Make ${pathOf(page)} the most useful page for this intent using the site's own knowledge (verified options, prices or availability where true, how to choose, what to expect), not a longer generic article.`,
-        "Link to it from every related page on the site with descriptive anchor text; GravyBlock's off-site promotion will point earned mentions at this page.",
+        intentAction,
+        ...(research?.theyCover.length ? [`Where it genuinely helps the searcher, cover what competing pages answer and ours does not (in the site's own words and data): ${research.theyCover.slice(0, 3).map((x) => x.replace(/ \(https?:[^)]+\)$/, "")).join("; ")}.`] : []),
+        ...(c.position > 20 ? [`Make ${pathOf(page)} the most useful page for this intent using the site's own knowledge (verified options, prices or availability where true, how to choose, what to expect), not a longer generic article.`] : []),
+        "Add internal links to this page from related, already-indexed pages with descriptive anchor text.",
+        "Write in the site's own voice from its own facts; do not copy competitor text or structure.",
       ],
-      acceptance: ["The page clearly answers the listed searches with original, specific information; no new thin pages were created."],
-      potentialClicks28: Math.round(c.impressions * 0.01),
-      traffic: c.impressions * 0.01, value: valuable([page]) + 0.3, evidenceQ: sampleQ, success: 0.25, systemic: false, effort: 2.5, risk: 1,
+      acceptance: ["The page answers each listed query in an obvious section; existing content and URL preserved."],
+      potentialClicks28: Math.round(g.clicks * g.success),
+      targetQueries: c.queries.slice(0, 6),
+      horizon: g.horizon, confidence: c.position <= 20 && intel.w28?.sample === "ok" ? "medium" : "low", scope: "page",
+      why: `People already search "${c.label}" and Google already shows ${pathOf(page)} for it (${c.impressions} impressions in 28 days). Moving from position ${c.position} toward ${g.target} is where those impressions become visitors${priorityFor(profile, c.queries) ? `, serving the site's priority: ${priorityFor(profile, c.queries)}` : ""}.`,
+      uncertainty: c.position > 20 ? "Far-back topics usually need authority (links, mentions) as well as a better page; results take months, if they come." : "Rankings also depend on competitors and Google updates; improvements usually show within 4 to 8 weeks.",
+      measure: `Average position and clicks for these queries over the 28 days after the change (now: position ${c.position}, ${c.clicks} clicks).`,
+      traffic: g.clicks, value: valueOf([page], c.queries, c.intent), evidenceQ: sampleQ, success: g.success, systemic: false, effort: c.position > 20 ? 2.5 : 2, risk: 1,
     });
     used.add(page);
   }
 
-  // 4c. Searches that appeared this window with real impressions: early demand worth meeting while it is new.
-  for (const q of deep.emerging.filter((x) => x.impressions >= 50).slice(0, 1)) {
+  // 6. Searches that appeared this window (or keep gaining over 90 days) with real impressions: early demand worth meeting while it is new.
+  const gaining = (deep.queries90?.gaining ?? []).map((g) => ({ key: g.key, clicks: g.clicksCur, impressions: g.imprCur, position: g.posCur ?? 0, prev: g.imprPrev }));
+  const fresh = [...deep.emerging.map((e) => ({ ...e, prev: 0 })), ...gaining.filter((g) => !deep.emerging.some((e) => e.key === g.key))].filter((x) => x.impressions >= 50);
+  for (const q of fresh.slice(0, 1)) {
     const page = deep.pageQuery.find((r) => r.query === q.key)?.page;
     if (page && used.has(page)) continue;
+    const g = realisticGain(q.position || 30, q.impressions, q.clicks / Math.max(1, q.impressions));
     drafts.push({
       kind: "topic_ranking", category: "ranking improvement", issue: `emerging:${q.key}`, identityUrls: page ? [page] : [],
-      title: `Meet the new "${q.key}" searches while they are new`,
+      title: `Meet the growing "${q.key}" searches while they are new`,
       urls: page ? [page] : [],
-      evidence: [`"${q.key}" had no impressions in the 28 days before and ${q.impressions} in the latest 28 days (${w28}) at position ${q.position.toFixed(1)}${page ? `, shown for ${pathOf(page)}` : ""}.`],
+      evidence: [q.prev === 0 ? `"${q.key}" had no impressions in the 28 days before and ${q.impressions} in the latest 28 days (${w28}) at position ${q.position.toFixed(1)}${page ? `, shown for ${pathOf(page)}` : ""}.` : `"${q.key}" grew from ${q.prev} to ${q.impressions} impressions comparing the latest 90 days with the 90 before, at position ${q.position.toFixed(1)}${page ? `, shown for ${pathOf(page)}` : ""}.`],
       competitorUrls: [],
       actions: [page ? `Check that ${pathOf(page)} genuinely serves this search; if it does, say so plainly in its title, first heading and opening; if not, point the searcher to the page that does.` : "Find the page that best serves this search and make that explicit in its title and opening."],
       acceptance: ["The page matching this search names it plainly and answers it in the first screen."],
-      potentialClicks28: Math.round(q.impressions * 0.03),
-      traffic: q.impressions * 0.03, value: valuable(page ? [page] : []), evidenceQ: 0.7, success: 0.4, systemic: false, effort: 1, risk: 1,
+      potentialClicks28: Math.round(g.clicks * g.success),
+      targetQueries: [q.key],
+      horizon: "quick win", confidence: "low", scope: "page",
+      why: "Demand that is new or rising is cheapest to win before competitors notice it; the site is already being shown for it.",
+      uncertainty: "A rise can be a short-lived spike.",
+      measure: `Impressions and clicks for "${q.key}" over the next 28 days.`,
+      traffic: g.clicks, value: valueOf(page ? [page] : [], [q.key]), evidenceQ: 0.7, success: Math.max(0.4, g.success * 0.8), systemic: false, effort: 1, risk: 1,
     });
     if (page) used.add(page);
   }
 
-  // 5. Cannibalization.
+  // 7. Seasonal demand BEFORE its peak: searches that earned impressions in the coming 8 weeks last year and are not earning them yet.
+  const sa = deep.seasonalAhead?.queries ?? [];
+  if (sa.length) {
+    const byPage = new Map<string, typeof sa>();
+    for (const q of sa) (byPage.get(q.page) ?? byPage.set(q.page, []).get(q.page)!).push(q);
+    const [page, list] = [...byPage.entries()].sort((a, b) => b[1].reduce((s, x) => s + x.impressionsLastYear, 0) - a[1].reduce((s, x) => s + x.impressionsLastYear, 0))[0]!;
+    const ly = list.reduce((s, x) => s + x.impressionsLastYear, 0);
+    const lyClicks = list.reduce((s, x) => s + x.clicksLastYear, 0);
+    if (ly >= 60 && !used.has(page)) {
+      drafts.push({
+        kind: "seasonal", category: "new search demand", issue: `seasonal:${tokensOf(list[0]!.query).slice(0, 3).sort().join(" ")}`, identityUrls: [page],
+        title: `Prepare ${pathOf(page)} for "${list[0]!.query}" before its seasonal peak`,
+        urls: [page],
+        evidence: [
+          `${deep.seasonalAhead!.note} ${list.slice(0, 5).map((x) => `"${x.query}" ${x.impressionsLastYear} impressions last year, ${x.impressionsNow} in the latest 28 days`).join("; ")}. Together ${ly} impressions and ${lyClicks} clicks last year, mostly on ${pathOf(page)}.`,
+        ],
+        competitorUrls: [],
+        actions: [
+          `Update ${pathOf(page)} for this season now (current year, current dates, prices or availability, what is new), so Google has re-crawled it before searches peak.`,
+          "Link to it from the home page or the most visited related pages during the season.",
+        ],
+        acceptance: ["The page shows current-season information and is linked from at least two indexed pages before the peak."],
+        potentialClicks28: Math.max(lyClicks, Math.round(ly * 0.02)),
+        targetQueries: list.slice(0, 5).map((x) => x.query),
+        horizon: "quick win", confidence: ly >= 300 ? "medium" : "low", scope: "page",
+        why: `These searches brought ${ly} impressions in the same weeks last year. A page refreshed before the peak is ready when the searchers come back.`,
+        uncertainty: "Last year's season is a guide, not a guarantee; dates and demand shift.",
+        measure: "Impressions and clicks for these searches during this season against the same weeks last year.",
+        traffic: Math.max(lyClicks, ly * 0.02), value: valueOf([page], list.map((x) => x.query)), evidenceQ: 0.8, success: 0.55, systemic: false, effort: 1, risk: 1,
+      });
+      used.add(page);
+    }
+  }
+
+  // 8. Cannibalization.
   const can = deep.cannibal.find((x) => x.impressions >= 100 && !x.pages.some((p) => used.has(p.page)));
   if (can) {
     drafts.push({
@@ -209,40 +337,68 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
       actions: ["Choose the page that best serves the intent; point the others to it with contextual internal links and differentiate their titles toward their own topics. Do not delete or redirect pages without approval."],
       acceptance: ["One clearly primary page for the query; the others re-targeted, not removed."],
       potentialClicks28: Math.round(can.impressions * 0.02),
-      traffic: can.impressions * 0.02, value: valuable(can.pages.map((p) => p.page)), evidenceQ: sampleQ, success: can.pages[0]!.position > 40 ? 0.25 : 0.5, systemic: false, effort: 1.5, risk: 1.3,
+      targetQueries: [can.query],
+      horizon: "medium term", confidence: "low", scope: "page",
+      why: "When several pages compete for one search, Google often ranks none of them well; one clear page usually ranks higher than two split ones.",
+      uncertainty: "Google sometimes shows two pages on purpose; the split alone does not prove harm.",
+      measure: `Position and clicks for "${can.query}" and which page Google shows, over the next 28 days.`,
+      traffic: can.impressions * 0.02, value: valueOf(can.pages.map((p) => p.page), [can.query]), evidenceQ: sampleQ, success: can.pages[0]!.position > 40 ? 0.25 : 0.5, systemic: false, effort: 1.5, risk: 1.3,
     });
   }
 
-  // 6. New search demand the site does not capture yet (from public autocomplete; no volumes exist, so no click estimate is made).
+  // 9. Searches the site is not found for (public autocomplete; no volumes exist, so no click estimate is made). Existing pages are expanded before anything new.
   const month = new Date(intel.generatedAt).getUTCMonth() + 1;
   const seasonNow = profile?.seasonal?.find((s) => s.months.some((m) => m === month || m === (month % 12) + 1 || m === ((month + 1) % 12) + 1));
-  for (const g of deep.demand.uncaptured.slice(0, 2)) {
+  for (const g of deep.demand.uncaptured.filter((x) => (x.strength?.score ?? 2) >= 1.5).slice(0, 3)) {
     const toks = tokensOf(g.label);
     const seasonal = Boolean(seasonNow && toks.some((t) => seasonNow.topic.toLowerCase().includes(t)));
     const section = profile?.valuableSections.find((s) => s !== "/" && toks.some((t) => s.includes(t))) ?? null;
+    const ex = g.existingPage ?? null;
+    const research = intentFor(deep, g.label, g.queries);
+    const toolish = /\b(calculator|map|checker|finder|tracker|conditions|list|near me|tonight|today|open now|schedule|planner|estimate)\b/.test(g.queries.join(" "));
+    const mode = ex?.covers ? "existing_covers" : ex ? "expand" : "new";
+    const title =
+      mode === "existing_covers" ? `Get ${pathOf(ex!.url)} found for "${g.label}": the page already answers it, but Google shows the site for none of these searches`
+      : mode === "expand" ? `Expand ${pathOf(ex!.url)} to capture "${g.label}" searches the site is not found for yet`
+      : toolish ? `Capture "${g.label}" searches with one original, useful resource built from the site's own data`
+      : `Capture "${g.label}" searches the site is not found for yet`;
+    const strength = g.strength;
     drafts.push({
       kind: "new_demand", category: "new search demand", issue: `new_demand:${toks.slice(0, 2).sort().join(" ")}`, identityUrls: [],
-      title: `Capture "${g.label}" searches the site is not found for yet`,
-      urls: section && intel.site.website ? [`${intel.site.website.replace(/\/$/, "")}${section}`] : [],
+      title,
+      urls: ex ? [ex.url] : section && intel.site.website ? [`${intel.site.website.replace(/\/$/, "")}${section}`] : [],
       evidence: [
-        `People type these into search (${deep.demand.source}, checked ${deep.demand.checkedAt.slice(0, 10)}; this shows the searches exist, not how many): ${g.queries.map((q) => `"${q}"`).join(", ")}.`,
+        `People type these into search (${g.sources?.length ? g.sources.join(" and ") : deep.demand.source}, checked ${deep.demand.checkedAt.slice(0, 10)}; this shows the searches exist, not how many): ${g.queries.map((q) => `"${q}"`).join(", ")}.`,
+        ...(strength ? [`Demand evidence ${strength.score} of 5 (${strength.level}): ${strength.signals.join("; ")}.`] : []),
         "The site had no Search Console impressions for these words in the latest 28 days or the 28 before.",
+        ...(ex ? [ex.covers ? `${ex.url} ("${ex.title.slice(0, 80)}") already covers this intent${ex.indexable ? "" : " but is NOT indexable"}, so the gap is visibility, not content.` : `${ex.url} ("${ex.title.slice(0, 80)}") is the closest existing page; it does not yet answer these searches plainly.`] : []),
         ...(seasonal && seasonNow ? [`Seasonal: ${seasonNow.topic} peaks soon, so this is time-sensitive.`] : []),
+        ...competitorLines(research),
       ],
-      competitorUrls: g.competitorPages.map((p) => `${p.url} ("${p.title}", observed ${p.observedAt.slice(0, 10)})`),
+      competitorUrls: (research?.competitorPages.length ? research.competitorPages.map((p) => `${p.url} ("${p.title.slice(0, 70)}", observed ${p.observedAt.slice(0, 10)})`) : g.competitorPages.map((p) => `${p.url} ("${p.title}", observed ${p.observedAt.slice(0, 10)})`)).slice(0, 3),
       actions: [
-        section ? `Extend the existing ${section} pages to serve this intent before creating anything new.` : "Find the existing page closest to this intent and extend it before creating anything new.",
-        ...(profile?.demandHint ? [profile.demandHint] : []),
-        "If a new page or tool is justified, build ONE substantive, original page that genuinely serves the searcher (no thin or templated near-duplicates), and link it from relevant indexed pages.",
-        profile ? `Tie it to the site's conversion: ${profile.conversions[0]}.` : "Give the visitor an obvious next step.",
+        mode === "existing_covers" ? `${ex!.indexable ? "" : `Make ${pathOf(ex!.url)} indexable if it is meant to be public. `}Name these searches plainly in its title, first heading and opening, link to it from related indexed pages with descriptive anchor text, and keep it in the sitemap.`
+        : mode === "expand" ? `Extend ${pathOf(ex!.url)} with a clearly headed section that answers these searches before creating anything new.`
+        : section ? `Extend the existing ${section} pages to serve this intent before creating anything new.` : "Find the existing page closest to this intent and extend it before creating anything new.",
+        ...(mode === "new" && profile?.demandHint ? [profile.demandHint] : []),
+        ...(mode === "new" ? ["If a new page or tool is justified, build ONE substantive, original page that genuinely serves the searcher (no thin or templated near-duplicates), and link it from relevant indexed pages."] : []),
+        profile ? `Tie it to the site's conversion: ${conv}.` : "Give the visitor an obvious next step.",
       ],
       acceptance: ["The intent is served by one clearly focused page with original content; no batch of thin pages was created."],
       potentialClicks28: 0,
-      traffic: 6 + g.queries.length * 3, value: section ? 1.5 : 1.2, evidenceQ: 0.5, success: 0.35, systemic: false, effort: 2.5, risk: 1,
+      targetQueries: g.queries.slice(0, 6),
+      horizon: mode === "new" ? (seasonal ? "medium term" : "long term") : "medium term",
+      confidence: strength?.level === "strong" ? "medium" : "low",
+      scope: "page",
+      why: `These are searches the site's audience makes that it currently gets no visitors from${priorityFor(profile, g.queries) ? `; they match the site's priority: ${priorityFor(profile, g.queries)}` : ""}. ${g.intent === "transactional" || g.intent === "local" ? "The intent is close to a visit or sign-up." : "They bring new readers who can become users."}`,
+      uncertainty: "No search volume is available for free, so the size of this demand is unknown; new pages usually take 2 to 4 months to rank.",
+      measure: "Impressions for these searches in Search Console (zero today), then clicks and sign-ups from the page.",
+      traffic: (strength?.score ?? 2) * 6 + (seasonal ? 6 : 0), value: valueOf(ex ? [ex.url] : section ? [section] : [], g.queries, g.intent), evidenceQ: strength ? Math.min(1, 0.35 + strength.score * 0.12) : 0.5,
+      success: mode === "existing_covers" ? 0.45 : mode === "expand" ? 0.4 : 0.3, systemic: false, effort: mode === "new" ? 2.5 : 1.5, risk: 1,
     });
   }
 
-  // 7. Conversion: only where real search visitors land on pages without the site's own next step (never a generic warning).
+  // 10. Conversion: only where real search visitors land on pages without the site's own next step (never a generic warning).
   const noPath = intel.openBriefs.find((b) => b.subtype === "no_conversion_path");
   const landing = intel.topPages.filter((p) => p.clicks >= 3 && (noPath?.urls ?? []).includes(p.page));
   if (profile && landing.length) {
@@ -255,6 +411,10 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
       actions: [`Add one prominent, relevant call to action for ${profile.conversions[0]} on these templates; do not add pop-ups that cover content.`],
       acceptance: ["The call to action is visible above the fold on mobile and desktop on each listed page."],
       potentialClicks28: 0,
+      horizon: "quick win", confidence: "medium", scope: landing.length >= 2 ? "template" : "page",
+      why: `These pages already receive search visitors; without a next step they leave without ${profile.conversions[0]}.`,
+      uncertainty: "Conversion depends on the offer as much as the button; GravyBlock cannot see on-site analytics.",
+      measure: `${profile.conversions[0]} from these pages over the next 28 days (from the site's own analytics).`,
       traffic: landing.reduce((s, p) => s + p.clicks, 0), value: 2, evidenceQ: 0.8, success: 0.5, systemic: landing.length >= 2, effort: 1.5, risk: 1,
     });
   }
@@ -273,3 +433,4 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
 
 /** The 3 to 5 opportunities to act on now. */
 export const topOpportunities = (list: Improvement[]): Improvement[] => pickTop(list, 5);
+

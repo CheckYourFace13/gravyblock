@@ -36,13 +36,17 @@ const DAY = 86_400_000;
 export type RecState = { status: Status; verifiedAt: Date | null; occurrence: number };
 export type SeenOutcome = { action: "create" | "update" | "reopen" | "keep"; status: Status; occurrence: number };
 
-/** What happens to a record when a weekly regeneration (or the daily sync) finds this recommendation again. */
-export function onSeen(rec: RecState | null, now: Date): SeenOutcome {
+/**
+ * What happens to a record when a weekly regeneration (or the daily sync) finds this recommendation again.
+ * A verified recommendation is reopened ONLY when a fresh read-only check of the live site shows the implementation has regressed (`stillLive === false`).
+ * Search data that still shows the old symptom is expected for weeks after a fix (Google needs time), so it never reopens anything on its own.
+ */
+export function onSeen(rec: RecState | null, now: Date, stillLive: boolean | null = null): SeenOutcome {
+  void now;
   if (!rec) return { action: "create", status: "new", occurrence: 1 };
   if (rec.status === "dismissed") return { action: "keep", status: "dismissed", occurrence: rec.occurrence };
   if (rec.status === "verified") {
-    const aged = rec.verifiedAt ? now.getTime() - rec.verifiedAt.getTime() > REOPEN_GRACE_DAYS * DAY : true;
-    return aged ? { action: "reopen", status: "new", occurrence: rec.occurrence + 1 } : { action: "keep", status: "verified", occurrence: rec.occurrence };
+    return stillLive === false ? { action: "reopen", status: "new", occurrence: rec.occurrence + 1 } : { action: "keep", status: "verified", occurrence: rec.occurrence };
   }
   return { action: "update", status: rec.status, occurrence: rec.occurrence }; // new, opened, in_progress, completed all keep their status
 }
@@ -220,4 +224,96 @@ export function classifyOutcome(before: Win | null, after: Win | null, ready: bo
   const margin = Math.max(3, Math.round(before.clicks * 0.2));
   const verdict = delta >= margin ? "improved" : delta <= -margin ? "declined" : "no_material_change";
   return { verdict, before, after, note: "A measured change in this page's Google clicks over equal 28-day windows. Other factors (season, ranking changes elsewhere) also move these numbers, so this is not proof the work caused it.", measuredAt };
+}
+
+/* ───────────── recognising work that is already done (by anyone, including a site's own developer) ───────────── */
+
+const FAMILY: Record<string, string> = { low_ctr: "ctr", systemic_ctr: "ctr", topic_ranking: "ranking", near_page_one: "ranking", page_two: "ranking", new_demand: "demand", seasonal: "demand" };
+const STOPW = new Set("the a an of to for in on at and or with from your you my our me near best top how what why when where which who is are can does do vs it this that".split(" "));
+export const topicTokens = (s: string): string[] => [...new Set(s.toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((t) => t.length >= 3 && !STOPW.has(t)).map((w) => w.replace(/(ing|ies|es|s)$/, "")))];
+
+/** The searches a recommendation targets: its own list, else the quoted searches in its title and first evidence line (older records). */
+export function targetQueriesOf(i: { targetQueries?: string[]; title: string; evidence?: string[] }): string[] {
+  if (i.targetQueries?.length) return i.targetQueries;
+  const out: string[] = [];
+  for (const src of [i.title, i.evidence?.[0] ?? ""]) for (const m of src.matchAll(/"([^"]{3,90})"/g)) if (!out.includes(m[1]!)) out.push(m[1]!);
+  return out.slice(0, 8);
+}
+
+export type WorkLike = { kind: string; issue: string; urls: string[]; title: string; targetQueries?: string[]; evidence?: string[] };
+
+/**
+ * The same piece of work, even when the analysis describes it slightly differently this week (a topic label that shifted, a different query leading the
+ * cluster): same family of recommendation and either the same main page or mostly the same search words. Used so completed or verified work is never
+ * re-recommended under a new identity.
+ */
+export function sameWork(a: WorkLike, b: WorkLike): boolean {
+  const fa = FAMILY[a.kind] ?? a.kind;
+  const fb = FAMILY[b.kind] ?? b.kind;
+  if (fa !== fb) return false;
+  if (fa === "indexing" || fa === "mobile_ctr" || fa === "conversion") return true; // one site-level item of each
+  const ua = a.urls[0] ? normalizeUrl(a.urls[0]) : null;
+  const ub = b.urls[0] ? normalizeUrl(b.urls[0]) : null;
+  if (ua && ub && ua === ub && fa !== "demand") return true;
+  const ta = new Set(targetQueriesOf(a).flatMap(topicTokens));
+  const tb = new Set(targetQueriesOf(b).flatMap(topicTokens));
+  if (!ta.size || !tb.size) return false;
+  const inter = [...ta].filter((t) => tb.has(t)).length;
+  return inter >= 2 && inter / Math.min(ta.size, tb.size) >= 0.6;
+}
+
+export type Coverage = { url: string; covered: boolean; by: string | null; indexable: boolean };
+export type LiveEvidence = { implemented: boolean; level: "defect_cleared" | "change_observed"; how: string; checks: Check[] };
+
+/**
+ * Is a recommendation already implemented on the live site, whoever did it? Read-only evidence only:
+ * - title/description work: the page's title or description differs from the snapshot taken when the recommendation was first reported
+ * - page improvement work: the page's title, sections or length changed since that snapshot
+ * - missing demand: a live, indexable page on the site now plainly serves the searches (title or headings, or the whole phrase in its text)
+ * - competing pages: a secondary page was re-targeted (its title changed)
+ * Returns null when this kind cannot be judged from the live page (indexing, mobile and conversion are confirmed by their own checks or by the owner).
+ * A change being live is NOT a claim that search results improved.
+ */
+export function implementationEvidence(r: { kind: string }, baseline: PageSnap[], current: PageSnap[], coverage: Coverage[]): LiveEvidence | null {
+  const base = new Map(baseline.map((b) => [normalizeUrl(b.url), b]));
+  const live = current.filter((c) => c.status !== null && c.status < 400);
+  const checks: Check[] = [];
+  const fam = FAMILY[r.kind] ?? r.kind;
+  if (fam === "ctr") {
+    for (const c of live) {
+      const b = base.get(normalizeUrl(c.url));
+      if (!b) continue;
+      checks.push({ url: c.url, check: "title or description changed since first reported", before: `title "${b.title.slice(0, 70)}"`, after: `title "${c.title.slice(0, 70)}"`, pass: b.title !== c.title || b.description !== c.description });
+    }
+    if (!checks.length) return null;
+    const ok = checks.some((x) => x.pass);
+    return { implemented: ok, level: "change_observed", how: ok ? "the page's title or description has been rewritten on the live site" : "the title and description are unchanged", checks };
+  }
+  if (r.kind === "cannibalization") {
+    for (const c of live.slice(1)) {
+      const b = base.get(normalizeUrl(c.url));
+      if (b) checks.push({ url: c.url, check: "secondary page re-targeted (title changed)", before: b.title.slice(0, 70), after: c.title.slice(0, 70), pass: b.title !== c.title });
+    }
+    if (!checks.length) return null;
+    const ok = checks.some((x) => x.pass);
+    return { implemented: ok, level: "change_observed", how: ok ? "a competing page of the site was re-targeted" : "the competing pages are unchanged", checks };
+  }
+  if (fam === "demand") {
+    for (const c of coverage) checks.push({ url: c.url, check: "a live, indexable page plainly serves these searches", before: null, after: c.covered ? `${c.by}${c.indexable ? "" : " (but not indexable)"}` : "does not cover them", pass: c.covered && c.indexable });
+    const hit = coverage.find((c) => c.covered && c.indexable);
+    return { implemented: Boolean(hit), level: "defect_cleared", how: hit ? `${hit.url} now serves these searches (${hit.by})` : "no live page plainly serves these searches yet", checks };
+  }
+  if (fam === "ranking" || r.kind === "template_loss") {
+    const c = live[0];
+    const b = c ? base.get(normalizeUrl(c.url)) : undefined;
+    if (!c || !b) return null;
+    const what: string[] = [];
+    if (b.title !== c.title) what.push("title");
+    if (b.description !== c.description) what.push("description");
+    if (c.h2s !== b.h2s) what.push(`sections ${b.h2s} to ${c.h2s}`);
+    if (b.words && Math.abs(c.words - b.words) / b.words >= 0.1) what.push(`about ${b.words} to ${c.words} words`);
+    checks.push({ url: c.url, check: "page improved since first reported", before: `${b.h2s} sections, about ${b.words} words`, after: what.length ? `changed: ${what.join(", ")}` : "no visible change", pass: what.length > 0 });
+    return { implemented: what.length > 0, level: "change_observed", how: what.length ? `${c.url} was changed (${what.join(", ")})` : "the page is unchanged", checks };
+  }
+  return null;
 }

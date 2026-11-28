@@ -17,7 +17,8 @@ import { generateMissingSearchIntel, loadReports, summarizePortfolio, type Store
 import { loadQueue, unresolvedImprovements, type RecRecord } from "./recommendations";
 import { buildPrompt } from "./prompt";
 import { containsSensitive, grokbotConfig, scrubPersonal, sendViaResend, type SendFn } from "./grokbot";
-import type { Move } from "./analysis";
+
+import { profileFor } from "./profiles";
 
 type Rows<T> = T[];
 const rowsOf = <T>(r: unknown) => r as unknown as Rows<T>;
@@ -87,13 +88,13 @@ export function auditBucket(r: Pick<RecRecord, "status" | "occurrence" | "firstS
 }
 
 const sign = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
-const moves = (title: string, list: Move[] | undefined, n = 5) => [`${title}:`, ...(list?.length ? list.slice(0, n).map((m) => `  - ${m.key}: clicks ${m.clicksPrev} to ${m.clicksCur}, impressions ${m.imprPrev} to ${m.imprCur}`) : ["  - none with enough volume"])];
 
 export type SiteAuditInput = { report: StoredReport; queue: RecRecord[]; sent: Map<string, string>; previousAuditAt: Date | null; index: number; total: number; week: string; now: Date };
 
 /**
- * One site's section of the weekly audit (v2): what the site is for, a short performance summary with every window named, the 3 to 5 growth opportunities,
- * relevant competitors only, recommendation history, measured results of earlier work, and ONE copy-ready instruction. Concise on purpose.
+ * One site's section of the weekly audit (v3), in the owner's order:
+ * A search performance, B biggest opportunities, C missing search demand, D competitor intelligence, E recommended actions, F the complete development
+ * instruction, G previous work and results, H confidence and measurement. Concise on purpose: no repeated checklists.
  */
 export function buildSiteAuditEmail(i: SiteAuditInput): { subject: string; text: string; buckets: Record<string, number> } {
   const d = i.report.data;
@@ -105,53 +106,99 @@ export function buildSiteAuditEmail(i: SiteAuditInput): { subject: string; text:
   };
   const tot = (label: string, c: { start: string; end: string; clicks: number; impressions: number; ctr: number | null; position: number | null }, prev?: { clicks: number; impressions: number }) =>
     `- ${label} (${c.start} to ${c.end}): ${c.clicks} clicks${prev ? ` (${sign(c.clicks - prev.clicks)})` : ""}, ${c.impressions} impressions${prev ? ` (${sign(c.impressions - prev.impressions)})` : ""}, CTR ${c.ctr === null ? "n/a" : `${(c.ctr * 100).toFixed(1)}%`}, average position ${c.position ?? "n/a"}`;
+  const SURFACE: Record<string, string> = { web: "Web", image: "Image search", video: "Video search", news: "News tab", discover: "Discover", googleNews: "Google News", webMultimodal: "Lens / Circle to Search" };
 
   L.push(`GRAVYBLOCK WEEKLY GROWTH AUDIT: ${i.report.name} (${d.site.website ?? ""}), week ending ${i.week}`);
   if (deep?.profile) L.push(`What the site is for: ${deep.profile.what}. Audience: ${deep.profile.audience}. Conversions that matter: ${deep.profile.conversions.join("; ")}.`);
-  if (deep?.truthDescription) L.push(`The site describes itself as: "${deep.truthDescription.slice(0, 220)}"`);
+  const prof = profileFor(i.report.name);
+  if (prof?.priorities?.length) L.push(`Growth priorities, in order: ${prof.priorities.join("; ")}.`);
   L.push("Nothing here changes a task's status, and GravyBlock never edits this site.");
 
-  L.push("", "1. SEARCH PERFORMANCE (Google search only, not total visitors; each line names its own window)");
+  // A
+  L.push("", "A. SEARCH PERFORMANCE (Google search only, not total visitors; each line names its window)");
   if (d.w7) L.push(`${tot("7 days", d.w7.cur, d.w7.prev)} vs the 7 days before${d.w7.sample !== "ok" ? ` [${d.w7.sample} sample: not a trend]` : ""}`);
   if (d.w28) L.push(`${tot("28 days", d.w28.cur, d.w28.prev)} vs the 28 days before${d.w28.sample !== "ok" ? ` [${d.w28.sample} sample: not a trend]` : ""}`);
+  if (!d.w7 && !d.w28) L.push("- No Search Console data for this site this week.");
   if (deep) {
     L.push(deep.trend90 ? `${tot("90 days", deep.trend90.cur, deep.trend90.prev)} vs the 90 days before` : "- 90 days: not enough stored history for a 90-day comparison yet.");
-    const b = deep.brand;
-    if (b.brandedImpressions + b.nonBrandedImpressions > 0) L.push(`- Searches for the brand vs everything else (28 days): brand ${b.brandedClicks} clicks / ${b.brandedImpressions} impressions; non-brand ${b.nonBrandedClicks} clicks / ${b.nonBrandedImpressions} impressions.`);
+    const gb = deep.googleBrand;
+    if (gb?.source === "Google branded classification") L.push(`- Branded vs non-branded (Google's own classification, 28 days): branded ${gb.branded?.clicks ?? 0} clicks / ${gb.branded?.impressions ?? 0} impressions; non-branded ${gb.nonBranded?.clicks ?? 0} clicks / ${gb.nonBranded?.impressions ?? 0} impressions.`);
+    else if (deep.brand.brandedImpressions + deep.brand.nonBrandedImpressions > 0) L.push(`- Branded vs non-branded (estimate from the site name; Google does not classify this property): brand ${deep.brand.brandedClicks} clicks / ${deep.brand.brandedImpressions} impressions; non-brand ${deep.brand.nonBrandedClicks} clicks / ${deep.brand.nonBrandedImpressions} impressions.`);
     if (deep.devices.length) L.push(`- Devices (28 days): ${deep.devices.map((x) => `${x.key.toLowerCase()} ${x.clicks} clicks / ${x.impressions} impressions, CTR ${(x.ctr * 100).toFixed(1)}%, position ${x.position}`).join("; ")}.`);
     if (deep.countries.length) L.push(`- Top countries (28 days): ${deep.countries.slice(0, 4).map((x) => `${x.key.toUpperCase()} ${x.impressions} impressions`).join(", ")}.`);
-    const st = [deep.searchTypes.image, deep.searchTypes.video].filter((x) => x && x.impressions > 0);
-    L.push(st.length ? `- Image and video search (28 days): ${st.map((x) => `${x!.key} ${x!.clicks} clicks / ${x!.impressions} impressions`).join("; ")}.` : "- Image and video search (28 days): no impressions.");
-    if (deep.sections.length) L.push(`- By site section (28 days vs the 28 before): ${deep.sections.slice(0, 4).map((x) => `${x.section} ${x.pages} pages, ${x.clicks} clicks (was ${x.clicksPrev}), ${x.impressions} impressions (was ${x.impressionsPrev})`).join("; ")}.`);
-    if (deep.emerging.length) L.push(`- New searches appearing this window: ${deep.emerging.slice(0, 5).map((q) => `"${q.key}" (${q.impressions})`).join(", ")}.`);
+    if (deep.surfaces?.length) L.push(`- Search surfaces (28 days vs the 28 before): ${deep.surfaces.map((x) => `${SURFACE[x.key] ?? x.key} ${x.clicks} clicks (${sign(x.clicks - x.clicksPrev)}) / ${x.impressions} impressions (${sign(x.impressions - x.impressionsPrev)})`).join("; ")}.`);
+    else {
+      const st = [deep.searchTypes.image, deep.searchTypes.video].filter((x) => x && x.impressions > 0);
+      L.push(st.length ? `- Image and video search (28 days): ${st.map((x) => `${x!.key} ${x!.clicks} clicks / ${x!.impressions} impressions`).join("; ")}.` : "- Image and video search (28 days): no impressions.");
+    }
+    if (deep.appearances?.length) L.push(`- Search appearances / rich results (28 days): ${deep.appearances.slice(0, 5).map((x) => `${x.key.replace(/_/g, " ").toLowerCase()} ${x.impressions} impressions, ${x.clicks} clicks`).join("; ")}.`);
+    if (d.bands) L.push(`- Rankings by band (28 days, queries with 10+ impressions): positions 4 to 10: ${d.bands.b4_10.length}${d.bands.b4_10[0] ? ` (biggest "${d.bands.b4_10[0].query}", ${d.bands.b4_10[0].impressions})` : ""}; 11 to 20: ${d.bands.b11_20.length}${d.bands.b11_20[0] ? ` (biggest "${d.bands.b11_20[0].query}", ${d.bands.b11_20[0].impressions})` : ""}; 21 to 40: ${d.bands.b21_40.length}.`);
     const bigTopics = deep.clusters.filter((c) => c.impressions >= 20);
-    L.push(bigTopics.length ? `- Biggest search topics (28 days): ${bigTopics.slice(0, 4).map((c) => `"${c.label}" ${c.impressions} impressions at position ${c.position} (${c.intent})`).join("; ")}.` : "- No search topic reached 20 impressions in the latest 28 days.");
+    if (bigTopics.length) L.push(`- Biggest search topics (28 days): ${bigTopics.slice(0, 4).map((c) => `"${c.label}" ${c.impressions} impressions at position ${c.position} (${c.intent})`).join("; ")}.`);
+    if (deep.queries90 && (deep.queries90.gaining.length || deep.queries90.losing.length)) L.push(`- 90-day movement (${deep.queries90.window.start} to ${deep.queries90.window.end} vs the 90 before): gaining ${deep.queries90.gaining.slice(0, 3).map((q) => `"${q.key}" ${q.imprPrev} to ${q.imprCur}`).join(", ") || "none"}; losing ${deep.queries90.losing.slice(0, 3).map((q) => `"${q.key}" ${q.imprPrev} to ${q.imprCur}`).join(", ") || "none"} (impressions).`);
+    if (deep.emerging.length) L.push(`- New searches this window: ${deep.emerging.slice(0, 4).map((q) => `"${q.key}" (${q.impressions})`).join(", ")}.`);
+    if (deep.templateLosses?.length) L.push(`- Sections losing visibility together: ${deep.templateLosses.slice(0, 3).map((x) => `${x.section} ${x.impressionsPrev} to ${x.impressions} impressions across ${x.pagesPrev} to ${x.pages} pages`).join("; ")}.`);
+    else if (deep.sections.length) L.push(`- By site section (28 days vs the 28 before): ${deep.sections.slice(0, 3).map((x) => `${x.section} ${x.clicks} clicks (was ${x.clicksPrev}), ${x.impressions} impressions (was ${x.impressionsPrev})`).join("; ")}.`);
   }
   const limits = [...d.status.notes, ...d.dataQualityNotes];
-  L.push(`- Limits: Search Console only shows searches the site already appears for; small numbers are noise.${limits.length ? ` ${limits.join(" ")}` : ""}`);
+  if (limits.length) L.push(`- Data limits: ${limits.join(" ")}`);
 
-  // 2. the opportunities: the unresolved queue, best first
+  // B
   const unresolved = unresolvedImprovements(i.queue, i.now);
-  L.push("", `2. TOP OPPORTUNITIES (${unresolved.length}; full detail in the instruction below)`);
+  L.push("", `B. BIGGEST SEARCH OPPORTUNITIES (${unresolved.length}, ranked by likely business impact: realistic extra visitors x likelihood x business value / effort)`);
   if (!unresolved.length) L.push("- None with enough evidence this week. The instruction below asks for validation instead of inventing work.");
   unresolved.forEach((u, n) => {
-    L.push(`${n + 1}. [${u.ref}] ${(u.category ?? u.kind.replace(/_/g, " ")).toUpperCase()}: ${u.title}`);
+    L.push(`${n + 1}. [${u.ref}] ${u.title}`);
+    L.push(`   ${(u.category ?? u.kind.replace(/_/g, " ")).toUpperCase()}${u.horizon ? ` | ${u.horizon}` : ""}${u.confidence ? ` | confidence ${u.confidence}` : ""}${u.scope && u.scope !== "page" ? ` | affects the whole ${u.scope}` : ""}`);
+    if (u.why) L.push(`   Why it brings more visitors: ${u.why}`);
     if (u.evidence[0]) L.push(`   Evidence: ${u.evidence[0]}`);
-    if (u.urls.length) L.push(`   Pages: ${u.urls.slice(0, 4).map(pathOf).join(", ")}`);
-    if (u.competitorUrls.length) L.push(`   Competing pages: ${u.competitorUrls.slice(0, 2).join("; ")}`);
+    L.push(`   Expected benefit: ${u.potentialClicks28 > 0 ? `up to about ${u.potentialClicks28} more Google clicks per 28 days (an estimate from impressions and typical click rates, not a forecast)` : "size unknown: no free source gives search volume, so no number is claimed"}`);
     const sentAt = i.sent.get(i.queue.find((q) => q.ref === u.ref)?.id ?? "");
     if (sentAt) L.push(`   Already sent to GrokBot on ${sentAt.slice(0, 10)}: this is the same request, not a new one.`);
   });
 
-  // 3. competitors: only the relevant ones
-  L.push("", `3. COMPETITORS (public pages observed ${d.competitors.observedAt.slice(0, 10)}; covering a topic is not a ranking; competitor traffic and backlinks are not available)`);
-  L.push(d.competitors.known.length ? `- Relevant: ${(deep?.competitorFilter.kept.length ? deep.competitorFilter.kept : d.competitors.known.map((k) => k.website)).join("; ")}` : "- No relevant competitor confirmed this week.");
-  if (deep?.competitorFilter.rejected.length) L.push(`- Rejected as not genuinely competing: ${deep.competitorFilter.rejected.map((r) => r.site).join(", ")}.`);
-  if (deep?.demand.uncaptured.length) L.push(`- Searches people type that the site is not found for (${deep.demand.source}, ${deep.demand.checkedAt.slice(0, 10)}; existence, not volume): ${deep.demand.uncaptured.map((u) => `"${u.label}"`).join(", ")}.`);
-  if (d.competitors.newPages.length) L.push(`- New competitor pages since the previous observation: ${d.competitors.newPages.slice(0, 4).map((p) => p.url).join(", ")}.`);
+  // C
+  L.push("", `C. MISSING SEARCH DEMAND (${deep?.demand.source ?? "public autocomplete"}, checked ${deep?.demand.checkedAt.slice(0, 10) ?? "n/a"}; proves people type these, not how many)`);
+  if (deep?.demand.uncaptured.length) {
+    for (const g of deep.demand.uncaptured.slice(0, 5)) {
+      const ex = g.existingPage;
+      L.push(`- "${g.label}"${g.strength ? ` [demand ${g.strength.score}/5, ${g.strength.level}]` : ""}: ${g.queries.slice(1, 4).map((q) => `"${q}"`).join(", ")}${ex ? `. Existing page: ${pathOf(ex.url)} (${ex.covers ? "already covers it; a visibility problem" : "closest page; expand it"})` : ". No page of the site serves it yet"}.`);
+    }
+  } else L.push(`- ${deep?.demand.notes[0] ?? "Not researched this week."}`);
+  const sa = deep?.seasonalAhead;
+  if (sa?.queries.length) L.push(`- Coming season (searches that earned impressions ${sa.window.start} to ${sa.window.end} last year, not yet this year): ${sa.queries.slice(0, 5).map((q) => `"${q.query}" ${q.impressionsLastYear} last year`).join(", ")}.`);
+  else if (sa) L.push(`- Coming season: ${sa.note}`);
+  if (deep?.inventory) L.push(`- Checked against the site's own ${deep.inventory.pages} sitemap pages, so existing pages are expanded before anything new is built.`);
 
-  // 4. history and 5. measured results
-  L.push("", "4. RECOMMENDATION HISTORY (persistent IDs; NEW means first reported since the previous audit)");
+  // D
+  L.push("", `D. COMPETITOR INTELLIGENCE (public pages observed ${d.competitors.observedAt.slice(0, 10)}; a published page is not a ranking; competitor traffic and backlinks are not available)`);
+  L.push(d.competitors.known.length ? `- Relevant competitors: ${(deep?.competitorFilter.kept.length ? deep.competitorFilter.kept.map((k) => k.replace(/ \(.*$/, "")) : d.competitors.known.map((k) => k.website)).join(", ")}` : "- No relevant competitor confirmed this week.");
+  if (deep?.competitorFilter.rejected.length) L.push(`- Rejected as not genuinely competing: ${deep.competitorFilter.rejected.slice(0, 6).map((r) => r.site).join(", ")}.`);
+  for (const it of (deep?.intents ?? []).filter((x) => x.competitorPages.length || x.weDoBetter.length).slice(0, 4)) {
+    L.push(`- Intent "${it.label}"${it.position ? ` (ours at position ${it.position}${it.ourUrl ? ` with ${pathOf(it.ourUrl)}` : ""})` : it.ourUrl ? ` (ours: ${pathOf(it.ourUrl)})` : " (no page of ours yet)"}:`);
+    for (const p of it.competitorPages) L.push(`    ${p.url} "${p.title.slice(0, 70)}" (about ${p.words} words${p.hasTool ? ", interactive tool" : ""}${p.tables ? `, ${p.tables} table(s)` : ""}${p.hasFaqSchema ? ", FAQ markup" : ""})`);
+    if (it.theyCover.length) L.push(`    They cover, we do not: ${it.theyCover.slice(0, 3).map((x) => x.replace(/ \(https?:[^)]+\)$/, "")).join("; ")}`);
+    if (it.weDoBetter.length) L.push(`    We already do better: ${it.weDoBetter.join("; ")}`);
+  }
+  if (d.competitors.newPages.length) L.push(`- New competitor pages since the previous observation: ${d.competitors.newPages.slice(0, 4).map((p) => p.url).join(", ")}.`);
+  if (deep?.partners?.length) L.push(`- Listing and partnership prospects already qualified (owner action only; unsolicited outreach stays paused): ${deep.partners.slice(0, 3).map((p) => `${p.name} ${p.url} (found ${p.foundAt})`).join("; ")}.`);
+
+  // E
+  L.push("", "E. RECOMMENDED ACTIONS (what to improve, build, consolidate or promote)");
+  const verb = (u: (typeof unresolved)[number]) =>
+    u.kind === "cannibalization" ? "CONSOLIDATE" : u.kind === "indexing" || u.kind === "template_loss" ? "FIX" : u.kind === "new_demand" && /^Capture/.test(u.title) ? "BUILD" : u.kind === "conversion" ? "CONVERT" : "IMPROVE";
+  if (!unresolved.length) L.push("- Validate the site's top intents (see the instruction) before any new work.");
+  unresolved.forEach((u) => L.push(`- ${verb(u)} [${u.ref}]: ${u.actions[0] ?? u.title}`));
+  if (deep?.partners?.length) L.push("- PROMOTE: list the site on the qualified listing pages above where the owner judges it appropriate; GravyBlock's off-site promotion continues for permitted channels only.");
+
+  // F
+  L.push("", "F. =================== COMPLETE DEVELOPMENT INSTRUCTION (route to this site's own developer; copy everything between the lines) ===================");
+  const done = i.queue.filter((r) => r.status === "verified" || r.status === "completed").map((r) => `[${r.ref}] ${r.title}${r.verification?.deployed ? " (confirmed live)" : ""}`);
+  L.push(buildPrompt(d, unresolved, done));
+  L.push("=================== END OF INSTRUCTION ===================");
+
+  // G
+  L.push("", "G. PREVIOUS WORK AND RESULTS (persistent IDs; live checks are read only; search results measured separately and never assumed to be caused by the change)");
   const grouped = new Map<AuditBucket, string[]>();
   for (const r of i.queue) {
     const b = auditBucket(r, i.sent.has(r.id), i.previousAuditAt);
@@ -159,16 +206,20 @@ export function buildSiteAuditEmail(i: SiteAuditInput): { subject: string; text:
     buckets[b] = (buckets[b] ?? 0) + 1;
     (grouped.get(b) ?? grouped.set(b, []).get(b)!).push(r.ref);
   }
-  for (const b of AUDIT_ORDER) if (grouped.get(b)?.length) L.push(`- ${b}: ${grouped.get(b)!.join(", ")}`);
-  if (!grouped.size) L.push("- none on record");
-  const measured = i.queue.filter((r) => r.verification || (r.outcome && r.outcome.verdict !== "too_early"));
-  L.push("", "5. RESULTS OF EARLIER WORK (read-only checks of the live site; search results measured separately and never assumed to be caused by the change)");
-  if (!measured.length) L.push("- No completed work has been checked yet.");
-  for (const r of measured.slice(0, 6)) L.push(`- ${r.ref} ${r.title}: ${r.verification ? (r.verification.deployed ? "fix confirmed live" : "fix not yet visible on the live site") : ""}${r.outcome && r.outcome.verdict !== "too_early" ? `; measured: ${r.outcome.verdict.replace(/_/g, " ")} (${r.outcome.before?.clicks ?? "n/a"} to ${r.outcome.after?.clicks ?? "n/a"} clicks over equal 28-day windows)` : ""}`);
+  for (const b of AUDIT_ORDER) if (grouped.get(b)?.length && !["VERIFIED", "COMPLETED"].includes(b)) L.push(`- ${b}: ${grouped.get(b)!.join(", ")}`);
+  const doneRecs = i.queue.filter((r) => r.status === "verified" || r.status === "completed").sort((a, b) => (b.verifiedAt ?? b.completedAt ?? b.lastSeenAt).getTime() - (a.verifiedAt ?? a.completedAt ?? a.lastSeenAt).getTime());
+  if (!doneRecs.length) L.push("- No completed work on record yet.");
+  for (const r of doneRecs.slice(0, 6)) {
+    const when = (r.verifiedAt ?? r.completedAt)?.toISOString().slice(0, 10) ?? "";
+    const live = r.status === "verified" ? `live since ${when}${/Detected live/.test(r.verification?.note ?? "") ? " (implemented outside GravyBlock, detected on the live site)" : ""}` : `completed ${when}, ${r.verification?.deployed === false ? "not yet visible on the live site" : "awaiting the live check"}`;
+    const res = r.outcome && r.outcome.verdict !== "too_early" ? `Google result: ${r.outcome.verdict.replace(/_/g, " ")} (${r.outcome.before?.clicks ?? "n/a"} to ${r.outcome.after?.clicks ?? "n/a"} clicks over equal 28-day windows; not proof of cause)` : "Google result: measured once 28 days have passed";
+    L.push(`- [${r.ref}] ${r.title}: ${live}. ${res}.`);
+  }
 
-  L.push("", "6. =================== COPY-READY DEVELOPMENT INSTRUCTION (route to this site's own developer; copy everything between the lines) ===================");
-  L.push(buildPrompt(d, unresolved));
-  L.push("=================== END OF INSTRUCTION ===================");
+  // H
+  L.push("", "H. CONFIDENCE AND MEASUREMENT");
+  unresolved.forEach((u) => L.push(`- [${u.ref}] confidence ${u.confidence ?? "not rated"}. ${u.uncertainty ? `Uncertain: ${u.uncertainty} ` : ""}Measured by: ${u.measure ?? "the affected pages' Google clicks over 28 days before and after"}.`));
+  L.push("- A deployed change is confirmed by a read-only check of the live page; a traffic result is reported only after 28 days of data and is never claimed as caused by the change.");
   const text = scrubPersonal(L.join("\n"));
   return { subject: `[GravyBlock Weekly Audit] ${i.week} — ${i.report.name} (${i.index} of ${i.total})`, text, buckets };
 }
@@ -255,6 +306,8 @@ export async function composeWeeklyAudit(now: Date, week: string, ownPrefix = `a
   const previousAuditAt = prevAudit?.at ? new Date(prevAudit.at) : null;
   const blocks: string[] = [];
   const summaryLines: string[] = [];
+  const best: Array<{ site: string; title: string; priority: number; horizon?: string; ref?: string }> = [];
+  const learned: string[] = [];
   let idx = 0;
   for (const report of ordered) {
     idx++;
@@ -267,16 +320,21 @@ export async function composeWeeklyAudit(now: Date, week: string, ownPrefix = `a
       if (rec && (!began || new Date(s.sent_at) >= began)) sent.set(s.recommendation_id, new Date(s.sent_at).toISOString());
     }
     const email = buildSiteAuditEmail({ report, queue, sent, previousAuditAt, index: idx, total: ordered.length, week, now });
+    const top = unresolvedImprovements(queue, now)[0];
+    if (top) best.push({ site: report.name, title: top.title, priority: top.priority, horizon: top.horizon, ref: top.ref });
+    for (const r of queue.filter((q) => q.outcome && q.outcome.verdict !== "too_early" && q.outcome.verdict !== "low_sample")) learned.push(`- ${report.name} [${r.ref}] ${r.kind.replace(/_/g, " ")}: ${r.outcome!.verdict.replace(/_/g, " ")} (${r.outcome!.before?.clicks ?? "n/a"} to ${r.outcome!.after?.clicks ?? "n/a"} clicks)`);
     // Fewer links per message: the site's own URLs are written as paths under one stated base (the 27 Nov audits carried 37 to 87 full URLs each).
     const base = siteBase(report.data.site.website);
     blocks.push(`\n\n######## SITE ${idx} OF ${ordered.length}: ${report.name} ########\n${base ? `All paths in this section are on ${base}\n` : ""}\n${base ? relativize(email.text, base) : email.text}`);
     summaryLines.push(`- ${report.name}: ${Object.entries(email.buckets).map(([b, n]) => `${b} ${n}`).join(", ") || "no recommendations"}; 28-day clicks ${report.data.w28?.cur.clicks ?? "n/a"}${report.data.w28 ? ` (${sign(report.data.w28.clicksChange)})` : ""}`);
   }
-  const parts = packParts(blocks);
+  // three parts as before: the part size grows with the audit (never past 90,000 characters, well under Gmail's clipping size), so a fuller audit stays in three
+  const totalChars = blocks.reduce((n, b) => n + b.length, 0);
+  const parts = packParts(blocks, Math.min(90_000, Math.max(PART_LIMIT_CHARS, Math.ceil(totalChars / 3) + 6_000)));
   
   // Every site's section must land in exactly one part with its instruction, so nothing disappears when the audit is split. Refuse to send otherwise.
   const placed = parts.flat().sort((a, b) => a - b);
-  if (placed.length !== blocks.length || placed.some((v, i) => v !== i) || blocks.some((b) => !b.includes("COPY-READY DEVELOPMENT INSTRUCTION"))) {
+  if (placed.length !== blocks.length || placed.some((v, i) => v !== i) || blocks.some((b) => !b.includes("COMPLETE DEVELOPMENT INSTRUCTION"))) {
     return { houses, reports, ordered, blocks, parts, summary: "", complete: false as const };
   }
   const s = summarizePortfolio(reports, houses.map((h) => h.name), week);
@@ -292,8 +350,11 @@ export async function composeWeeklyAudit(now: Date, week: string, ownPrefix = `a
     "Recommendations by status per site (NEW means first reported since the previous audit; HANDED OFF means already emailed on its own or copied):",
     ...summaryLines,
     "",
-    "Top priorities this week:",
-    ...s.priorities.map((p, n) => `${n + 1}. ${p.site}: ${p.title}`),
+    "Top priorities this week (each site's best unresolved opportunity; completed and verified work is never listed):",
+    ...best.sort((a, b) => b.priority - a.priority).slice(0, 5).map((p, n) => `${n + 1}. ${p.site}: ${p.title}${p.horizon ? ` (${p.horizon})` : ""}${p.ref ? ` [${p.ref}]` : ""}`),
+    "",
+    "What earlier work did in Google (equal 28-day windows before and after; a measured change, not proof of cause; future ranking leans slightly toward kinds of work that measured well):",
+    ...(learned.length ? learned.slice(0, 8) : ["- No completed work has 28 days of after-data yet."]),
     "",
     "Parts:",
     ...parts.map((p, n) => `- Part ${n + 1}: ${p.map((i) => ordered[i]!.name).join(", ")}`),

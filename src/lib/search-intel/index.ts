@@ -8,7 +8,7 @@ import { listHouseAccounts } from "@/lib/house";
 import { gatherSearchIntel, weekEndingFor } from "./gather";
 import { buildPrompt, candidateImprovements, deriveImprovements } from "./prompt";
 import { growthOpportunities } from "./growth";
-import { collectEmailItems, loadQueue, markEmailed, supersedeLegacy, measureOutcomes, syncRecommendations, unresolvedImprovements, verifyCompleted, type EmailItem } from "./recommendations";
+import { collectEmailItems, detectImplemented, loadQueue, markEmailed, supersedeLegacy, measureOutcomes, syncRecommendations, unresolvedImprovements, verifyCompleted, type EmailItem } from "./recommendations";
 import { BUCKET_LABEL, type EmailBucket } from "./recommendation-model";
 import { enqueueGrokbot, grokbotSummary } from "./grokbot";
 import type { Improvement, SiteIntel } from "./types";
@@ -27,11 +27,14 @@ export async function generateSearchIntelForSite(businessId: string, now = new D
   // Recommendations are persistent: this updates existing ones, creates only genuinely new ones, and the prompt is built from UNRESOLVED stored work.
   // v2: growth opportunities ranked and deduplicated by root cause; older single-symptom recommendations they replace are retired with a history note
   const candidates = intel.deep ? growthOpportunities(intel) : candidateImprovements(intel);
+  // before anything is recommended: work already live on the site (whoever built it) is verified, so it is never recommended again
+  await detectImplemented(businessId, now).catch(() => null);
   const sync = await syncRecommendations(businessId, candidates, intel.weekEnding, now);
   if (intel.deep) await supersedeLegacy(businessId, candidates).catch(() => null);
   await enqueueGrokbot(businessId, now).catch(() => null); // queue (never send here) new or reopened occurrences found after activation
   const improvements = unresolvedImprovements(await loadQueue(businessId), now);
-  const prompt = buildPrompt(intel, improvements);
+  const done = (await loadQueue(businessId)).filter((r) => r.status === "verified" || r.status === "completed").map((r) => `[${r.ref}] ${r.title}`);
+  const prompt = buildPrompt(intel, improvements, done);
   await db.execute(sql`insert into search_intel_reports (business_id, week_ending, data, prompt) values (${businessId}, ${intel.weekEnding}, ${JSON.stringify(intel)}::jsonb, ${prompt})
     on conflict (business_id, week_ending) do update set data = excluded.data, prompt = excluded.prompt, created_at = now()`);
   return { ok: true, weekEnding: intel.weekEnding, improvements: improvements.length, sync };
@@ -44,6 +47,7 @@ export async function generateSearchIntelForSite(businessId: string, now = new D
 export async function runDailySearchIntel(businessId: string, now = new Date()): Promise<{ ok: boolean; sync?: Awaited<ReturnType<typeof syncRecommendations>>; verified?: number; measured?: number; reason?: string }> {
   const intel = await gatherSearchIntel(businessId, now, { competitors: false });
   if (!intel) return { ok: false, reason: "not_eligible_or_missing" };
+  await detectImplemented(businessId, now).catch(() => null);
   const sync = await syncRecommendations(businessId, intel.deep ? growthOpportunities(intel) : candidateImprovements(intel), intel.weekEnding, now);
   await enqueueGrokbot(businessId, now).catch(() => null);
   const v = await verifyCompleted(businessId, now);

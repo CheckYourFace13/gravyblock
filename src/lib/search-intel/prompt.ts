@@ -223,7 +223,7 @@ export function deriveImprovements(intel: SiteIntel): Improvement[] {
 
 const list = (items: string[], indent = "   ") => items.map((i) => `${indent}- ${i}`).join("\n");
 
-export function buildPrompt(intel: SiteIntel, improvements: Improvement[]): string {
+export function buildPrompt(intel: SiteIntel, improvements: Improvement[], done: string[] = []): string {
   const site = intel.site.website ?? intel.site.name;
   const w28 = intel.w28;
   const preserve = intel.topPages.slice(0, 8).map((p) => `${p.page} (${p.clicks} clicks, ${p.impressions} impressions in the latest 28 days)`);
@@ -236,6 +236,12 @@ export function buildPrompt(intel: SiteIntel, improvements: Improvement[]): stri
     lines.push(`- Who it is for: ${intel.deep.profile.audience}.`);
     lines.push(`- What a qualified visitor should do next: ${intel.deep.profile.conversions.join("; ")}.`);
     lines.push("- Respect existing functionality and the site's own indexing safeguards; if a change would conflict with one, explain instead of overriding it.");
+    lines.push("- Every change must attract MORE relevant visitors or turn more of them into users; an SEO score is not the goal.");
+    lines.push("");
+  }
+  if (done.length) {
+    lines.push("ALREADY DONE (confirmed or reported complete; do NOT redo these, and do not undo them)");
+    lines.push(list(done.slice(0, 8), ""));
     lines.push("");
   }
   lines.push("DATA QUALITY (read first)");
@@ -260,12 +266,16 @@ export function buildPrompt(intel: SiteIntel, improvements: Improvement[]): stri
     improvements.forEach((imp, n) => {
       lines.push("");
       lines.push(`${n + 1}. ${imp.ref ? `[${imp.ref}] ` : ""}${imp.title}`);
+      if (imp.horizon || imp.confidence) lines.push(`   ${[imp.horizon, imp.confidence ? `confidence ${imp.confidence}` : "", imp.scope && imp.scope !== "page" ? `affects the whole ${imp.scope}` : ""].filter(Boolean).join(" | ")}`);
+      if (imp.why) lines.push(`   Why: ${imp.why}`);
       if (imp.urls.length) lines.push(`   Affected URLs:\n${list(imp.urls, "     ")}`);
       lines.push(`   Evidence:\n${list(imp.evidence, "     ")}`);
       if (imp.potentialClicks28 > 0) lines.push(`   Upper-bound opportunity: roughly ${imp.potentialClicks28} more Google clicks per 28 days if fully fixed (an estimate from impressions and typical click rates, not a forecast).`);
       if (imp.competitorUrls.length) lines.push(`   Competitor reference URLs (research only):\n${list(imp.competitorUrls, "     ")}`);
       lines.push(`   Do:\n${list(imp.actions, "     ")}`);
       lines.push(`   Acceptance:\n${list(imp.acceptance, "     ")}`);
+      if (imp.measure) lines.push(`   How GravyBlock will measure it: ${imp.measure}`);
+      lines.push("   Before starting: check the live page. If this is already implemented, report that (with the live URL) instead of changing anything.");
     });
   }
   lines.push("");

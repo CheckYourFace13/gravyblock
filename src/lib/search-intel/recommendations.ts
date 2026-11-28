@@ -8,9 +8,11 @@ import { getFreshAccessToken, getGoogleConnection } from "@/lib/integrations/goo
 import { gscQuery } from "@/lib/seo/existing-pages";
 import { isSafePublicUrl, safeFetchText } from "@/lib/net/safe-fetch";
 import {
-  afterOpen, canTransition, classifyOutcome, emailBucket, evaluateVerification, fingerprintOf, normalizeUrl, onSeen, outcomeWindows, OWNER_STATUSES, shortRef, snapshotFromHtml,
-  type EmailBucket, type Outcome, type PageSnap, type Status, type VerifyResult,
+  afterOpen, canTransition, classifyOutcome, emailBucket, evaluateVerification, fingerprintOf, implementationEvidence, normalizeUrl, onSeen, outcomeWindows, OWNER_STATUSES, sameWork, shortRef, snapshotFromHtml, targetQueriesOf,
+  type Coverage, type EmailBucket, type LiveEvidence, type Outcome, type PageSnap, type Status, type VerifyResult,
 } from "./recommendation-model";
+import { coversIntent, fetchDetail, inventoryMatches } from "./research";
+import { readSitemapUrls } from "./gather";
 import { pickTop } from "./prompt";
 import type { Improvement } from "./types";
 
@@ -94,20 +96,106 @@ export async function captureSnapshots(urls: string[], now: Date): Promise<PageS
   return out;
 }
 
-/**
- * Weekly regeneration and the daily check both end here. A candidate whose identity already exists UPDATES that record (status and history untouched); only an
- * unknown identity creates a record; a verified one that returns after the grace period is reopened with a new occurrence.
- */
-export async function syncRecommendations(businessId: string, candidates: Improvement[], week: string, now = new Date()): Promise<{ created: number; updated: number; reopened: number; kept: number }> {
+/* ───────────── is the work already live? (read only; recognises fixes made by a site's own developer) ───────────── */
+
+export type SiteInventory = { urls: string[] };
+
+export async function siteInventory(businessId: string): Promise<SiteInventory> {
   const db = getDb();
-  const out = { created: 0, updated: 0, reopened: 0, kept: 0 };
+  if (!db) return { urls: [] };
+  const [b] = rowsOf<{ website: string | null }>(await db.execute(sql`select website from businesses where id = ${businessId} limit 1`));
+  try {
+    if (!b?.website) return { urls: [] };
+    const origin = new URL(/^https?:\/\//i.test(b.website) ? b.website : `https://${b.website}`).origin;
+    const host = new URL(origin).hostname.replace(/^www\./, "").toLowerCase();
+    return { urls: ((await readSitemapUrls(origin, host)) ?? []).map((e) => e.loc) };
+  } catch {
+    return { urls: [] };
+  }
+}
+
+/**
+ * Checks one recommendation against the live site: its own pages compared with the snapshots taken when it was first reported and, for searches the site
+ * was missing, whether any page on the site (found through its sitemap) now plainly serves them. Null when this kind cannot be judged from the live pages.
+ */
+export async function liveImplementation(imp: Pick<Improvement, "kind" | "urls" | "title" | "evidence" | "targetQueries">, baseline: PageSnap[] | null, inv: SiteInventory, now: Date): Promise<LiveEvidence | null> {
+  const current = await captureSnapshots(imp.urls, now);
+  const coverage: Coverage[] = [];
+  if (imp.kind === "new_demand" || imp.kind === "seasonal") {
+    const queries = targetQueriesOf(imp);
+    if (!queries.length) return null;
+    const pages = [...new Set([...imp.urls, ...queries.flatMap((q) => inventoryMatches(inv.urls, q, 2))])].slice(0, 5);
+    for (const u of pages) {
+      const f = await fetchDetail(u, now.toISOString()).catch(() => null);
+      if (!f) continue;
+      const c = coversIntent(f, queries);
+      coverage.push({ url: f.url, covered: c.covered, by: c.by, indexable: f.indexable });
+      if (c.covered && f.indexable) break;
+    }
+  }
+  return implementationEvidence(imp, baseline ?? [], current, coverage);
+}
+
+/**
+ * Before every report (weekly and daily): any unfinished recommendation that is objectively live on the site is marked verified, with the evidence, whoever
+ * implemented it. This is what stops completed work being recommended again. It says the change is live, never that search results improved; the outcome
+ * is measured separately over the following 28 days.
+ */
+export async function detectImplemented(businessId: string, now = new Date(), opts: { dryRun?: boolean } = {}): Promise<{ checked: number; implemented: Array<{ ref: string; title: string; how: string }> }> {
+  const db = getDb();
+  const out = { checked: 0, implemented: [] as Array<{ ref: string; title: string; how: string }> };
   if (!db) return out;
+  const recs = rowsOf<Raw>(await db.execute(sql`select * from search_recommendations where business_id = ${businessId} and status in ('new', 'opened', 'in_progress', 'completed')`)).map(toRec);
+  if (!recs.length) return out;
+  const inv = await siteInventory(businessId);
+  for (const r of recs) {
+    const ev = await liveImplementation(r.improvement, r.baseline, inv, now).catch(() => null);
+    if (!ev) continue;
+    out.checked++;
+    if (!ev.implemented) continue;
+    out.implemented.push({ ref: r.ref, title: r.title, how: ev.how });
+    if (opts.dryRun) continue;
+    const v: VerifyResult = { deployed: true, level: ev.level, checks: ev.checks, at: now.toISOString(), note: `Detected live on ${now.toISOString().slice(0, 10)}: ${ev.how}. Implemented outside GravyBlock (for example by the site's own developer) or by a reviewed change; GravyBlock did not deploy it. This confirms the change is live, not that search results improved.` };
+    await db.execute(sql`update search_recommendations set status = 'verified', completed_at = coalesce(completed_at, now()), verified_at = now(), verification = ${JSON.stringify(v)}::jsonb, outcome = null where id = ${r.id}::uuid and status in ('new', 'opened', 'in_progress', 'completed')`);
+    await logEvent(r.id, businessId, "detected_live", { from: r.status, to: "verified", note: v.note, meta: { checks: ev.checks } });
+  }
+  return out;
+}
+
+/**
+ * Weekly regeneration and the daily check both end here. A candidate whose identity already exists UPDATES that record (status and history untouched). A candidate
+ * describing the SAME work as an existing record under a slightly different identity (a shifted topic label) updates that record instead of creating a twin, and
+ * is suppressed entirely when that work is in progress, completed, verified or dismissed. A verified record is reopened only when the live check shows a regression.
+ */
+export async function syncRecommendations(businessId: string, candidates: Improvement[], week: string, now = new Date()): Promise<{ created: number; updated: number; reopened: number; kept: number; suppressed: number }> {
+  const db = getDb();
+  const out = { created: 0, updated: 0, reopened: 0, kept: 0, suppressed: 0 };
+  if (!db) return out;
+  const all = rowsOf<Raw>(await db.execute(sql`select * from search_recommendations where business_id = ${businessId}`));
+  let inv: SiteInventory | null = null;
   for (const imp of candidates) {
     const fp = fingerprintOf(businessId, imp.kind, imp.issue, imp.identityUrls);
-    const [ex] = rowsOf<Raw>(await db.execute(sql`select * from search_recommendations where business_id = ${businessId} and fingerprint = ${fp} limit 1`));
+    let ex = all.find((r) => r.fingerprint === fp);
+    if (!ex) {
+      const twin = all.find((r) => r.improvement && sameWork(imp, r.improvement as Improvement));
+      // an owner dismissal blocks only the same kind of item; legacy items the system itself retired never block a new, better-described one
+      if (twin && (["in_progress", "completed", "verified"].includes(twin.status as string) || (twin.status === "dismissed" && twin.kind === imp.kind))) {
+        out.suppressed++;
+        const [seen] = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from search_recommendation_events where recommendation_id = ${twin.id as string}::uuid and type = 'similar_suppressed' and at > now() - interval '6 days'`));
+        if (!Number(seen?.n ?? 0)) await logEvent(twin.id as string, businessId, "similar_suppressed", { note: `the analysis found this same work again ("${imp.title.slice(0, 120)}"); not re-recommended because it is ${twin.status}`, meta: { week } });
+        continue;
+      }
+      if (twin && twin.status !== "dismissed") ex = twin; // same unfinished work under a shifted label: refresh it, keep its identity and history
+    }
     const keepRefs = imp.competitorUrls.length === 0 && ex ? ((ex.improvement as Improvement | null)?.competitorUrls ?? []) : imp.competitorUrls;
-    const json = JSON.stringify({ ...imp, competitorUrls: keepRefs, ref: shortRef(fp) });
-    const decision = onSeen(ex ? { status: ex.status as Status, verifiedAt: d(ex.verified_at), occurrence: Number(ex.occurrence) } : null, now);
+    const json = JSON.stringify({ ...imp, competitorUrls: keepRefs, ref: shortRef((ex?.fingerprint as string) ?? fp) });
+    let stillLive: boolean | null = null;
+    if (ex && ex.status === "verified") {
+      inv = inv ?? (await siteInventory(businessId));
+      const ev = await liveImplementation(ex.improvement as Improvement, (ex.baseline as PageSnap[] | null) ?? null, inv, now).catch(() => null);
+      stillLive = ev ? ev.implemented : null;
+    }
+    const decision = onSeen(ex ? { status: ex.status as Status, verifiedAt: d(ex.verified_at), occurrence: Number(ex.occurrence) } : null, now, stillLive);
     if (decision.action === "create") {
       const baseline = await captureSnapshots(imp.urls, now);
       const [row] = rowsOf<{ id: string }>(await db.execute(sql`insert into search_recommendations (business_id, fingerprint, kind, issue, title, improvement, priority, last_report_week, baseline)
@@ -116,6 +204,7 @@ export async function syncRecommendations(businessId: string, candidates: Improv
       if (row) {
         await logEvent(row.id, businessId, "seen", { to: "new", note: "first reported", meta: { week } });
         out.created++;
+        all.push({ id: row.id, fingerprint: fp, status: "new", improvement: { ...imp } });
       }
       continue;
     }
@@ -124,12 +213,14 @@ export async function syncRecommendations(businessId: string, candidates: Improv
       const baseline = await captureSnapshots(imp.urls, now);
       await db.execute(sql`update search_recommendations set status = 'new', occurrence = ${decision.occurrence}, reopened_at = now(), copied_at = null, copy_count = 0, first_emailed_at = null, opened_at = null, in_progress_at = null, completed_at = null, verified_at = null, verified_notified_at = null,
         verification = null, outcome = null, baseline = ${JSON.stringify(baseline)}::jsonb, improvement = ${json}::jsonb, title = ${imp.title}, priority = ${imp.priority}, last_seen_at = now(), last_report_week = ${week} where id = ${id}`);
-      await logEvent(id, businessId, "reopened", { from: "verified", to: "new", note: `came back after being verified (occurrence ${decision.occurrence})`, meta: { week } });
+      await logEvent(id, businessId, "reopened", { from: "verified", to: "new", note: `reopened: the live site no longer shows the verified implementation (a regression), occurrence ${decision.occurrence}`, meta: { week } });
       out.reopened++;
       continue;
     }
-    // update or keep: refresh the evidence and last-seen only; status, timestamps and history are never touched here
-    await db.execute(sql`update search_recommendations set improvement = ${json}::jsonb, title = ${imp.title}, priority = ${imp.priority}, last_seen_at = now(), last_report_week = ${week} where id = ${id}`);
+    // update or keep: refresh the evidence and last-seen only; status, timestamps and history are never touched here. Verified work keeps the improvement it was
+    // verified against (its targets and evidence), so later checks compare like with like.
+    if (decision.action === "keep" && ex!.status === "verified") await db.execute(sql`update search_recommendations set last_seen_at = now(), last_report_week = ${week} where id = ${id}`);
+    else await db.execute(sql`update search_recommendations set improvement = ${json}::jsonb, title = ${imp.title}, priority = ${imp.priority}, last_seen_at = now(), last_report_week = ${week} where id = ${id}`);
     if (decision.action === "update" && ex!.last_report_week !== week) await logEvent(id, businessId, "seen", { note: "seen again in a later weekly report", meta: { week } });
     if (decision.action === "update") out.updated++;
     else out.kept++;
@@ -204,9 +295,16 @@ export async function verifyCompleted(businessId: string, now = new Date()): Pro
   if (!db) return { checked: 0, verified: 0 };
   const recs = rowsOf<Raw>(await db.execute(sql`select * from search_recommendations where business_id = ${businessId} and status = 'completed'`)).map(toRec);
   let verified = 0;
+  let inv: SiteInventory | null = null;
   for (const r of recs) {
     const current = await captureSnapshots(r.improvement.urls, now);
-    const v = evaluateVerification(r.kind, r.issue, r.baseline ?? [], current, now);
+    let v = evaluateVerification(r.kind, r.issue, r.baseline ?? [], current, now);
+    if (v.deployed !== true && (r.kind === "new_demand" || r.kind === "seasonal")) {
+      // searches the site was missing are served by whichever page now covers them, which may be a new page not listed when the work was recommended
+      inv = inv ?? (await siteInventory(businessId));
+      const ev = await liveImplementation(r.improvement, r.baseline, inv, now).catch(() => null);
+      if (ev?.implemented) v = { deployed: true, level: ev.level, checks: ev.checks, at: now.toISOString(), note: `${ev.how}. This confirms the change is live, not that search results improved.` };
+    }
     await db.execute(sql`update search_recommendations set verification = ${JSON.stringify(v)}::jsonb where id = ${r.id}::uuid`);
     if (v.deployed === true) {
       await db.execute(sql`update search_recommendations set status = 'verified', verified_at = now() where id = ${r.id}::uuid and status = 'completed'`);
