@@ -76,3 +76,17 @@ test("configuration defaults to the agreed sender and recipient and respects a c
   assert.equal(grokbotConfig({ GROKBOT_DAILY_CAP: "2", GROKBOT_PAUSED: "1" }).dailyCap, 2);
   assert.equal(grokbotConfig({ GROKBOT_PAUSED: "1" }).paused, true);
 });
+
+import { gateFrom } from "../grokbot";
+
+test("after the v3 switch, immediate emails reopen at the baseline-complete marker and only for occurrences that begin after it", () => {
+  const sw = new Date("2026-11-28T16:46:40Z");
+  assert.deepEqual(gateFrom(sw, null, null), { open: false, since: null });
+  const done = new Date("2026-11-28T18:00:00Z");
+  assert.deepEqual(gateFrom(sw, done, null), { open: true, since: done });
+  const audit = new Date("2026-12-04T12:30:00Z");
+  assert.deepEqual(gateFrom(sw, done, audit), { open: true, since: done });
+  assert.deepEqual(gateFrom(sw, null, audit), { open: true, since: audit });
+  assert.deepEqual(gateFrom(sw, new Date("2026-11-01T00:00:00Z"), null), { open: false, since: null }); // a marker from before the switch does not count
+  assert.deepEqual(gateFrom(null, null, null), { open: true, since: null });
+});

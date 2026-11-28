@@ -204,15 +204,24 @@ export async function enqueueGrokbot(businessId: string, now = new Date(), opts:
   return { queued };
 }
 
-/** Open once a weekly audit has fully completed after the latest analysis switch marker (v2 or v3); immediate emails then cover only occurrences that began after it. */
+/**
+ * After an analysis switch (v2, v3), immediate emails reopen at the earlier of: the owner-approved "baseline complete" marker, or the first weekly audit
+ * delivered after the switch. Either way they cover only occurrences that BEGIN after that moment, so the switch's re-described baseline is never emailed.
+ */
+export function gateFrom(switchAt: Date | null, baselineCompleteAt: Date | null, auditAfterSwitchAt: Date | null): { open: boolean; since: Date | null } {
+  if (!switchAt) return { open: true, since: null };
+  const opens = [baselineCompleteAt, auditAfterSwitchAt].filter((d): d is Date => !!d && d > switchAt).sort((a, b) => a.getTime() - b.getTime());
+  return opens[0] ? { open: true, since: opens[0] } : { open: false, since: null };
+}
+
 export async function v2Gate(): Promise<{ open: boolean; since: Date | null }> {
   const db = getDb();
   if (!db) return { open: false, since: null };
-  // the most recent analysis switch (v2, then v3) holds immediate emails until the first weekly audit after it has been delivered
-  const [m] = rowsOf<{ at: string }>(await db.execute(sql`select max(created_at) at from jobs where type in ('search_intel_v2_baseline', 'search_intel_v3_baseline')`));
+  const [m] = rowsOf<{ at: string | null }>(await db.execute(sql`select max(created_at) at from jobs where type in ('search_intel_v2_baseline', 'search_intel_v3_baseline')`));
   if (!m?.at) return { open: true, since: null };
+  const [b] = rowsOf<{ at: string | null }>(await db.execute(sql`select max(created_at) at from jobs where type = 'search_intel_baseline_complete' and created_at > ${m.at}::timestamptz`));
   const [g] = rowsOf<{ at: string | null }>(await db.execute(sql`select min(sent_at) at from grokbot_deliveries where idempotency_key like 'audit:%:complete' and sent_at > ${m.at}::timestamptz`));
-  return g?.at ? { open: true, since: new Date(g.at) } : { open: false, since: null };
+  return gateFrom(new Date(m.at), b?.at ? new Date(b.at) : null, g?.at ? new Date(g.at) : null);
 }
 
 async function reportIntel(businessId: string): Promise<SiteIntel | null> {
