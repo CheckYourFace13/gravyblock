@@ -72,3 +72,8 @@ test("a search is on topic only with specific topic words, not one generic word"
   assert.equal(onTopic("my business not showing on google", gb), true);
   assert.equal(onTopic("illinois boating license rules", ["boat", "boating", "marina", "lake"]), true);
 });
+
+test("a calculator page titled for three of the search's four words serves it", () => {
+  const p = page({ title: "Rental ROI Calculator — Cash Flow, Cash-on-Cash, Cap Rate", h1: "Rental ROI calculator" });
+  assert.equal(coversIntent(p, ["rental property calculator roi"]).covered, true);
+});

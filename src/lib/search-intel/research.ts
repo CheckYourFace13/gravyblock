@@ -112,14 +112,14 @@ export function inventoryMatches(urls: string[], query: string, max = 3, min = 0
 }
 
 /**
- * Does a live page plainly serve one of these searches? Yes when its title or headings carry at least 80% of a search's meaningful words (two or more words),
+ * Does a live page plainly serve one of these searches? Yes when its title or headings carry at least 75% of a search's meaningful words (two or more words),
  * or its text contains the whole phrase (three words or more). A page that merely mentions one word does not count.
  */
 export function coversIntent(p: Pick<PageDetail, "title" | "h1" | "headings" | "text">, queries: string[]): { covered: boolean; by: string | null } {
   const head = new Set(tokensOf([p.title, p.h1, ...p.headings].join(" ")));
   for (const q of queries) {
     const t = tokensOf(q);
-    if (t.length >= 2 && t.filter((w) => head.has(w)).length / t.length >= 0.8) return { covered: true, by: `title or headings cover "${q}"` };
+    if (t.length >= 2 && t.filter((w) => head.has(w)).length / t.length >= 0.75) return { covered: true, by: `title or headings cover "${q}"` };
     const phrase = normPhrase(q);
     if (phrase.split(" ").length >= 3 && p.text.includes(phrase)) return { covered: true, by: `the page text contains "${q}"` };
   }
