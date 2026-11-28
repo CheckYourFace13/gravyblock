@@ -151,16 +151,26 @@ export function trend90(daily: Daily[], endDay: string): { cur: Totals; prev: To
   return prev.daysWithData >= 60 && cur.daysWithData >= 60 ? { cur, prev } : null;
 }
 
+/** Words too broad to make a search relevant on their own ("google mesh wifi 3 pack" is not a local SEO search just because it says google). */
+const GENERIC = new Set(["google", "business", "local", "drink", "menu", "open", "map", "health", "list", "design", "event", "venue", "property", "management", "marketing", "app", "software", "lake", "history", "story", "music", "players", "cases"].map(stem));
+
+/** A search is on topic when it uses two topic words, or half its words are topic words, or one specific (not generic) topic word. */
+export function onTopic(query: string, topicWords: string[]): boolean {
+  const topic = new Set(topicWords.flatMap((w) => w.split("-")).map(stem));
+  const t = tokensOf(query);
+  const hits = t.filter((w) => topic.has(w));
+  return hits.length >= 2 || (t.length > 0 && hits.length / t.length >= 0.5) || hits.some((w) => !GENERIC.has(w));
+}
+
 /** Autocomplete suggestions the site never appears for: no current query shares most of its meaningful words. */
 export function uncaptured(suggestions: string[], siteQueries: string[], topicWords: string[]): string[] {
-  const topic = new Set(topicWords.map(stem));
   const covered = siteQueries.map(tokensOf);
   // "near me" searches are a different (local, right-now) intent: covering "happy hour chicago" does not mean the site is found for "happy hour near me"
   const siteHasNearMe = siteQueries.some((q) => /\bnear me\b/i.test(q));
   const out: string[] = [];
   for (const s of [...new Set(suggestions.map((x) => x.toLowerCase().trim()))]) {
     const t = tokensOf(s);
-    if (t.length < 2 || !t.some((w) => topic.has(w))) continue; // off-topic suggestions are not opportunities
+    if (t.length < 2 || !onTopic(s, topicWords)) continue; // off-topic suggestions are not opportunities
     const best = Math.max(0, ...covered.map((c) => t.filter((w) => c.includes(w)).length / t.length));
     if (best < 0.6 || (/\bnear me\b/.test(s) && !siteHasNearMe)) out.push(s);
   }

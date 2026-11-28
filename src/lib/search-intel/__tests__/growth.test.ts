@@ -64,4 +64,5 @@ test("corrupted text is rejected before delivery", () => {
   assert.equal(textLooksValid("Propo al for the ite' own developer: A print-friendly or embeddable ver ion of an exi ting tool or checkli t, with a plain vi ible credit"), false);
   assert.equal(textLooksValid("Restore the pages that dropped out of Google"), true);
   assert.equal(textLooksValid("clicks undefined to NaN"), false);
+  assert.equal(textLooksValid('"google business profile checker": position 17.1, 72 impressions, 1 clicks (2026-10-29 to 2026-11-25), shown for /tools/google-business-profile-checker.'), true);
 });

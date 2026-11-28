@@ -65,7 +65,8 @@ async function main() {
       let ex = after.find((e) => e.fingerprint === fp);
       if (!ex) {
         const twin = after.find((e) => sameWork(imp, e.improvement));
-        if (twin && (["in_progress", "completed", "verified"].includes(twin.status) || (twin.status === "dismissed" && twin.kind === imp.kind))) { suppressed.push(`${imp.title} (same work as [${twin.ref}], ${twin.status})`); return; }
+        const recentlyVerified = twin?.status === "verified" && (!twin.verifiedAt || now.getTime() - twin.verifiedAt.getTime() < 90 * 86_400_000);
+        if (twin && (["in_progress", "completed"].includes(twin.status) || recentlyVerified || (twin.status === "dismissed" && twin.kind === imp.kind))) { suppressed.push(`${imp.title} (same work as [${twin.ref}], ${twin.status})`); return; }
         if (twin && twin.status !== "dismissed") ex = twin;
       }
       if (ex && (ex.status === "verified" || ex.status === "dismissed")) { suppressed.push(`${imp.title} ([${ex.ref}] is ${ex.status})`); return; }

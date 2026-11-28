@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { coversIntent, headingsOf, inventoryMatches, normPhrase, ourStrengths, topicGaps, type PageDetail } from "../research";
-import { demandStrength, impressionMovers, seasonalAhead, templateLosses } from "../deep";
+import { demandStrength, impressionMovers, onTopic, seasonalAhead, templateLosses } from "../deep";
 import { realisticGain } from "../growth";
 
 const page = (over: Partial<PageDetail> = {}): PageDetail => ({
@@ -61,4 +61,13 @@ test("template losses and impression movers need real volume", () => {
   const m = impressionMovers([{ key: "a", clicks: 1, impressions: 100, position: 9 }], [{ key: "a", clicks: 0, impressions: 40, position: 15 }, { key: "b", clicks: 3, impressions: 90, position: 5 }]);
   assert.equal(m.gaining[0]!.key, "a");
   assert.equal(m.losing[0]!.key, "b");
+});
+
+test("a search is on topic only with specific topic words, not one generic word", () => {
+  const gb = ["seo", "local", "google", "business", "profile", "maps", "ranking", "audit", "citations", "reviews"];
+  assert.equal(onTopic("google mesh wifi 3 pack", gb), false);
+  assert.equal(onTopic("vymaps", gb), false);
+  assert.equal(onTopic("local seo checklist pdf", gb), true);
+  assert.equal(onTopic("my business not showing on google", gb), true);
+  assert.equal(onTopic("illinois boating license rules", ["boat", "boating", "marina", "lake"]), true);
 });

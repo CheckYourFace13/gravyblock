@@ -10,7 +10,7 @@
  * Rejected on purpose: generic hygiene warnings, single-page nits when a template is the cause, widget proposals, weak demand, and any corrupted text.
  */
 import { expectedCtr } from "./analysis";
-import { sectionOf, mobileGap, tokensOf } from "./deep";
+import { sectionOf, mobileGap, onTopic, tokensOf, intentOf } from "./deep";
 import { profileFor, type SiteProfile } from "./profiles";
 import { pickTop } from "./prompt";
 import type { Improvement, IntentResearch, SiteIntel } from "./types";
@@ -52,7 +52,7 @@ export function textLooksValid(s: string): boolean {
   if (stray > Math.max(2, words.length * 0.03)) return false;
   // a long English sentence always contains each of the most common letters; one missing entirely means characters were stripped (the "Propo al" bug)
   const letters = s.toLowerCase().replace(/[^a-z]/g, "");
-  if (letters.length >= 80 && [..."etaoinsr"].some((c) => !letters.includes(c))) return false;
+  if (letters.length >= 80 && [..."etoinsr"].some((c) => !letters.includes(c))) return false; // not "a": real sentences can lack it ("position 17.1, 72 impressions, 1 clicks")
   return true;
 }
 
@@ -105,6 +105,9 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
     return Math.min(2.2, v);
   };
   const conv = profile?.conversions[0] ?? "the site's main next step";
+  const inValuable = (u: string) => Boolean(profile?.valuableSections.some((s) => s !== "/" && pathOf(u).startsWith(s)));
+  /** a search worth working on: on the site's topic, or landing on one of its money sections (a venue-name search reaching a venue page is real venue discovery) */
+  const relevant = (q: string, page?: string) => !profile || onTopic(q, profile.topicWords) || (page ? inValuable(page) : false);
 
   // 1. Technical recovery: one item per root cause. Pages that lost everything are part of it, not separate "investigate the drop" tasks.
   const d = intel.indexing.dropped;
@@ -143,8 +146,19 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
 
   // 2. A whole section (page template) losing visibility together, when it is not already the indexing item above.
   const droppedSections = new Set((d?.sample ?? []).map(sectionOf));
-  for (const t of (deep.templateLosses ?? []).filter((x) => !droppedSections.has(x.section) && x.section !== "/").slice(0, 1)) {
+  const norm = (u: string) => u.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/+$/, "").toLowerCase();
+  /** a loss the site made on purpose (the page now redirects, is noindexed, or names another page as canonical) is not a problem to fix */
+  const deliberate = (u: string) => {
+    const c = deep.lossChecks?.find((x) => norm(x.url) === norm(u));
+    return Boolean(c && c.status !== null && (norm(c.finalUrl) !== norm(u) || !c.indexable || (c.canonical && !/^\//.test(c.canonical) && norm(c.canonical) !== norm(u))));
+  };
+  /** the searches moved to another page of the same site (Google now prefers a better page): not a loss */
+  const shifted = (u: string, lost: number) => (intel.pages28?.rising ?? []).filter((m) => m.key !== u && sectionOf(m.key) === sectionOf(u)).reduce((s2, m) => s2 + Math.max(0, m.imprCur - m.imprPrev), 0) >= lost * 0.5;
+  // only when visitors were really lost: a section that lost impressions far back on page five costs almost no one
+  for (const t of (deep.templateLosses ?? []).filter((x) => !droppedSections.has(x.section) && x.section !== "/" && (x.clicksPrev >= 5 || x.clicksPrev - x.clicks >= 3)).slice(0, 1)) {
     const pages = (intel.pages28?.declining ?? []).filter((m) => sectionOf(m.key) === t.section).slice(0, 5).map((m) => m.key);
+    const checked = pages.filter((p) => deep.lossChecks?.some((x) => norm(x.url) === norm(p)));
+    if (checked.length && checked.every(deliberate)) continue; // the section's losing pages were redirected or excluded on purpose
     const lostImpr = t.impressionsPrev - t.impressions;
     const prevCtr = t.impressionsPrev ? t.clicksPrev / t.impressionsPrev : 0.01;
     drafts.push({
@@ -166,6 +180,32 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
       traffic: lostImpr * prevCtr, value: valueOf(pages), evidenceQ: sampleQ, success: 0.5, systemic: true, effort: 1.5, risk: 1.2,
     });
     pages.forEach((p) => used.add(p));
+  }
+
+  // 2b. One important page that collapsed (most of its impressions gone), outside a pages-dropped finding: find the cause before anything else is built on it.
+  const collapsed = (intel.pages28?.declining ?? []).filter((m) => !used.has(m.key) && m.imprPrev >= 300 && m.imprCur < m.imprPrev * 0.3 && m.imprCur > 0 && !droppedSections.has(sectionOf(m.key)) && m.clicksPrev >= 2 && !deliberate(m.key) && !shifted(m.key, m.imprPrev - m.imprCur))
+    .sort((a, b) => b.imprPrev - b.imprCur - (a.imprPrev - a.imprCur))[0];
+  if (collapsed) {
+    const lost = collapsed.imprPrev - collapsed.imprCur;
+    drafts.push({
+      kind: "template_loss", category: "technical recovery", issue: `page_loss:${pathOf(collapsed.key)}`, identityUrls: [collapsed.key],
+      title: `Find why ${pathOf(collapsed.key)} lost ${Math.min(99, Math.round((lost / collapsed.imprPrev) * 100))}% of its Google impressions`,
+      urls: [collapsed.key],
+      evidence: [`${pathOf(collapsed.key)}: impressions ${collapsed.imprPrev} to ${collapsed.imprCur}, clicks ${collapsed.clicksPrev} to ${collapsed.clicksCur}, position ${collapsed.posPrev === null ? "n/a" : collapsed.posPrev.toFixed(1)} to ${collapsed.posCur === null ? "n/a" : collapsed.posCur.toFixed(1)} (${w28} against the 28 days before).`],
+      competitorUrls: [],
+      actions: [
+        "Check the page is live, indexable, self-canonical and in the sitemap; check git history for recent changes to its title, content, URL or internal links; check whether another page of the site now takes its searches.",
+        "Fix a defect if one is found; otherwise record the cause (seasonal, competitor, Google update) and leave the page unchanged.",
+      ],
+      acceptance: ["A written cause with evidence, and a fix only where a defect was found."],
+      potentialClicks28: Math.max(collapsed.clicksPrev - collapsed.clicksCur, Math.round(lost * expectedCtr(collapsed.posPrev ?? 30))),
+      horizon: "quick win", confidence: "medium", scope: "page",
+      why: `The page was visible to ${collapsed.imprPrev} searches in 28 days and is now nearly gone; if a defect caused it, fixing it brings back proven visibility quickly.`,
+      uncertainty: "A ranking drop can also come from competitors or a Google update, which no site change undoes quickly.",
+      measure: `The page's impressions and clicks over the next 28 days (now ${collapsed.imprCur} impressions).`,
+      traffic: Math.max(collapsed.clicksPrev - collapsed.clicksCur, lost * expectedCtr(collapsed.posPrev ?? 30)), value: valueOf([collapsed.key]), evidenceQ: sampleQ, success: 0.55, systemic: false, effort: 1, risk: 1,
+    });
+    used.add(collapsed.key);
   }
 
   // 3. CTR: a template-level fix when several pages in one section are under-clicked, otherwise the single biggest page. Only where already on page one.
@@ -219,9 +259,40 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
     });
   }
 
+  // 5b. Single searches already on page one or two that a topic did not cover (a tool page at position 14 is often the most valuable lift on the site).
+  const bandRows = [...(intel.bands?.b4_10 ?? []), ...(intel.bands?.b11_20 ?? [])].filter((b) => b.impressions >= 30 && !used.has(b.page) && relevant(b.query, b.page));
+  for (const b of bandRows.sort((x, y) => realisticGain(y.position, y.impressions, y.clicks / y.impressions).clicks * valueOf([y.page], [y.query]) - realisticGain(x.position, x.impressions, x.clicks / x.impressions).clicks * valueOf([x.page], [x.query])).slice(0, 4)) {
+    if (used.has(b.page)) continue;
+    const ctr = b.clicks / Math.max(1, b.impressions);
+    const g = realisticGain(b.position, b.impressions, ctr);
+    const intent = intentOf(b.query);
+    const research = intentFor(deep, b.query, [b.query]);
+    drafts.push({
+      kind: "topic_ranking", category: "ranking improvement", issue: `query_ranking:${b.query}`, identityUrls: [b.page],
+      title: b.position <= 10 ? `Move "${b.query}" from position ${b.position} toward the top 3 with ${pathOf(b.page)}` : `Lift "${b.query}" from page two (position ${b.position}) onto page one with ${pathOf(b.page)}`,
+      urls: [b.page],
+      evidence: [`"${b.query}": position ${b.position}, ${b.impressions} impressions, ${b.clicks} clicks (${w28}), shown for ${pathOf(b.page)}.`, ...competitorLines(research)],
+      competitorUrls: (research?.competitorPages ?? []).map((p) => `${p.url} ("${p.title.slice(0, 70)}", observed ${p.observedAt.slice(0, 10)})`).slice(0, 3),
+      actions: [
+        `Make ${pathOf(b.page)} the clearest answer to "${b.query}": say it plainly in the title, first heading and opening, and put what the searcher came for (${intent === "transactional" ? "the tool or offer and its next step" : intent === "local" ? "what is open or available now and where" : "the direct answer"}) in the first screen.`,
+        "Link to it from related, already-indexed pages with descriptive anchor text.",
+        "Keep its URL, canonical and existing content; add, do not rewrite.",
+      ],
+      acceptance: ["The page answers the search in its first screen; URL, canonical and structured data preserved."],
+      potentialClicks28: Math.round(g.clicks * g.success),
+      targetQueries: [b.query],
+      horizon: g.horizon, confidence: intel.w28?.sample === "ok" ? "medium" : "low", scope: "page",
+      why: `Google already shows ${pathOf(b.page)} for "${b.query}" at position ${b.position}; ${b.position <= 10 ? "moving up a few places on page one" : "reaching page one"} is where most of the clicks are${priorityFor(profile, [b.query]) ? `, and it serves the site's priority: ${priorityFor(profile, [b.query])}` : ""}.`,
+      uncertainty: "Rankings also depend on competitors and Google updates; changes usually show within 4 to 8 weeks.",
+      measure: `Position and clicks for "${b.query}" over the 28 days after the change (now position ${b.position}, ${b.clicks} clicks).`,
+      traffic: g.clicks, value: valueOf([b.page], [b.query], intent), evidenceQ: sampleQ, success: g.clicks < 3 ? g.success * 0.6 : g.success, systemic: false, effort: 1.5, risk: 1,
+    });
+    used.add(b.page);
+  }
+
   // 5. Ranking improvement by topic, scored by what is realistically reachable (position 8 beats position 60 even with fewer impressions).
   const total = deep.clusters.reduce((s, c) => s + c.impressions, 0) || 1;
-  const rankable = deep.clusters.filter((x) => !x.branded && x.position >= 4 && x.position <= 80 && x.impressions >= Math.max(30, total * 0.03));
+  const rankable = deep.clusters.filter((x) => !x.branded && x.position >= 4 && x.position <= 80 && x.impressions >= Math.max(30, total * 0.03) && relevant(x.label, x.pages[0]));
   for (const c of rankable.slice(0, 6)) {
     const page = c.pages[0]!;
     if (used.has(page)) continue;
@@ -260,7 +331,7 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
       why: `People already search "${c.label}" and Google already shows ${pathOf(page)} for it (${c.impressions} impressions in 28 days). Moving from position ${c.position} toward ${g.target} is where those impressions become visitors${priorityFor(profile, c.queries) ? `, serving the site's priority: ${priorityFor(profile, c.queries)}` : ""}.`,
       uncertainty: c.position > 20 ? "Far-back topics usually need authority (links, mentions) as well as a better page; results take months, if they come." : "Rankings also depend on competitors and Google updates; improvements usually show within 4 to 8 weeks.",
       measure: `Average position and clicks for these queries over the 28 days after the change (now: position ${c.position}, ${c.clicks} clicks).`,
-      traffic: g.clicks, value: valueOf([page], c.queries, c.intent), evidenceQ: sampleQ, success: g.success, systemic: false, effort: c.position > 20 ? 2.5 : 2, risk: 1,
+      traffic: g.clicks, value: valueOf([page], c.queries, c.intent), evidenceQ: sampleQ, success: g.clicks < 3 ? g.success * 0.6 : g.success, systemic: false, effort: c.position > 20 ? 2.5 : 2, risk: 1,
     });
     used.add(page);
   }
@@ -268,9 +339,40 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
   // 6. Searches that appeared this window (or keep gaining over 90 days) with real impressions: early demand worth meeting while it is new.
   const gaining = (deep.queries90?.gaining ?? []).map((g) => ({ key: g.key, clicks: g.clicksCur, impressions: g.imprCur, position: g.posCur ?? 0, prev: g.imprPrev }));
   const fresh = [...deep.emerging.map((e) => ({ ...e, prev: 0 })), ...gaining.filter((g) => !deep.emerging.some((e) => e.key === g.key))].filter((x) => x.impressions >= 50);
-  for (const q of fresh.slice(0, 1)) {
+  // only searches on the site's topic or landing on its money sections; many impressions on page one with no clicks at all means searchers want something
+  // else (often another company's brand), so it is not an opportunity however big
+  const freshOk = fresh.filter((q) => {
+    const page = deep.pageQuery.find((r) => r.query === q.key)?.page;
+    if (!relevant(q.key, page)) return false;
+    return !(q.position > 0 && q.position <= 10 && q.impressions >= 300 && q.clicks === 0 && !(page && inValuable(page)));
+  });
+  for (const q of freshOk.slice(0, 1)) {
     const page = deep.pageQuery.find((r) => r.query === q.key)?.page;
     if (page && used.has(page)) continue;
+    if (page && q.position > 0 && q.position <= 10 && q.impressions >= 300 && q.clicks === 0) {
+      const gain = q.impressions * expectedCtr(q.position) * 0.3;
+      drafts.push({
+        kind: "low_ctr", category: "CTR optimization", issue: `zero_click:${q.key}`, identityUrls: [page],
+        title: `Searchers see ${pathOf(page)} for "${q.key}" but never click: make the result show what they want`,
+        urls: [page],
+        evidence: [`"${q.key}": ${q.impressions} impressions at position ${q.position.toFixed(1)} with 0 clicks (${q.prev === 0 ? `new in ${w28}` : `latest 90 days, was ${q.prev}`}), shown for ${pathOf(page)}.`],
+        competitorUrls: [],
+        actions: [
+          `Put what this searcher wants in the result itself: name it in ${pathOf(page)}'s title and description${profile?.priorities?.[0] ? ` (for this site: ${profile.priorities[0]})` : ""}, using the page's own verified facts. If the page cannot answer it, leave it and say so.`,
+          "Apply the same pattern to the page template if other pages of this type show the same zero-click searches.",
+        ],
+        acceptance: ["The title and description name what the searcher is looking for, truthfully; URL and content unchanged."],
+        potentialClicks28: Math.round(gain),
+        targetQueries: [q.key],
+        horizon: "quick win", confidence: "low", scope: "page",
+        why: `Google already puts ${pathOf(page)} on page one for this search, yet no one clicks; a result that shows the answer they came for (for example a menu, hours or happy-hour times) is the cheapest way to turn those impressions into visitors.`,
+        uncertainty: "Zero clicks can also mean searchers want the business's own website, which no title change will win.",
+        measure: `Clicks and CTR for "${q.key}" over the next 28 days (now 0).`,
+        traffic: gain, value: valueOf([page], [q.key]), evidenceQ: 0.7, success: 0.4, systemic: false, effort: 1, risk: 1,
+      });
+      used.add(page);
+      continue;
+    }
     const g = realisticGain(q.position || 30, q.impressions, q.clicks / Math.max(1, q.impressions));
     drafts.push({
       kind: "topic_ranking", category: "ranking improvement", issue: `emerging:${q.key}`, identityUrls: page ? [page] : [],

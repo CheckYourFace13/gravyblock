@@ -179,7 +179,9 @@ export async function syncRecommendations(businessId: string, candidates: Improv
     if (!ex) {
       const twin = all.find((r) => r.improvement && sameWork(imp, r.improvement as Improvement));
       // an owner dismissal blocks only the same kind of item; legacy items the system itself retired never block a new, better-described one
-      if (twin && (["in_progress", "completed", "verified"].includes(twin.status as string) || (twin.status === "dismissed" && twin.kind === imp.kind))) {
+      // verified work blocks the same work for 90 days (time for Google to reflect it); after that, new work on the same page can be recommended again
+      const recentlyVerified = twin?.status === "verified" && (!twin.verified_at || now.getTime() - new Date(twin.verified_at as string).getTime() < 90 * 86_400_000);
+      if (twin && (["in_progress", "completed"].includes(twin.status as string) || recentlyVerified || (twin.status === "dismissed" && twin.kind === imp.kind))) {
         out.suppressed++;
         const [seen] = rowsOf<{ n: number }>(await db.execute(sql`select count(*)::int n from search_recommendation_events where recommendation_id = ${twin.id as string}::uuid and type = 'similar_suppressed' and at > now() - interval '6 days'`));
         if (!Number(seen?.n ?? 0)) await logEvent(twin.id as string, businessId, "similar_suppressed", { note: `the analysis found this same work again ("${imp.title.slice(0, 120)}"); not re-recommended because it is ${twin.status}`, meta: { week } });
@@ -248,8 +250,9 @@ export async function loadEvents(recIds: string[]): Promise<Map<string, RecEvent
 }
 
 /** Unresolved work for the copy-ready prompt: everything in progress, then the best new or opened items, never completed, verified or dismissed ones. */
-export function unresolvedImprovements(records: RecRecord[], now: Date, max = 5): Improvement[] {
-  const fresh = (r: RecRecord) => now.getTime() - r.lastSeenAt.getTime() <= 21 * 86_400_000;
+export function unresolvedImprovements(records: RecRecord[], now: Date, max = 5, week?: string): Improvement[] {
+  // with a week: only open items this week's analysis found again (an item the improved analysis no longer produces is not re-sent)
+  const fresh = (r: RecRecord) => (week ? r.lastReportWeek === week : now.getTime() - r.lastSeenAt.getTime() <= 21 * 86_400_000);
   const withRef = (r: RecRecord): Improvement => ({ ...r.improvement, ref: r.ref, priority: r.priority });
   const inProgress = records.filter((r) => r.status === "in_progress").map(withRef);
   const others = pickTop(records.filter((r) => (r.status === "new" || r.status === "opened") && fresh(r)).map(withRef), Math.max(0, max - inProgress.length));

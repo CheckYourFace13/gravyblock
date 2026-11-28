@@ -144,7 +144,7 @@ export function buildSiteAuditEmail(i: SiteAuditInput): { subject: string; text:
   if (limits.length) L.push(`- Data limits: ${limits.join(" ")}`);
 
   // B
-  const unresolved = unresolvedImprovements(i.queue, i.now);
+  const unresolved = unresolvedImprovements(i.queue, i.now, 5, i.week);
   L.push("", `B. BIGGEST SEARCH OPPORTUNITIES (${unresolved.length}, ranked by likely business impact: realistic extra visitors x likelihood x business value / effort)`);
   if (!unresolved.length) L.push("- None with enough evidence this week. The instruction below asks for validation instead of inventing work.");
   unresolved.forEach((u, n) => {
@@ -218,7 +218,7 @@ export function buildSiteAuditEmail(i: SiteAuditInput): { subject: string; text:
 
   // H
   L.push("", "H. CONFIDENCE AND MEASUREMENT");
-  unresolved.forEach((u) => L.push(`- [${u.ref}] confidence ${u.confidence ?? "not rated"}. ${u.uncertainty ? `Uncertain: ${u.uncertainty} ` : ""}Measured by: ${u.measure ?? "the affected pages' Google clicks over 28 days before and after"}.`));
+  unresolved.forEach((u) => L.push(`- [${u.ref}] confidence ${u.confidence ?? "not rated"}. ${u.uncertainty ? `Uncertain: ${u.uncertainty} ` : ""}Measured by: ${(u.measure ?? "the affected pages' Google clicks over 28 days before and after").replace(/\.$/, "")}.`));
   L.push("- A deployed change is confirmed by a read-only check of the live page; a traffic result is reported only after 28 days of data and is never claimed as caused by the change.");
   const text = scrubPersonal(L.join("\n"));
   return { subject: `[GravyBlock Weekly Audit] ${i.week} — ${i.report.name} (${i.index} of ${i.total})`, text, buckets };
@@ -320,7 +320,7 @@ export async function composeWeeklyAudit(now: Date, week: string, ownPrefix = `a
       if (rec && (!began || new Date(s.sent_at) >= began)) sent.set(s.recommendation_id, new Date(s.sent_at).toISOString());
     }
     const email = buildSiteAuditEmail({ report, queue, sent, previousAuditAt, index: idx, total: ordered.length, week, now });
-    const top = unresolvedImprovements(queue, now)[0];
+    const top = unresolvedImprovements(queue, now, 5, week)[0];
     if (top) best.push({ site: report.name, title: top.title, priority: top.priority, horizon: top.horizon, ref: top.ref });
     for (const r of queue.filter((q) => q.outcome && q.outcome.verdict !== "too_early" && q.outcome.verdict !== "low_sample")) learned.push(`- ${report.name} [${r.ref}] ${r.kind.replace(/_/g, " ")}: ${r.outcome!.verdict.replace(/_/g, " ")} (${r.outcome!.before?.clicks ?? "n/a"} to ${r.outcome!.after?.clicks ?? "n/a"} clicks)`);
     // Fewer links per message: the site's own URLs are written as paths under one stated base (the 27 Nov audits carried 37 to 87 full URLs each).

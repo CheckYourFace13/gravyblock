@@ -132,6 +132,8 @@ export type DeepIntel = {
   inventory?: { pages: number; source: string };
   intents?: IntentResearch[];
   partners?: Array<{ name: string; url: string; note: string; foundAt: string }>;
+  /** live state of pages that lost most of their visibility (a redirect, noindex or canonical elsewhere means the loss is deliberate) */
+  lossChecks?: Array<{ url: string; status: number | null; finalUrl: string; indexable: boolean; canonical: string }>;
 };
 
 export type DemandGroup = DeepIntel["demand"]["uncaptured"][number];

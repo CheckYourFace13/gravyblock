@@ -14,7 +14,7 @@ import { briefEvidence } from "@/lib/house/site-briefs";
 import { addDays, type Daily } from "@/lib/case-studies/model";
 import { changesSince, compareWindows, dataStatus, endDayFor, joinWindows, lowCtrPairs, movers, rankingBands, seasonality, type QueryRow, type Row } from "./analysis";
 import { featureGaps, matchCompetitorUrls, newPagesSince, pageFeatures, queryTokens, type PageFeatures } from "./competitors";
-import { brandSplit, brandTokens, cannibalization, clusterQueries, competitorRelevance, emergingQueries, sectionStats, toSplit, tokensOf, trend90, uncaptured, type Split } from "./deep";
+import { brandSplit, brandTokens, cannibalization, clusterQueries, competitorRelevance, emergingQueries, sectionOf, sectionStats, toSplit, tokensOf, trend90, uncaptured, type Split } from "./deep";
 import { profileFor } from "./profiles";
 import { getBusinessTruth } from "@/lib/truth";
 import type { DeepIntel } from "./types";
@@ -466,7 +466,8 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
       const theirs: PageDetail[] = [];
       for (const m of matches) {
         const f = await detail(m.url);
-        if (f) theirs.push(f);
+        // pages that render their content only with JavaScript show a few words to a plain fetch; comparing against them would mislead
+        if (f && f.words >= 150) theirs.push(f);
       }
       const ours = it.ourUrl ? await detail(it.ourUrl) : null;
       const hostOfUrl = (u: string) => {
@@ -480,6 +481,22 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
         gaps: theirs.flatMap((t) => featureGaps(ours, t)).slice(0, 3),
         observedAt: now.toISOString(),
       });
+    }
+  }
+
+  // Pages that lost most of their visibility: is the loss deliberate (redirected, noindexed, canonicalised elsewhere)? Read-only, a few pages a week.
+  const lossChecks: NonNullable<DeepIntel["lossChecks"]> = [];
+  {
+    // daily as well as weekly, so the daily check never records a loss the weekly report would reject as deliberate
+    const lossUrls = [
+      ...(parts.pages28?.declining ?? []).filter((m) => m.imprPrev >= 300 && m.imprCur < m.imprPrev * 0.3).slice(0, 3).map((m) => m.key),
+      ...templateLosses(sectionStats(p28cur, p28prev, 20)).slice(0, 2).flatMap((t) => (parts.pages28?.declining ?? []).filter((m) => sectionOf(m.key) === t.section).slice(0, 2).map((m) => m.key)),
+    ];
+    for (const u of [...new Set(lossUrls)].slice(0, 6)) {
+      if (!isSafePublicUrl(u)) continue;
+      const r = await safeFetchText(u, { timeoutMs: 8000, maxBytes: 400_000 });
+      const robots = r.ok ? `${r.body.match(/<meta[^>]+name=["']robots["'][^>]*content=["']([^"']*)["']/i)?.[1] ?? ""} ${r.headers.get("x-robots-tag") ?? ""}`.toLowerCase() : "";
+      lossChecks.push({ url: u, status: r.ok ? r.status : null, finalUrl: r.ok ? r.finalUrl : u, indexable: r.ok && r.status < 400 && !/noindex/.test(robots), canonical: r.ok ? (r.body.match(/<link[^>]+rel=["']canonical["'][^>]*href=["']([^"']+)["']/i)?.[1] ?? "") : "" });
     }
   }
 
@@ -519,6 +536,7 @@ export async function gatherSearchIntel(businessId: string, now = new Date(), op
     inventory,
     intents,
     partners,
+    lossChecks,
   };
   const intel: SiteIntel = {
     version: 1,

@@ -32,7 +32,7 @@ export async function generateSearchIntelForSite(businessId: string, now = new D
   const sync = await syncRecommendations(businessId, candidates, intel.weekEnding, now);
   if (intel.deep) await supersedeLegacy(businessId, candidates).catch(() => null);
   await enqueueGrokbot(businessId, now).catch(() => null); // queue (never send here) new or reopened occurrences found after activation
-  const improvements = unresolvedImprovements(await loadQueue(businessId), now);
+  const improvements = unresolvedImprovements(await loadQueue(businessId), now, 5, intel.weekEnding);
   const done = (await loadQueue(businessId)).filter((r) => r.status === "verified" || r.status === "completed").map((r) => `[${r.ref}] ${r.title}`);
   const prompt = buildPrompt(intel, improvements, done);
   await db.execute(sql`insert into search_intel_reports (business_id, week_ending, data, prompt) values (${businessId}, ${intel.weekEnding}, ${JSON.stringify(intel)}::jsonb, ${prompt})

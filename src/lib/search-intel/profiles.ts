@@ -40,7 +40,7 @@ export const SITE_PROFILES: Record<string, SiteProfile> = {
     conversions: ["account registration", "venue claim (venue owners)", "searching for a drink or venue"],
     seeds: ["happy hour near me", "happy hour chicago", "best old fashioned near me", "cocktail bars open late", "drink specials tonight", "bars with happy hour today", "where to get a margarita near me", "rooftop bars chicago"],
     // alcohol and bar words only: "drink" and "menu" alone would let coffee chains through
-    topicWords: ["bar", "bars", "happy-hour", "happy", "cocktail", "cocktails", "brewery", "breweries", "taproom", "wine", "pub", "pubs", "lounge", "nightlife", "beer", "whiskey", "tequila", "spirits", "margarita", "rooftop"],
+    topicWords: ["bar", "bars", "happy-hour", "happy", "hour", "specials", "cocktail", "cocktails", "brewery", "breweries", "taproom", "wine", "pub", "pubs", "lounge", "nightlife", "beer", "whiskey", "tequila", "spirits", "margarita", "rooftop"],
     valuableSections: ["/places", "/happy-hour", "/business", "/drink", "/cities", "/chicago"],
   },
   "Boating Chicago": {
@@ -52,7 +52,7 @@ export const SITE_PROFILES: Record<string, SiteProfile> = {
     audience: "Chicago-area boaters and people planning a boat day, rental or charter",
     conversions: ["rental or charter referral", "newsletter subscription", "using a boating tool (float plan, checklist, weather)"],
     seeds: ["chicago boat launch", "boat launches near chicago", "chicago marinas", "lake michigan boating conditions", "chain o lakes boating", "boat rental chicago", "chicago harbor transient dockage", "illinois boating rules"],
-    topicWords: ["boat", "boating", "marina", "marinas", "launch", "harbor", "lake", "charter", "yacht", "sailing", "fishing", "dock", "kayak", "paddle", "river"],
+    topicWords: ["boat", "boating", "marina", "marinas", "launch", "harbor", "lake", "conditions", "charter", "yacht", "sailing", "fishing", "dock", "kayak", "paddle", "river"],
     valuableSections: ["/boat-launches", "/marinas", "/lakes", "/destinations", "/tools", "/weather", "/forest-preserves"],
     seasonal: [{ months: [3, 4, 5], topic: "boating season opening: launches, marinas, slips, rentals" }],
   },
@@ -91,7 +91,7 @@ export const SITE_PROFILES: Record<string, SiteProfile> = {
     audience: "small local business owners trying to get found on Google and maps",
     conversions: ["free scan completed", "subscription started"],
     seeds: ["free local seo audit", "google business profile checker", "how to rank higher on google maps", "local seo tool for small business", "local seo checklist", "why is my business not showing on google maps"],
-    topicWords: ["seo", "local", "google", "business", "profile", "maps", "ranking", "audit", "citations", "reviews"],
+    topicWords: ["seo", "local", "google", "business", "profile", "maps", "ranking", "audit", "citations", "citation", "reviews", "checker"],
     valuableSections: ["/scan", "/tools", "/guides", "/local-seo", "/pricing"],
   },
   "League Pour": {
