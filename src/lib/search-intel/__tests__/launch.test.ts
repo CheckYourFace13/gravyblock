@@ -45,3 +45,19 @@ test("13 or more sites: every site lands in exactly one part under the size limi
   assert.ok(parts.length >= 5);
   for (const p of parts) assert.ok(p.reduce((n, i) => n + blocks[i]!.length, 0) <= PART_LIMIT_CHARS || p.length === 1);
 });
+
+import { intentOf } from "../deep";
+import { matchCompetitorUrls } from "../competitors";
+
+test("billable hours is not a right-now local search; alternatives and trackers are close to sign-up", () => {
+  assert.equal(intentOf("billable hours tracker"), "transactional");
+  assert.equal(intentOf("how to track billable hours"), "informational");
+  assert.equal(intentOf("clockify alternatives"), "transactional");
+  assert.equal(intentOf("happy hours near me"), "local");
+  assert.equal(intentOf("bar hours today"), "local");
+});
+
+test("other-language competitor pages are not offered as comparisons for an English search", () => {
+  const m = matchCompetitorUrls(new Map([["getharvest.com", ["https://www.getharvest.com/pt/time-tracking/billable-hours-tracker", "https://www.getharvest.com/time-tracking/billable-hours-tracker"]]]), ["billable", "hour", "tracker"]);
+  assert.equal(m[0]!.url, "https://www.getharvest.com/time-tracking/billable-hours-tracker");
+});

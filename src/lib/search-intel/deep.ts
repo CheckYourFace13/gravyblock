@@ -31,8 +31,9 @@ export type Intent = "local" | "transactional" | "informational" | "navigational
 export function intentOf(query: string, brand: string[] = []): Intent {
   const q = query.toLowerCase();
   if (brand.length && isBranded(q, brand)) return "navigational";
-  if (/\bnear me\b|\bnearby\b|\btonight\b|\bopen now\b|\bhours\b|\btoday\b/.test(q)) return "local";
-  if (/\b(buy|price|prices|pricing|cost|book|booking|rent|rental|hire|deal|deals|coupon|software|app|tool|sign up|signup|free trial|order|tickets?)\b/.test(q)) return "transactional";
+  // "hours" is local only as opening hours ("billable hours" is not a right-now visit)
+  if (/\bnear me\b|\bnearby\b|\btonight\b|\bopen now\b|\b(opening|store|business|happy|bar|restaurant) hours\b|\bhours (today|near)\b|\btoday\b/.test(q) && !/\bbillable\b/.test(q)) return "local";
+  if (/\b(buy|price|prices|pricing|cost|book|booking|rent|rental|hire|deal|deals|coupon|software|app|apps|tool|tracker|calculator|template|alternative|alternatives|sign up|signup|free trial|order|tickets?)\b/.test(q)) return "transactional";
   if (/\b(how|what|why|when|recipe|guide|ideas|list|best|vs|map|rules|tips|history|meaning)\b/.test(q)) return "informational";
   return "informational";
 }

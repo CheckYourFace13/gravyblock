@@ -224,12 +224,15 @@ export function buildLaunchPlan(i: { stage: SearchStage; reason: string; cluster
   }
   const architecture = [...bySection.entries()].map(([section, e]) => ({ section, ...e }));
   const internalLinks: string[] = [];
-  for (const c of clusters.filter((x) => x.ourPage).slice(0, 6)) {
-    const hub = c.section === "/" ? "the home page" : c.section;
-    internalLinks.push(`${hub} links to ${pathOfUrl(c.ourPage!.url)} with descriptive anchor text such as "${c.label}"; that page links on to ${i.conversion}.`);
+  // one entry per page: the strongest cluster names it, further clusters for the same page are its supporting searches
+  const byPage = new Map<string, (typeof clusters)[number][]>();
+  for (const c of clusters.filter((x) => x.ourPage)) (byPage.get(pathOfUrl(c.ourPage!.url)) ?? byPage.set(pathOfUrl(c.ourPage!.url), []).get(pathOfUrl(c.ourPage!.url))!).push(c);
+  for (const [page, cs] of [...byPage.entries()].slice(0, 6)) {
+    const hub = cs[0]!.section === "/" ? "the home page" : cs[0]!.section;
+    internalLinks.push(`${hub} links to ${page} with descriptive anchor text such as "${cs[0]!.label}"${cs.length > 1 ? ` (the page also serves ${cs.slice(1).map((x) => `"${x.label}"`).join(", ")})` : ""}; that page links on to ${i.conversion}.`);
   }
   if (clusters.some((c) => !c.ourPage)) internalLinks.push("Every new page is linked from its hub section and from the home page or main navigation where it fits, never left orphaned.");
-  const existing = clusters.filter((c) => c.ourPage);
+  const existing = [...byPage.values()].map((cs) => cs[0]!);
   const missing = clusters.filter((c) => !c.ourPage);
   const plan90 = [
     {
