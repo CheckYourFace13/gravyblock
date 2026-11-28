@@ -8,6 +8,7 @@ import { listHouseAccounts } from "@/lib/house";
 import { gatherSearchIntel, weekEndingFor } from "./gather";
 import { buildPrompt, candidateImprovements, deriveImprovements } from "./prompt";
 import { growthOpportunities } from "./growth";
+import { linkHouseSearchConsole } from "./gsc-link";
 import { collectEmailItems, detectImplemented, loadQueue, markEmailed, supersedeLegacy, measureOutcomes, syncRecommendations, unresolvedImprovements, verifyCompleted, type EmailItem } from "./recommendations";
 import { BUCKET_LABEL, type EmailBucket } from "./recommendation-model";
 import { enqueueGrokbot, grokbotSummary } from "./grokbot";
@@ -45,6 +46,9 @@ export async function generateSearchIntelForSite(businessId: string, now = new D
  * silently), re-check completed work on the live pages, and measure outcomes that have matured. Reports are still generated and emailed once a week.
  */
 export async function runDailySearchIntel(businessId: string, now = new Date()): Promise<{ ok: boolean; sync?: Awaited<ReturnType<typeof syncRecommendations>>; verified?: number; measured?: number; reason?: string }> {
+  // a site without Search Console yet (a new launch) is linked the day its property is verified under the owner's existing Google account
+  const link = await linkHouseSearchConsole(businessId).catch(() => null);
+  if (link?.status === "linked") console.info("[search-intel] search console linked", link.detail);
   const intel = await gatherSearchIntel(businessId, now, { competitors: false });
   if (!intel) return { ok: false, reason: "not_eligible_or_missing" };
   await detectImplemented(businessId, now).catch(() => null);
