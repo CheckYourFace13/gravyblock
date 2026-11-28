@@ -468,7 +468,7 @@ export function growthOpportunities(intel: SiteIntel): Improvement[] {
       : `Capture "${g.label}" searches the site is not found for yet`;
     const strength = g.strength;
     drafts.push({
-      kind: "new_demand", category: "new search demand", issue: `new_demand:${toks.slice(0, 2).sort().join(" ")}`, identityUrls: [],
+      kind: "new_demand", category: "new search demand", issue: `new_demand:${toks.slice(0, 2).sort().join(" ")}`, identityUrls: [], demandMode: mode,
       title,
       urls: ex ? [ex.url] : section && intel.site.website ? [`${intel.site.website.replace(/\/$/, "")}${section}`] : [],
       evidence: [

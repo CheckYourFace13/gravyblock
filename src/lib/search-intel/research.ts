@@ -99,7 +99,9 @@ export function inventoryMatches(urls: string[], query: string, max = 3, min = 0
     }
     const hay = new Set(tokensOf(path.replace(/[/_-]+/g, " ")));
     const hits = toks.filter((t) => hay.has(t)).length;
-    return toks.length === 1 ? (hits ? 1 : 0) : hits >= 2 ? hits / toks.length : 0;
+    // ties go to the page whose own address is mostly about this search (/tools/rental-roi over /resources/rental-property-tax-deductions)
+    const precision = hay.size ? hits / hay.size : 0;
+    return toks.length === 1 ? (hits ? 1 : 0) : hits >= 2 ? hits / toks.length + precision * 0.1 : 0;
   };
   return urls
     .map((u) => ({ u, s: score(u) }))

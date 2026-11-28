@@ -147,3 +147,12 @@ test("the same work under a shifted label is recognised; different work is not",
 test("target searches are read from older records that predate the targetQueries field", () => {
   assert.deepEqual(targetQueriesOf({ title: 'Capture "my business isn\'t showing up on google" searches', evidence: ['People type these: "my business isn\'t showing up on google", "business not showing on google maps".'] }), ["my business isn't showing up on google", "business not showing on google maps"]);
 });
+
+test("visibility work on a page that already answered the search is done only when that page changes, not because it still covers the search", () => {
+  const u = "https://hourlantern.com/docs/billable-hours";
+  const covered = [{ url: u, covered: true, by: "title covers", indexable: true }];
+  const rec = { kind: "new_demand", demandMode: "existing_covers", title: 'Get /docs/billable-hours found for "billable hours tracker"' };
+  assert.equal(implementationEvidence(rec, [snap3(u)], [snap3(u)], covered)?.implemented, false);
+  assert.equal(implementationEvidence(rec, [snap3(u)], [snap3(u, { title: "Billable hours tracker for freelancers" })], covered)?.implemented, true);
+  assert.equal(implementationEvidence({ kind: "new_demand", title: 'Get /docs/billable-hours found for "x"' }, [snap3(u)], [snap3(u)], covered)?.implemented, false);
+});

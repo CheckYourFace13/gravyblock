@@ -274,11 +274,14 @@ export type LiveEvidence = { implemented: boolean; level: "defect_cleared" | "ch
  * Returns null when this kind cannot be judged from the live page (indexing, mobile and conversion are confirmed by their own checks or by the owner).
  * A change being live is NOT a claim that search results improved.
  */
-export function implementationEvidence(r: { kind: string }, baseline: PageSnap[], current: PageSnap[], coverage: Coverage[]): LiveEvidence | null {
+export function implementationEvidence(r: { kind: string; title?: string; demandMode?: string }, baseline: PageSnap[], current: PageSnap[], coverage: Coverage[]): LiveEvidence | null {
   const base = new Map(baseline.map((b) => [normalizeUrl(b.url), b]));
   const live = current.filter((c) => c.status !== null && c.status < 400);
   const checks: Check[] = [];
-  const fam = FAMILY[r.kind] ?? r.kind;
+  // "the page already answers it, but Google shows the site for none of these searches": the page covered the searches when this was reported, so the work
+  // is making it findable (title, opening, internal links) and is done only when that page has changed since then
+  const visibilityWork = r.demandMode === "existing_covers" || (r.kind === "new_demand" && /^Get \S+ found for /.test(r.title ?? ""));
+  const fam = visibilityWork ? "ranking" : (FAMILY[r.kind] ?? r.kind);
   if (fam === "ctr") {
     for (const c of live) {
       const b = base.get(normalizeUrl(c.url));

@@ -118,7 +118,7 @@ export async function siteInventory(businessId: string): Promise<SiteInventory> 
  * Checks one recommendation against the live site: its own pages compared with the snapshots taken when it was first reported and, for searches the site
  * was missing, whether any page on the site (found through its sitemap) now plainly serves them. Null when this kind cannot be judged from the live pages.
  */
-export async function liveImplementation(imp: Pick<Improvement, "kind" | "urls" | "title" | "evidence" | "targetQueries">, baseline: PageSnap[] | null, inv: SiteInventory, now: Date): Promise<LiveEvidence | null> {
+export async function liveImplementation(imp: Pick<Improvement, "kind" | "urls" | "title" | "evidence" | "targetQueries" | "demandMode">, baseline: PageSnap[] | null, inv: SiteInventory, now: Date): Promise<LiveEvidence | null> {
   const current = await captureSnapshots(imp.urls, now);
   const coverage: Coverage[] = [];
   if (imp.kind === "new_demand" || imp.kind === "seasonal") {

@@ -87,6 +87,8 @@ export type Improvement = {
   targetQueries?: string[];
   scope?: "page" | "template" | "site";
   demand?: DemandStrength;
+  /** for missing-demand items: the page already answers it (visibility work), the closest page needs expanding, or nothing serves it yet */
+  demandMode?: "existing_covers" | "expand" | "new";
 };
 
 export type DeepIntel = {
